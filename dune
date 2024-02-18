@@ -1,0 +1,8 @@
+(env
+    (dev
+        (flags (:standard -w -34-37))))
+
+(executable
+    (name prover)
+    (libraries mparser mparser-re)
+)
