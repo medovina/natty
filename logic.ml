@@ -14,31 +14,33 @@ let rec show_type = function
 
 let unknown_type = Base "?"
 
-type term =
+type formula =
   | Const of id * typ
   | Var of id * typ
-  | App of term * term
-  | Lambda of id * typ * term
-  | Eq of term * term
+  | App of formula * formula
+  | Lambda of id * typ * formula
+  | Eq of formula * formula
 
-let rec show_term = function
+let rec show_formula = function
   | Const (id, _typ) -> id
   | Var (id, _typ) -> id
   | App (t, u) -> (
       match t, u with
-        | App (Const ("→", _), t), _ ->
-            sprintf "[%s → %s]" (show_term t) (show_term u)
+        | App (Const (op, _), t), _ when op == "→" || op == "+" ->
+            sprintf "(%s %s %s)" (show_formula t) op (show_formula u)
         | Const (q, _), Lambda (id, typ, u) when q == "∀" || q == "∃" ->
-            sprintf "%s%s:%s.%s" q id (show_type typ) (show_term u)
-        | _, _ -> sprintf "%s(%s)" (show_term t) (show_term u) )
-  | Lambda (id, typ, t) -> sprintf "λ%s:%s.%s" id (show_type typ) (show_term t)
-  | Eq (t, u) -> sprintf "%s = %s" (show_term t) (show_term u)
+            sprintf "%s%s:%s.%s" q id (show_type typ) (show_formula u)
+        | _, _ -> sprintf "%s(%s)" (show_formula t) (show_formula u) )
+  | Lambda (id, typ, t) -> sprintf "λ%s:%s.%s" id (show_type typ) (show_formula t)
+  | Eq (t, u) -> sprintf "%s = %s" (show_formula t) (show_formula u)
 
 let const id = Const (id, unknown_type)
 
 let not f = App (const "¬", f)
 
-let implies f g = App (App (const "→", f), g)
+let binop op f g = App (App (const op, f), g) 
+
+let implies = binop "→"
 
 let binder name id typ f = App (const name, Lambda (id, typ, f))
 let binder' name (id, typ) f = binder name id typ f
@@ -48,14 +50,15 @@ let for_all' = binder' "∀"
 
 let exists = binder "∃"
 
-let for_all_n ids typ f = List.fold_right (fun id f -> for_all id typ f) ids f
+let for_all_n (ids, typ) f =
+  List.fold_right (fun id f -> for_all id typ f) ids f
 
 type statement =
   | TypeDecl of id
   | ConstDecl of id * typ
-  | Axiom of term
+  | Axiom of formula
 
 let show_statement = function
   | TypeDecl id -> sprintf "type %s" id
   | ConstDecl (id, typ) -> sprintf "const %s : %s" id (show_type typ)
-  | Axiom t -> sprintf "axiom: %s" (show_term t)
+  | Axiom t -> sprintf "axiom: %s" (show_formula t)

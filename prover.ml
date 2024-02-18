@@ -11,32 +11,44 @@ let (<<?) p q = attempt (p << q)
 let str s =
   let match_first c =
     Char.lowercase_ascii c = Char.lowercase_ascii (s.[0]) in
-  spaces >>? satisfy match_first >>? string (string_from s 1)
+  spaces >>? satisfy match_first >>? string (string_from s 1) >>$ s
 
-let id = spaces >>? (letter |>> char_to_string <|> string "𝔹" <|> string "ℕ")
+let any_str ss = choice (List.map str ss)
 
-let sym = spaces >>? digit |>> char_to_string
+let id = (spaces >>? letter |>> char_to_string) <|> any_str ["𝔹"; "ℕ"]
+
+let sym = spaces >>? (digit <|> char '+') |>> char_to_string
 
 let id_or_sym = id <|> sym
 
+let infix sym f assoc = Infix (str sym >>$ f, assoc)
+
 let type_operators = [
-  [ Infix ((str "→" >>$ fun t u -> Fun (t, u)), Assoc_right) ]
+  [ infix "→" (fun t u -> Fun (t, u)) Assoc_right ]
 ]
 
 let typ = expression type_operators (id |>> fun id -> Base id)
 
 let id_typ = pair id (str ":" >> typ)
 
-let rec expression s = choice [
+let ids_typ = pair (sep_by1 id (str ",")) (str ":" >> typ)
+
+let operators = [
+  [ infix "+" (binop "+") Assoc_left ]
+]
+
+let rec term s = choice [
   (sym |>> fun c -> Const (c, unknown_type));
-  (pipe2 (id <<? str "(") (expression << str ")")
+  (pipe2 (id <<? str "(") (term << str ")")
     (fun i f -> App (Var (i, unknown_type), f)));
   id |>> fun v -> Var (v, unknown_type)
  ] s
 
+and expr s = expression operators term s
+
 let atomic = choice [
-  pipe2 (expression <<? str "=") expression (fun f g -> Eq (f, g));
-  expression << optional (str "is true")
+  pipe2 (expr <<? str "=") expr (fun f g -> Eq (f, g));
+  expr << optional (str "is true")
 ]
 
 let small_prop = pipe2 (choice [
@@ -48,9 +60,8 @@ let small_prop = pipe2 (choice [
 let if_then_prop =
   pipe2 (str "if" >> small_prop) (str "then" >> small_prop) implies
 
-let rec for_all_prop s = pipe3
-  (str "For all" >> sep_by1 id (str ",")) (str ":" >> typ) (str "," >> proposition)
-  for_all_n s
+let rec for_all_prop s = pipe2
+  (str "For all" >> ids_typ) (str "," >> proposition) for_all_n s
 
 and not_exists_prop s = pipe2
   (str "There is no" >> id_typ) (str "such that" >> proposition)
@@ -71,21 +82,21 @@ and top_prop s = (let_prop <|> suppose <|> proposition) s
 
 let proposition_item = spaces >>? letter >>? string "." >> top_prop << str "."
 
-let propositions = many1 proposition_item
+let propositions = (opt ([], unknown_type) (str "for all" >> ids_typ << str ",")) >>=
+  (fun ids_typ -> many1 proposition_item |>> List.map (for_all_n ids_typ))
 
 let axiom_decl =
   str "a type" >> id |>> (fun id -> TypeDecl id) <|>
-  pipe2 ((str "an element" <|> str "a function") >> id_or_sym) (str ":" >> typ)
+  pipe2 (any_str ["an element"; "a function"; "a binary operation"] >> id_or_sym)
+    (str ":" >> typ)
     (fun c typ -> ConstDecl (c, typ))
 
-let _and = str "and" <|> str "with"
-
-let axiom_group = pipe2
-  (str "Axiom." >> str "There exists" >> sep_by1 axiom_decl _and)
+let axiom_group = str "Axiom." >> any_str ["There exists"; "There is"] >> pipe2
+  (sep_by1 axiom_decl (any_str ["and"; "with"]))
   (str "such that" >> propositions |>> List.map (fun p -> Axiom p))
   (@)
 
-let program = axiom_group
+let program = many axiom_group |>> List.concat
 
 ;;
 
