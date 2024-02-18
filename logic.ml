@@ -32,7 +32,15 @@ let const id = Const (id, unknown_type)
 
 let not f = App (const "¬", f)
 
-let exists id typ f = App (const "∃", Lambda (id, typ, f))
+let implies f g = App (App (const "→", f), g)
+
+let binder name id typ f = App (const name, Lambda (id, typ, f))
+
+let for_all = binder "∀"
+
+let exists = binder "∃"
+
+let for_all_n ids typ f = List.fold_right (fun id f -> for_all id typ f) ids f
 
 type statement =
   | TypeDecl of id

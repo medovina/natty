@@ -20,22 +20,33 @@ let type_operators = [
 
 let typ = expression type_operators (id |>> fun id -> Base id)
 
-let rec formula s = choice [
+let rec expression s = choice [
   (sym |>> fun c -> Const (c, unknown_type));
-  (pipe2 (id <<? str "(") (formula << str ")")
+  (pipe2 (id <<? str "(") (expression << str ")")
     (fun i f -> App (Var (i, unknown_type), f)));
   id |>> fun v -> Var (v, unknown_type)
  ] s
 
-let subprop = choice [
-  pipe2 (formula <<? str "=") formula (fun f g -> Eq (f, g))
-]
+let eq_prop = pipe2 (expression <<? str "=") expression (fun f g -> Eq (f, g))
 
-let proposition = pipe3
-  (str "There is no" >> id) (str ":" >> typ) (str "such that" >> subprop << str ".")
-  (fun id typ p -> not (exists id typ p))
+let implies_prop = pipe2 (str "if" >> eq_prop) (str "then" >> eq_prop) implies
 
-let decl =
+let rec for_all_prop s = pipe3
+  (str "For all" >> sep_by1 id (str ","))
+  (str ":" >> typ) (str "," >> proposition)
+  for_all_n s
+
+and not_exists_prop s = pipe3
+  (str "There is no" >> id) (str ":" >> typ) (str "such that" >> proposition)
+  (fun id typ p -> not (exists id typ p)) s
+
+and proposition s = choice [for_all_prop; not_exists_prop; implies_prop; eq_prop] s
+
+let proposition_item = spaces >>? letter >>? string "." >> proposition << str "."
+
+let propositions = many1 proposition_item
+
+let axiom_decl =
   str "a type" >> id |>> (fun id -> TypeDecl id) <|>
   pipe2 ((str "an element" <|> str "a function") >> id_or_sym) (str ":" >> typ)
     (fun c typ -> ConstDecl (c, typ))
@@ -43,9 +54,9 @@ let decl =
 let _and = str "and" <|> str "with"
 
 let axiom_group = pipe2
-  (str "Axiom." >> str "There exists" >> sep_by decl _and)
-  (str "such that" >> str "a." >> proposition)
-  (fun stmts stmt -> stmts @ [Axiom stmt])
+  (str "Axiom." >> str "There exists" >> sep_by1 axiom_decl _and)
+  (str "such that" >> propositions |>> List.map (fun p -> Axiom p))
+  (@)
 
 let program = axiom_group
 

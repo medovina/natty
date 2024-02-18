@@ -1,3 +1,4 @@
 Axiom. There exists a type ℕ with an element 0 : ℕ and a function s : ℕ → ℕ such that
 
   a. There is no n : ℕ such that s(n) = 0.
+  b. For all n, m : ℕ, if s(n) = s(m) then n = m.
