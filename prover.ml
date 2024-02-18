@@ -1,10 +1,7 @@
 open MParser
 
 open Logic
-
-let char_to_string = String.make 1
-
-let string_from s i = String.sub s i (String.length s - i)
+open Util
 
 let (<<?) p q = attempt (p << q)
 
@@ -39,7 +36,7 @@ let operators = [
 
 let rec term s = choice [
   (sym |>> fun c -> Const (c, unknown_type));
-  (pipe2 (id <<? str "(") (term << str ")")
+  (pipe2 (id <<? str "(") (expr << str ")")
     (fun i f -> App (Var (i, unknown_type), f)));
   id |>> fun v -> Var (v, unknown_type)
  ] s
@@ -83,7 +80,7 @@ and top_prop s = (let_prop <|> suppose <|> proposition) s
 let proposition_item = spaces >>? letter >>? string "." >> top_prop << str "."
 
 let propositions = (opt ([], unknown_type) (str "for all" >> ids_typ << str ",")) >>=
-  (fun ids_typ -> many1 proposition_item |>> List.map (for_all_n ids_typ))
+  (fun ids_typ -> many1 proposition_item |>> List.map (for_all_n' ids_typ))
 
 let axiom_decl =
   str "a type" >> id |>> (fun id -> TypeDecl id) <|>

@@ -7,3 +7,4 @@ Axiom.  There exists a type ℕ with an element 0 : ℕ and a function s : ℕ �
 Axiom.  There is a binary operation + : ℕ → ℕ → ℕ such that for all n, m : ℕ,
 
   a. n + 0 = n.
+  b. n + s(m) = s(n + m).

@@ -1,5 +1,7 @@
 open Printf
 
+open Util
+
 type id = string
 
 type typ =
@@ -34,6 +36,14 @@ let rec show_formula = function
   | Lambda (id, typ, t) -> sprintf "λ%s:%s.%s" id (show_type typ) (show_formula t)
   | Eq (t, u) -> sprintf "%s = %s" (show_formula t) (show_formula u)
 
+let free_vars f =
+  let rec free = function
+    | Const _ -> []
+    | Var (id, _) -> [id]
+    | App (t, u) | Eq (t, u) -> free t @ free u
+    | Lambda (id, _, t) -> subtract (free t) [id] in
+  unique (free f)
+
 let const id = Const (id, unknown_type)
 
 let not f = App (const "¬", f)
@@ -52,6 +62,9 @@ let exists = binder "∃"
 
 let for_all_n (ids, typ) f =
   List.fold_right (fun id f -> for_all id typ f) ids f
+
+let for_all_n' (ids, typ) f =
+  for_all_n (intersect ids (free_vars f), typ) f
 
 type statement =
   | TypeDecl of id
