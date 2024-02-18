@@ -8,3 +8,7 @@ Axiom.  There is a binary operation + : ℕ → ℕ → ℕ such that for all n,
 
   a. n + 0 = n.
   b. n + s(m) = s(n + m).
+
+Theorem.  Let a, b, c : ℕ.
+
+  1. If a + c = b + c, then a = b.

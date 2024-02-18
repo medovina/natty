@@ -55,7 +55,8 @@ let small_prop = pipe2 (choice [
   (fun p all_opt -> Option.fold all_opt ~none:p ~some:(fun id_typ -> for_all' id_typ p))
 
 let if_then_prop =
-  pipe2 (str "if" >> small_prop) (str "then" >> small_prop) implies
+  pipe2 (str "if" >> small_prop << optional (str ",")) (str "then" >> small_prop)
+    implies
 
 let rec for_all_prop s = pipe2
   (str "For all" >> ids_typ) (str "," >> proposition) for_all_n s
@@ -77,10 +78,13 @@ and suppose s = pipe2
 
 and top_prop s = (let_prop <|> suppose <|> proposition) s
 
-let proposition_item = spaces >>? letter >>? string "." >> top_prop << str "."
+let proposition_item = spaces >>?
+  (skip letter <|> skip (many1 digit)) >>? string "." >> top_prop << str "."
 
-let propositions = (opt ([], unknown_type) (str "for all" >> ids_typ << str ",")) >>=
-  (fun ids_typ -> many1 proposition_item |>> List.map (for_all_n' ids_typ))
+let prop_items ids_typ = many1 proposition_item |>> List.map (for_all_n' ids_typ)
+
+let propositions =
+  (opt ([], unknown_type) (str "for all" >> ids_typ << str ",")) >>= prop_items
 
 let axiom_decl =
   str "a type" >> id |>> (fun id -> TypeDecl id) <|>
@@ -93,7 +97,10 @@ let axiom_group = str "Axiom." >> any_str ["There exists"; "There is"] >> pipe2
   (str "such that" >> propositions |>> List.map (fun p -> Axiom p))
   (@)
 
-let program = many axiom_group |>> List.concat
+let theorem_group = (str "Theorem." >> str "Let" >> ids_typ << str ".") >>=
+  prop_items |>> List.map (fun p -> Theorem p)
+
+let program = many (axiom_group <|> theorem_group) |>> List.concat
 
 ;;
 

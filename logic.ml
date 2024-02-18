@@ -70,8 +70,10 @@ type statement =
   | TypeDecl of id
   | ConstDecl of id * typ
   | Axiom of formula
+  | Theorem of formula
 
 let show_statement = function
   | TypeDecl id -> sprintf "type %s" id
   | ConstDecl (id, typ) -> sprintf "const %s : %s" id (show_type typ)
   | Axiom t -> sprintf "axiom: %s" (show_formula t)
+  | Theorem t -> sprintf "theorem: %s" (show_formula t)
