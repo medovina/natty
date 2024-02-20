@@ -102,10 +102,4 @@ let theorem_group = (str "Theorem." >> str "Let" >> ids_typ << str ".") >>=
 
 let program = many (axiom_group <|> theorem_group) |>> List.concat
 
-;;
-
-match MParser.parse_channel program In_channel.stdin () with
-  | Success prog ->
-      List.iter (fun s -> print_endline (show_statement s)) prog
-  | Failed (msg, _) ->
-      failwith msg
+let parse () = MParser.parse_channel program In_channel.stdin ()

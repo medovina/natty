@@ -3,6 +3,6 @@
         (flags (:standard -w -34-37))))
 
 (executable
-    (name prover)
+    (name main)
     (libraries mparser mparser-re)
 )

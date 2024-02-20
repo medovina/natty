@@ -28,9 +28,9 @@ let rec show_formula = function
   | Var (id, _typ) -> id
   | App (t, u) -> (
       match t, u with
-        | App (Const (op, _), t), _ when op == "→" || op == "+" ->
+        | App (Const (op, _), t), _ when op = "→" || op = "+" ->
             sprintf "(%s %s %s)" (show_formula t) op (show_formula u)
-        | Const (q, _), Lambda (id, typ, u) when q == "∀" || q == "∃" ->
+        | Const (q, _), Lambda (id, typ, u) when q = "∀" || q = "∃" ->
             sprintf "%s%s:%s.%s" q id (show_type typ) (show_formula u)
         | _, _ -> sprintf "%s(%s)" (show_formula t) (show_formula u) )
   | Lambda (id, typ, t) -> sprintf "λ%s:%s.%s" id (show_type typ) (show_formula t)
