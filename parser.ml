@@ -1,4 +1,5 @@
 open MParser
+open Printf
 
 open Logic
 open Util
@@ -24,7 +25,7 @@ let type_operators = [
   [ infix "→" (fun t u -> Fun (t, u)) Assoc_right ]
 ]
 
-let typ = expression type_operators (id |>> fun id -> Base id)
+let typ = expression type_operators (id |>> fun id -> mk_base_type id)
 
 let id_typ = pair id (str ":" >> typ)
 
@@ -78,10 +79,12 @@ and suppose s = pipe2
 
 and top_prop s = (let_prop <|> suppose <|> proposition) s
 
-let proposition_item = spaces >>?
-  (skip letter <|> skip (many1 digit)) >>? string "." >> top_prop << str "."
+let label = (letter |>> char_to_string) <|> many1_chars digit
 
-let prop_items ids_typ = many1 proposition_item |>> List.map (for_all_n' ids_typ)
+let proposition_item = spaces >>? pair (label <<? string ".") (top_prop << str ".")
+
+let prop_items ids_typ = many1 proposition_item |>>
+  List.map (fun (label, f) -> (label, for_all_n' ids_typ f))
 
 let propositions =
   (opt ([], unknown_type) (str "for all" >> ids_typ << str ",")) >>= prop_items
@@ -92,14 +95,19 @@ let axiom_decl =
     (str ":" >> typ)
     (fun c typ -> ConstDecl (c, typ))
 
+let mk_stmts count mk = incr count;
+  List.map (fun (label, f) -> mk (sprintf "%d_%s" !count label) f)
+
 let axiom_group = str "Axiom." >> any_str ["There exists"; "There is"] >> pipe2
   (sep_by1 axiom_decl (any_str ["and"; "with"]))
-  (str "such that" >> propositions |>> List.map (fun p -> Axiom p))
+  (str "such that" >> pair propositions get_user_state |>>
+    fun (props, (ax, _)) -> mk_stmts ax mk_axiom props)
   (@)
 
 let theorem_group = (str "Theorem." >> str "Let" >> ids_typ << str ".") >>=
-  prop_items |>> List.map (fun p -> Theorem p)
+  fun ids_typ -> pair (prop_items ids_typ) get_user_state |>>
+    fun (props, (_, th)) -> mk_stmts th mk_theorem props
 
 let program = many (axiom_group <|> theorem_group) |>> List.concat
 
-let parse () = MParser.parse_channel program In_channel.stdin ()
+let parse () = MParser.parse_channel program In_channel.stdin (ref 0, ref 0)

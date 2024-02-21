@@ -14,6 +14,10 @@ let rec show_type = function
   | Fun (t, u) -> sprintf "(%s → %s)" (show_type t) (show_type u)
   | Base id -> id
 
+let mk_base_type = function
+  | "𝔹" -> Bool
+  | id -> Base id
+
 let unknown_type = Base "?"
 
 type formula =
@@ -23,18 +27,29 @@ type formula =
   | Lambda of id * typ * formula
   | Eq of formula * formula
 
-let rec show_formula = function
-  | Const (id, _typ) -> id
-  | Var (id, _typ) -> id
-  | App (t, u) -> (
-      match t, u with
-        | App (Const (op, _), t), _ when op = "→" || op = "+" ->
-            sprintf "(%s %s %s)" (show_formula t) op (show_formula u)
-        | Const (q, _), Lambda (id, typ, u) when q = "∀" || q = "∃" ->
-            sprintf "%s%s:%s.%s" q id (show_type typ) (show_formula u)
-        | _, _ -> sprintf "%s(%s)" (show_formula t) (show_formula u) )
-  | Lambda (id, typ, t) -> sprintf "λ%s:%s.%s" id (show_type typ) (show_formula t)
-  | Eq (t, u) -> sprintf "%s = %s" (show_formula t) (show_formula u)
+type formula_kind =
+  | Binary of id * formula * formula
+  | Quant of id * id * typ * formula
+  | Other of formula
+
+let kind = function
+  | App (App (Const (op, _), t), u) ->
+      Binary (op, t, u)
+  | App (Const (q, _), Lambda (id, typ, u)) when q = "∀" || q = "∃" ->
+      Quant(q, id, typ, u)
+  | f -> Other f
+
+let rec show_formula f = match kind f with
+  | Binary (op, t, u) when op = "→" || op = "+" ->
+      sprintf "(%s %s %s)" (show_formula t) op (show_formula u)
+  | Quant (q, id, typ, u) ->
+      sprintf "%s%s:%s.%s" q id (show_type typ) (show_formula u)
+  | _ -> match f with
+    | Const (id, _typ) -> id
+    | Var (id, _typ) -> id
+    | App (t, u) -> sprintf "%s(%s)" (show_formula t) (show_formula u)
+    | Lambda (id, typ, t) -> sprintf "λ%s:%s.%s" id (show_type typ) (show_formula t)
+    | Eq (t, u) -> sprintf "%s = %s" (show_formula t) (show_formula u)
 
 let free_vars f =
   let rec free = function
@@ -69,11 +84,14 @@ let for_all_n' (ids, typ) f =
 type statement =
   | TypeDecl of id
   | ConstDecl of id * typ
-  | Axiom of formula
-  | Theorem of formula
+  | Axiom of id * formula
+  | Theorem of id * formula
+
+let mk_axiom id f = Axiom (id, f)
+let mk_theorem id f = Theorem (id, f)
 
 let show_statement = function
   | TypeDecl id -> sprintf "type %s" id
   | ConstDecl (id, typ) -> sprintf "const %s : %s" id (show_type typ)
-  | Axiom t -> sprintf "axiom: %s" (show_formula t)
-  | Theorem t -> sprintf "theorem: %s" (show_formula t)
+  | Axiom (name, t) -> sprintf "axiom %s: %s" name (show_formula t)
+  | Theorem (name, t) -> sprintf "theorem %s: %s" name (show_formula t)
