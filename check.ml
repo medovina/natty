@@ -3,8 +3,6 @@ open Printf
 
 open Logic
 
-let logical_consts = ["¬"; "→"; "∀"; "∃"]
-
 let is_const id = function
   | ConstDecl (i, typ) when i = id -> Some typ
   | _ -> None

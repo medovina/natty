@@ -32,22 +32,21 @@ let id_typ = pair id (str ":" >> typ)
 let ids_typ = pair (sep_by1 id (str ",")) (str ":" >> typ)
 
 let operators = [
-  [ infix "+" (binop "+") Assoc_left ]
+  [ infix "+" (binop "+") Assoc_left ];
+  [ infix "=" mk_eq Assoc_right ]
 ]
 
 let rec term s = choice [
   (sym |>> fun c -> Const (c, unknown_type));
   (pipe2 (id <<? str "(") (expr << str ")")
     (fun i f -> App (Var (i, unknown_type), f)));
-  id |>> fun v -> Var (v, unknown_type)
+  id |>> (fun v -> Var (v, unknown_type));
+  str "(" >> expr << str ")"
  ] s
 
-and expr s = expression operators term s
+and expr s = (expression operators term |>> multi_eq) s
 
-let atomic = choice [
-  pipe2 (expr <<? str "=") expr (fun f g -> Eq (f, g));
-  expr << optional (str "is true")
-]
+let atomic = expr << optional (str "is true")
 
 let small_prop = pipe2 (choice [
   pipe2 (atomic <<? str "implies") atomic implies;

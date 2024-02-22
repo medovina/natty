@@ -1,5 +1,6 @@
 open Printf
 
+open List
 open Util
 
 type id = string
@@ -27,6 +28,29 @@ type formula =
   | Lambda of id * typ * formula
   | Eq of formula * formula
 
+let binary_ops = ["∧"; "→"]
+
+let logical_consts = binary_ops @ ["¬"; "∀"; "∃"]
+
+let const id = Const (id, unknown_type)
+
+let not f = App (const "¬", f)
+
+let binop op f g = App (App (const op, f), g) 
+
+let mk_and = binop "∧"
+let implies = binop "→"
+
+let binder name id typ f = App (const name, Lambda (id, typ, f))
+let binder' name (id, typ) f = binder name id typ f
+
+let for_all = binder "∀"
+let for_all' = binder' "∀"
+
+let exists = binder "∃"
+
+let mk_eq f g = Eq (f, g)
+
 type formula_kind =
   | Binary of id * formula * formula
   | Quant of id * id * typ * formula
@@ -40,7 +64,7 @@ let kind = function
   | f -> Other f
 
 let rec show_formula f = match kind f with
-  | Binary (op, t, u) when op = "→" || op = "+" ->
+  | Binary (op, t, u) when mem op binary_ops || op = "+" ->
       sprintf "(%s %s %s)" (show_formula t) op (show_formula u)
   | Quant (q, id, typ, u) ->
       sprintf "%s%s:%s.%s" q id (show_type typ) (show_formula u)
@@ -59,27 +83,26 @@ let free_vars f =
     | Lambda (id, _, t) -> subtract (free t) [id] in
   unique (free f)
 
-let const id = Const (id, unknown_type)
-
-let not f = App (const "¬", f)
-
-let binop op f g = App (App (const op, f), g) 
-
-let implies = binop "→"
-
-let binder name id typ f = App (const name, Lambda (id, typ, f))
-let binder' name (id, typ) f = binder name id typ f
-
-let for_all = binder "∀"
-let for_all' = binder' "∀"
-
-let exists = binder "∃"
-
 let for_all_n (ids, typ) f =
   List.fold_right (fun id f -> for_all id typ f) ids f
 
 let for_all_n' (ids, typ) f =
   for_all_n (intersect ids (free_vars f), typ) f
+
+let multi_eq f =
+  let rec collect = function
+    | Eq (f, g) -> f :: collect g
+    | f -> [f] in
+  let rec join = function
+    | [x; y] -> mk_eq x y
+    | x :: y :: xs -> mk_and (mk_eq x y) (join (y :: xs))
+    | _ -> assert false in
+  match collect f with
+    | [] -> assert false
+    | [f] -> f
+    | fs -> join fs
+
+(* statements *)
 
 type statement =
   | TypeDecl of id

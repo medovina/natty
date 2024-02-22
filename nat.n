@@ -12,3 +12,5 @@ Axiom.  There is a binary operation + : ℕ → ℕ → ℕ such that for all n,
 Theorem.  Let a, b, c : ℕ.
 
   1. If a + c = b + c, then a = b.
+  2. (a + b) + c = a + (b + c).
+  3. 0 + a = a = a + 0.

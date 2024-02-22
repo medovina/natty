@@ -26,9 +26,13 @@ let rec gather_quant q f = match kind f with
       let (qs, f) = gather_quant q u in ((id, typ) :: qs, f)
   | _ -> ([], f)
 
+let binary = [("∧", "&"); ("→", "=>")]
+
 let rec thf outer right f = match kind f with
-  | Binary (op, t, u) when op = "→" ->
-      sprintf "(%s => %s)" (thf op false t) (thf op true u)
+  | Binary (op, t, u) when mem op binary_ops ->
+      let s = sprintf "%s %s %s"
+        (thf op false t) (assoc op binary) (thf op true u) in
+      parens (op != "∧" || op != outer) s
   | Quant (q, id, typ, u) ->
       let (ids_typs, f) = gather_quant q u in
       quant (if q = "∀" then "!" else "?") ((id, typ) :: ids_typs) f
