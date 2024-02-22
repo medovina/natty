@@ -33,7 +33,7 @@ let ids_typ = pair (sep_by1 id (str ",")) (str ":" >> typ)
 
 let operators = [
   [ infix "+" (binop "+") Assoc_left ];
-  [ infix "=" mk_eq Assoc_right ]
+  [ infix "=" mk_eq Assoc_right ; infix "≠" mk_neq Assoc_right ]
 ]
 
 let rec term s = choice [

@@ -14,3 +14,5 @@ Theorem.  Let a, b, c : ℕ.
   1. If a + c = b + c, then a = b.
   2. (a + b) + c = a + (b + c).
   3. 0 + a = a = a + 0.
+  4. a + b = b + a.
+  5. a + s(b) ≠ 0.

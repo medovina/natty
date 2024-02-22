@@ -41,6 +41,8 @@ let rec thf outer right f = match kind f with
     | Var (id, _) -> capitalize id
     | App (t, u) -> (
         match t, u with
+          | Const ("¬", _), Eq(t, u) ->
+              sprintf "(%s != %s)" (thf "=" false t) (thf "=" true u)
           | Const ("¬", _), u -> sprintf "~ %s" (thf "¬" false u)
           | _, _ ->
               let s = sprintf "%s @ %s" (thf "@" false t) (thf "@" true u) in

@@ -51,6 +51,8 @@ let exists = binder "∃"
 
 let mk_eq f g = Eq (f, g)
 
+let mk_neq f g = not (mk_eq f g)
+
 type formula_kind =
   | Binary of id * formula * formula
   | Quant of id * id * typ * formula
@@ -71,7 +73,10 @@ let rec show_formula f = match kind f with
   | _ -> match f with
     | Const (id, _typ) -> id
     | Var (id, _typ) -> id
-    | App (t, u) -> sprintf "%s(%s)" (show_formula t) (show_formula u)
+    | App (Const ("¬", _), Eq (t, u)) ->
+        sprintf "%s ≠ %s" (show_formula t) (show_formula u)
+    | App (t, u) ->
+        sprintf "%s(%s)" (show_formula t) (show_formula u)
     | Lambda (id, typ, t) -> sprintf "λ%s:%s.%s" id (show_type typ) (show_formula t)
     | Eq (t, u) -> sprintf "%s = %s" (show_formula t) (show_formula u)
 
