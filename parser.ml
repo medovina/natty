@@ -110,4 +110,4 @@ let theorem_group = (str "Theorem." >> str "Let" >> ids_typ << str ".") >>=
 
 let program = many (axiom_group <|> theorem_group) |>> List.concat
 
-let parse () = MParser.parse_channel program In_channel.stdin (ref 0, ref 0)
+let parse in_channel = MParser.parse_channel program in_channel (ref 0, ref 0)

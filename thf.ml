@@ -6,11 +6,11 @@ open Util
 
 let parens b s = if b then sprintf "(%s)" s else s
 
+let quote s = if is_lower (s.[0]) then s else sprintf "'%s'" s
+
 let base_type = function
   | "ℕ" -> "nat"
   | id -> id
-
-let quote s = if is_lower (s.[0]) then s else sprintf "'%s'" s
 
 let thf_type =
   let rec f left = function
@@ -44,8 +44,7 @@ let rec thf outer right f = match kind f with
               ) 
     | Lambda (id, typ, f) -> quant "^" [(id, typ)] f
     | Eq (t, u) ->
-        let s = sprintf "%s = %s" (thf "=" false t) (thf "=" true u) in
-        parens (mem outer ["!"; "?"; "^"; "~"]) s
+        sprintf "(%s = %s)" (thf "=" false t) (thf "=" true u)
 
 and quant q ids_typs f =
   let pair (id, typ) = sprintf "%s: %s" (capitalize id) (thf_type typ) in
@@ -62,8 +61,8 @@ let thf_statement is_conjecture f =
     | ConstDecl (id, typ) ->
         sprintf "%s, type, %s: %s" (quote (id ^ "_decl")) (quote id) (thf_type typ)
     | Axiom (name, f) ->
-        sprintf "%s, axiom, %s" name (thf_formula f)
+        sprintf "%s, axiom, %s" (quote name) (thf_formula f)
     | Theorem (name, f) ->
         let t = if is_conjecture then "conjecture" else "theorem" in
-        sprintf "%s, %s, %s" name t (thf_formula f) in
-  sprintf "thf(%s)" (conv f)
+        sprintf "%s, %s, %s" (quote name) t (thf_formula f) in
+  sprintf "thf(%s)." (conv f)
