@@ -28,9 +28,9 @@ type formula =
   | Lambda of id * typ * formula
   | Eq of formula * formula
 
-let binary_ops = ["∧"; "→"]
+let logical_binary = ["∧"; "→"]
 
-let logical_consts = binary_ops @ ["¬"; "∀"; "∃"]
+let logical_consts = logical_binary @ ["¬"; "∀"; "∃"]
 
 let const id = Const (id, unknown_type)
 
@@ -65,8 +65,10 @@ let kind = function
       Quant(q, id, typ, u)
   | f -> Other f
 
+let binary_ops = ["+"; "·"] @ logical_binary
+
 let rec show_formula f = match kind f with
-  | Binary (op, t, u) when mem op binary_ops || op = "+" ->
+  | Binary (op, t, u) when mem op binary_ops ->
       sprintf "(%s %s %s)" (show_formula t) op (show_formula u)
   | Quant (q, id, typ, u) ->
       sprintf "%s%s:%s.%s" q id (show_type typ) (show_formula u)
@@ -113,6 +115,7 @@ type statement =
   | TypeDecl of id
   | ConstDecl of id * typ
   | Axiom of id * formula
+  | Definition of id * typ * formula
   | Theorem of id * formula
 
 let mk_axiom id f = Axiom (id, f)
@@ -122,4 +125,6 @@ let show_statement = function
   | TypeDecl id -> sprintf "type %s" id
   | ConstDecl (id, typ) -> sprintf "const %s : %s" id (show_type typ)
   | Axiom (name, t) -> sprintf "axiom %s: %s" name (show_formula t)
+  | Definition (id, typ, f) ->
+      sprintf "definition %s : %s ; %s" id (show_type typ) (show_formula f)
   | Theorem (name, t) -> sprintf "theorem %s: %s" name (show_formula t)

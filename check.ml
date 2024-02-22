@@ -5,6 +5,7 @@ open Logic
 
 let is_const id = function
   | ConstDecl (i, typ) when i = id -> Some typ
+  | Definition (i, typ, _f) when i = id -> Some typ
   | _ -> None
 
 let check_const env id =
@@ -26,10 +27,14 @@ let rec check_formula env vars =
     | Eq (t, u) -> Eq (check t, check u) in
   check
 
-let check_stmt env = function
-  | Axiom (name, f) -> Axiom (name, check_formula env [] f)
-  | Theorem (name, f) -> Theorem (name, check_formula env [] f)
-  | stmt -> stmt
+let check_stmt env stmt =
+  let check = check_formula env [] in
+  match stmt with
+    | Axiom (name, f) -> Axiom (name, check f)
+    | Definition (id, typ, f) ->
+        Definition (id, typ, check_formula (stmt :: env) [] f)
+    | Theorem (name, f) -> Theorem (name, check f)
+    | stmt -> stmt
 
 let check_program stmts =
   let check env stmt = (stmt :: env, check_stmt env stmt) in

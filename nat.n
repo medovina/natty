@@ -4,10 +4,17 @@ Axiom.  There exists a type ℕ with an element 0 : ℕ and a function s : ℕ �
   b. For all n, m : ℕ, if s(n) = s(m) then n = m.
   c. Let P : ℕ → 𝔹.  Suppose that P(0) is true, and that for all k : ℕ, P(k) implies P(s(k)).  Then P(n) is true for all n : ℕ.
 
+Definition.  Let 1 : ℕ = s(0).
+
 Axiom.  There is a binary operation + : ℕ → ℕ → ℕ such that for all n, m : ℕ,
 
   a. n + 0 = n.
   b. n + s(m) = s(n + m).
+
+Axiom.  There is a binary operation · : ℕ → ℕ → ℕ such that for all n, m : ℕ,
+
+  a. n · 0 = 0.
+  b. n · s(m) = (n · m) + n.
 
 Theorem.  Let a, b, c : ℕ.
 
@@ -16,3 +23,4 @@ Theorem.  Let a, b, c : ℕ.
   3. 0 + a = a = a + 0.
   4. a + b = b + a.
   5. a + s(b) ≠ 0.
+  6. a + s(b) ≠ a.

@@ -15,7 +15,7 @@ let any_str ss = choice (List.map str ss)
 
 let id = (spaces >>? letter |>> char_to_string) <|> any_str ["𝔹"; "ℕ"]
 
-let sym = spaces >>? (digit <|> char '+') |>> char_to_string
+let sym = (spaces >>? (digit <|> char '+') |>> char_to_string) <|> str "·"
 
 let id_or_sym = id <|> sym
 
@@ -32,6 +32,7 @@ let id_typ = pair id (str ":" >> typ)
 let ids_typ = pair (sep_by1 id (str ",")) (str ":" >> typ)
 
 let operators = [
+  [ infix "·" (binop "·") Assoc_left ];
   [ infix "+" (binop "+") Assoc_left ];
   [ infix "=" mk_eq Assoc_right ; infix "≠" mk_neq Assoc_right ]
 ]
@@ -99,14 +100,19 @@ let mk_stmts count mk = incr count;
 
 let axiom_group = str "Axiom." >> any_str ["There exists"; "There is"] >> pipe2
   (sep_by1 axiom_decl (any_str ["and"; "with"]))
-  (str "such that" >> pair propositions get_user_state |>>
-    fun (props, (ax, _)) -> mk_stmts ax mk_axiom props)
+  (str "such that" >> pipe2 propositions get_user_state
+    (fun props (ax, _) -> mk_stmts ax mk_axiom props))
   (@)
 
-let theorem_group = (str "Theorem." >> str "Let" >> ids_typ << str ".") >>=
-  fun ids_typ -> pair (prop_items ids_typ) get_user_state |>>
-    fun (props, (_, th)) -> mk_stmts th mk_theorem props
+let definition = pipe3
+  (str "Definition." >> str "Let" >> sym) (str ":" >> typ)
+  (str "=" >> term << str ".")
+  (fun sym typ f -> [Definition (sym, typ, Eq (Const (sym, typ), f))])
 
-let program = many (axiom_group <|> theorem_group) |>> List.concat
+let theorem_group = (str "Theorem." >> str "Let" >> ids_typ << str ".") >>=
+  fun ids_typ -> pipe2 (prop_items ids_typ) get_user_state
+    (fun props (_, th) -> mk_stmts th mk_theorem props)
+
+let program = many (axiom_group <|> definition <|> theorem_group) |>> List.concat
 
 let parse in_channel = MParser.parse_channel program in_channel (ref 0, ref 0)
