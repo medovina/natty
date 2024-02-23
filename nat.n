@@ -24,3 +24,5 @@ Theorem.  Let a, b, c : ℕ.
   4. a + b = b + a.
   5. a + s(b) ≠ 0.
   6. a + s(b) ≠ a.
+  7. a · 1 = a = 1 · a.
+

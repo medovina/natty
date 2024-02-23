@@ -30,7 +30,11 @@ type formula =
 
 let logical_binary = ["∧"; "→"]
 
-let logical_consts = logical_binary @ ["¬"; "∀"; "∃"]
+let quant_type = Fun (Fun (Base "_", Bool), Bool)
+
+let logical_consts =
+  map (fun sym -> (sym, Fun (Bool, Fun (Bool, Bool)))) logical_binary @
+  [("¬", Fun (Bool, Bool)); ("∀", quant_type); ("∃", quant_type)]
 
 let const id = Const (id, unknown_type)
 
