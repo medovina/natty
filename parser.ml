@@ -6,16 +6,22 @@ open Util
 
 let (<<?) p q = attempt (p << q)
 
+let comment = char '#' << skip_many_until any_char newline
+
+let empty = skip_many (space <|> comment)
+
 let str s =
   let match_first c =
     Char.lowercase_ascii c = Char.lowercase_ascii (s.[0]) in
-  spaces >>? satisfy match_first >>? string (string_from s 1) >>$ s
+  empty >>? satisfy match_first >>? string (string_from s 1) >>$ s
 
 let any_str ss = choice (List.map str ss)
 
-let id = (spaces >>? letter |>> char_to_string) <|> any_str ["𝔹"; "ℕ"]
+let var = letter |>> char_to_string
 
-let sym = (spaces >>? (digit <|> char '+') |>> char_to_string) <|> str "·"
+let id = (empty >>? var) <|> any_str ["𝔹"; "ℕ"]
+
+let sym = (empty >>? (digit <|> char '+') |>> char_to_string) <|> str "·"
 
 let id_or_sym = id <|> sym
 
@@ -41,11 +47,15 @@ let rec term s = choice [
   (sym |>> fun c -> Const (c, unknown_type));
   (pipe2 (id <<? str "(") (expr << str ")")
     (fun i f -> App (Var (i, unknown_type), f)));
-  id |>> (fun v -> Var (v, unknown_type));
+  empty >>? var |>> (fun v -> Var (v, unknown_type));
   str "(" >> expr << str ")"
  ] s
 
-and expr s = (expression operators term |>> multi_eq) s
+and next_term s = (not_followed_by space "" >>? term) s
+
+and terms s = (term >>= fun t -> many_fold_left (binop "·") t next_term) s
+
+and expr s = (expression operators terms |>> multi_eq) s
 
 let atomic = expr << optional (str "is true")
 
@@ -81,7 +91,7 @@ and top_prop s = (let_prop <|> suppose <|> proposition) s
 
 let label = (letter |>> char_to_string) <|> many1_chars digit
 
-let proposition_item = spaces >>? pair (label <<? string ".") (top_prop << str ".")
+let proposition_item = empty >>? pair (label <<? string ".") (top_prop << str ".")
 
 let prop_items ids_typ = many1 proposition_item |>>
   List.map (fun (label, f) -> (label, for_all_n' ids_typ f))

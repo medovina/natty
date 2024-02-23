@@ -31,11 +31,12 @@ let rec check_formula env vars =
           | Some typ -> (Var (id, typ), typ)
           | None -> check_const env id)
     | App (f, g) ->
-        let (f, typ_f), (g, typ_g) = check f, check g in
-        let r = match typ_f with
-          | Fun (tg, u) when subtype typ_g tg -> u
-          | _ -> failwith ("type mismatch: " ^ show_formula formula) in
-        (App (f, g), r)
+        let (f, typ_f), (g, typ_g) = check f, check g in (
+        match typ_f with
+          | Fun (tg, u) ->
+              if subtype typ_g tg then (App (f, g), u)
+              else failwith ("type mismatch: " ^ show_formula formula)
+          | _ -> check (binop "·" f g))
     | Lambda (id, typ, f) ->
         let (f, typ_f) = check_formula env ((id, typ) :: vars) f in
         (Lambda (id, typ, f), Fun (typ, typ_f))
