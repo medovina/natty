@@ -50,14 +50,42 @@ let top_check env f =
   let (f, typ) = check_formula env [] f in
   if typ = Bool then f else failwith ("bool expected: " ^ show_formula f)
 
+let expand_proof env f = function
+  | By (name, var) -> (
+      match find_map (axiom_named name) env with
+        | None -> failwith ("can't find axiom: " ^ name)
+        | Some ax ->
+            let (_, ax) = for_alls ax in
+            let (ps, concl) = premises ax in
+            let (vars, f) = for_alls f in (
+              match assoc_opt var vars with
+                | None -> failwith ("no variable: " ^ var)
+                | Some typ -> (
+                    let goal = for_all var typ f in
+                    match unify concl goal with
+                      | None ->
+                          printf "no match:\n  concl = %s\n  goal = %s\n"
+                            (show_formula concl) (show_formula goal);
+                          assert false
+                      | Some subst ->
+                          let others = remove_assoc var vars in
+                          let g f = fold_right for_all' others (reduce (subst_n subst f)) in
+                          Steps (map g ps)
+      )))
+  | _ -> assert false
+
 let check_stmt env stmt =
   match stmt with
-    | Axiom (name, f) -> Axiom (name, top_check env f)
+    | Axiom (id, f, name) -> Axiom (id, top_check env f, name)
     | Definition (id, typ, f) ->
         Definition (id, typ, top_check (stmt :: env) f)
-    | Theorem (name, f) -> Theorem (name, top_check env f)
+    | Theorem (name, f, proof) ->
+        let f = top_check env f in
+        Theorem (name, f, Option.map (expand_proof env f) proof)
     | stmt -> stmt
 
 let check_program stmts =
-  let check env stmt = (stmt :: env, check_stmt env stmt) in
+  let check env stmt =
+    let stmt = check_stmt env stmt in
+    (stmt :: env, stmt) in
   snd (fold_left_map check [] stmts)

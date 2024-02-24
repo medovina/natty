@@ -28,6 +28,14 @@ type formula =
   | Lambda of id * typ * formula
   | Eq of formula * formula
 
+let rec type_of = function
+  | Const (_, typ) | Var (_, typ) -> typ
+  | App (f, _) -> (match type_of f with
+      | Fun (_, u) -> u
+      | _ -> assert false)
+  | Lambda (_, typ, f) -> Fun (typ, type_of f)
+  | Eq (_, _) -> Bool
+
 let logical_binary = ["∧"; "→"]
 
 let quant_type = Fun (Fun (Base "_", Bool), Bool)
@@ -38,7 +46,7 @@ let logical_consts =
 
 let const id = Const (id, unknown_type)
 
-let not f = App (const "¬", f)
+let mk_not f = App (const "¬", f)
 
 let binop op f g = App (App (const op, f), g) 
 
@@ -55,7 +63,7 @@ let exists = binder "∃"
 
 let mk_eq f g = Eq (f, g)
 
-let mk_neq f g = not (mk_eq f g)
+let mk_neq f g = mk_not (mk_eq f g)
 
 type formula_kind =
   | Binary of id * formula * formula
@@ -95,10 +103,57 @@ let free_vars f =
   unique (free f)
 
 let for_all_n (ids, typ) f =
-  List.fold_right (fun id f -> for_all id typ f) ids f
+  fold_right (fun id f -> for_all id typ f) ids f
 
 let for_all_n' (ids, typ) f =
   for_all_n (intersect ids (free_vars f), typ) f
+
+let rec for_alls f = match kind f with
+  | Quant ("∀", id, typ, f) ->
+      let (vs, g) = for_alls f in ((id, typ) :: vs, g)
+  | _ -> ([], f)
+
+let rec rename id avoid =
+  if mem id avoid then rename (id ^ "'") avoid else id
+  
+(* t[u/x] *)
+let rec subst1 t u x = match t with
+  | Const _ -> t
+  | Var (y, _) -> if x = y then u else t
+  | App (f, g) -> App (subst1 f u x, subst1 g u x)
+  | Lambda (y, typ, t') -> if x = y then t else
+      if not (mem y (free_vars u)) then Lambda (y, typ, subst1 t' u x)
+      else let y' = rename y (x :: free_vars t') in
+        Lambda (y', typ, subst1 (subst1 t' (Var (y', typ)) y) u x)
+  | Eq (f, g) -> Eq (subst1 f u x, subst1 g u x)
+
+let subst_n subst f =
+  fold_left (fun f (x, t) -> subst1 f t x) f subst
+  
+let rec reduce = function
+  | App (f, g) -> (match reduce f, reduce g with
+      | Lambda (x, _typ, f), g -> reduce (subst1 f g x)
+      | f, g -> App (f, g))
+  | Lambda (id, typ, f) -> Lambda (id, typ, reduce f)
+  | Eq (f, g) -> Eq (reduce f, reduce g)
+  | f -> f
+
+let simp = function
+  | Lambda (id, typ, App (f, Var (id', typ'))) when id = id' && typ = typ' ->
+      f  (* η-reduction *)
+  | f -> f
+
+let unify =
+  let rec unify' subst t u = match simp t, simp u with
+    | Const (id, typ), Const (id', typ') ->
+        if id = id' && typ = typ' then Some [] else None
+    | Var (id, typ), f | f, Var (id, typ) ->
+        if typ = type_of f then Some ((id, f) :: subst) else None
+    | App (f, g), App (f', g') | Eq (f, g), Eq (f', g') ->
+        let* subst = unify' subst f f' in
+        unify' subst g g'
+    | _, _ -> None
+  in unify' []
 
 let multi_eq f =
   let rec collect = function
@@ -113,22 +168,32 @@ let multi_eq f =
     | [f] -> f
     | fs -> join fs
 
+let rec premises f = match kind f with
+  | Binary ("→", f, g) ->
+      let (fs, concl) = premises g in (f :: fs, concl)
+  | _ -> ([], f)
+
 (* statements *)
+
+type proof =
+  | By of id * id  (* theorem/axiom name, induction variable *)
+  | Steps of formula list
 
 type statement =
   | TypeDecl of id
   | ConstDecl of id * typ
-  | Axiom of id * formula
+  | Axiom of id * formula * id option (* id, formula, name *)
   | Definition of id * typ * formula
-  | Theorem of id * formula
+  | Theorem of id * formula * proof option
 
-let mk_axiom id f = Axiom (id, f)
-let mk_theorem id f = Theorem (id, f)
+let axiom_named name = function
+  | Axiom (_id, f, Some n) when eq_icase n name -> Some f
+  | _ -> None
 
 let show_statement = function
   | TypeDecl id -> sprintf "type %s" id
   | ConstDecl (id, typ) -> sprintf "const %s : %s" id (show_type typ)
-  | Axiom (name, t) -> sprintf "axiom %s: %s" name (show_formula t)
+  | Axiom (id, f, _) -> sprintf "axiom %s: %s" id (show_formula f)
   | Definition (id, typ, f) ->
       sprintf "definition %s : %s ; %s" id (show_type typ) (show_formula f)
-  | Theorem (name, t) -> sprintf "theorem %s: %s" name (show_formula t)
+  | Theorem (name, t, _) -> sprintf "theorem %s: %s" name (show_formula t)

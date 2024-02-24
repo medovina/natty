@@ -70,9 +70,9 @@ let thf_statement is_conjecture f =
         let t = base_type id in
         [sprintf "%s_type, type, %s: $tType" t t]
     | ConstDecl (id, typ) -> [const id typ]
-    | Axiom (name, f) -> [axiom name f]
+    | Axiom (name, f, _) -> [axiom name f]
     | Definition (id, typ, f) -> [const id typ; axiom (id ^ "_def") f]
-    | Theorem (name, f) ->
+    | Theorem (name, f, _) ->
         let t = if is_conjecture then "conjecture" else "theorem" in
         [sprintf "%s, %s, %s" (quote name) t (thf_formula f)] in
   String.concat "\n" (map (sprintf "thf(%s).") (conv f))

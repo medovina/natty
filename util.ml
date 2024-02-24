@@ -1,5 +1,9 @@
 open List
 
+(* options *)
+
+let (let*) = Option.bind
+
 (* chars *)
 
 let is_lower c = 'a' <= c && c <= 'z'
@@ -12,6 +16,8 @@ let string_from s i = String.sub s i (String.length s - i)
 
 let capitalize s =
   char_to_string (Char.uppercase_ascii s.[0]) ^ string_from s 1
+
+let eq_icase s t = (String.lowercase_ascii s = String.lowercase_ascii t) 
 
 (* lists *)
 
