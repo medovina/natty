@@ -5,14 +5,48 @@ open Logic
 open Thf
 open Util
 
-let write_thf base name proven stmt =
-  let out = open_out (Filename.concat base (name ^ ".thf")) in
+let thf_file dir name = Filename.concat dir (name ^ ".thf")
+
+let write_thf dir name proven stmt =
+  let out = open_out (thf_file dir name) in
   let write is_last stmt = (
     fprintf out "%% %s\n" (show_statement stmt);
     fprintf out "%s\n\n" (thf_statement is_last stmt)) in
   iter (write false) proven;
-  write true stmt
+  write true stmt;
+  Out_channel.close out
 
+let write_files dir prog = 
+  prog |> mapi (fun i stmt -> (
+    match stmt with
+      | Theorem (name, _, proof) ->
+          let proven = take i prog in
+          let steps = (match proof with
+            | Some (Steps fs) ->
+                fs |> mapi (fun j f ->
+                  let step_name = sprintf "%s_%d" name j in
+                  let t = Theorem (step_name, f, None) in
+                  write_thf dir step_name proven t;
+                  t)
+            | Some _ -> assert false
+            | None -> []) in
+          write_thf dir name (proven @ steps) stmt;
+          steps @ [stmt]
+      | _ -> [] )) |> concat
+
+let rec prove dir = function
+  | Theorem (id, _, _) as thm :: thms ->
+      print_endline (show_statement thm);
+      let cmd = sprintf "/home/adam/bin/eprover-ho -s --auto %s" (thf_file dir id) in
+      let ic = Unix.open_process_in cmd in
+      let lines = In_channel.input_lines ic in
+      In_channel.close ic;
+      if mem "# SZS status Theorem" lines then
+        prove dir thms
+      else
+        print_endline "failed to prove!"
+  | [] -> print_endline "All theorems were proved."
+  | _ -> assert false
 ;;
 
 if Array.length Sys.argv != 2 then (
@@ -23,22 +57,8 @@ let source = Sys.argv.(1) in
 match Parser.parse (open_in source) with
   | Success prog ->
       let prog = Check.check_program prog in
-      let base = Filename.remove_extension source in
-      clean_dir base;
-      prog |> iteri (fun i stmt -> (
-        match stmt with
-          | Theorem (name, _, proof) ->
-              let proven = take i prog in
-              let steps = (match proof with
-                | Some (Steps fs) ->
-                    fs |> mapi (fun j f ->
-                      let step_name = sprintf "%s_%d" name j in
-                      let t = Theorem (step_name, f, None) in
-                      write_thf base step_name proven t;
-                      t)
-                | Some _ -> assert false
-                | None -> []) in
-              write_thf base name (proven @ steps) stmt
-          | _ -> () ))
+      let dir = Filename.remove_extension source in
+      clean_dir dir;
+      prove dir (write_files dir prog)
   | Failed (msg, _) ->
       failwith msg
