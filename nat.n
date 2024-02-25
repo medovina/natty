@@ -34,7 +34,8 @@ Theorem.  Let a, b, c : ℕ.
   12. s(a) · b = ab + b.
   13. ab = ba.
   14. (a + b)c = ac + bc.
-  15. If c  ≠ 0 and ac = bc then a = b.
+  15. If ab = 0 then a = 0 or b = 0.
+  16. If c ≠ 0 and ac = bc then a = b.
 
 Proof.
 

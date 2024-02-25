@@ -36,7 +36,7 @@ let rec type_of = function
   | Lambda (_, typ, f) -> Fun (typ, type_of f)
   | Eq (_, _) -> Bool
 
-let logical_binary = ["∧"; "→"]
+let logical_binary = ["∧"; "∨"; "→"]
 
 let quant_type = Fun (Fun (Base "_", Bool), Bool)
 
@@ -51,6 +51,7 @@ let mk_not f = App (const "¬", f)
 let binop op f g = App (App (const op, f), g) 
 
 let mk_and = binop "∧"
+let mk_or = binop "∨"
 let implies1 = binop "→"
 
 let binder name id typ f = App (const name, Lambda (id, typ, f))

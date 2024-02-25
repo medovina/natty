@@ -20,7 +20,7 @@ atomic = expr ['is true']
 
 (* small propositions *)
 
-prop_op 'and' | 'implies' | ', and'
+prop_op 'and' | 'or' | 'implies' | ', and' | ', or'
 
 small_prop = atomic | small_prop prop_op small_prop | small_prop 'for all' id_type
 

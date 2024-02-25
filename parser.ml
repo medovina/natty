@@ -77,9 +77,11 @@ let atomic = expr << optional (str "is true")
 
 let prop_operators = [
   [ infix "and" mk_and Assoc_left ];
+  [ infix "or" mk_or Assoc_left ];
   [ infix "implies" implies Assoc_right ];
   [ Postfix (str "for all" >> id_type |>> for_all') ];
   [ Infix (str "," >>? str "and" >>$ mk_and, Assoc_left) ];
+  [ Infix (str "," >>? str "or" >>$ mk_or, Assoc_left) ];
 ]
 
 let small_prop = expression prop_operators atomic
