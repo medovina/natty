@@ -47,13 +47,7 @@ let id_type = pair id (str ":" >> typ)
 
 let ids_type = pair (sep_by1 id (str ",")) (str ":" >> typ)
 
-(* formulas *)
-
-let operators = [
-  [ infix "·" (binop "·") Assoc_left ];
-  [ infix "+" (binop "+") Assoc_left ];
-  [ infix "=" mk_eq Assoc_right ; infix "≠" mk_neq Assoc_right ]
-]
+(* terms *)
 
 let rec term s = choice [
   (sym |>> fun c -> Const (c, unknown_type));
@@ -67,9 +61,19 @@ and next_term s = (not_followed_by space "" >>? term) s
 
 and terms s = (term >>= fun t -> many_fold_left (binop "·") t next_term) s
 
+(* expressions *)
+
+and operators = [
+  [ infix "·" (binop "·") Assoc_left ];
+  [ infix "+" (binop "+") Assoc_left ];
+  [ infix "=" mk_eq Assoc_right ; infix "≠" mk_neq Assoc_right ]
+]
+
 and expr s = (expression operators terms |>> multi_eq) s
 
 let atomic = expr << optional (str "is true")
+
+(* small propositions *)
 
 let prop_operators = [
   [ infix "and" mk_and Assoc_left ];
@@ -80,6 +84,8 @@ let prop_operators = [
 
 let small_prop = expression prop_operators atomic
 
+(* propositions *)
+
 let if_then_prop =
   pipe2 (str "if" >> small_prop << optional (str ",")) (str "then" >> small_prop)
     implies
@@ -87,31 +93,44 @@ let if_then_prop =
 let rec for_all_prop s = pipe2
   (str "For all" >> ids_type) (str "," >> proposition) for_all_n s
 
-and not_exists_prop s = pipe2
-  (str "There is no" >> id_type) (str "such that" >> proposition)
-  (fun (id, typ) p -> mk_not (exists id typ p)) s
+and exists_prop s = pipe3
+  (str "There is" >> ((str "some" >>$ true) <|> (str "no" >>$ false)))
+  id_type (str "such that" >> proposition)
+  (fun some (id, typ) p ->
+    (if some then Fun.id else mk_not) (exists id typ p)) s
 
 and proposition s = choice [
-  for_all_prop; not_exists_prop; if_then_prop; small_prop
+  for_all_prop; exists_prop; if_then_prop; small_prop
 ] s
+
+(* top propositions *)
 
 let rec let_prop s = pipe2 (str "Let" >> id_type << str ".") top_prop for_all' s
 
-and top_prop s = (let_prop <|> proposition) s
+and suppose s = pipe2
+  (str "Suppose that" >> sep_by1 proposition (str ", and that") << str ".")
+  (str "Then" >> proposition)
+  (fold_right implies) s
+
+and top_prop s = (let_prop <|> suppose <|> proposition) s
 
 (* proposition lists *)
 
 let label = empty >>?
   ((letter |>> char_to_string) <|> many1_chars digit) <<? string "."
 
-let proposition_item ids_type = triple
-  label (top_prop |>> for_all_n' ids_type << str ".")
-    (option (str "(" >> word << str ")"))
+let proposition_item = triple
+  label (top_prop << str ".") (option (str "(" >> word << str ")"))
 
-let prop_items ids_type = many1 (proposition_item ids_type)
+let prop_items = many1 proposition_item
+
+let top_prop_or_items ids_typ =
+  (prop_items <|> (top_prop << str "." |>> fun f -> [("", f, None)])) |>>
+    map (fun (label, f, name) -> (label, for_all_n' ids_typ f, name))
 
 let propositions =
-  (opt ([], unknown_type) (str "for all" >> ids_type << str ",")) >>= prop_items
+  (opt ([], unknown_type) (str "for all" >> ids_type << str ",")) >>=
+    top_prop_or_items
 
 (* axioms *)
 
@@ -121,7 +140,9 @@ let axiom_decl =
     (str ":" >> typ)
     (fun c typ -> ConstDecl (c, typ))
 
-let count_label c label = sprintf "%d_%s" !c label
+let count_label c label =
+  if label = "" then sprintf "%d" !c
+  else sprintf "%d_%s" !c label
 
 let axiom_group = str "Axiom." >> any_str ["There exists"; "There is"] >> pipe2
   (sep_by1 axiom_decl (any_str ["and"; "with"]))
@@ -146,12 +167,16 @@ let proof_item = pair label
 
 let proofs = str "Proof." >> many1 proof_item
 
-let theorem_group = (str "Theorem." >> str "Let" >> ids_type << str ".") >>=
-  fun ids_typ -> pipe3 (prop_items ids_typ) (opt [] proofs) get_user_state
+let theorem_group = (str "Lemma." <|> str "Theorem.") >>
+  str "Let" >> ids_type << str "." >>=
+  fun ids_typ -> pipe3 (top_prop_or_items ids_typ) (opt [] proofs) get_user_state
     (fun props proofs (_, th) -> incr th;
       props |> map (fun (label, f, _name) ->
         Theorem (count_label th label, f, assoc_opt label proofs)))
 
-let program = many (axiom_group <|> definition <|> theorem_group) |>> concat
+(* program *)
+
+let program =
+  many (axiom_group <|> definition <|> theorem_group) << empty << eof |>> concat
 
 let parse in_channel = MParser.parse_channel program in_channel (ref 0, ref 0)

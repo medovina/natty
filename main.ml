@@ -61,4 +61,4 @@ match Parser.parse (open_in source) with
       clean_dir dir;
       prove dir (write_files dir prog)
   | Failed (msg, _) ->
-      failwith msg
+      print_endline msg

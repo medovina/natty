@@ -6,6 +6,8 @@ Axiom.  There exists a type ℕ with an element 0 : ℕ and a function s : ℕ �
 
 Definition.  Let 1 : ℕ = s(0).
 
+Lemma.  Let a : ℕ.  Suppose that a ≠ 0.  Then there is some b : ℕ such that a = s(b).
+
 Axiom.  There is a binary operation + : ℕ → ℕ → ℕ such that for all n, m : ℕ,
 
   a. n + 0 = n.
