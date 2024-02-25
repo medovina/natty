@@ -37,8 +37,8 @@ let write_files dir prog =
 let rec prove dir = function
   | Theorem (id, _, _) as thm :: thms ->
       print_endline (show_statement thm);
-      let cmd = sprintf "/home/adam/bin/eprover-ho -s --auto %s" (thf_file dir id) in
-      let ic = Unix.open_process_in cmd in
+      let ic = Unix.open_process_args_in "eprover-ho"
+        [| "-s"; "--auto"; thf_file dir id |] in
       let lines = In_channel.input_lines ic in
       In_channel.close ic;
       if mem "# SZS status Theorem" lines then
