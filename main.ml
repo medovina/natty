@@ -22,7 +22,7 @@ let write_files dir prog =
       | Theorem (name, _, proof) ->
           let proven = take i prog in
           let steps = (match proof with
-            | Some (Steps fs) ->
+            | Some (Formulas fs) ->
                 fs |> mapi (fun j f ->
                   let step_name = sprintf "%s_%d" name j in
                   let t = Theorem (step_name, f, None) in

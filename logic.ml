@@ -179,9 +179,25 @@ let rec premises f = match kind f with
 
 (* statements *)
 
-type proof =
+type proof_step =
+  | Assert of formula
+  | Let of id list * typ
+  | LetVal of id * typ * formula
+  | Assume of formula
+  | IsSome of id * typ * formula
   | By of id * id  (* theorem/axiom name, induction variable *)
-  | Steps of formula list
+
+let show_proof_step = function
+  | Assert f -> sprintf "assert %s" (show_formula f)
+  | Let (ids, typ) -> sprintf "let %s : %s" (String.concat ", " ids) (show_type typ)
+  | LetVal (id, typ, f) -> sprintf "let %s : %s = %s"
+      id (show_type typ) (show_formula f)
+  | Assume f -> sprintf "assume %s" (show_formula f)
+  | _ -> assert false
+
+type proof =
+  | Steps of proof_step list
+  | Formulas of formula list
 
 type statement =
   | TypeDecl of id

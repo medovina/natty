@@ -21,6 +21,8 @@ let eq_icase s t = (String.lowercase_ascii s = String.lowercase_ascii t)
 
 (* lists *)
 
+let singleton x = [x]
+
 let rec take n xs =
   if n = 0 then [] else
     match xs with

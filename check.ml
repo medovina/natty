@@ -48,28 +48,33 @@ let top_check env f =
   let (f, typ) = check_formula env [] f in
   if typ = Bool then f else failwith ("bool expected: " ^ show_formula f)
 
+let proof_by env f name var =
+  match find_map (axiom_named name) env with
+    | None -> failwith ("can't find axiom: " ^ name)
+    | Some ax ->
+        let (_, ax) = for_alls ax in
+        let (ps, concl) = premises ax in
+        let (vars, f) = for_alls f in (
+          match assoc_opt var vars with
+            | None -> failwith ("no variable: " ^ var)
+            | Some typ -> (
+                let goal = for_all var typ f in
+                match unify concl goal with
+                  | None ->
+                      printf "no match:\n  concl = %s\n  goal = %s\n"
+                        (show_formula concl) (show_formula goal);
+                      assert false
+                  | Some subst ->
+                      let others = remove_assoc var vars in
+                      let g f = fold_right for_all' others (reduce (subst_n subst f)) in
+                      Formulas (map g ps)
+  ))
+
 let expand_proof env f = function
-  | By (name, var) -> (
-      match find_map (axiom_named name) env with
-        | None -> failwith ("can't find axiom: " ^ name)
-        | Some ax ->
-            let (_, ax) = for_alls ax in
-            let (ps, concl) = premises ax in
-            let (vars, f) = for_alls f in (
-              match assoc_opt var vars with
-                | None -> failwith ("no variable: " ^ var)
-                | Some typ -> (
-                    let goal = for_all var typ f in
-                    match unify concl goal with
-                      | None ->
-                          printf "no match:\n  concl = %s\n  goal = %s\n"
-                            (show_formula concl) (show_formula goal);
-                          assert false
-                      | Some subst ->
-                          let others = remove_assoc var vars in
-                          let g f = fold_right for_all' others (reduce (subst_n subst f)) in
-                          Steps (map g ps)
-      )))
+  | Steps [ By (name, var) ] -> proof_by env f name var
+  | Steps steps ->
+    print_endline (String.concat "\n" (map show_proof_step steps));
+    assert false
   | _ -> assert false
 
 let check_stmt env stmt =

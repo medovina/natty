@@ -10,7 +10,11 @@ let (<<?) p q = attempt (p << q)
 
 let triple p q r = pair p (pair q r) |>> fun (x, (y, z)) -> (x, y, z)
 
+let single s = count 1 s
+
 let opt_fold p q f = p >>= fun x -> opt x (q |>> f x)
+
+let number = many1_chars digit
 
 let comment = char '#' << skip_many_until any_char newline
 
@@ -119,7 +123,7 @@ and top_prop s = (let_prop <|> suppose <|> proposition) s
 (* proposition lists *)
 
 let label = empty >>?
-  ((letter |>> char_to_string) <|> many1_chars digit) <<? string "."
+  ((letter |>> char_to_string) <|> number) <<? string "."
 
 let proposition_item = triple
   label (top_prop << str ".") (option (str "(" >> word << str ")"))
@@ -161,13 +165,54 @@ let definition = pipe3
   (str "=" >> term << str ".")
   (fun sym typ f -> [Definition (sym, typ, Eq (Const (sym, typ), f))])
 
-(* theorems *)
+(* proofs *)
 
-let proof_item = pair label
-  (pipe2 (str "By" >> word) (str "on" >> var << str ".")
-    (fun w v -> By (w, v)))
+let reason = str "by part" >> str "(" >> number << str ")" <<
+  optional (str "of this theorem")
 
+let proof_prop = proposition << optional reason
+
+let so = any_str ["hence"; "so"; "then"; "therefore"]
+
+let have = any_str ["it follows that"; "we have"; "we must have"]
+
+let assert_step = choice [
+  (so <|> have) >> single proof_prop;
+  pipe2 (str "Since" >> proof_prop) (str "," >> have >> proof_prop)
+    (fun f g -> [f; g])
+  ]
+
+let assert_steps = pipe2 assert_step (many (str "," >> so >> proof_prop))
+  (fun p ps -> map (fun f -> Assert f) (p @ ps))
+
+let _let = (optional (str "Now")) >> str "let"
+
+let let_step = pipe2 
+  (_let >> ids_type |>> fun (ids, typ) -> [Let (ids, typ)])
+  (opt [] (str "with" >> small_prop |>> fun f -> [Assume f]))
+  (@)
+
+let let_val_step = pipe2 (_let >>? id_type <<? str "=") term
+  (fun (id, typ) f -> LetVal (id, typ, f))
+
+let assume_step = str "Suppose that" >> proposition |>> fun f -> Assume f
+
+let let_or_assume = single let_val_step <|> let_step <|> single assume_step
+
+let let_or_assumes = (sep_by1 let_or_assume (str "," >> str "and")) |>> concat
+
+let by_step = pipe2 (str "By" >> word) (str "on" >> var)
+  (fun w v -> By (w, v))
+
+let proof_sentence =
+  (let_or_assumes <|> assert_steps <|> single by_step) << str "."
+
+let proof_item = pipe2 label (many1 proof_sentence |>> concat)
+  (fun label steps -> (label, Steps steps))
+  
 let proofs = str "Proof." >> many1 proof_item
+
+(* theorems *)
 
 let theorem_group = (str "Lemma." <|> str "Theorem.") >>
   str "Let" >> ids_type << str "." >>=
