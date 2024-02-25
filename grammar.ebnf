@@ -1,0 +1,59 @@
+id_type = id ':' typ
+
+ids_type = id {',' id}+ typ
+
+term = sym | id '(' expr ')' | var | '(' expr ')'
+
+terms = term+
+
+op = '·' | '+' | '=' | '≠'
+
+expr = terms | expr op expr
+
+atomic = expr ['is true']
+
+prop_op 'and' | 'implies'
+
+expr_prop = atomic | expr_prop prop_op expr_prop
+
+small_prop = expr_prop ['for all' id_type]
+
+if_then_prop = 'if' small_prop 'then' small_prop
+
+for_all_prop = 'For all' ids_type ',' proposition
+
+not_exists_prop = 'There is no' id_type 'such that' proposition
+
+proposition = for_all_prop | not_exists_prop | if_then_prop | small_prop
+
+let_prop = 'Let' id_type '.' top_prop
+
+suppose = 'Suppose that' proposition {', and that' proposition} '.'
+    'Then' proposition
+
+top_prop = let_prop | suppose | proposition
+
+label = (letter | {digit}) '.'
+
+proposition_item = label top_prop '.' ['(' word ')']
+
+prop_items = proposition_item+
+
+propositions = 'for all' ids_type ',' prop_items
+
+axiom_decl = 'a type' id |
+    (('an element' | 'a function' | 'a binary operation') id_or_sym ':' typ)
+
+axiom_group = 'Axiom.'
+    ('There exists' | 'There is') axiom_decl {('and' | 'with') axiom_decl}
+    'such that' propositions
+
+definition = 'Definition. Let' sym ':' typ '=' term '.'
+
+proof_item = label 'By' word 'on' var
+
+proofs = 'Proof.' proof_item+
+
+theorem_group = 'Theorem. Let' ids_type '.' prop_items [proofs]
+
+program = {axiom_group | definition | theorem_group}

@@ -31,6 +31,8 @@ Theorem.  Let a, b, c : ℕ.
   11. (ab)c = a(bc). 
   12. s(a) · b = ab + b.
   13. ab = ba.
+  14. (a + b)c = ac + bc.
+  15. If c ≠ 0 and ac = bc then a = b.
 
 Proof.
 

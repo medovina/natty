@@ -10,6 +10,8 @@ let (<<?) p q = attempt (p << q)
 
 let triple p q r = pair p (pair q r) |>> fun (x, (y, z)) -> (x, y, z)
 
+let opt_fold p q f = p >>= fun x -> opt x (q |>> f x)
+
 let comment = char '#' << skip_many_until any_char newline
 
 let empty = skip_many (space <|> comment)
@@ -41,9 +43,9 @@ let type_operators = [
 
 let typ = expression type_operators (id |>> fun id -> mk_base_type id)
 
-let id_typ = pair id (str ":" >> typ)
+let id_type = pair id (str ":" >> typ)
 
-let ids_typ = pair (sep_by1 id (str ",")) (str ":" >> typ)
+let ids_type = pair (sep_by1 id (str ",")) (str ":" >> typ)
 
 (* formulas *)
 
@@ -69,28 +71,32 @@ and expr s = (expression operators terms |>> multi_eq) s
 
 let atomic = expr << optional (str "is true")
 
-let small_prop = pipe2 (choice [
-  pipe2 (atomic <<? str "implies") atomic implies;
-  atomic
-  ]) (option (str "for all" >> id_typ))
-  (fun p all_opt -> Option.fold all_opt ~none:p ~some:(fun id_typ -> for_all' id_typ p))
+let prop_operators = [
+  [ infix "implies" implies Assoc_right ];
+  [ infix "and" mk_and Assoc_left ]
+]
+
+let expr_prop = expression prop_operators atomic
+
+let small_prop = opt_fold expr_prop (str "for all" >> id_type)
+  (fun p id_typ -> for_all' id_typ p)
 
 let if_then_prop =
   pipe2 (str "if" >> small_prop << optional (str ",")) (str "then" >> small_prop)
     implies
 
 let rec for_all_prop s = pipe2
-  (str "For all" >> ids_typ) (str "," >> proposition) for_all_n s
+  (str "For all" >> ids_type) (str "," >> proposition) for_all_n s
 
 and not_exists_prop s = pipe2
-  (str "There is no" >> id_typ) (str "such that" >> proposition)
+  (str "There is no" >> id_type) (str "such that" >> proposition)
   (fun (id, typ) p -> mk_not (exists id typ p)) s
 
 and proposition s = choice [
   for_all_prop; not_exists_prop; if_then_prop; small_prop
 ] s
 
-let rec let_prop s = pipe2 (str "Let" >> id_typ << str ".") top_prop for_all' s
+let rec let_prop s = pipe2 (str "Let" >> id_type << str ".") top_prop for_all' s
 
 and suppose s = pipe2
   (str "Suppose that" >> sep_by1 proposition (str ", and that") << str ".")
@@ -111,7 +117,7 @@ let proposition_item ids_type = triple
 let prop_items ids_type = many1 (proposition_item ids_type)
 
 let propositions =
-  (opt ([], unknown_type) (str "for all" >> ids_typ << str ",")) >>= prop_items
+  (opt ([], unknown_type) (str "for all" >> ids_type << str ",")) >>= prop_items
 
 (* axioms *)
 
@@ -141,12 +147,13 @@ let definition = pipe3
 (* theorems *)
 
 let proof_item = pair label
-  (pipe2 (str "By" >> word) (str "on" >> var) (fun w v -> By (w, v)))
+  (pipe2 (str "By" >> word) (str "on" >> var << str ".")
+    (fun w v -> By (w, v)))
 
-let proofs = opt [] (str "Proof." >> many1 proof_item)
+let proofs = str "Proof." >> many1 proof_item
 
-let theorem_group = (str "Theorem." >> str "Let" >> ids_typ << str ".") >>=
-  fun ids_typ -> pipe3 (prop_items ids_typ) proofs get_user_state
+let theorem_group = (str "Theorem." >> str "Let" >> ids_type << str ".") >>=
+  fun ids_typ -> pipe3 (prop_items ids_typ) (opt [] proofs) get_user_state
     (fun props proofs (_, th) -> incr th;
       props |> map (fun (label, f, _name) ->
         Theorem (count_label th label, f, assoc_opt label proofs)))

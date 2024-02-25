@@ -51,7 +51,7 @@ let mk_not f = App (const "¬", f)
 let binop op f g = App (App (const op, f), g) 
 
 let mk_and = binop "∧"
-let implies = binop "→"
+let implies1 = binop "→"
 
 let binder name id typ f = App (const name, Lambda (id, typ, f))
 let binder' name (id, typ) f = binder name id typ f
@@ -78,6 +78,10 @@ let kind = function
   | f -> Other f
 
 let binary_ops = ["+"; "·"] @ logical_binary
+
+let implies f g = match kind f with
+  | Binary ("∧", s, t) -> implies1 s (implies1 t g)
+  | _ -> implies1 f g
 
 let rec show_formula f = match kind f with
   | Binary (op, t, u) when mem op binary_ops ->
