@@ -38,23 +38,22 @@ let rec type_of = function
 
 let logical_binary = ["∧"; "∨"; "→"]
 
+let unary_logical = Fun (Bool, Bool)
+let binary_logical = Fun (Bool, Fun (Bool, Bool))
 let quant_type = Fun (Fun (Base "_", Bool), Bool)
 
-let logical_consts =
-  map (fun sym -> (sym, Fun (Bool, Fun (Bool, Bool)))) logical_binary @
-  [("¬", Fun (Bool, Bool)); ("∀", quant_type); ("∃", quant_type)]
+let mk_not f = App (Const ("¬", unary_logical), f)
 
-let const id = Const (id, unknown_type)
+let binop op typ f g = App (App (Const (op, typ), f), g) 
+let binop_unknown op = binop op unknown_type
 
-let mk_not f = App (const "¬", f)
+let logical_op op = binop op binary_logical
 
-let binop op f g = App (App (const op, f), g) 
+let mk_and = logical_op "∧"
+let mk_or = logical_op "∨"
+let implies1 = logical_op "→"
 
-let mk_and = binop "∧"
-let mk_or = binop "∨"
-let implies1 = binop "→"
-
-let binder name id typ f = App (const name, Lambda (id, typ, f))
+let binder name id typ f = App (Const (name, quant_type), Lambda (id, typ, f))
 let binder' name (id, typ) f = binder name id typ f
 
 let for_all = binder "∀"

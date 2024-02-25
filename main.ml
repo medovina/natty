@@ -59,6 +59,7 @@ match Parser.parse (open_in source) with
       let prog = Check.check_program prog in
       let dir = Filename.remove_extension source in
       clean_dir dir;
-      prove dir (write_files dir prog)
+      let names = write_files dir prog in
+      prove dir names
   | Failed (msg, _) ->
       print_endline msg

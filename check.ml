@@ -22,10 +22,8 @@ let rec subtype t u = match t, u with
 
 let rec check_formula env vars =
   let rec check formula = match formula with
-    | Const (id, _) as c -> (
-        match assoc_opt id logical_consts with
-          | Some typ -> (c, typ)
-          | None -> check_const env id)
+    | Const (id, typ) ->
+        if typ = unknown_type then check_const env id else (formula, typ)
     | Var (id, _) -> (
         match assoc_opt id vars with
           | Some typ -> (Var (id, typ), typ)
@@ -36,7 +34,7 @@ let rec check_formula env vars =
           | Fun (tg, u) ->
               if subtype typ_g tg then (App (f, g), u)
               else failwith ("type mismatch: " ^ show_formula formula)
-          | _ -> check (binop "·" f g))
+          | _ -> check (binop "·" unknown_type f g))
     | Lambda (id, typ, f) ->
         let (f, typ_f) = check_formula env ((id, typ) :: vars) f in
         (Lambda (id, typ, f), Fun (typ, typ_f))

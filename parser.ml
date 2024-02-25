@@ -59,13 +59,13 @@ let rec term s = choice [
 
 and next_term s = (not_followed_by space "" >>? term) s
 
-and terms s = (term >>= fun t -> many_fold_left (binop "·") t next_term) s
+and terms s = (term >>= fun t -> many_fold_left (binop_unknown "·") t next_term) s
 
 (* expressions *)
 
 and operators = [
-  [ infix "·" (binop "·") Assoc_left ];
-  [ infix "+" (binop "+") Assoc_left ];
+  [ infix "·" (binop_unknown "·") Assoc_left ];
+  [ infix "+" (binop_unknown "+") Assoc_left ];
   [ infix "=" mk_eq Assoc_right ; infix "≠" mk_neq Assoc_right ]
 ]
 
