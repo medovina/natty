@@ -12,11 +12,9 @@ expr = terms | expr op expr
 
 atomic = expr ['is true']
 
-prop_op 'and' | 'implies'
+prop_op 'and' | 'implies' | ', and'
 
-expr_prop = atomic | expr_prop prop_op expr_prop
-
-small_prop = expr_prop ['for all' id_type]
+small_prop = atomic | small_prop prop_op small_prop | small_prop 'for all' id_type
 
 if_then_prop = 'if' small_prop 'then' small_prop
 
@@ -28,10 +26,7 @@ proposition = for_all_prop | not_exists_prop | if_then_prop | small_prop
 
 let_prop = 'Let' id_type '.' top_prop
 
-suppose = 'Suppose that' proposition {', and that' proposition} '.'
-    'Then' proposition
-
-top_prop = let_prop | suppose | proposition
+top_prop = let_prop | proposition
 
 label = (letter | {digit}) '.'
 

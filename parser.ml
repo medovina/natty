@@ -72,14 +72,13 @@ and expr s = (expression operators terms |>> multi_eq) s
 let atomic = expr << optional (str "is true")
 
 let prop_operators = [
+  [ infix "and" mk_and Assoc_left ];
   [ infix "implies" implies Assoc_right ];
-  [ infix "and" mk_and Assoc_left ]
+  [ Postfix (str "for all" >> id_type |>> for_all') ];
+  [ Infix (str "," >>? str "and" >>$ mk_and, Assoc_left) ];
 ]
 
-let expr_prop = expression prop_operators atomic
-
-let small_prop = opt_fold expr_prop (str "for all" >> id_type)
-  (fun p id_typ -> for_all' id_typ p)
+let small_prop = expression prop_operators atomic
 
 let if_then_prop =
   pipe2 (str "if" >> small_prop << optional (str ",")) (str "then" >> small_prop)
@@ -98,12 +97,7 @@ and proposition s = choice [
 
 let rec let_prop s = pipe2 (str "Let" >> id_type << str ".") top_prop for_all' s
 
-and suppose s = pipe2
-  (str "Suppose that" >> sep_by1 proposition (str ", and that") << str ".")
-  (str "Then" >> proposition)
-  (fold_right implies) s
-
-and top_prop s = (let_prop <|> suppose <|> proposition) s
+and top_prop s = (let_prop <|> proposition) s
 
 (* proposition lists *)
 

@@ -2,7 +2,7 @@ Axiom.  There exists a type ℕ with an element 0 : ℕ and a function s : ℕ �
 
   a. There is no n : ℕ such that s(n) = 0.
   b. For all n, m : ℕ, if s(n) = s(m) then n = m.
-  c. Let P : ℕ → 𝔹.  Suppose that P(0) is true, and that for all k : ℕ, P(k) implies P(s(k)).  Then P(n) is true for all n : ℕ.  (Induction)
+  c. Let P : ℕ → 𝔹.  If P(0) is true, and P(k) implies P(s(k)) for all k : ℕ, then P(n) is true for all n : ℕ.  (Induction)
 
 Definition.  Let 1 : ℕ = s(0).
 
@@ -32,7 +32,7 @@ Theorem.  Let a, b, c : ℕ.
   12. s(a) · b = ab + b.
   13. ab = ba.
   14. (a + b)c = ac + bc.
-  15. If c ≠ 0 and ac = bc then a = b.
+  15. If c  ≠ 0 and ac = bc then a = b.
 
 Proof.
 
