@@ -34,6 +34,12 @@ let rec take n xs =
       | x :: xs -> x :: take (n - 1) xs
       | [] -> failwith "take"
 
+let fold_lefti (f: 'a -> int -> 'b -> 'a) (acc: 'a) (xs: 'b list): 'a =
+  let rec fn i acc xs = match xs with
+    | [] -> acc
+    | (x :: xs) -> fn (i + 1) (f acc i x) xs
+  in fn 0 acc xs
+      
 let intersect xs ys = filter (fun x -> mem x ys) xs
 
 let overlap xs ys = intersect xs ys != []

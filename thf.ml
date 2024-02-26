@@ -39,6 +39,7 @@ let rec thf outer right f =
         let (ids_typs, f) = gather_quant q u in
         quant (if q = "∀" then "!" else "?") ((id, typ) :: ids_typs) f
     | _ -> match f with
+      | Const ("⊥", _) -> "$false"
       | Const (id, _) -> quote id
       | Var (id, _) -> capitalize id
       | App (t, u) -> (

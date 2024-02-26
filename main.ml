@@ -23,11 +23,11 @@ let write_files dir prog =
           let proven = take i prog in
           let steps = (match proof with
             | Some (Formulas fs) ->
-                fs |> mapi (fun j f ->
+                fs |> fold_lefti (fun steps j f ->
                   let step_name = sprintf "%s_%d" name j in
                   let t = Theorem (step_name, f, None) in
-                  write_thf dir step_name proven t;
-                  t)
+                  write_thf dir step_name (proven @ rev steps) t;
+                  t :: steps) [] |> rev
             | Some _ -> assert false
             | None -> []) in
           write_thf dir name (proven @ steps) stmt;

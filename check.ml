@@ -105,11 +105,25 @@ let infer_blocks steps =
   assert (rest = []);
   blocks
 
+let rec blocks_formulas blocks = concat_map block_formulas blocks
+
+and block_formulas (Block (step, children)) =
+  let fs = blocks_formulas children in
+  match step with
+    | Assert f -> [f]
+    | Let (ids, typ) -> map (for_all_n (ids, typ)) fs
+    | LetVal (id, _typ, value) -> map (fun f -> subst1 f value id) fs
+    | Assume a -> map (implies a) fs
+    | IsSome (id, typ, g) -> exists id typ g ::
+        map (fun f -> mk_and (exists id typ g) (for_all id typ (implies g f))) fs
+    | By _ -> assert false
+
 let expand_proof env f = function
   | Steps [ By (name, var) ] -> proof_by env f name var
   | Steps steps ->
-    print_blocks (infer_blocks steps);
-    assert false
+      let blocks = infer_blocks steps in
+      (* print_blocks blocks; *)
+      Formulas (map (top_check env) (blocks_formulas blocks))
   | _ -> assert false
 
 let check_stmt env stmt =
