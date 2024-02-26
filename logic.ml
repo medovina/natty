@@ -36,18 +36,18 @@ let rec type_of = function
   | Lambda (_, typ, f) -> Fun (typ, type_of f)
   | Eq (_, _) -> Bool
 
+let mk_false = Const ("⊥", Bool)
+
+let mk_not f = App (Const ("¬", Fun (Bool, Bool)), f)
+
 let logical_binary = ["∧"; "∨"; "→"]
 
-let unary_logical = Fun (Bool, Bool)
-let binary_logical = Fun (Bool, Fun (Bool, Bool))
 let quant_type = Fun (Fun (Base "_", Bool), Bool)
-
-let mk_not f = App (Const ("¬", unary_logical), f)
 
 let binop op typ f g = App (App (Const (op, typ), f), g) 
 let binop_unknown op = binop op unknown_type
 
-let logical_op op = binop op binary_logical
+let logical_op op = binop op (Fun (Bool, Fun (Bool, Bool)))
 
 let mk_and = logical_op "∧"
 let mk_or = logical_op "∨"
@@ -184,7 +184,6 @@ type proof_step =
   | Let of id list * typ
   | LetVal of id * typ * formula
   | Assume of formula
-  | IsSome of id * typ * formula
   | By of id * id  (* theorem/axiom name, induction variable *)
 
 let show_proof_step = function

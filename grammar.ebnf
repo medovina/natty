@@ -28,12 +28,16 @@ small_prop = atomic | small_prop prop_op small_prop | small_prop 'for all' id_ty
 
 if_then_prop = 'if' small_prop 'then' small_prop
 
+either_or_prop = 'either' small_prop
+
 for_all_prop = 'For all' ids_type ',' proposition
 
 exists_prop =
     'There is' ('some' | 'none') id_type 'such that' proposition
 
-proposition = for_all_prop | exists_prop | if_then_prop | small_prop
+proposition =
+    for_all_prop | exists_prop | if_then_prop | either_or_prop |
+    small_prop
 
 (* top propositions *)
 
@@ -71,16 +75,25 @@ definition = 'Definition. Let' sym ':' typ '=' term '.'
 
 (* proofs *)
 
-reason = 'by part (' number ')' ['of this theorem']
-
-proof_prop = proposition [reason]
-
 so = 'hence' | 'so' | 'then' | 'therefore'
     
 have = 'it follows that' | 'we have' | 'we must have'
 
+reason = 'by'
+    ('lemma' number |
+     'part (' number ')' ['of this theorem'] |
+     'the inductive hypothesis')
+
+contra = ',' 'which is a contradiction'
+
+proof_intro_prop =
+    'if' small_prop [','] 'then' proof_prop |
+    reason [','] [have] proposition [contra]
+
+proof_prop = proof_intro_prop | proposition [reason] [contra]
+
 assert_step =
-    (so | have) proof_prop | 'Since' proof_prop ',' have proof_prop
+    proof_intro_prop | (so | have) proof_prop | 'Since' proof_prop ',' have proof_prop
 
 assert_steps = assert_step {"," so proof_prop}
 

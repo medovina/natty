@@ -14,16 +14,18 @@ let single s = count 1 s
 
 let opt_fold p q f = p >>= fun x -> opt x (q |>> f x)
 
-let number = many1_chars digit
-
 let comment = char '#' << skip_many_until any_char newline
 
 let empty = skip_many (space <|> comment)
+
+let number = empty >> many1_chars digit
 
 let str s =
   let match_first c =
     Char.lowercase_ascii c = Char.lowercase_ascii (s.[0]) in
   empty >>? satisfy match_first >>? string (string_from s 1) >>$ s
+
+let opt_str s = optional (str s)
 
 let any_str ss = choice (map str ss)
 
@@ -75,7 +77,7 @@ and operators = [
 
 and expr s = (expression operators terms |>> multi_eq) s
 
-let atomic = expr << optional (str "is true")
+let atomic = expr << opt_str "is true"
 
 (* small propositions *)
 
@@ -93,8 +95,13 @@ let small_prop = expression prop_operators atomic
 (* propositions *)
 
 let if_then_prop =
-  pipe2 (str "if" >> small_prop << optional (str ",")) (str "then" >> small_prop)
+  pipe2 (str "if" >> small_prop << opt_str ",") (str "then" >> small_prop)
     implies
+
+let either_or_prop =
+  str "either" >> small_prop |>> fun f -> match kind f with
+    | Binary ("∨", _, _) -> f
+    | _ -> failwith "either: expected or"
 
 let rec for_all_prop s = pipe2
   (str "For all" >> ids_type) (str "," >> proposition) for_all_n s
@@ -106,7 +113,7 @@ and exists_prop s = pipe3
     (if some then Fun.id else mk_not) (exists id typ p)) s
 
 and proposition s = choice [
-  for_all_prop; exists_prop; if_then_prop; small_prop
+  for_all_prop; exists_prop; if_then_prop; either_or_prop; small_prop
 ] s
 
 (* top propositions *)
@@ -122,8 +129,8 @@ and top_prop s = (let_prop <|> suppose <|> proposition) s
 
 (* proposition lists *)
 
-let label = empty >>?
-  ((letter |>> char_to_string) <|> number) <<? string "."
+let label = 
+  ((empty >>? letter |>> char_to_string) <|> number) <<? string "."
 
 let proposition_item = triple
   label (top_prop << str ".") (option (str "(" >> word << str ")"))
@@ -167,16 +174,29 @@ let definition = pipe3
 
 (* proofs *)
 
-let reason = str "by part" >> str "(" >> number << str ")" <<
-  optional (str "of this theorem")
-
-let proof_prop = proposition << optional reason
-
 let so = any_str ["hence"; "so"; "then"; "therefore"]
 
 let have = any_str ["it follows that"; "we have"; "we must have"]
 
+let reason = str "by" >>? choice [
+  str "lemma" >> number;
+  str "part" >> str "(" >> number << str ")" << opt_str "of this theorem";
+  str "the inductive hypothesis"
+]
+
+let opt_contra f = opt f
+  (str "," >>? str "which is a contradiction" >>$ mk_and f (implies f mk_false))
+
+let rec proof_intro_prop s = choice [
+  pipe2 (str "if" >> small_prop) (opt_str "," >> str "then" >> proof_prop) implies;
+  (reason >> opt_str "," >> optional have >> proposition) >>= opt_contra
+  ] s
+
+and proof_prop s = (proof_intro_prop <|>
+  (proposition << optional reason) >>= opt_contra) s
+
 let assert_step = choice [
+  single proof_intro_prop;
   (so <|> have) >> single proof_prop;
   pipe2 (str "Since" >> proof_prop) (str "," >> have >> proof_prop)
     (fun f g -> [f; g])
@@ -185,7 +205,7 @@ let assert_step = choice [
 let assert_steps = pipe2 assert_step (many (str "," >> so >> proof_prop))
   (fun p ps -> map (fun f -> Assert f) (p @ ps))
 
-let _let = (optional (str "Now")) >> str "let"
+let _let = opt_str "Now" >> str "let"
 
 let let_step = pipe2 
   (_let >> ids_type |>> fun (ids, typ) -> [Let (ids, typ)])
