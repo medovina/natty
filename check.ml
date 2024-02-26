@@ -2,6 +2,7 @@ open List
 open Printf
 
 open Logic
+open Util
 
 let is_const id = function
   | ConstDecl (i, typ) when i = id -> Some typ
@@ -70,10 +71,44 @@ let proof_by env f name var =
                       Formulas (map g ps)
   ))
 
+type block = Block of proof_step * block list
+
+let print_blocks =
+  let rec print indent blocks =
+    blocks |> iter (fun (Block (step, children)) ->
+      printf "%s%s\n" indent (show_proof_step step);
+      print (indent ^ "  ") children) in
+  print ""
+
+let infer_blocks steps =
+  let rec all_vars = function
+    | [] -> []
+    | step :: steps ->
+        subtract (step_free_vars step @ all_vars steps) (step_decl_vars step) in
+  let rec infer vars steps = match steps with
+    | [] -> ([], steps)
+    | step :: rest ->
+        if overlap (step_decl_vars step) (concat vars) then ([], steps)
+        else let in_use = match vars with
+          | [] -> true
+          | top_vars :: _ -> overlap top_vars (all_vars steps) in
+        if not in_use then ([], steps)
+        else let (children, rest1) =
+          match step with
+            | Assume _ -> infer vars rest
+            | _ -> match step_decl_vars step with
+              | [] -> ([], rest)
+              | step_vars -> infer (step_vars :: vars) rest in
+          let (blocks, rest2) = infer vars rest1 in
+          (Block (step, children) :: blocks, rest2) in
+  let (blocks, rest) = infer [] steps in
+  assert (rest = []);
+  blocks
+
 let expand_proof env f = function
   | Steps [ By (name, var) ] -> proof_by env f name var
   | Steps steps ->
-    print_endline (String.concat "\n" (map show_proof_step steps));
+    print_blocks (infer_blocks steps);
     assert false
   | _ -> assert false
 

@@ -202,8 +202,13 @@ let assert_step = choice [
     (fun f g -> [f; g])
   ]
 
+let mk_step f =
+  match kind f with
+    | Quant ("∃", x, typ, f) -> IsSome (x, typ, f)
+    | _ -> Assert f
+
 let assert_steps = pipe2 assert_step (many (str "," >> so >> proof_prop))
-  (fun p ps -> map (fun f -> Assert f) (p @ ps))
+  (fun p ps -> map mk_step (p @ ps))
 
 let _let = opt_str "Now" >> str "let"
 

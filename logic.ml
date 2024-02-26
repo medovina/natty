@@ -103,7 +103,7 @@ let free_vars f =
     | Const _ -> []
     | Var (id, _) -> [id]
     | App (t, u) | Eq (t, u) -> free t @ free u
-    | Lambda (id, _, t) -> subtract (free t) [id] in
+    | Lambda (id, _, t) -> remove id (free t) in
   unique (free f)
 
 let for_all_n (ids, typ) f =
@@ -184,7 +184,21 @@ type proof_step =
   | Let of id list * typ
   | LetVal of id * typ * formula
   | Assume of formula
+  | IsSome of id * typ * formula
   | By of id * id  (* theorem/axiom name, induction variable *)
+
+let step_decl_vars = function
+  | Let (ids, _) -> ids
+  | LetVal (id, _, _) -> [id]
+  | IsSome (id, _, _) -> [id]
+  | _ -> []
+
+let step_free_vars = function
+  | Assert f -> free_vars f
+  | LetVal (_, _, f) -> free_vars f
+  | Assume f -> free_vars f
+  | IsSome (id, _, f) -> remove id (free_vars f)
+  | _ -> []
 
 let show_proof_step = function
   | Assert f -> sprintf "assert %s" (show_formula f)
@@ -192,6 +206,8 @@ let show_proof_step = function
   | LetVal (id, typ, f) -> sprintf "let %s : %s = %s"
       id (show_type typ) (show_formula f)
   | Assume f -> sprintf "assume %s" (show_formula f)
+  | IsSome (id, typ, f) -> sprintf "exists %s : %s : %s"
+      id (show_type typ) (show_formula f)
   | _ -> assert false
 
 type proof =

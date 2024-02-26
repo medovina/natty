@@ -36,7 +36,11 @@ let rec take n xs =
 
 let intersect xs ys = filter (fun x -> mem x ys) xs
 
+let overlap xs ys = intersect xs ys != []
+
 let subtract xs ys = filter (fun x -> not (mem x ys)) xs
+
+let remove x xs = subtract xs [x]
 
 let unique l = sort_uniq Stdlib.compare l
 
