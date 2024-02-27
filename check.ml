@@ -71,7 +71,7 @@ let proof_by env f name outer var =
                   | Some subst ->
                       let g f = for_all_vars_typs outer_vars_typs
                         (reduce (subst_n subst f)) in
-                      Formulas (map g ps)
+                      map g ps
   ))
 
 type block = Block of proof_step * block list
@@ -98,7 +98,7 @@ let infer_blocks steps =
         if not in_use then ([], steps)
         else let (children, rest1) =
           match step with
-            | Assume _ -> infer vars rest
+            | Assume _ | By _ -> infer vars rest
             | _ -> match step_decl_vars step with
               | [] -> ([], rest)
               | step_vars -> infer (step_vars :: vars) rest in
@@ -108,10 +108,10 @@ let infer_blocks steps =
   assert (rest = []);
   blocks
 
-let rec blocks_formulas blocks = concat_map block_formulas blocks
+let rec blocks_formulas env f blocks = concat_map (block_formulas env f) blocks
 
-and block_formulas (Block (step, children)) =
-  let fs = blocks_formulas children in
+and block_formulas env f (Block (step, children)) =
+  let fs = (blocks_formulas env f) children in
   match step with
     | Assert f -> [f]
     | Let (ids, typ) -> map (for_all_vars_typ (ids, typ)) fs
@@ -119,14 +119,13 @@ and block_formulas (Block (step, children)) =
     | Assume a -> map (implies a) fs
     | IsSome (id, typ, g) -> exists id typ g ::
         map (fun f -> mk_and (exists id typ g) (for_all id typ (implies g f))) fs
-    | By _ -> assert false
+    | By (name, outer, var) -> fs @ proof_by env f name outer var
 
 let expand_proof env f = function
-  | Steps [ By (name, outer, var) ] -> proof_by env f name outer var
   | Steps steps ->
       let blocks = infer_blocks steps in
-      (* print_blocks blocks; *)
-      Formulas (map (top_check env) (blocks_formulas blocks))
+      print_blocks blocks;
+      Formulas (map (top_check env) (blocks_formulas env f blocks))
   | _ -> assert false
 
 let check_stmt env stmt =

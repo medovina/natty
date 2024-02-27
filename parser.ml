@@ -81,12 +81,22 @@ let atomic = expr << opt_str "is true"
 
 (* small propositions *)
 
+let so = any_str ["hence"; "so"; "then"; "therefore"]
+
+let have = any_str 
+  ["it follows that";
+   "we deduce that"; "we have"; "we must have"; "we see that"]
+
+let so_or_have = so <|> have
+
+let comma_and = str "," >>? str "and" <<? not_followed_by so_or_have ""
+
 let prop_operators = [
   [ infix "and" mk_and Assoc_left ];
   [ infix "or" mk_or Assoc_left ];
   [ infix "implies" implies Assoc_right ];
   [ Postfix (str "for all" >> id_type |>> for_all') ];
-  [ Infix (str "," >>? str "and" >>$ mk_and, Assoc_left) ];
+  [ Infix (comma_and >>$ mk_and, Assoc_left) ];
   [ Infix (str "," >>? str "or" >>$ mk_or, Assoc_left) ];
 ]
 
@@ -174,10 +184,6 @@ let definition = pipe3
 
 (* proofs *)
 
-let so = any_str ["hence"; "so"; "then"; "therefore"]
-
-let have = any_str ["it follows that"; "we have"; "we must have"]
-
 let reason = str "by" >>? choice [
   str "lemma" >> number;
   str "part" >> str "(" >> number << str ")" << opt_str "of this theorem";
@@ -197,7 +203,7 @@ and proof_prop s = (proof_intro_prop <|>
 
 let assert_step = choice [
   single proof_intro_prop;
-  (so <|> have) >> single proof_prop;
+  so_or_have >> single proof_prop;
   pipe2 (str "Since" >> proof_prop) (str "," >> have >> proof_prop)
     (fun f g -> [f; g])
   ]
@@ -207,10 +213,12 @@ let mk_step f =
     | Quant ("∃", x, typ, f) -> IsSome (x, typ, f)
     | _ -> Assert f
 
-let assert_steps = pipe2 assert_step (many (str "," >> so >> proof_prop))
+let assert_steps =
+  let join = str "," >> ((str "and" >> so_or_have) <|> so) in
+  pipe2 assert_step (many (join >> proof_prop))
   (fun p ps -> map mk_step (p @ ps))
 
-let _let = opt_str "Now" >> str "let"
+let _let = optional (any_str ["First"; "Now"]) >> str "let"
 
 let let_step = pipe2 
   (_let >> ids_type |>> fun (ids, typ) -> [Let (ids, typ)])
@@ -227,9 +235,9 @@ let let_or_assume = single let_val_step <|> let_step <|> single assume_step
 let let_or_assumes = (sep_by1 let_or_assume (str "," >> str "and")) |>> concat
 
 let by_step = pipe3
-  (str "For any" >> var << opt_str ",")
+  (opt [] (str "For any" >> single var << opt_str ","))
   (optional (str "we" << opt_str "will") >> str "use" >> word) (str "on" >> var)
-  (fun outer w v -> By (w, [outer], v))
+  (fun outer w v -> By (w, outer, v))
 
 let proof_sentence =
   (let_or_assumes <|> assert_steps <|> single by_step) << str "."

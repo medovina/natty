@@ -211,7 +211,11 @@ let show_proof_step = function
   | Assume f -> sprintf "assume %s" (show_formula f)
   | IsSome (id, typ, f) -> sprintf "exists %s : %s : %s"
       id (show_type typ) (show_formula f)
-  | _ -> assert false
+  | By (name, outer, var) ->
+      let for_any =
+        if outer = [] then ""
+        else " for any " ^ String.concat ", " outer in
+      sprintf "by %s on %s%s" name var for_any
 
 type proof =
   | Steps of proof_step list
