@@ -104,7 +104,7 @@ let either_or_prop =
     | _ -> failwith "either: expected or"
 
 let rec for_all_prop s = pipe2
-  (str "For all" >> ids_type) (str "," >> proposition) for_all_n s
+  (str "For all" >> ids_type) (str "," >> proposition) for_all_vars_typ s
 
 and exists_prop s = pipe3
   (str "There is" >> ((str "some" >>$ true) <|> (str "no" >>$ false)))
@@ -139,7 +139,7 @@ let prop_items = many1 proposition_item
 
 let top_prop_or_items ids_typ =
   (prop_items <|> (top_prop << str "." |>> fun f -> [("", f, None)])) |>>
-    map (fun (label, f, name) -> (label, for_all_n' ids_typ f, name))
+    map (fun (label, f, name) -> (label, for_all_vars_typ_if_free ids_typ f, name))
 
 let propositions =
   (opt ([], unknown_type) (str "for all" >> ids_type << str ",")) >>=
@@ -226,8 +226,10 @@ let let_or_assume = single let_val_step <|> let_step <|> single assume_step
 
 let let_or_assumes = (sep_by1 let_or_assume (str "," >> str "and")) |>> concat
 
-let by_step = pipe2 (str "By" >> word) (str "on" >> var)
-  (fun w v -> By (w, v))
+let by_step = pipe3
+  (str "For any" >> var << opt_str ",")
+  (optional (str "we" << opt_str "will") >> str "use" >> word) (str "on" >> var)
+  (fun outer w v -> By (w, [outer], v))
 
 let proof_sentence =
   (let_or_assumes <|> assert_steps <|> single by_step) << str "."

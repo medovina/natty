@@ -106,11 +106,13 @@ let free_vars f =
     | Lambda (id, _, t) -> remove id (free t) in
   unique (free f)
 
-let for_all_n (ids, typ) f =
+let for_all_vars_typ (ids, typ) f =
   fold_right (fun id f -> for_all id typ f) ids f
 
-let for_all_n' (ids, typ) f =
-  for_all_n (intersect ids (free_vars f), typ) f
+let for_all_vars_typ_if_free (ids, typ) f =
+  for_all_vars_typ (intersect ids (free_vars f), typ) f
+
+let for_all_vars_typs = fold_right for_all'
 
 let rec for_alls f = match kind f with
   | Quant ("∀", id, typ, f) ->
@@ -185,7 +187,8 @@ type proof_step =
   | LetVal of id * typ * formula
   | Assume of formula
   | IsSome of id * typ * formula
-  | By of id * id  (* theorem/axiom name, induction variable *)
+  | By of id * id list * id
+      (* theorem/axiom name, outer vars, induction variable *)
 
 let step_decl_vars = function
   | Let (ids, _) -> ids

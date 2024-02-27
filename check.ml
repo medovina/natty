@@ -49,25 +49,28 @@ let top_check env f =
   let (f, typ) = check_formula env [] f in
   if typ = Bool then f else failwith ("bool expected: " ^ show_formula f)
 
-let proof_by env f name var =
+let proof_by env f name outer var =
   match find_map (axiom_named name) env with
     | None -> failwith ("can't find axiom: " ^ name)
     | Some ax ->
         let (_, ax) = for_alls ax in
         let (ps, concl) = premises ax in
-        let (vars, f) = for_alls f in (
-          match assoc_opt var vars with
+        let (vars_typs, f) = for_alls f in
+          match assoc_opt var vars_typs with
             | None -> failwith ("no variable: " ^ var)
             | Some typ -> (
-                let goal = for_all var typ f in
+                let outer_vars_typs = map (fun v -> (v, assoc v vars_typs)) outer in
+                let inner_vars_typs =
+                  subtract vars_typs ((var, typ) :: outer_vars_typs) in (
+                let goal = for_all_vars_typs ((var, typ) :: inner_vars_typs) f in
                 match unify concl goal with
                   | None ->
                       printf "no match:\n  concl = %s\n  goal = %s\n"
                         (show_formula concl) (show_formula goal);
                       assert false
                   | Some subst ->
-                      let others = remove_assoc var vars in
-                      let g f = fold_right for_all' others (reduce (subst_n subst f)) in
+                      let g f = for_all_vars_typs outer_vars_typs
+                        (reduce (subst_n subst f)) in
                       Formulas (map g ps)
   ))
 
@@ -111,7 +114,7 @@ and block_formulas (Block (step, children)) =
   let fs = blocks_formulas children in
   match step with
     | Assert f -> [f]
-    | Let (ids, typ) -> map (for_all_n (ids, typ)) fs
+    | Let (ids, typ) -> map (for_all_vars_typ (ids, typ)) fs
     | LetVal (id, _typ, value) -> map (fun f -> subst1 f value id) fs
     | Assume a -> map (implies a) fs
     | IsSome (id, typ, g) -> exists id typ g ::
@@ -119,7 +122,7 @@ and block_formulas (Block (step, children)) =
     | By _ -> assert false
 
 let expand_proof env f = function
-  | Steps [ By (name, var) ] -> proof_by env f name var
+  | Steps [ By (name, outer, var) ] -> proof_by env f name outer var
   | Steps steps ->
       let blocks = infer_blocks steps in
       (* print_blocks blocks; *)
