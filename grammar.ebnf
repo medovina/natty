@@ -96,7 +96,7 @@ proof_intro_prop =
 proof_prop = proof_intro_prop | proposition [reason] [contra]
 
 assert_step =
-    proof_intro_prop | so_or_have proof_prop | 'Since' proof_prop ',' have proof_prop
+    proof_intro_prop | ['and'] so_or_have proof_prop | 'Since' proof_prop ',' have proof_prop
 
 assert_steps = assert_step {',' ('and' so_or_have | so) proof_prop}
 

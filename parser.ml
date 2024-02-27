@@ -203,7 +203,7 @@ and proof_prop s = (proof_intro_prop <|>
 
 let assert_step = choice [
   single proof_intro_prop;
-  so_or_have >> single proof_prop;
+  optional (str "and") >> so_or_have >> single proof_prop;
   pipe2 (str "Since" >> proof_prop) (str "," >> have >> proof_prop)
     (fun f g -> [f; g])
   ]
