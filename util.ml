@@ -19,6 +19,11 @@ let capitalize s =
 
 let eq_icase s t = (String.lowercase_ascii s = String.lowercase_ascii t) 
 
+let contains s1 s2 =
+  let re = Str.regexp_string s2 in
+    try ignore (Str.search_forward re s1 0); true
+    with Not_found -> false
+
 (* lists *)
 
 let singleton x = [x]
@@ -33,6 +38,10 @@ let rec take n xs =
     match xs with
       | x :: xs -> x :: take (n - 1) xs
       | [] -> failwith "take"
+
+let fold_left1 f = function
+  | [] -> failwith "fold_left1: empty list"
+  | x :: xs -> fold_left f x xs    
 
 let fold_lefti (f: 'a -> int -> 'b -> 'a) (acc: 'a) (xs: 'b list): 'a =
   let rec fn i acc xs = match xs with

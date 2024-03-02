@@ -20,18 +20,18 @@ let write_files dir prog =
   prog |> mapi (fun i stmt -> (
     match stmt with
       | Theorem (name, _, proof) ->
-          let proven = take i prog in
-          let steps = (match proof with
+          let proven = take i prog in (
+          match proof with
             | Some (Formulas fs) ->
-                fs |> fold_lefti (fun steps j f ->
+                fs |> mapi (fun j f ->
                   let step_name = sprintf "%s_%d" name j in
                   let t = Theorem (step_name, f, None) in
-                  write_thf dir step_name (proven @ rev steps) t;
-                  t :: steps) [] |> rev
+                  write_thf dir step_name proven t;
+                  t)
             | Some _ -> assert false
-            | None -> []) in
-          write_thf dir name (proven @ steps) stmt;
-          steps @ [stmt]
+            | None ->
+                write_thf dir name proven stmt;
+                [stmt])
       | _ -> [] )) |> concat
 
 let rec prove dir = function
@@ -39,9 +39,9 @@ let rec prove dir = function
       print_endline (show_statement thm);
       let ic = Unix.open_process_args_in "eprover-ho"
         [| "-s"; "--auto"; thf_file dir id |] in
-      let lines = In_channel.input_lines ic in
+      let result = In_channel.input_all ic in
       In_channel.close ic;
-      if mem "# SZS status Theorem" lines then
+      if contains result "SZS status Theorem" then
         prove dir thms
       else
         print_endline "failed to prove!"

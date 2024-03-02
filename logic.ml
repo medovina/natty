@@ -37,6 +37,7 @@ let rec type_of = function
   | Eq (_, _) -> Bool
 
 let mk_false = Const ("⊥", Bool)
+let mk_true = Const ("⊤", Bool)
 
 let mk_not f = App (Const ("¬", Fun (Bool, Bool)), f)
 
@@ -173,6 +174,17 @@ let multi_eq f =
     | [] -> assert false
     | [f] -> f
     | fs -> join fs
+
+let outer_eq f =
+  let rec collect f = match kind f with
+    | Binary ("∧", f, g) -> collect f @ collect g
+    | _ -> match f with
+      | Eq _ -> [f]
+      | _ -> failwith "outer_eq" in
+  let f = collect f in
+  match hd f, last f with
+    | Eq (a, _), Eq(_, b) -> Eq(a, b)
+    | _ -> failwith "outer_eq"
 
 let rec premises f = match kind f with
   | Binary ("→", f, g) ->
