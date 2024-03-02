@@ -48,14 +48,13 @@ let rec prove debug dir = function
         let oc = open_out (Filename.concat (dir ^ "_dbg") (id ^ ".thf")) in
         output_string oc result;
         close_out oc) else ();
-      if contains result "SZS status Theorem" then
-        let exp = Str.regexp {|# Proof object total steps +: \([0-9]+\)|} in
-        ignore (Str.search_forward exp result 0);
-        let steps = Str.matched_group 1 result in
-        printf " [%s steps]\n" steps;
-        prove debug dir thms
-      else
-        print_endline "failed to prove!"
+      (match Proof_parse.parse result with
+        | Success (Some (_steps, count)) ->
+            printf " [%s steps]\n" count;
+            prove debug dir thms
+        | Success None -> print_endline "failed to prove!"
+        | Failed (msg, _) ->
+            print_endline msg)
   | [] -> print_endline "All theorems were proved."
   | _ -> assert false
 

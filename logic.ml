@@ -54,6 +54,8 @@ let mk_and = logical_op "∧"
 let mk_or = logical_op "∨"
 let implies1 = logical_op "→"
 
+let lambda id typ f = Lambda (id, typ, f)
+
 let binder name id typ f = App (Const (name, quant_type), Lambda (id, typ, f))
 let binder' name (id, typ) f = binder name id typ f
 

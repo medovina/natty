@@ -18,7 +18,7 @@ let comment = char '#' << skip_many_until any_char newline
 
 let empty = skip_many (space <|> comment)
 
-let number = empty >> many1_chars digit
+let number = empty >>? many1_chars digit
 
 let str s =
   let match_first c =
