@@ -2,6 +2,7 @@ open List
 open Printf
 
 open Logic
+open Proof
 open Thf
 open Util
 
@@ -36,8 +37,7 @@ let write_files dir prog =
 
 let rec prove debug dir = function
   | Theorem (id, _, _) as thm :: thms ->
-      print_string (show_statement thm);
-      flush stdout;
+      print_endline (show_statement thm);
       let args =
         [| "eprover-ho"; "--auto"; (if debug then "-l6" else "-s");
            "-p"; "--proof-statistics"; "-R"; thf_file dir id |] in
@@ -49,8 +49,9 @@ let rec prove debug dir = function
         output_string oc result;
         close_out oc) else ();
       (match Proof_parse.parse result with
-        | Success (Some (_steps, count)) ->
-            printf " [%s steps]\n" count;
+        | Success (Some (formulas, steps)) ->
+            let hyps = gather_hypotheses formulas in
+            printf "  %s steps [%s]\n" steps (String.concat ", " hyps);
             prove debug dir thms
         | Success None -> print_endline "failed to prove!"
         | Failed (msg, _) ->

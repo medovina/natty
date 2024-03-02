@@ -3,15 +3,8 @@ open List
 open MParser
 
 open Logic
+open Proof
 open Util
-
-type source =
-  | Id of id
-  | File of string * id  (* filename, id *)
-  | Inference of id * id * source list  (* name, status, children *)
-
-type proof_formula =
-  ProofFormula of id * id * formula * source  (* name, role, formula, source *)
 
 let any_line = skip_many_until any_char newline
 
@@ -107,7 +100,7 @@ let proof_formula = sym "thf" >> parens ( (id << sym ",") >>= fun name ->
     sym "type" >> sym "," >> thf_type >>$ [];
     pipe3 id (sym "," >> formula)
       (sym "," >> source << optional (sym "," >> brackets quoted_id))
-      (fun role f source -> [ProofFormula (name, role, f, source)])
+      (fun role f source -> [(name, role, f, source)])
   ]) << sym "."
 
 let line s = string s << newline
