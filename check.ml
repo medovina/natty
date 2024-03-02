@@ -116,7 +116,7 @@ let rec blocks_formulas env f = function
       let (fs, concl) = block_formulas env f block in
       let (gs, final_concl) = blocks_formulas env f rest in
       (fs @ map (fun f -> implies concl f) gs,
-      if rest == [] then concl else final_concl)
+      if rest = [] then concl else final_concl)
 
 and block_formulas env f (Block (step, children)) =
   let (fs, concl) = (blocks_formulas env f) children in
@@ -137,7 +137,7 @@ and block_formulas env f (Block (step, children)) =
 let expand_proof env f = function
   | Steps steps ->
       let blocks = infer_blocks steps in
-      print_blocks blocks;
+      if false then print_blocks blocks;
       let fs = fst (blocks_formulas env f (blocks @ [mk_assert f])) in
       Formulas (map (top_check env) fs)
   | _ -> assert false

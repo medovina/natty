@@ -34,32 +34,55 @@ let write_files dir prog =
                 [stmt])
       | _ -> [] )) |> concat
 
-let rec prove dir = function
+let rec prove debug dir = function
   | Theorem (id, _, _) as thm :: thms ->
-      print_endline (show_statement thm);
-      let ic = Unix.open_process_args_in "eprover-ho"
-        [| "-s"; "--auto"; thf_file dir id |] in
+      print_string (show_statement thm);
+      flush stdout;
+      let args =
+        [| "eprover-ho"; "--auto"; (if debug then "-l6" else "-s");
+           "-p"; "--proof-statistics"; "-R"; thf_file dir id |] in
+      let ic = Unix.open_process_args_in "eprover-ho" args in
       let result = In_channel.input_all ic in
       In_channel.close ic;
+      if debug then (
+        let oc = open_out (Filename.concat (dir ^ "_dbg") (id ^ ".thf")) in
+        output_string oc result;
+        close_out oc) else ();
       if contains result "SZS status Theorem" then
-        prove dir thms
+        let exp = Str.regexp {|# Proof object total steps +: \([0-9]+\)|} in
+        ignore (Str.search_forward exp result 0);
+        let steps = Str.matched_group 1 result in
+        printf " [%s steps]\n" steps;
+        prove debug dir thms
       else
         print_endline "failed to prove!"
   | [] -> print_endline "All theorems were proved."
   | _ -> assert false
+
+let rec parse_args = function
+  | [] -> ("", false)
+  | arg :: rest ->
+      let (name, debug) = parse_args rest in
+      if arg.[0] = '-' then
+        if arg.[1] = 'd' then (name, true)
+        else failwith "unknown option"
+      else if name != "" then failwith "double filename"
+      else (arg, debug)
+
 ;;
 
-if Array.length Sys.argv != 2 then (
-  print_endline "usage: prover <file>";
+if Array.length Sys.argv = 1 then (
+  print_endline "usage: prover [-d] <file>";
   exit 1);
 
-let source = Sys.argv.(1) in
+let (source, debug) = parse_args (tl (Array.to_list Sys.argv)) in
 match Parser.parse (open_in source) with
   | Success prog ->
       let prog = Check.check_program prog in
       let dir = Filename.remove_extension source in
       clean_dir dir;
+      if debug then clean_dir (dir ^ "_dbg") else ();
       let names = write_files dir prog in
-      prove dir names
+      prove debug dir names
   | Failed (msg, _) ->
       print_endline msg

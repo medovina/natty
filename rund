@@ -1,2 +1,2 @@
-OCAMLRUNPARAM=b DUNE_CONFIG__GLOBAL_LOCK=disabled dune exec ./main.exe $*
+OCAMLRUNPARAM=b DUNE_CONFIG__GLOBAL_LOCK=disabled dune exec ./main.exe -- $*
 
