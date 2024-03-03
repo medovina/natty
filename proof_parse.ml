@@ -12,24 +12,24 @@ let comment = char '#' << any_line
 
 let empty = skip_many (space <|> comment)
 
-let sym s = empty >>? string s
+let str s = empty >>? string s
 
-let parens p = sym "(" >> p << sym ")"
+let parens p = str "(" >> p << str ")"
 
-let brackets p = sym "[" >> p << sym "]"
+let brackets p = str "[" >> p << str "]"
 
 let chars first = pipe2 first (many_chars (alphanum <|> char '_')) (fun c s ->
   char_to_string c ^ s)
 
 let quoted_id = char '\'' >> many_chars_until any_char (char '\'')
 
-let id = empty >>? (chars (lowercase <|> char '$') <|> quoted_id)
+let id = empty >>? (chars lowercase <|> quoted_id)
 
 let var = empty >>? chars uppercase
 
 let infix1 s f assoc = Infix (s >>$ f, assoc)
 
-let infix s f assoc = infix1 (sym s) f assoc
+let infix s f assoc = infix1 (str s) f assoc
 
 (* types *)
 
@@ -39,8 +39,9 @@ let type_operators = [
 
 let rec type_term s = choice [
   parens typ;
-  sym "$i" >>$ Base "I";
-  sym "$o" >>$ Bool;
+  str "$i" >>$ Base "I";
+  str "$o" >>$ Bool;
+  str "nat" >>$ Base "ℕ";
   id |>> fun id -> Base id
   ] s
 and typ s = expression type_operators type_term s
@@ -61,7 +62,7 @@ let operators = [
 
 let inline_comment = string "/*" >> skip_many_until any_char (string "*/")
 
-let arg = pair (var << optional inline_comment << sym ":") typ
+let arg = pair (var << optional inline_comment << str ":") typ
 
 let build_quant quant args formula =
   let rec f = function
@@ -71,37 +72,39 @@ let build_quant quant args formula =
 
 let rec term s = choice [
   parens formula;
+  str "$false" >>$ mk_false;
+  str "$true" >>$ mk_true;
   id |>> (fun id -> Const (id, unknown_type));
   var |>> (fun id -> Var (id, unknown_type));
-  (sym "~" >> term) |>> mk_not;
+  (str "~" >> term) |>> mk_not;
   quantifier "!" for_all;
   quantifier "?" exists;
   quantifier "^" lambda
   ] s
 and quantifier s mk =
-  pipe2 (sym s >> brackets (sep_by1 arg (sym ",")) << sym ":") term
+  pipe2 (str s >> brackets (sep_by1 arg (str ",")) << str ":") term
     (build_quant mk)
 and formula s = expression operators term s
 
-let thf_type = id >> sym ":" >> (skip (sym "$tType") <|> skip typ)
+let thf_type = id >> str ":" >> (skip (str "$tType") <|> skip typ)
 
 let rec source s = choice [
-  sym "file" >> parens (pair (quoted_id << sym ",") id) |>>
+  str "file" >> parens (pair (quoted_id << str ",") id) |>>
     (fun (filename, id) -> File (filename, id));
-  sym "inference" >> parens (pipe3 id
-    (sym ",[status(" >> id << sym ")],")
-    (brackets (sep_by source (sym ",")))
+  str "inference" >> parens (pipe3 id
+    (str ",[status(" >> id << str ")],")
+    (brackets (sep_by source (str ",")))
     (fun name status children -> Inference (name, status, children)));
   id |>> fun id -> Id id
 ] s
 
-let proof_formula = sym "thf" >> parens ( (id << sym ",") >>= fun name ->
+let proof_formula = str "thf" >> parens ( (id << str ",") >>= fun name ->
   choice [
-    sym "type" >> sym "," >> thf_type >>$ [];
-    pipe3 id (sym "," >> formula)
-      (sym "," >> source << optional (sym "," >> brackets quoted_id))
+    str "type" >> str "," >> thf_type >>$ [];
+    pipe3 id (str "," >> formula)
+      (str "," >> source << optional (str "," >> brackets quoted_id))
       (fun role f source -> [(name, role, f, source)])
-  ]) << sym "."
+  ]) << str "."
 
 let line s = string s << newline
 
@@ -109,7 +112,7 @@ let proof_file = skip_many_until any_line (line "# SZS status Theorem") >>
   line "# SZS output start CNFRefutation" >>
   pair (many1 proof_formula |>> List.concat)
   (skip_many_until any_line (string "# Proof object total steps") >> spaces >>
-    sym ":" >> spaces >> many_chars digit)
+    str ":" >> spaces >> many_chars digit)
 ;;
 
 let parse text = MParser.parse_string (option proof_file) text ()

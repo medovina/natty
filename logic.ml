@@ -28,6 +28,11 @@ type formula =
   | Lambda of id * typ * formula
   | Eq of formula * formula
 
+let app_or_eq h f g = match h with
+  | App _ -> App (f, g)
+  | Eq _ -> Eq (f, g)
+  | _ -> assert false
+
 let rec type_of = function
   | Const (_, typ) | Var (_, typ) -> typ
   | App (f, _) -> (match type_of f with
@@ -80,26 +85,41 @@ let kind = function
       Quant(q, id, typ, u)
   | f -> Other f
 
-let binary_ops = ["+"; "·"] @ logical_binary
-
 let implies f g = match kind f with
   | Binary ("∧", s, t) -> implies1 s (implies1 t g)
   | _ -> implies1 f g
 
-let rec show_formula f = match kind f with
-  | Binary (op, t, u) when mem op binary_ops ->
-      sprintf "(%s %s %s)" (show_formula t) op (show_formula u)
-  | Quant (q, id, typ, u) ->
-      sprintf "%s%s:%s.%s" q id (show_type typ) (show_formula u)
-  | _ -> match f with
-    | Const (id, _typ) -> id
-    | Var (id, _typ) -> id
-    | App (Const ("¬", _), Eq (t, u)) ->
-        sprintf "%s ≠ %s" (show_formula t) (show_formula u)
-    | App (t, u) ->
-        sprintf "%s(%s)" (show_formula t) (show_formula u)
-    | Lambda (id, typ, t) -> sprintf "λ%s:%s.%s" id (show_type typ) (show_formula t)
-    | Eq (t, u) -> sprintf "%s = %s" (show_formula t) (show_formula u)
+let binary_ops = [("·", 6); ("+", 5); ("∧", 3); ("∨", 2); ("→", 0)]
+let not_prec = 7
+let eq_prec = 4
+let quantifier_prec = 1
+
+let show_formula f =
+  let parens b s = if b then sprintf "(%s)" s else s in
+  let rec show outer right f = match kind f with
+    | Binary (op, t, u) when mem_assoc op binary_ops ->
+        let prec = assoc op binary_ops in
+        let p = prec < outer ||
+          prec = outer && (op = "·" || op = "+" || op = "→" && not right) in
+        parens p (sprintf "%s %s %s" (show prec false t) op (show prec true u))
+    | Quant (q, id, typ, u) ->
+        parens (quantifier_prec < outer)
+          (sprintf "%s%s:%s.%s" q id (show_type typ) (show quantifier_prec false u))
+    | _ -> match f with
+      | Const (id, _typ) -> id
+      | Var (id, _typ) -> id
+      | App (Const ("¬", _), g) -> (match g with
+          | Eq (t, u) -> show_eq "≠" t u outer
+          | _ -> parens (not_prec < outer) ("¬" ^ show not_prec false g))
+      | App (t, u) ->
+          sprintf "%s(%s)" (show 10 false t) (show (-1) false u)
+      | Lambda (id, typ, t) ->
+          parens (quantifier_prec < outer)
+            (sprintf "λ%s:%s.%s" id (show_type typ) (show quantifier_prec false t))
+      | Eq (t, u) -> show_eq "=" t u outer
+  and show_eq eq f g outer = parens (eq_prec < outer)
+    (sprintf "%s %s %s" (show eq_prec false f) eq (show eq_prec true g)) in
+  show (-1) false f
 
 let free_vars f =
   let rec free = function

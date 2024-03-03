@@ -6,6 +6,32 @@ open Proof
 open Thf
 open Util
 
+let first_var = function
+  | Base "ℕ" -> "a"
+  | Fun (_, Bool) -> "P"
+  | _ -> "x"
+
+let next_var x names =
+  let all = map snd names in
+  let rec next x =
+    if mem x all then next (char_to_string (Char.chr (Char.code (x.[0]) + 1)))
+    else x in
+  next x
+
+let rename_vars f =
+  let rec rename names h = match h with
+    | Const (id, typ) -> (Const (id, typ), names)
+    | Var (id, typ) -> (Var (assoc id names, typ), names)
+    | App (f, g) | Eq (f, g) ->
+        let (f, names) = rename names f in
+        let (g, names) = rename names g in
+        (app_or_eq h f g, names)
+    | Lambda (id, typ, f) ->
+        let x = next_var (first_var typ) names in
+        let (f, names) = rename ((id, x) :: names) f in
+        (Lambda (x, typ, f), names) in
+  fst (rename [] f)
+
 let thf_file dir name = Filename.concat dir (name ^ ".thf")
 
 let write_thf dir name proven stmt =
@@ -43,11 +69,9 @@ let proof_graph formulas =
   let index_of id =
     Option.get (find_index (fun (name, _, _, _) -> name = id) formulas) in
   let box i (name, role, formula, _) =
-    let color =
-      if formula = mk_false then "darkorchid1"
-      else assoc role colors in
+    let color = assoc role colors in
     sprintf "  %d [shape = box, color = %s, label = \"%s: %s\"]\n"
-      i color name (show_formula formula) in
+      i color name (show_formula (rename_vars formula)) in
   let arrows i (_, _, _, source) =
     let arrow_from id = sprintf "  %d -> %d []\n" (index_of id) i in
     String.concat "" (map arrow_from (hypotheses source)) in
