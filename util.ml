@@ -66,3 +66,8 @@ let clean_dir dir =
     Sys.readdir dir |> Array.iter (fun file -> Sys.remove (Filename.concat dir file))
   else
     Sys.mkdir dir 0o755
+
+let write_file filename text =
+  let oc = open_out filename in
+  output_string oc text;
+  close_out oc
