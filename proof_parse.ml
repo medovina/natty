@@ -74,6 +74,7 @@ let rec term s = choice [
   parens formula;
   str "$false" >>$ mk_false;
   str "$true" >>$ mk_true;
+  str "'*'" >>$ Const ("·", unknown_type);
   id |>> (fun id -> Const (id, unknown_type));
   var |>> (fun id -> Var (id, unknown_type));
   (str "~" >> term) |>> mk_not;
