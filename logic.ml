@@ -28,6 +28,12 @@ type formula =
   | Lambda of id * typ * formula
   | Eq of formula * formula
 
+let map_formula fn = function
+  | App (f, g) -> App (fn f, fn g)
+  | Lambda (id, typ, f) -> Lambda (id, typ, fn f)
+  | Eq (f, g) -> Eq (fn f, fn g)
+  | f -> f
+
 let app_or_eq h f g = match h with
   | App _ -> App (f, g)
   | Eq _ -> Eq (f, g)
@@ -128,6 +134,14 @@ let free_vars f =
     | App (t, u) | Eq (t, u) -> free t @ free u
     | Lambda (id, _, t) -> remove id (free t) in
   unique (free f)
+
+let consts f =
+  let rec collect = function
+    | Const (id, _) -> [id]
+    | Var _ -> []
+    | App (t, u) | Eq (t, u) -> collect t @ collect u
+    | Lambda (_, _, f) -> collect f in
+  unique (collect f)
 
 let for_all_vars_typ (ids, typ) f =
   fold_right (fun id f -> for_all id typ f) ids f

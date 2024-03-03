@@ -8,7 +8,10 @@ type source =
   | File of string * id  (* filename, id *)
   | Inference of id * id * source list  (* name, status, children *)
 
-type proof_formula = id * id * formula * source  (* name, role, formula, source *)
+type proof_clause = id * id * formula * source  (* name, role, formula, source *)
+
+let name_of (name, _, _, _) = name
+let formula_of (_, _, f, _) = f
 
 let rec hypotheses = function
   | Id id -> [id]
@@ -18,6 +21,6 @@ let rec hypotheses = function
 let gather_hypotheses formulas =
   let ids = concat_map (fun (_, _, _, source) -> hypotheses source) formulas in
   let is_axiom id =
-    let (_, role, _, _) = find (fun (name, _, _, _) -> name = id) formulas in
+    let (_, role, _, _) = find (fun s -> name_of s = id) formulas in
     role = "axiom" in
   unique (filter is_axiom ids)

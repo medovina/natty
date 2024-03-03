@@ -98,7 +98,7 @@ let rec source s = choice [
   id |>> fun id -> Id id
 ] s
 
-let proof_formula = str "thf" >> parens ( (id << str ",") >>= fun name ->
+let proof_clause = str "thf" >> parens ( (id << str ",") >>= fun name ->
   choice [
     str "type" >> str "," >> thf_type >>$ [];
     pipe3 id (str "," >> formula)
@@ -110,7 +110,7 @@ let line s = string s << newline
 
 let proof_file = skip_many_until any_line (line "# SZS status Theorem") >>
   line "# SZS output start CNFRefutation" >>
-  pair (many1 proof_formula |>> List.concat)
+  pair (many1 proof_clause |>> List.concat)
   (skip_many_until any_line (string "# Proof object total steps") >> spaces >>
     str ":" >> spaces >> many_chars digit)
 ;;

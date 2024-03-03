@@ -32,6 +32,20 @@ let rename_vars f =
         (Lambda (x, typ, f), names) in
   fst (rename [] f)
 
+let skolem_names fs =
+  let cs = filter (String.starts_with ~prefix:"esk") (unique (concat_map consts fs)) in
+  let name names c =
+    let d = next_var (if String.ends_with ~suffix:"_0" c then "a" else "f") names in
+    (c, d) :: names in
+  fold_left name [] cs
+
+let rec skolem_subst names f = match f with
+  | Const (id, typ) ->
+      (match assoc_opt id names with
+        | Some name -> Const ("$" ^ name, typ)
+        | None -> f)
+  | _ -> map_formula (skolem_subst names) f
+
 let thf_file dir name = Filename.concat dir (name ^ ".thf")
 
 let write_thf dir name proven stmt =
@@ -66,12 +80,14 @@ let colors = [
   ("plain", "forestgreen"); ("negated_conjecture", "blue")]
 
 let proof_graph formulas =
+  let skolem_map = skolem_names (map formula_of formulas) in
   let index_of id =
-    Option.get (find_index (fun (name, _, _, _) -> name = id) formulas) in
+    Option.get (find_index (fun s -> name_of s = id) formulas) in
   let box i (name, role, formula, _) =
     let color = assoc role colors in
+    let formula = rename_vars (skolem_subst skolem_map formula) in
     sprintf "  %d [shape = box, color = %s, label = \"%s: %s\"]\n"
-      i color name (show_formula (rename_vars formula)) in
+      i color name (show_formula formula) in
   let arrows i (_, _, _, source) =
     let arrow_from id = sprintf "  %d -> %d []\n" (index_of id) i in
     String.concat "" (map arrow_from (hypotheses source)) in
