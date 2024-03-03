@@ -51,7 +51,7 @@ let thf_file dir name = Filename.concat dir (name ^ ".thf")
 let write_thf dir name proven stmt =
   let out = open_out (thf_file dir name) in
   let write is_last stmt = (
-    fprintf out "%% %s\n" (show_statement stmt);
+    fprintf out "%% %s\n" (show_statement false stmt);
     fprintf out "%s\n\n" (thf_statement is_last stmt)) in
   iter (write false) proven;
   write true stmt;
@@ -96,7 +96,7 @@ let proof_graph formulas =
 
 let rec prove debug dir = function
   | Theorem (id, _, _) as thm :: thms ->
-      print_endline (show_statement thm);
+      print_endline (show_statement true thm);
       let args =
         [| "eprover-ho"; "--auto"; (if debug then "-l6" else "-s");
            "-p"; "--proof-statistics"; "-R"; thf_file dir id |] in
@@ -109,7 +109,7 @@ let rec prove debug dir = function
       (match Proof_parse.parse result with
         | Success (Some (formulas, steps)) ->
             let hyps = gather_hypotheses formulas in
-            printf "  %s steps [%s]\n" steps (String.concat ", " hyps);
+            printf "  %s steps [%s]\n\n" steps (String.concat ", " hyps);
             if debug then
               write_file (Filename.concat debug_dir (id ^ ".dot"))
                 (proof_graph formulas);

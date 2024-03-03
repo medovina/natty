@@ -24,14 +24,25 @@ let contains s1 s2 =
     try ignore (Str.search_forward re s1 0); true
     with Not_found -> false
 
+let indent_lines n s =
+  String.concat "\n" (String.split_on_char '\n' s |> map
+    (fun line -> String.make n ' ' ^ line))
+
 (* lists *)
 
 let singleton x = [x]
 
 let rec last = function
+  | [] -> failwith "last"
   | [x] -> x
   | _ :: xs -> last xs
-  | [] -> failwith "last"
+
+let rec split_last = function
+  | [] -> failwith "chop_last"
+  | [x] -> ([], x)
+  | x :: xs ->
+      let (ys, last) = split_last xs in
+      (x :: ys, last)
 
 let rec take n xs =
   if n = 0 then [] else

@@ -21,11 +21,6 @@ let thf_type =
       if left then sprintf "(%s)" s else s
   in f false
 
-let rec gather_quant q f = match kind f with
-  | Quant (q', id, typ, u) when q = q' ->
-      let (qs, f) = gather_quant q u in ((id, typ) :: qs, f)
-  | _ -> ([], f)
-
 let binary = [("∧", "&"); ("∨", "|"); ("→", "=>")]
 
 let rec thf outer right f =

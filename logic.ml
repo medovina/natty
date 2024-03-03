@@ -95,37 +95,60 @@ let implies f g = match kind f with
   | Binary ("∧", s, t) -> implies1 s (implies1 t g)
   | _ -> implies1 f g
 
+let rec gather_implies f = match kind f with
+  | Binary ("→", f, g) -> f :: gather_implies g
+  | _ -> [f]
+
+let premises f = split_last (gather_implies f)
+
 let binary_ops = [("·", 6); ("+", 5); ("∧", 3); ("∨", 2); ("→", 0)]
 let not_prec = 7
 let eq_prec = 4
 let quantifier_prec = 1
 
-let show_formula f =
+let show_formula_multi multi f =
   let parens b s = if b then sprintf "(%s)" s else s in
-  let rec show outer right f = match kind f with
-    | Binary (op, t, u) when mem_assoc op binary_ops ->
-        let prec = assoc op binary_ops in
-        let p = prec < outer ||
-          prec = outer && (op = "·" || op = "+" || op = "→" && not right) in
-        parens p (sprintf "%s %s %s" (show prec false t) op (show prec true u))
-    | Quant (q, id, typ, u) ->
-        parens (quantifier_prec < outer)
-          (sprintf "%s%s:%s.%s" q id (show_type typ) (show quantifier_prec false u))
-    | _ -> match f with
-      | Const (id, _typ) -> id
-      | Var (id, _typ) -> id
-      | App (Const ("¬", _), g) -> (match g with
-          | Eq (t, u) -> show_eq "≠" t u outer
-          | _ -> parens (not_prec < outer) ("¬" ^ show not_prec false g))
-      | App (t, u) ->
-          sprintf "%s(%s)" (show 10 false t) (show (-1) false u)
-      | Lambda (id, typ, t) ->
+  let rec show indent multi outer right f =
+    let show1 outer right f = show indent multi outer right f in
+    let show_eq eq f g = parens (eq_prec < outer)
+      (sprintf "%s %s %s" (show1 eq_prec false f) eq (show1 eq_prec true g)) in
+    match kind f with
+      | Binary (op, t, u) when mem_assoc op binary_ops ->
+          let prec = assoc op binary_ops in
+          let p = prec < outer ||
+            prec = outer && (op = "·" || op = "+" || op = "→" && not right) in
+          let layout multi =
+            sprintf "%s %s %s" (show indent multi prec false t) op
+                               (show indent multi prec true u) in
+          let s = if op = "→" && multi then
+            let line = layout false in
+            if String.length line <= 60 then line
+            else
+              let fs = gather_implies f in
+              let ss = (show1 prec false (hd fs)) ::
+                map (show (indent + 4) multi prec false) (tl fs) in
+              String.concat ("\n" ^ String.make indent ' ' ^ "  → ") ss
+          else layout multi in
+          parens p s
+      | Quant (q, id, typ, u) ->
           parens (quantifier_prec < outer)
-            (sprintf "λ%s:%s.%s" id (show_type typ) (show quantifier_prec false t))
-      | Eq (t, u) -> show_eq "=" t u outer
-  and show_eq eq f g outer = parens (eq_prec < outer)
-    (sprintf "%s %s %s" (show eq_prec false f) eq (show eq_prec true g)) in
-  show (-1) false f
+            (sprintf "%s%s:%s.%s" q id (show_type typ)
+              (show (indent + 5) multi quantifier_prec false u))
+      | _ -> match f with
+        | Const (id, _typ) -> id
+        | Var (id, _typ) -> id
+        | App (Const ("¬", _), g) -> (match g with
+            | Eq (t, u) -> show_eq "≠" t u
+            | _ -> parens (not_prec < outer) ("¬" ^ show1 not_prec false g))
+        | App (t, u) ->
+            sprintf "%s(%s)" (show1 10 false t) (show1 (-1) false u)
+        | Lambda (id, typ, t) ->
+            parens (quantifier_prec < outer)
+              (sprintf "λ%s:%s.%s" id (show_type typ) (show1 quantifier_prec false t))
+        | Eq (t, u) -> show_eq "=" t u in
+  show 0 multi (-1) false f
+
+let show_formula = show_formula_multi false
 
 let free_vars f =
   let rec free = function
@@ -151,10 +174,12 @@ let for_all_vars_typ_if_free (ids, typ) f =
 
 let for_all_vars_typs = fold_right for_all'
 
-let rec for_alls f = match kind f with
-  | Quant ("∀", id, typ, f) ->
-      let (vs, g) = for_alls f in ((id, typ) :: vs, g)
+let rec gather_quant q f = match kind f with
+  | Quant (q', id, typ, u) when q = q' ->
+      let (qs, f) = gather_quant q u in ((id, typ) :: qs, f)
   | _ -> ([], f)
+
+let for_alls = gather_quant "∀"
 
 let rec rename id avoid =
   if mem id avoid then rename (id ^ "'") avoid else id
@@ -222,11 +247,6 @@ let outer_eq f =
     | Eq (a, _), Eq(_, b) -> Eq(a, b)
     | _ -> failwith "outer_eq"
 
-let rec premises f = match kind f with
-  | Binary ("→", f, g) ->
-      let (fs, concl) = premises g in (f :: fs, concl)
-  | _ -> ([], f)
-
 (* statements *)
 
 type proof_step =
@@ -280,10 +300,15 @@ let axiom_named name = function
   | Axiom (_id, f, Some n) when eq_icase n name -> Some f
   | _ -> None
 
-let show_statement = function
-  | TypeDecl id -> sprintf "type %s" id
-  | ConstDecl (id, typ) -> sprintf "const %s : %s" id (show_type typ)
-  | Axiom (id, f, _) -> sprintf "axiom %s: %s" id (show_formula f)
-  | Definition (id, typ, f) ->
-      sprintf "definition %s : %s ; %s" id (show_type typ) (show_formula f)
-  | Theorem (name, t, _) -> sprintf "theorem %s: %s" name (show_formula t)
+let show_statement multi s =
+  let show = show_formula_multi multi in
+  match s with
+    | TypeDecl id -> sprintf "type %s" id
+    | ConstDecl (id, typ) -> sprintf "const %s : %s" id (show_type typ)
+    | Axiom (id, f, _) -> sprintf "axiom %s: %s" id (show f)
+    | Definition (id, typ, f) ->
+        sprintf "definition %s : %s ; %s" id (show_type typ) (show f)
+    | Theorem (name, t, _) ->
+        sprintf "theorem %s:" name ^
+          (if multi then "\n" ^ indent_lines 2 (show t)
+          else " " ^ show t)
