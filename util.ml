@@ -32,6 +32,10 @@ let contains s1 s2 =
 (* 'replace s t u' replaces s with t in u *)
 let replace s = Str.global_replace (Str.regexp s)
 
+let remove_prefix p s =
+  if String.starts_with ~prefix:p s
+    then string_from s (String.length p) else s
+
 let str_lines = String.split_on_char '\n'
 
 let unlines = String.concat "\n"
@@ -66,6 +70,8 @@ let rec take n xs =
       | x :: xs -> x :: take (n - 1) xs
       | [] -> failwith "take"
 
+let index_of y xs = Option.get (find_index (fun z -> z = y) xs)
+   
 let fold_left1 f = function
   | [] -> failwith "fold_left1: empty list"
   | x :: xs -> fold_left f x xs    
@@ -101,4 +107,8 @@ let write_file filename text =
 
 (* parsing *)
 
-let triple p q r = pair p (pair q r) |>> fun (x, (y, z)) -> (x, y, z)
+let single s = count 1 s
+
+let triple p q r = pipe3 p q r (fun x y z -> (x, y, z))
+
+let quadruple p q r s = pipe4 p q r s (fun w x y z -> (w, x, y, z))

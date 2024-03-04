@@ -81,14 +81,25 @@ let colors = [
 
 let encode s = (replace "\n" "\\l" s) ^ "\\l"
 
-let proof_graph formulas =
+let proof_graph debug inferences formulas =
   let skolem_map = skolem_names (map formula_of formulas) in
   let index_of id =
     Option.get (find_index (fun s -> name_of s = id) formulas) in
   let box i (name, role, formula, _) =
     let color = assoc role colors in
+    let suffix =
+      if debug > 1 then
+        let orig_name = find_map
+          (fun c -> if alpha_equiv (formula_of c) formula then Some (name_of c)
+                    else None) inferences in
+        match orig_name with
+          | Some orig -> if orig = name then ""
+                         else sprintf " (%s)" (remove_prefix "c_0_" orig)
+          | None -> " (none)"
+      else "" in
+    let name = sprintf "%s%s: " name suffix in
     let formula = rename_vars (skolem_subst skolem_map formula) in
-    let text = encode (indent_with_prefix (name ^ ": ") (show_formula_multi true formula)) in
+    let text = encode (indent_with_prefix name (show_formula_multi true formula)) in
     sprintf "  %d [shape = box, color = %s, fontname = monospace, label = \"%s\"]\n"
       i color text in
   let arrows i (_, _, _, source) =
@@ -101,22 +112,22 @@ let rec prove debug dir = function
   | Theorem (id, _, _) as thm :: thms ->
       print_endline (show_statement true thm);
       let args =
-        [| "eprover-ho"; "--auto"; (if debug then "-l6" else "-s");
+        [| "eprover-ho"; "--auto"; (if debug > 0 then "-l6" else "-s");
            "-p"; "--proof-statistics"; "-R"; thf_file dir id |] in
       let ic = Unix.open_process_args_in "eprover-ho" args in
       let result = In_channel.input_all ic in
       In_channel.close ic;
       let debug_dir = dir ^ "_dbg" in
-      if debug then
+      if debug > 0 then
         write_file (Filename.concat debug_dir (id ^ ".thf")) result;
-      (match Proof_parse.parse result with
-        | Success (Some (formulas, steps, time)) ->
+      (match Proof_parse.parse debug result with
+        | Success (Some (inferences, formulas, steps, time)) ->
             let time = float_of_string time in
             let hyps = gather_hypotheses formulas in
             printf "  %.1f s, %s steps [%s]\n\n" time steps (String.concat ", " hyps);
-            if debug then
+            if debug > 0 then
               write_file (Filename.concat debug_dir (id ^ ".dot"))
-                (proof_graph formulas);
+                (proof_graph debug inferences formulas);
             prove debug dir thms
         | Success None -> print_endline "failed to prove!"
         | Failed (msg, _) ->

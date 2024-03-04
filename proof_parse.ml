@@ -10,6 +10,8 @@ let any_line = skip_many_until any_char newline
 
 let comment = char '#' << any_line
 
+let line s = string s << newline
+
 let empty = skip_many (space <|> comment)
 
 let str s = empty >>? string s
@@ -18,8 +20,8 @@ let parens p = str "(" >> p << str ")"
 
 let brackets p = str "[" >> p << str "]"
 
-let chars first = pipe2 first (many_chars (alphanum <|> char '_')) (fun c s ->
-  char_to_string c ^ s)
+let chars first = pipe2 first (many_chars (alphanum <|> char '_' <|> char '-'))
+  (fun c s -> char_to_string c ^ s)
 
 let quoted_id = char '\'' >> many_chars_until any_char (char '\'')
 
@@ -93,7 +95,7 @@ let rec source s = choice [
   str "file" >> parens (pair (quoted_id << str ",") id) |>>
     (fun (filename, id) -> File (filename, id));
   str "inference" >> parens (pipe3 id
-    (str ",[status(" >> id << str ")],")
+    (str "," >> str "[status(" >> id << str ")],")
     (brackets (sep_by source (str ",")))
     (fun name status children -> Inference (name, status, children)));
   id |>> fun id -> Id id
@@ -107,16 +109,20 @@ let proof_clause = str "thf" >> parens ( (id << str ",") >>= fun name ->
       (fun role f source -> [(name, role, f, source)])
   ]) << str "."
 
-let line s = string s << newline
-
 let stat name =
   (skip_many_until any_line (string ("# " ^ name)) >> spaces >>
     str ":" >> spaces >> many_chars (digit <|> char '.'))
 
-let proof_file = skip_many_until any_line (line "# SZS status Theorem") >>
-  line "# SZS output start CNFRefutation" >>
-  triple (many1 proof_clause |>> List.concat)
-    (stat "Proof object total steps") (stat "User time")
+let proof_found = line "# Proof found!"
+
+let proof_file debug = quadruple
+  (if debug > 1 then 
+	  (many_until proof_clause (spaces >>? proof_found) |>> concat)
+   else skip_many_until any_line proof_found >>$ [])
+  (line "# SZS status Theorem" >> line "# SZS output start CNFRefutation" >>
+    many1 proof_clause |>> concat)
+  (stat "Proof object total steps")
+  (stat "User time")
 ;;
 
-let parse text = MParser.parse_string (option proof_file) text ()
+let parse debug text = MParser.parse_string (option (proof_file debug)) text ()

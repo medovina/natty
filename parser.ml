@@ -8,10 +8,6 @@ open Util
 
 let (<<?) p q = attempt (p << q)
 
-let triple p q r = pair p (pair q r) |>> fun (x, (y, z)) -> (x, y, z)
-
-let single s = count 1 s
-
 let opt_fold p q f = p >>= fun x -> opt x (q |>> f x)
 
 let comment = char '#' << skip_many_until any_char newline
