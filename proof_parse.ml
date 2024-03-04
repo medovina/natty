@@ -78,7 +78,7 @@ let rec term s = choice [
   id |>> (fun id -> Const (id, unknown_type));
   var |>> (fun id -> Var (id, unknown_type));
   (str "~" >> term) |>> mk_not;
-  quantifier "!" for_all;
+  quantifier "!" mk_for_all;
   quantifier "?" exists;
   quantifier "^" lambda
   ] s

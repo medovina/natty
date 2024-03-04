@@ -95,7 +95,7 @@ let prop_operators = [
   [ infix "and" mk_and Assoc_left ];
   [ infix "or" mk_or Assoc_left ];
   [ infix "implies" implies Assoc_right ];
-  [ Postfix (str "for all" >> id_type |>> for_all') ];
+  [ Postfix (str "for all" >> id_type |>> mk_for_all') ];
   [ Infix (comma_and >>$ mk_and, Assoc_left) ];
   [ Infix (str "," >>? str "or" >>$ mk_or, Assoc_left) ];
 ]
@@ -128,7 +128,7 @@ and proposition s = choice [
 
 (* top propositions *)
 
-let rec let_prop s = pipe2 (str "Let" >> id_type << str ".") top_prop for_all' s
+let rec let_prop s = pipe2 (str "Let" >> id_type << str ".") top_prop mk_for_all' s
 
 and suppose s = pipe2
   (str "Suppose that" >> sep_by1 proposition (str ", and that") << str ".")

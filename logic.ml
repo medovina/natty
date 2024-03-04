@@ -70,12 +70,16 @@ let lambda id typ f = Lambda (id, typ, f)
 let binder name id typ f = App (Const (name, quant_type), Lambda (id, typ, f))
 let binder' name (id, typ) f = binder name id typ f
 
-let for_all = binder "∀"
-let for_all' = binder' "∀"
+let mk_for_all = binder "∀"
+let mk_for_all' = binder' "∀"
 
 let exists = binder "∃"
 
 let mk_eq f g = Eq (f, g)
+
+let is_eq = function
+  | Eq _ -> true
+  | _ -> false
 
 let mk_neq f g = mk_not (mk_eq f g)
 
@@ -90,6 +94,10 @@ let kind = function
   | App (Const (q, _), Lambda (id, typ, u)) when q = "∀" || q = "∃" ->
       Quant(q, id, typ, u)
   | f -> Other f
+
+let rec gather_and f = match kind f with
+  | Binary ("∧", f, g) -> gather_and f @ gather_and g
+  | _ -> [f]
 
 let implies f g = match kind f with
   | Binary ("∧", s, t) -> implies1 s (implies1 t g)
@@ -120,14 +128,14 @@ let show_formula_multi multi f =
           let layout multi =
             sprintf "%s %s %s" (show indent multi prec false t) op
                                (show indent multi prec true u) in
-          let s = if op = "→" && multi then
+          let s = if (op = "→" || op = "∧") && multi then
             let line = layout false in
             if String.length line <= 60 then line
             else
-              let fs = gather_implies f in
+              let fs = (if op = "→" then gather_implies else gather_and) f in
               let ss = (show1 prec false (hd fs)) ::
                 map (show (indent + 3) multi prec false) (tl fs) in
-              String.concat ("\n" ^ String.make indent ' ' ^ " → ") ss
+              String.concat (sprintf "\n%s %s " (n_spaces indent) op) ss
           else layout multi in
           parens p s
       | Quant (q, id, typ, u) ->
@@ -167,12 +175,12 @@ let consts f =
   unique (collect f)
 
 let for_all_vars_typ (ids, typ) f =
-  fold_right (fun id f -> for_all id typ f) ids f
+  fold_right (fun id f -> mk_for_all id typ f) ids f
 
 let for_all_vars_typ_if_free (ids, typ) f =
   for_all_vars_typ (intersect ids (free_vars f), typ) f
 
-let for_all_vars_typs = fold_right for_all'
+let for_all_vars_typs = fold_right mk_for_all'
 
 let rec gather_quant q f = match kind f with
   | Quant (q', id, typ, u) when q = q' ->
@@ -237,13 +245,9 @@ let multi_eq f =
     | fs -> join fs
 
 let outer_eq f =
-  let rec collect f = match kind f with
-    | Binary ("∧", f, g) -> collect f @ collect g
-    | _ -> match f with
-      | Eq _ -> [f]
-      | _ -> failwith "outer_eq" in
-  let f = collect f in
-  match hd f, last f with
+  let fs = gather_and f in
+  assert (for_all is_eq fs);
+  match hd fs, last fs with
     | Eq (a, _), Eq(_, b) -> Eq(a, b)
     | _ -> failwith "outer_eq"
 
