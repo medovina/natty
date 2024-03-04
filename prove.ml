@@ -110,9 +110,10 @@ let rec prove debug dir = function
       if debug then
         write_file (Filename.concat debug_dir (id ^ ".thf")) result;
       (match Proof_parse.parse result with
-        | Success (Some (formulas, steps)) ->
+        | Success (Some (formulas, steps, time)) ->
+            let time = float_of_string time in
             let hyps = gather_hypotheses formulas in
-            printf "  %s steps [%s]\n\n" steps (String.concat ", " hyps);
+            printf "  %.1f s, %s steps [%s]\n\n" time steps (String.concat ", " hyps);
             if debug then
               write_file (Filename.concat debug_dir (id ^ ".dot"))
                 (proof_graph formulas);

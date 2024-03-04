@@ -109,11 +109,14 @@ let proof_clause = str "thf" >> parens ( (id << str ",") >>= fun name ->
 
 let line s = string s << newline
 
+let stat name =
+  (skip_many_until any_line (string ("# " ^ name)) >> spaces >>
+    str ":" >> spaces >> many_chars (digit <|> char '.'))
+
 let proof_file = skip_many_until any_line (line "# SZS status Theorem") >>
   line "# SZS output start CNFRefutation" >>
-  pair (many1 proof_clause |>> List.concat)
-  (skip_many_until any_line (string "# Proof object total steps") >> spaces >>
-    str ":" >> spaces >> many_chars digit)
+  triple (many1 proof_clause |>> List.concat)
+    (stat "Proof object total steps") (stat "User time")
 ;;
 
 let parse text = MParser.parse_string (option proof_file) text ()

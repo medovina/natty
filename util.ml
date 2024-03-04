@@ -1,4 +1,5 @@
 open List
+open MParser
 
 (* options *)
 
@@ -97,3 +98,7 @@ let write_file filename text =
   let oc = open_out filename in
   output_string oc text;
   close_out oc
+
+(* parsing *)
+
+let triple p q r = pair p (pair q r) |>> fun (x, (y, z)) -> (x, y, z)
