@@ -14,6 +14,10 @@ let char_to_string = String.make 1
 
 let string_from s i = String.sub s i (String.length s - i)
 
+let prepend p s = p ^ s
+
+let n_spaces n = String.make n ' '
+
 let capitalize s =
   char_to_string (Char.uppercase_ascii s.[0]) ^ string_from s 1
 
@@ -24,9 +28,20 @@ let contains s1 s2 =
     try ignore (Str.search_forward re s1 0); true
     with Not_found -> false
 
-let indent_lines n s =
-  String.concat "\n" (String.split_on_char '\n' s |> map
-    (fun line -> String.make n ' ' ^ line))
+(* 'replace s t u' replaces s with t in u *)
+let replace s = Str.global_replace (Str.regexp s)
+
+let str_lines = String.split_on_char '\n'
+
+let unlines = String.concat "\n"
+
+let indent_by n lines = unlines (map (prepend (n_spaces n)) lines)
+
+let indent_lines n s = indent_by n (str_lines s)
+
+let indent_with_prefix prefix s =
+  let lines = str_lines s in
+  prefix ^ hd lines ^ "\n" ^ indent_by (String.length prefix) (tl lines)
 
 (* lists *)
 

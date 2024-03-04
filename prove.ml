@@ -79,6 +79,8 @@ let colors = [
   ("axiom", "forestgreen"); ("conjecture", "red");
   ("plain", "forestgreen"); ("negated_conjecture", "blue")]
 
+let encode s = (replace "\n" "\\l" s) ^ "\\l"
+
 let proof_graph formulas =
   let skolem_map = skolem_names (map formula_of formulas) in
   let index_of id =
@@ -86,8 +88,9 @@ let proof_graph formulas =
   let box i (name, role, formula, _) =
     let color = assoc role colors in
     let formula = rename_vars (skolem_subst skolem_map formula) in
-    sprintf "  %d [shape = box, color = %s, label = \"%s: %s\"]\n"
-      i color name (show_formula formula) in
+    let text = encode (indent_with_prefix (name ^ ": ") (show_formula_multi true formula)) in
+    sprintf "  %d [shape = box, color = %s, fontname = monospace, label = \"%s\"]\n"
+      i color text in
   let arrows i (_, _, _, source) =
     let arrow_from id = sprintf "  %d -> %d []\n" (index_of id) i in
     String.concat "" (map arrow_from (hypotheses source)) in

@@ -5,7 +5,7 @@ open Logic
 open Util
 
 let quote s =
-  let s = Str.global_replace (Str.regexp "·") "*" s in
+  let s = replace "·" "*" s in
   if is_lower (s.[0]) then s else sprintf "'%s'" s
 
 let base_type = function

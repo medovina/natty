@@ -126,8 +126,8 @@ let show_formula_multi multi f =
             else
               let fs = gather_implies f in
               let ss = (show1 prec false (hd fs)) ::
-                map (show (indent + 4) multi prec false) (tl fs) in
-              String.concat ("\n" ^ String.make indent ' ' ^ "  → ") ss
+                map (show (indent + 3) multi prec false) (tl fs) in
+              String.concat ("\n" ^ String.make indent ' ' ^ " → ") ss
           else layout multi in
           parens p s
       | Quant (q, id, typ, u) ->
