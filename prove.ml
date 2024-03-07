@@ -46,7 +46,7 @@ let rec skolem_subst names f = match f with
         | None -> f)
   | _ -> map_formula (skolem_subst names) f
 
-let thf_file dir name = Filename.concat dir (name ^ ".thf")
+let thf_file dir name = mk_path dir (name ^ ".thf")
 
 let write_thf dir name proven stmt =
   let out = open_out (thf_file dir name) in
@@ -81,24 +81,22 @@ let colors = [
 
 let encode s = (replace "\n" "\\l" s) ^ "\\l"
 
-let proof_graph debug inferences formulas =
-  let skolem_map = skolem_names (map formula_of formulas) in
+let proof_graph debug all_clauses proof_clauses =
   let index_of id =
-    Option.get (find_index (fun s -> name_of s = id) formulas) in
+    Option.get (find_index (fun s -> name_of s = id) proof_clauses) in
   let box i (name, role, formula, _) =
     let color = assoc role colors in
     let suffix =
       if debug > 1 then
         let orig_name = find_map
-          (fun c -> if alpha_equiv (formula_of c) formula then Some (name_of c)
-                    else None) inferences in
+          (fun c -> if formula_of c = formula then Some (name_of c)
+                    else None) all_clauses in
         match orig_name with
           | Some orig -> if orig = name then ""
                          else sprintf " (%s)" (remove_prefix "c_0_" orig)
           | None -> " (none)"
       else "" in
     let name = sprintf "%s%s: " name suffix in
-    let formula = rename_vars (skolem_subst skolem_map formula) in
     let text = encode (indent_with_prefix name (show_formula_multi true formula)) in
     sprintf "  %d [shape = box, color = %s, fontname = monospace, label = \"%s\"]\n"
       i color text in
@@ -106,7 +104,13 @@ let proof_graph debug inferences formulas =
     let arrow_from id = sprintf "  %d -> %d []\n" (index_of id) i in
     String.concat "" (map arrow_from (hypotheses source)) in
   let box_arrows i formula = box i formula ^ arrows i formula in
-  "digraph proof {\n" ^ String.concat "" (mapi box_arrows formulas) ^ "}\n"
+  "digraph proof {\n" ^ String.concat "" (mapi box_arrows proof_clauses) ^ "}\n"
+
+let write_trace file clauses =
+  let oc = open_out file in
+  clauses |> iter (fun c ->
+    fprintf oc "%s: %s\n" (name_of c) (show_formula (formula_of c)));
+  close_out oc
 
 let rec prove debug dir = function
   | Theorem (id, _, _) as thm :: thms ->
@@ -119,15 +123,21 @@ let rec prove debug dir = function
       In_channel.close ic;
       let debug_dir = dir ^ "_dbg" in
       if debug > 0 then
-        write_file (Filename.concat debug_dir (id ^ ".thf")) result;
+        write_file (mk_path debug_dir (id ^ ".thf")) result;
       (match Proof_parse.parse debug result with
-        | Success (Some (inferences, formulas, steps, time)) ->
+        | Success (Some (all_clauses, proof_clauses, steps, time)) ->
             let time = float_of_string time in
-            let hyps = gather_hypotheses formulas in
+            let hyps = gather_hypotheses proof_clauses in
             printf "  %.1f s, %s steps [%s]\n\n" time steps (String.concat ", " hyps);
-            if debug > 0 then
-              write_file (Filename.concat debug_dir (id ^ ".dot"))
-                (proof_graph debug inferences formulas);
+            if debug > 0 then (
+              let skolem_map = skolem_names (map formula_of proof_clauses) in
+              let adjust f = rename_vars (skolem_subst skolem_map f) in
+              let all_clauses = map (map_clause adjust) all_clauses in
+              let proof_clauses = map (map_clause adjust) proof_clauses in
+              write_file (mk_path debug_dir (id ^ ".dot"))
+                (proof_graph debug all_clauses proof_clauses);
+              if debug > 1 then
+                write_trace (mk_path debug_dir (id ^ ".trace")) all_clauses);
             prove debug dir thms
         | Success None -> print_endline "failed to prove!"
         | Failed (msg, _) ->

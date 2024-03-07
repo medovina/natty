@@ -8,10 +8,13 @@ type source =
   | File of string * id  (* filename, id *)
   | Inference of id * id * source list  (* name, status, children *)
 
-type proof_clause = id * id * formula * source  (* name, role, formula, source *)
+type clause = id * id * formula * source  (* name, role, formula, source *)
 
 let name_of (name, _, _, _) = name
 let formula_of (_, _, f, _) = f
+
+let map_clause fn =
+  fun (name, role, f, source) -> (name, role, fn f, source)
 
 let rec hypotheses = function
   | Id id -> [id]

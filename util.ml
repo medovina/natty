@@ -94,9 +94,11 @@ let unique l = sort_uniq Stdlib.compare l
 
 (* I/O *)
 
+let mk_path = Filename.concat
+
 let clean_dir dir =
   if Sys.file_exists dir then
-    Sys.readdir dir |> Array.iter (fun file -> Sys.remove (Filename.concat dir file))
+    Sys.readdir dir |> Array.iter (fun file -> Sys.remove (mk_path dir file))
   else
     Sys.mkdir dir 0o755
 
