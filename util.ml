@@ -24,6 +24,8 @@ let capitalize s =
 
 let eq_icase s t = (String.lowercase_ascii s = String.lowercase_ascii t) 
 
+let is_char_in c s = Option.is_some (String.index_opt s c)
+
 let contains s1 s2 =
   let re = Str.regexp_string s2 in
     try ignore (Str.search_forward re s1 0); true
@@ -36,17 +38,29 @@ let remove_prefix p s =
   if String.starts_with ~prefix:p s
     then string_from s (String.length p) else s
 
+let comma_join = String.concat ", "
+
 let str_lines = String.split_on_char '\n'
 
 let unlines = String.concat "\n"
 
-let indent_by n lines = unlines (map (prepend (n_spaces n)) lines)
+let indent_by n = map (prepend (n_spaces n))
 
-let indent_lines n s = indent_by n (str_lines s)
+let indent_lines n s = unlines (indent_by n (str_lines s))
 
 let indent_with_prefix prefix s =
   let lines = str_lines s in
-  prefix ^ hd lines ^ "\n" ^ indent_by (String.length prefix) (tl lines)
+  unlines ((prefix ^ hd lines) :: indent_by (String.length prefix) (tl lines))
+
+let utf8_len s =
+  let ulen c =
+    if c < 0x80 then 1
+    else if c < 0xe0 then 2
+    else if c < 0xf0 then 3 else 4 in
+  let rec len k =
+    if k >= String.length s then 0
+    else let n = ulen (Char.code s.[k]) in 1 + len (k + n)
+  in len 0 
 
 (* lists *)
 

@@ -151,9 +151,9 @@ let show_formula_multi multi f =
           else layout multi in
           parens p s
       | Quant (q, id, typ, u) ->
+          let prefix = sprintf "%s%s:%s." q id (show_type typ) in
           parens (quantifier_prec < outer)
-            (sprintf "%s%s:%s.%s" q id (show_type typ)
-              (show (indent + 5) multi quantifier_prec false u))
+            (prefix ^ show (indent + utf8_len prefix) multi quantifier_prec false u)
       | _ -> match f with
         | Const (id, _typ) -> id
         | Var (id, _typ) -> id
@@ -289,7 +289,7 @@ let step_free_vars = function
 
 let show_proof_step = function
   | Assert f -> sprintf "assert %s" (show_formula f)
-  | Let (ids, typ) -> sprintf "let %s : %s" (String.concat ", " ids) (show_type typ)
+  | Let (ids, typ) -> sprintf "let %s : %s" (comma_join ids) (show_type typ)
   | LetVal (id, typ, f) -> sprintf "let %s : %s = %s"
       id (show_type typ) (show_formula f)
   | Assume f -> sprintf "assume %s" (show_formula f)
@@ -298,7 +298,7 @@ let show_proof_step = function
   | By (name, outer, var) ->
       let for_any =
         if outer = [] then ""
-        else " for any " ^ String.concat ", " outer in
+        else " for any " ^ comma_join outer in
       sprintf "by %s on %s%s" name var for_any
 
 type proof =

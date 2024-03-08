@@ -19,7 +19,13 @@ let map_clause fn =
 let rec hypotheses = function
   | Id id -> [id]
   | File _ -> []
-  | Inference (_, _, sources) -> concat_map hypotheses sources
+  | Inference (_, _, sources) ->
+      concat_map hypotheses sources
+
+let rec source_rules = function
+  | Inference (name, _, children) ->
+      name :: concat_map source_rules children
+  | _ -> []
 
 let gather_hypotheses formulas =
   let ids = concat_map (fun (_, _, _, source) -> hypotheses source) formulas in

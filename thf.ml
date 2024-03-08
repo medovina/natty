@@ -52,7 +52,7 @@ let rec thf outer right f =
 
 and quant q ids_typs f =
   let pair (id, typ) = sprintf "%s: %s" (capitalize id) (thf_type typ) in
-  let pairs = String.concat ", " (map pair ids_typs) in
+  let pairs = comma_join (map pair ids_typs) in
   sprintf "%s[%s]: %s" q pairs (thf q false f)
 
 and thf_formula f = thf "" false f
@@ -71,4 +71,4 @@ let thf_statement is_conjecture f =
     | Theorem (name, f, _) ->
         let t = if is_conjecture then "conjecture" else "theorem" in
         [sprintf "%s, %s, %s" (quote ("thm_" ^ name)) t (thf_formula f)] in
-  String.concat "\n" (map (sprintf "thf(%s).") (conv f))
+  unlines (map (sprintf "thf(%s).") (conv f))

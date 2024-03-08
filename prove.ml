@@ -79,12 +79,15 @@ let colors = [
   ("axiom", "forestgreen"); ("conjecture", "red");
   ("plain", "forestgreen"); ("negated_conjecture", "blue")]
 
-let encode s = (replace "\n" "\\l" s) ^ "\\l"
+let encode s =
+  if is_char_in '\n' s
+    then replace "\n" "\\l" s ^ "\\l" (* all lines left-aligned *)
+    else s ^ "\\n"  (* centers string *)
 
 let proof_graph debug all_clauses proof_clauses =
   let index_of id =
     Option.get (find_index (fun s -> name_of s = id) proof_clauses) in
-  let box i (name, role, formula, _) =
+  let box i (name, role, formula, source) =
     let color = assoc role colors in
     let suffix =
       if debug > 1 then
@@ -98,6 +101,8 @@ let proof_graph debug all_clauses proof_clauses =
       else "" in
     let name = sprintf "%s%s: " name suffix in
     let text = encode (indent_with_prefix name (show_formula_multi true formula)) in
+    let rules = rev (source_rules source) in
+    let text = text ^ (if rules = [] then "" else "\\n" ^ comma_join rules) in
     sprintf "  %d [shape = box, color = %s, fontname = monospace, label = \"%s\"]\n"
       i color text in
   let arrows i (_, _, _, source) =
@@ -128,7 +133,7 @@ let rec prove debug dir = function
         | Success (Some (all_clauses, proof_clauses, steps, time)) ->
             let time = float_of_string time in
             let hyps = gather_hypotheses proof_clauses in
-            printf "  %.1f s, %s steps [%s]\n\n" time steps (String.concat ", " hyps);
+            printf "  %.1f s, %s steps [%s]\n\n" time steps (comma_join hyps);
             if debug > 0 then (
               let skolem_map = skolem_names (map formula_of proof_clauses) in
               let adjust f = rename_vars (skolem_subst skolem_map f) in
