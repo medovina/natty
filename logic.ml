@@ -107,9 +107,12 @@ let kind = function
       Quant(q, id, typ, u)
   | f -> Other f
 
-let rec gather_and f = match kind f with
-  | Binary ("∧", f, g) -> gather_and f @ gather_and g
+let rec gather_associative op f = match kind f with
+  | Binary (op', f, g) when op' = op ->
+      gather_associative op f @ gather_associative op g
   | _ -> [f]
+
+let gather_and = gather_associative "∧"
 
 let implies f g = match kind f with
   | Binary ("∧", s, t) -> implies1 s (implies1 t g)
@@ -140,11 +143,11 @@ let show_formula_multi multi f =
           let layout multi =
             sprintf "%s %s %s" (show indent multi prec false t) op
                                (show indent multi prec true u) in
-          let s = if (op = "→" || op = "∧") && multi then
+          let s = if (op = "→" || op = "∧" || op = "∨") && multi then
             let line = layout false in
             if String.length line <= 60 then line
             else
-              let fs = (if op = "→" then gather_implies else gather_and) f in
+              let fs = (if op = "→" then gather_implies else gather_associative op) f in
               let ss = (show1 prec false (hd fs)) ::
                 map (show (indent + 3) multi prec false) (tl fs) in
               String.concat (sprintf "\n%s %s " (n_spaces indent) op) ss

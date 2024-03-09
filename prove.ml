@@ -101,8 +101,12 @@ let proof_graph debug all_clauses proof_clauses =
       else "" in
     let name = sprintf "%s%s: " name suffix in
     let text = encode (indent_with_prefix name (show_formula_multi true formula)) in
-    let rules = rev (source_rules source) in
-    let text = text ^ (if rules = [] then "" else "\\n" ^ comma_join rules) in
+    let hyps = hypotheses source in
+    let explain =
+      if hyps = [] then ""
+      else if length hyps = 1 then comma_join (rev (source_rules source))
+      else show_source source in
+    let text = text ^ (if explain = "" then "" else "\\n" ^ explain) in
     sprintf "  %d [shape = box, color = %s, fontname = monospace, label = \"%s\"]\n"
       i color text in
   let arrows i (_, _, _, source) =
@@ -113,8 +117,11 @@ let proof_graph debug all_clauses proof_clauses =
 
 let write_trace file clauses =
   let oc = open_out file in
-  clauses |> iter (fun c ->
-    fprintf oc "%s: %s\n" (name_of c) (show_formula (formula_of c)));
+  clauses |> iter (fun (name, _role, formula, source) ->
+    fprintf oc "%s [%s]\n"
+      (indent_with_prefix (name ^ ": ") (show_formula_multi true formula))
+      (show_source source))
+      ;
   close_out oc
 
 let rec prove debug dir = function

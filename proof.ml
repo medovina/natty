@@ -1,4 +1,5 @@
 open List
+open Printf
 
 open Logic
 open Util
@@ -7,6 +8,12 @@ type source =
   | Id of id
   | File of string * id  (* filename, id *)
   | Inference of id * id * source list  (* name, status, children *)
+
+let rec show_source = function
+  | Id id -> id
+  | File (_, _) -> "file"
+  | Inference (id, _, children) ->
+      sprintf "%s(%s)" id (comma_join (map show_source children))
 
 type clause = id * id * formula * source  (* name, role, formula, source *)
 
