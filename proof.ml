@@ -16,7 +16,8 @@ let rec show_source = function
       sprintf "%s(%s)" id (comma_join (map show_source parents))
 
 type clause = {
-  name: id; role: string; formula: formula; source: source
+  name: id; role: string; formula: formula; source: source;
+  info: string
 }
 
 let map_clause fn clause = { clause with formula = fn (clause.formula) }

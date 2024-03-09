@@ -105,9 +105,9 @@ let proof_clause = empty >>?
   str "thf" >> parens ( (id << str ",") >>= fun name ->
   choice [
     str "type" >> str "," >> thf_type >>$ [];
-    pipe3 id (str "," >> formula)
-      (str "," >> source << optional (str "," >> brackets quoted_id))
-      (fun role f source -> [{name; role; formula = f; source}])
+    pipe4 id (str "," >> formula)
+      (str "," >> source) (opt "" (str "," >> brackets quoted_id))
+      (fun role f source info -> [{name; role; formula = f; source; info}])
   ]) << str "."
 
 let stat name =

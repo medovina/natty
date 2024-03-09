@@ -87,7 +87,7 @@ let encode s =
 let proof_graph debug all_clauses proof_clauses =
   let index_of id =
     find_index (fun s -> s.name = id) proof_clauses in
-  let box i { name; role; formula; source } =
+  let box i { name; role; formula; source; _ } =
     let color = assoc role colors in
     let suffix =
       if debug > 1 then
@@ -117,12 +117,17 @@ let proof_graph debug all_clauses proof_clauses =
   let box_arrows i clause = box i clause ^ arrows i clause in
   "digraph proof {\n" ^ String.concat "" (mapi box_arrows proof_clauses) ^ "}\n"
 
+let given = "new_given"
+
 let write_trace file clauses =
   let oc = open_out file in
-  clauses |> iter (fun { name; formula; source; _ } ->
-    fprintf oc "%s [%s]\n"
+  clauses |> iter (fun { name; formula; source; info; _ } ->
+    fprintf oc "%s%s [%s]%s\n"
+      (if info = given then "\n" else "")
       (indent_with_prefix (name ^ ": ") (show_formula_multi true formula))
-      (show_source source))
+      (show_source source)
+      (if info = given then " (given)" else "")
+      )
       ;
   close_out oc
 
@@ -159,12 +164,12 @@ let rec prove debug dir = function
                   all_clauses in
             if debug > 0 then (
               let adjust = skolem_adjust all in
-              let all_clauses = adjust all in
+              let all_clauses = adjust all in (
               match proof with
                 | Some (proof_clauses, _) ->
                     write_file (mk_path debug_dir (id ^ ".dot"))
                       (proof_graph debug all_clauses (adjust proof_clauses))
-                | _ -> ();
+                | _ -> ());
               if debug > 1 then
                 write_trace (mk_path debug_dir (id ^ ".trace")) all_clauses);
             if Option.is_some proof then
