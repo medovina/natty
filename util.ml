@@ -98,7 +98,7 @@ let fold_lefti (f: 'a -> int -> 'b -> 'a) (acc: 'a) (xs: 'b list): 'a =
       
 let intersect xs ys = filter (fun x -> mem x ys) xs
 
-let overlap xs ys = intersect xs ys != []
+let overlap xs ys = intersect xs ys <> []
 
 let subtract xs ys = filter (fun x -> not (mem x ys)) xs
 

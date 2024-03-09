@@ -13,7 +13,7 @@ let rec parse_args = function
             if arg = "-d" then 1 else int_of_string (string_from arg 2) in
           (name, level)
         else failwith "unknown option"
-      else if name != "" then failwith "double filename"
+      else if name <> "" then failwith "double filename"
       else (arg, debug)
 
 ;;

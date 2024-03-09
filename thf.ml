@@ -24,12 +24,12 @@ let thf_type =
 let binary = [("∧", "&"); ("∨", "|"); ("→", "=>")]
 
 let rec thf outer right f =
-  let parens b s = if b && outer != "" then sprintf "(%s)" s else s in
+  let parens b s = if b && outer <> "" then sprintf "(%s)" s else s in
   match kind f with
     | Binary (op, t, u) when mem op logical_binary ->
         let s = sprintf "%s %s %s"
           (thf op false t) (assoc op binary) (thf op true u) in
-        parens (op != "∧" && op != "∨" || op != outer) s
+        parens (op <> "∧" && op <> "∨" || op <> outer) s
     | Quant (q, id, typ, u) ->
         let (ids_typs, f) = gather_quant q u in
         quant (if q = "∀" then "!" else "?") ((id, typ) :: ids_typs) f
@@ -44,7 +44,7 @@ let rec thf outer right f =
             | Const ("¬", _), u -> sprintf "~ %s" (thf "¬" false u)
             | _, _ ->
                 let s = sprintf "%s @ %s" (thf "@" false t) (thf "@" true u) in
-                parens (outer != "@" || right) s
+                parens (outer <> "@" || right) s
                 ) 
       | Lambda (id, typ, f) -> quant "^" [(id, typ)] f
       | Eq (t, u) ->
