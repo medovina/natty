@@ -132,3 +132,5 @@ let proof_file debug = triple
 ;;
 
 let parse debug text = MParser.parse_string (proof_file debug) text ()
+
+let parse_file debug file = MParser.parse_channel (proof_file debug) (open_in file) ()

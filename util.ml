@@ -106,6 +106,14 @@ let remove x xs = subtract xs [x]
 
 let unique l = sort_uniq Stdlib.compare l
 
+let rec gather_pairs = function
+  | [] -> []
+  | (x, y) :: pairs ->
+      match gather_pairs pairs with
+        | [] -> [(x, [y])]
+        | (x1, ys) :: pairs as rest ->
+            if x = x1 then (x1, y :: ys) :: pairs
+            else (x, [y]) :: rest
 (* I/O *)
 
 let mk_path = Filename.concat

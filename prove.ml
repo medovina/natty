@@ -86,7 +86,7 @@ let encode s =
 
 let proof_graph debug all_clauses proof_clauses =
   let index_of id =
-    Option.get (find_index (fun s -> name_of s = id) proof_clauses) in
+    find_index (fun s -> name_of s = id) proof_clauses in
   let box i (name, role, formula, source) =
     let color = assoc role colors in
     let suffix =
@@ -110,7 +110,9 @@ let proof_graph debug all_clauses proof_clauses =
     sprintf "  %d [shape = box, color = %s, fontname = monospace, label = \"%s\"]\n"
       i color text in
   let arrows i (_, _, _, source) =
-    let arrow_from id = sprintf "  %d -> %d []\n" (index_of id) i in
+    let arrow_from id = match index_of id with
+      | Some index -> sprintf "  %d -> %d []\n" index i
+      | None -> "" (* parent may be absent in a debug tree *) in
     String.concat "" (map arrow_from (hypotheses source)) in
   let box_arrows i formula = box i formula ^ arrows i formula in
   "digraph proof {\n" ^ String.concat "" (mapi box_arrows proof_clauses) ^ "}\n"
@@ -123,6 +125,11 @@ let write_trace file clauses =
       (show_source source))
       ;
   close_out oc
+
+let skolem_adjust clauses =
+  let skolem_map = skolem_names (map formula_of clauses) in
+  let adjust f = rename_vars (skolem_subst skolem_map f) in
+  map (map_clause adjust)
 
 let rec prove debug dir = function
   | Theorem (id, _, _) as thm :: thms ->
@@ -151,15 +158,13 @@ let rec prove debug dir = function
                   printf "failed to prove (%.1f s)!\n" time;
                   all_clauses in
             if debug > 0 then (
-              let skolem_map = skolem_names (map formula_of all) in
-              let adjust f = rename_vars (skolem_subst skolem_map f) in
-              let all_clauses = map (map_clause adjust) all in (
+              let adjust = skolem_adjust all in
+              let all_clauses = adjust all in
               match proof with
                 | Some (proof_clauses, _) ->
-                  let proof_clauses = map (map_clause adjust) proof_clauses in
-                  write_file (mk_path debug_dir (id ^ ".dot"))
-                    (proof_graph debug all_clauses proof_clauses)
-                | _ -> ());
+                    write_file (mk_path debug_dir (id ^ ".dot"))
+                      (proof_graph debug all_clauses (adjust proof_clauses))
+                | _ -> ();
               if debug > 1 then
                 write_trace (mk_path debug_dir (id ^ ".trace")) all_clauses);
             if Option.is_some proof then
@@ -168,3 +173,27 @@ let rec prove debug dir = function
             print_endline msg)
   | [] -> print_endline "All theorems were proved."
   | _ -> assert false
+
+let write_tree thf_file ids =
+  match Proof_parse.parse_file 2 thf_file with
+    | Success (clauses, _proof, _time) ->
+        let clauses = skolem_adjust clauses clauses in
+        ids |> iter (fun id ->
+          if Option.is_none (find_clause_opt id clauses) then
+            failwith ("id not found: " ^ id));
+        let pairs_from clause =
+          map (fun parent -> (parent, name_of clause)) (hypotheses_of clause) in
+        let pairs = sort Stdlib.compare (concat_map pairs_from clauses) in
+        let parent_map = gather_pairs pairs in
+        let rec reachable_from p =
+          match assoc_opt p parent_map with
+            | Some children -> 
+                p :: concat_map reachable_from children
+            | None -> [] in
+        let tree_clause_ids = concat_map reachable_from ids in
+        let tree_clauses = map (fun id -> find_clause id clauses) tree_clause_ids in
+        printf "%d clauses found\n" (length tree_clauses);
+        let tree_file = (Filename.chop_extension thf_file) ^ "_tree.dot" in
+        write_file tree_file (proof_graph 0 [] tree_clauses)
+    | Failed (msg, _) ->
+        print_endline msg
