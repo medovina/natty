@@ -84,10 +84,12 @@ let encode s =
     then replace "\n" "\\l" s ^ "\\l" (* all lines left-aligned *)
     else s ^ "\\n"  (* centers string *)
 
+let given = "new_given"
+
 let proof_graph debug all_clauses proof_clauses =
   let index_of id =
     find_index (fun s -> s.name = id) proof_clauses in
-  let box i { name; role; formula; source; _ } =
+  let box i { name; role; formula; source; info } =
     let color = assoc role colors in
     let suffix =
       if debug > 1 then
@@ -103,7 +105,8 @@ let proof_graph debug all_clauses proof_clauses =
     let text = encode (indent_with_prefix name (show_formula_multi true formula)) in
     let hyps = hypotheses source in
     let explain =
-      if hyps = [] then ""
+      if info = given then "given"
+      else if hyps = [] then ""
       else if length hyps = 1 then comma_join (rev (source_rules source))
       else show_source source in
     let text = text ^ (if explain = "" then "" else "\\n" ^ explain) in
@@ -116,8 +119,6 @@ let proof_graph debug all_clauses proof_clauses =
     String.concat "" (map arrow_from (hypotheses clause.source)) in
   let box_arrows i clause = box i clause ^ arrows i clause in
   "digraph proof {\n" ^ String.concat "" (mapi box_arrows proof_clauses) ^ "}\n"
-
-let given = "new_given"
 
 let write_trace file clauses =
   let oc = open_out file in
@@ -179,9 +180,10 @@ let rec prove debug dir = function
   | [] -> print_endline "All theorems were proved."
   | _ -> assert false
 
-let write_tree thf_file ids =
+let write_tree thf_file ids limit =
   match Proof_parse.parse_file 2 thf_file with
     | Success (clauses, _proof, _time) ->
+        let clauses = if limit = 0 then clauses else take limit clauses in
         let clauses = skolem_adjust clauses clauses in
         ids |> iter (fun id ->
           if Option.is_none (find_clause_opt id clauses) then
