@@ -120,31 +120,43 @@ let write_trace file clauses =
 let rec prove debug dir = function
   | Theorem (id, _, _) as thm :: thms ->
       print_endline (show_statement true thm);
-      let args =
-        [| "eprover-ho"; "--auto"; (if debug > 0 then "-l6" else "-s");
-           "-p"; "--proof-statistics"; "-R"; thf_file dir id |] in
-      let ic = Unix.open_process_args_in "eprover-ho" args in
+      let prog = "eprover-ho" in
+      let args = Array.of_list (
+        [ prog; "--auto"; (if debug > 0 then "-l6" else "-s");
+           "-T"; "20000"; "-p"; "--proof-statistics"; "-R"] @
+          (if debug > 1 then ["-S"; "--print-sat-info"] else []) @
+          [thf_file dir id ]) in
+      let ic = Unix.open_process_args_in prog args in
       let result = In_channel.input_all ic in
       In_channel.close ic;
       let debug_dir = dir ^ "_dbg" in
       if debug > 0 then
         write_file (mk_path debug_dir (id ^ ".thf")) result;
       (match Proof_parse.parse debug result with
-        | Success (Some (all_clauses, proof_clauses, steps, time)) ->
+        | Success (all_clauses, proof, time) ->
             let time = float_of_string time in
-            let hyps = gather_hypotheses proof_clauses in
-            printf "  %.1f s, %s steps [%s]\n\n" time steps (comma_join hyps);
+            let all = match proof with
+              | Some (proof_clauses, steps) ->
+                  let hyps = gather_hypotheses proof_clauses in
+                  printf "  %.1f s, %s steps [%s]\n\n" time steps (comma_join hyps);
+                  if debug > 1 then all_clauses else proof_clauses
+              | None ->
+                  printf "failed to prove (%.1f s)!\n" time;
+                  all_clauses in
             if debug > 0 then (
-              let skolem_map = skolem_names (map formula_of proof_clauses) in
+              let skolem_map = skolem_names (map formula_of all) in
               let adjust f = rename_vars (skolem_subst skolem_map f) in
-              let all_clauses = map (map_clause adjust) all_clauses in
-              let proof_clauses = map (map_clause adjust) proof_clauses in
-              write_file (mk_path debug_dir (id ^ ".dot"))
-                (proof_graph debug all_clauses proof_clauses);
+              let all_clauses = map (map_clause adjust) all in (
+              match proof with
+                | Some (proof_clauses, _) ->
+                  let proof_clauses = map (map_clause adjust) proof_clauses in
+                  write_file (mk_path debug_dir (id ^ ".dot"))
+                    (proof_graph debug all_clauses proof_clauses)
+                | _ -> ());
               if debug > 1 then
                 write_trace (mk_path debug_dir (id ^ ".trace")) all_clauses);
-            prove debug dir thms
-        | Success None -> print_endline "failed to prove!"
+            if Option.is_some proof then
+              prove debug dir thms
         | Failed (msg, _) ->
             print_endline msg)
   | [] -> print_endline "All theorems were proved."

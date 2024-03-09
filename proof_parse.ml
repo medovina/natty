@@ -8,11 +8,11 @@ open Util
 
 let any_line = skip_many_until any_char newline
 
-let comment = char '#' << any_line
+let comment = string "#" <|> string "/*" << any_line
 
-let line s = string s << newline
+let line s = spaces >>? string s << newline
 
-let empty = skip_many (space <|> comment)
+let empty = skip_many (skip space <|> skip comment)
 
 let str s = empty >>? string s
 
@@ -101,7 +101,8 @@ let rec source s = choice [
   id |>> fun id -> Id id
 ] s
 
-let proof_clause = str "thf" >> parens ( (id << str ",") >>= fun name ->
+let proof_clause = empty >>?
+  str "thf" >> parens ( (id << str ",") >>= fun name ->
   choice [
     str "type" >> str "," >> thf_type >>$ [];
     pipe3 id (str "," >> formula)
@@ -113,16 +114,21 @@ let stat name =
   (skip_many_until any_line (string ("# " ^ name)) >> spaces >>
     str ":" >> spaces >> many_chars (digit <|> char '.'))
 
-let proof_found = line "# Proof found!"
+let proof_found = spaces >>? line "# Proof found!" >> line "# SZS status Theorem"
 
-let proof_file debug = quadruple
+let end_inferences = spaces >>?
+  optional comment >>? string "# SZS status " << any_line
+
+let proof_file debug = triple
   (if debug > 1 then 
-	  (many_until proof_clause (spaces >>? proof_found) |>> concat)
-   else skip_many_until any_line proof_found >>$ [])
-  (line "# SZS status Theorem" >> line "# SZS output start CNFRefutation" >>
-    many1 proof_clause |>> concat)
-  (stat "Proof object total steps")
+	  many (not_followed_by end_inferences "" >> proof_clause ) |>> concat
+   else
+    many (not_followed_by end_inferences "" >> any_line) >>$ [])
+  (option (pair
+    (proof_found >> line "# SZS output start CNFRefutation" >>
+     many_until proof_clause (line "# SZS output end CNFRefutation") |>> concat)
+    (stat "Proof object total steps")))
   (stat "User time")
 ;;
 
-let parse debug text = MParser.parse_string (option (proof_file debug)) text ()
+let parse debug text = MParser.parse_string (proof_file debug) text ()
