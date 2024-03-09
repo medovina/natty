@@ -107,7 +107,7 @@ let proof_clause = empty >>?
     str "type" >> str "," >> thf_type >>$ [];
     pipe3 id (str "," >> formula)
       (str "," >> source << optional (str "," >> brackets quoted_id))
-      (fun role f source -> [(name, role, f, source)])
+      (fun role f source -> [{name; role; formula = f; source}])
   ]) << str "."
 
 let stat name =

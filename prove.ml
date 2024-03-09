@@ -86,13 +86,13 @@ let encode s =
 
 let proof_graph debug all_clauses proof_clauses =
   let index_of id =
-    find_index (fun s -> name_of s = id) proof_clauses in
-  let box i (name, role, formula, source) =
+    find_index (fun s -> s.name = id) proof_clauses in
+  let box i { name; role; formula; source } =
     let color = assoc role colors in
     let suffix =
       if debug > 1 then
         let orig_name = find_map
-          (fun c -> if formula_of c = formula then Some (name_of c)
+          (fun c -> if c.formula = formula then Some c.name
                     else None) all_clauses in
         match orig_name with
           | Some orig -> if orig = name then ""
@@ -109,17 +109,17 @@ let proof_graph debug all_clauses proof_clauses =
     let text = text ^ (if explain = "" then "" else "\\n" ^ explain) in
     sprintf "  %d [shape = box, color = %s, fontname = monospace, label = \"%s\"]\n"
       i color text in
-  let arrows i (_, _, _, source) =
+  let arrows i clause =
     let arrow_from id = match index_of id with
       | Some index -> sprintf "  %d -> %d []\n" index i
       | None -> "" (* parent may be absent in a debug tree *) in
-    String.concat "" (map arrow_from (hypotheses source)) in
-  let box_arrows i formula = box i formula ^ arrows i formula in
+    String.concat "" (map arrow_from (hypotheses clause.source)) in
+  let box_arrows i clause = box i clause ^ arrows i clause in
   "digraph proof {\n" ^ String.concat "" (mapi box_arrows proof_clauses) ^ "}\n"
 
 let write_trace file clauses =
   let oc = open_out file in
-  clauses |> iter (fun (name, _role, formula, source) ->
+  clauses |> iter (fun { name; formula; source; _ } ->
     fprintf oc "%s [%s]\n"
       (indent_with_prefix (name ^ ": ") (show_formula_multi true formula))
       (show_source source))
@@ -127,7 +127,7 @@ let write_trace file clauses =
   close_out oc
 
 let skolem_adjust clauses =
-  let skolem_map = skolem_names (map formula_of clauses) in
+  let skolem_map = skolem_names (map (fun c -> c.formula) clauses) in
   let adjust f = rename_vars (skolem_subst skolem_map f) in
   map (map_clause adjust)
 
@@ -182,7 +182,7 @@ let write_tree thf_file ids =
           if Option.is_none (find_clause_opt id clauses) then
             failwith ("id not found: " ^ id));
         let pairs_from clause =
-          map (fun parent -> (parent, name_of clause)) (hypotheses_of clause) in
+          map (fun parent -> (parent, clause.name)) (hypotheses_of clause) in
         let pairs = sort Stdlib.compare (concat_map pairs_from clauses) in
         let parent_map = gather_pairs pairs in
         let rec reachable_from p =

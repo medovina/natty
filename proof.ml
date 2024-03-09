@@ -15,15 +15,13 @@ let rec show_source = function
   | Inference (id, _, parents) ->
       sprintf "%s(%s)" id (comma_join (map show_source parents))
 
-type clause = id * id * formula * source  (* name, role, formula, source *)
+type clause = {
+  name: id; role: string; formula: formula; source: source
+}
 
-let name_of (name, _, _, _) = name
-let formula_of (_, _, f, _) = f
+let map_clause fn clause = { clause with formula = fn (clause.formula) }
 
-let map_clause fn =
-  fun (name, role, f, source) -> (name, role, fn f, source)
-
-let find_clause_opt id = find_opt (fun s -> name_of s = id)
+let find_clause_opt id = find_opt (fun s -> s.name = id)
 
 let find_clause id clauses = Option.get (find_clause_opt id clauses)
 
@@ -33,16 +31,15 @@ let rec hypotheses = function
   | Inference (_, _, sources) ->
       concat_map hypotheses sources
 
-let hypotheses_of (_, _, _, source) = hypotheses source
+let hypotheses_of clause = hypotheses clause.source
 
 let rec source_rules = function
   | Inference (name, _, children) ->
       name :: concat_map source_rules children
   | _ -> []
 
-let gather_hypotheses formulas =
-  let ids = concat_map hypotheses_of formulas in
+let gather_hypotheses clauses =
+  let ids = concat_map hypotheses_of clauses in
   let is_axiom id =
-    let (_, role, _, _) = find_clause id formulas in
-    role = "axiom" in
+    (find_clause id clauses).role = "axiom" in
   unique (filter is_axiom ids)
