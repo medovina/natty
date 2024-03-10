@@ -193,13 +193,12 @@ let write_tree thf_file ids limit =
         let pairs = sort Stdlib.compare (concat_map pairs_from clauses) in
         let parent_map = gather_pairs pairs in
         let rec reachable_from p =
-          match assoc_opt p parent_map with
+          p :: match assoc_opt p parent_map with
             | Some children -> 
-                p :: concat_map reachable_from children
+                concat_map reachable_from children
             | None -> [] in
         let tree_clause_ids = concat_map reachable_from ids in
         let tree_clauses = map (fun id -> find_clause id clauses) tree_clause_ids in
-        printf "%d clauses found\n" (length tree_clauses);
         let tree_file = (Filename.chop_extension thf_file) ^ "_tree.dot" in
         write_file tree_file (proof_graph 0 [] tree_clauses)
     | Failed (msg, _) ->
