@@ -111,7 +111,7 @@ let proof_graph debug all_clauses proof_clauses =
       if length hyps <= 1 then comma_join (rev (source_rules source))
       else show_source source in
     let explain =
-      if info != "" then sprintf "%s(%s)" explain (simplify_info info) else explain in
+      if info <> "" then sprintf "%s(%s)" explain (simplify_info info) else explain in
     let text = text ^ (if explain = "" then "" else "\\n" ^ explain) in
     sprintf "  %d [shape = box, color = %s, fontname = monospace, label = \"%s\"]\n"
       i color text in
@@ -140,6 +140,32 @@ let skolem_adjust clauses =
   let adjust f = rename_vars (skolem_subst skolem_map f) in
   map (map_clause adjust)
 
+let process_proof debug path = function
+  | MParser.Success (all_clauses, proof, time) ->
+    let time = float_of_string time in
+    let all = match proof with
+      | Some (proof_clauses, steps) ->
+          let hyps = gather_hypotheses proof_clauses in
+          printf "  %.1f s, %s steps [%s]\n\n" time steps (comma_join hyps);
+          if debug > 1 then all_clauses else proof_clauses
+      | None ->
+          printf "failed to prove (%.1f s)!\n" time;
+          all_clauses in
+    if debug > 0 then (
+      let adjust = skolem_adjust all in
+      let all_clauses = adjust all in (
+      match proof with
+        | Some (proof_clauses, _) ->
+            write_file (change_extension path ".dot")
+              (proof_graph debug all_clauses (adjust proof_clauses))
+        | _ -> ());
+      if debug > 1 then
+        write_trace (change_extension path ".trace") all_clauses);
+    Option.is_some proof
+  | Failed (msg, _) ->
+    print_endline msg;
+    false
+
 let rec prove debug dir = function
   | Theorem (id, _, _) as thm :: thms ->
       print_endline (show_statement true thm);
@@ -152,34 +178,11 @@ let rec prove debug dir = function
       let ic = Unix.open_process_args_in prog args in
       let result = In_channel.input_all ic in
       In_channel.close ic;
-      let debug_dir = dir ^ "_dbg" in
+      let path = mk_path (dir ^ "_dbg") (id ^ ".thf") in
       if debug > 0 then
-        write_file (mk_path debug_dir (id ^ ".thf")) result;
-      (match Proof_parse.parse debug result with
-        | Success (all_clauses, proof, time) ->
-            let time = float_of_string time in
-            let all = match proof with
-              | Some (proof_clauses, steps) ->
-                  let hyps = gather_hypotheses proof_clauses in
-                  printf "  %.1f s, %s steps [%s]\n\n" time steps (comma_join hyps);
-                  if debug > 1 then all_clauses else proof_clauses
-              | None ->
-                  printf "failed to prove (%.1f s)!\n" time;
-                  all_clauses in
-            if debug > 0 then (
-              let adjust = skolem_adjust all in
-              let all_clauses = adjust all in (
-              match proof with
-                | Some (proof_clauses, _) ->
-                    write_file (mk_path debug_dir (id ^ ".dot"))
-                      (proof_graph debug all_clauses (adjust proof_clauses))
-                | _ -> ());
-              if debug > 1 then
-                write_trace (mk_path debug_dir (id ^ ".trace")) all_clauses);
-            if Option.is_some proof then
-              prove debug dir thms
-        | Failed (msg, _) ->
-            print_endline msg)
+        write_file path result;
+      if process_proof debug path (Proof_parse.parse debug result) then
+        prove debug dir thms
   | [] -> print_endline "All theorems were proved."
   | _ -> assert false
 

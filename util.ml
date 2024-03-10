@@ -118,6 +118,9 @@ let rec gather_pairs = function
 
 let mk_path = Filename.concat
 
+let change_extension path ext =
+  Filename.chop_extension path ^ ext
+
 let clean_dir dir =
   if Sys.file_exists dir then
     Sys.readdir dir |> Array.iter (fun file -> Sys.remove (mk_path dir file))
