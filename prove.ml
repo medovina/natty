@@ -173,16 +173,19 @@ let rec prove debug dir = function
       let debug_out = mk_path (dir ^ "_dbg") (id ^ ".thf") in
       let args = Array.of_list (
         [ prog; "--auto"; (if debug > 0 then "-l6" else "-s");
-           "-T"; "20000"; "-p"; "--proof-statistics"; "-R"] @
-          (if debug > 0 then ["-o"; debug_out] else []) @
+           "-T"; "10000"; "-p"; "--proof-statistics"; "-R"] @
           (if debug > 1 then ["-S"; "--print-sat-info"] else []) @
           [thf_file dir id ]) in
-      let ic = Unix.open_process_args_in prog args in
-      let process_out = In_channel.input_all ic in
-      In_channel.close ic;
-      let result =
-        if debug = 0 then Proof_parse.parse 0 process_out
-        else Proof_parse.parse_file debug debug_out in
+      let result = if debug = 0 then
+        let ic = Unix.open_process_args_in prog args in
+        let process_out = In_channel.input_all ic in
+        In_channel.close ic;
+        Proof_parse.parse 0 process_out
+      else
+        let out_descr = Unix.openfile debug_out [Unix.O_WRONLY; Unix.O_CREAT; Unix.O_TRUNC] 0o640  in
+        let pid = Unix.create_process prog args Unix.stdin out_descr out_descr in
+        ignore (Unix.waitpid [] pid);
+        Proof_parse.parse_file debug debug_out in
       if process_proof debug debug_out result then
         prove debug dir thms
   | [] -> print_endline "All theorems were proved."
