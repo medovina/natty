@@ -104,16 +104,25 @@ let subtract xs ys = filter (fun x -> not (mem x ys)) xs
 
 let remove x xs = subtract xs [x]
 
+let std_sort xs = sort Stdlib.compare xs
+
+let sort_by f = sort (fun x y -> Stdlib.compare (f x) (f y))
+
 let unique l = sort_uniq Stdlib.compare l
 
-let rec gather_pairs = function
-  | [] -> []
-  | (x, y) :: pairs ->
-      match gather_pairs pairs with
-        | [] -> [(x, [y])]
-        | (x1, ys) :: pairs as rest ->
-            if x = x1 then (x1, y :: ys) :: pairs
-            else (x, [y]) :: rest
+let group_by fold init key_vals =
+  let rec gather = function
+    | [] -> []
+    | (key, x) :: key_vals ->
+        match gather key_vals with
+          | [] -> [(key, fold x init)]
+          | (key', acc) :: pairs as rest ->
+              if key = key' then (key, fold x acc) :: pairs
+              else (key, fold x init) :: rest in
+  gather (sort_by fst key_vals)
+
+let gather_pairs xs = group_by cons [] xs
+
 (* I/O *)
 
 let mk_path = Filename.concat
