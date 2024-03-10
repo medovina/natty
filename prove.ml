@@ -86,6 +86,9 @@ let encode s =
 
 let given = "new_given"
 
+let simplify_info info =
+  if info = given then "given" else info
+
 let proof_graph debug all_clauses proof_clauses =
   let index_of id =
     find_index (fun s -> s.name = id) proof_clauses in
@@ -105,10 +108,10 @@ let proof_graph debug all_clauses proof_clauses =
     let text = encode (indent_with_prefix name (show_formula_multi true formula)) in
     let hyps = hypotheses source in
     let explain =
-      if info = given then "given"
-      else if hyps = [] then ""
-      else if length hyps = 1 then comma_join (rev (source_rules source))
+      if length hyps <= 1 then comma_join (rev (source_rules source))
       else show_source source in
+    let explain =
+      if info != "" then sprintf "%s(%s)" explain (simplify_info info) else explain in
     let text = text ^ (if explain = "" then "" else "\\n" ^ explain) in
     sprintf "  %d [shape = box, color = %s, fontname = monospace, label = \"%s\"]\n"
       i color text in
@@ -127,7 +130,7 @@ let write_trace file clauses =
       (if info = given then "\n" else "")
       (indent_with_prefix (name ^ ": ") (show_formula_multi true formula))
       (show_source source)
-      (if info = given then " (given)" else "")
+      (if info <> "" then sprintf " (%s)" (simplify_info info) else "")
       )
       ;
   close_out oc
