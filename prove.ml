@@ -191,10 +191,10 @@ let rec prove debug dir = function
   | [] -> print_endline "All theorems were proved."
   | _ -> assert false
 
-let write_tree thf_file ids limit =
+let write_tree thf_file ids clause_limit depth_limit =
   match Proof_parse.parse_file 2 thf_file with
     | Success (clauses, _proof, _time) ->
-        let clauses = if limit = 0 then clauses else take limit clauses in
+        let clauses = if clause_limit = 0 then clauses else take clause_limit clauses in
         let clauses = skolem_adjust clauses clauses in
         ids |> iter (fun id ->
           if Option.is_none (find_clause_opt id clauses) then
@@ -203,13 +203,15 @@ let write_tree thf_file ids limit =
           map (fun parent -> (parent, clause.name)) (hypotheses_of clause) in
         let pairs = sort Stdlib.compare (concat_map pairs_from clauses) in
         let parent_map = gather_pairs pairs in
-        let rec reachable_from p =
+        let rec reachable_from depth p =
+          if depth >= depth_limit then [] else
           p :: match assoc_opt p parent_map with
             | Some children -> 
-                concat_map reachable_from children
+                concat_map (reachable_from (depth + 1)) children
             | None -> [] in
-        let tree_clause_ids = concat_map reachable_from ids in
+        let tree_clause_ids = concat_map (reachable_from 0) ids in
         let tree_clauses = map (fun id -> find_clause id clauses) tree_clause_ids in
+        printf "%d clauses found\n" (length tree_clauses);
         let tree_file = (Filename.chop_extension thf_file) ^ "_tree.dot" in
         write_file tree_file (proof_graph 0 [] tree_clauses)
     | Failed (msg, _) ->

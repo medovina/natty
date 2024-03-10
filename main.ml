@@ -7,24 +7,25 @@ type parsed_args = {
   command: string;
   command_args: string list;
   debug: int;
-  tree_limit: int
+  clause_limit: int;
+  depth_limit: int;
 }
 
 let parse_args args =
   let (args, file) = split_last args in
   let rec parse = function
-    | [] -> { command = ""; command_args = []; debug = 0; tree_limit = 0 }
+    | [] -> { command = ""; command_args = []; debug = 0; depth_limit = 0; clause_limit = 0 }
     | arg :: rest ->
         let args = parse rest in
         if arg.[0] = '-' then
+          let int_param () = int_of_string (string_from arg 2) in
           match arg.[1] with
             | 'd' ->
               let level =
                 if arg = "-d" then 1 else int_of_string (string_from arg 2) in
               { args with debug = level }
-            | 'l' ->
-              let limit = int_of_string (string_from arg 2) in
-              { args with tree_limit = limit }
+            | 'h' -> { args with depth_limit = int_param () }
+            | 'l' -> { args with clause_limit = int_param () }
             | _ -> failwith "unknown option"
         else (
           assert (args.command = "");
@@ -39,6 +40,7 @@ let usage () =
   options:
     -d<level>     debug level
                     (0 = default, 1 = thf log + proof graph, 2 = trace file)
+    -h<num>       debug tree depth limit
     -l<num>       debug tree clause limit
 
   commands:
@@ -67,8 +69,8 @@ match args with
   | { command = "process"; debug; _ } ->
       let result = Proof_parse.parse_file debug file in
       ignore (process_proof debug file result)
-  | { command = "tree"; command_args = [ids]; tree_limit; _ } ->
+  | { command = "tree"; command_args = [ids]; clause_limit; depth_limit; _ } ->
       let ids = String.split_on_char ',' ids in
-      write_tree file ids tree_limit
+      write_tree file ids clause_limit depth_limit
   | _ ->
       usage()
