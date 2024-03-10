@@ -170,18 +170,20 @@ let rec prove debug dir = function
   | Theorem (id, _, _) as thm :: thms ->
       print_endline (show_statement true thm);
       let prog = "eprover-ho" in
+      let debug_out = mk_path (dir ^ "_dbg") (id ^ ".thf") in
       let args = Array.of_list (
         [ prog; "--auto"; (if debug > 0 then "-l6" else "-s");
            "-T"; "20000"; "-p"; "--proof-statistics"; "-R"] @
+          (if debug > 0 then ["-o"; debug_out] else []) @
           (if debug > 1 then ["-S"; "--print-sat-info"] else []) @
           [thf_file dir id ]) in
       let ic = Unix.open_process_args_in prog args in
-      let result = In_channel.input_all ic in
+      let process_out = In_channel.input_all ic in
       In_channel.close ic;
-      let path = mk_path (dir ^ "_dbg") (id ^ ".thf") in
-      if debug > 0 then
-        write_file path result;
-      if process_proof debug path (Proof_parse.parse debug result) then
+      let result =
+        if debug = 0 then Proof_parse.parse 0 process_out
+        else Proof_parse.parse_file debug debug_out in
+      if process_proof debug debug_out result then
         prove debug dir thms
   | [] -> print_endline "All theorems were proved."
   | _ -> assert false
