@@ -7,23 +7,31 @@ open Thf
 open Util
 
 let first_var start_var = function
-  | Fun (_, Bool) -> 'P'
+  | Fun (_, Bool) -> "P"
   | _ -> start_var
 
 let next_var x names =
   let all = map snd names in
   let rec next x =
-    if mem x all then next (Char.chr (Char.code x + 1))
+    if mem x all then
+      let wrap c = sprintf "%c'" c in  (* add prime mark *)
+      let t = match x.[0] with
+        | 'o' -> wrap 'a'  (* constants a .. o *)
+        | 'z' -> wrap 'q'  (* variables q .. z *)
+        | _ -> char_to_string (Char.chr (Char.code x.[0] + 1)) in
+      next (t ^ string_from x 1)
     else x in
   next x
 
 let rename_vars f =
   let num_vars = count_binders f in
-  let start_var =
-    if num_vars <= 3 then 'x' else Char.chr (Char.code 'z' - num_vars + 1) in
+  let start_var = char_to_string (
+    if num_vars <= 3 then 'x' else
+      let c = Char.chr (Char.code 'z' - num_vars + 1) in
+      if c < 'q' then 'q' else c) in
   let rec rename names h = match h with
     | Const (id, typ) -> (Const (id, typ), names)
-    | Var (id, typ) -> (Var (char_to_string (assoc id names), typ), names)
+    | Var (id, typ) -> (Var (assoc id names, typ), names)
     | App (f, g) | Eq (f, g) ->
         let (f, names) = rename names f in
         let (g, names) = rename names g in
@@ -31,20 +39,20 @@ let rename_vars f =
     | Lambda (id, typ, f) ->
         let x = next_var (first_var start_var typ) names in
         let (f, names) = rename ((id, x) :: names) f in
-        (Lambda (char_to_string x, typ, f), names) in
+        (Lambda (x, typ, f), names) in
   fst (rename [] f)
 
 let skolem_names fs =
   let cs = filter (String.starts_with ~prefix:"esk") (unique (concat_map consts fs)) in
   let name names c =
-    let d = next_var 'a' names in
+    let d = next_var "a" names in
     (c, d) :: names in
   fold_left name [] cs
 
 let rec skolem_subst names f = match f with
   | Const (id, typ) ->
       (match assoc_opt id names with
-        | Some name -> Const (char_to_string name, typ)
+        | Some name -> Const (name, typ)
         | None -> f)
   | _ -> map_formula (skolem_subst names) f
 
