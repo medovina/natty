@@ -18,7 +18,7 @@ let next_var x names =
   next x
 
 let rename_vars f =
-  let num_vars = length (all_vars f) in
+  let num_vars = count_binders f in
   let start_var =
     if num_vars <= 3 then 'x' else Char.chr (Char.code 'z' - num_vars + 1) in
   let rec rename names h = match h with

@@ -9,6 +9,8 @@ let (let*) = Option.bind
 
 let is_lower c = 'a' <= c && c <= 'z'
 
+let is_letter c = is_lower c || ('A' <= c && c <= 'Z')
+
 (* strings *)
 
 let char_to_string = String.make 1

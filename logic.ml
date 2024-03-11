@@ -28,6 +28,10 @@ type formula =
   | Lambda of id * typ * formula
   | Eq of formula * formula
 
+let is_eq = function
+  | Eq _ -> true
+  | _ -> false
+
 let map_formula fn = function
   | App (f, g) -> App (fn f, fn g)
   | Lambda (id, typ, f) -> Lambda (id, typ, fn f)
@@ -46,6 +50,11 @@ let rec type_of = function
       | _ -> assert false)
   | Lambda (_, typ, f) -> Fun (typ, type_of f)
   | Eq (_, _) -> Bool
+
+let rec count_binders = function
+  | Const _ | Var _ -> 0
+  | App (f, g) | Eq (f, g) -> count_binders f + count_binders g
+  | Lambda (_, _, f) -> 1 + count_binders f
 
 let alpha_equiv =
   let rec equiv ((vars1, vars2) as vars) f g = match f, g with
@@ -89,10 +98,6 @@ let exists = binder "∃"
 
 let mk_eq f g = Eq (f, g)
 
-let is_eq = function
-  | Eq _ -> true
-  | _ -> false
-
 let mk_neq f g = mk_not (mk_eq f g)
 
 type formula_kind =
@@ -129,6 +134,10 @@ let not_prec = 7
 let eq_prec = 4
 let quantifier_prec = 1
 
+let single_letter = function
+  | (Const (id, _) | Var (id, _)) when is_letter id.[0] -> Some id
+  | _ -> None
+
 let show_formula_multi multi f =
   let parens b s = if b then sprintf "(%s)" s else s in
   let rec show indent multi outer right f =
@@ -141,8 +150,11 @@ let show_formula_multi multi f =
           let p = prec < outer ||
             prec = outer && (op = "·" || op = "+" || op = "→" && not right) in
           let layout multi =
-            sprintf "%s %s %s" (show indent multi prec false t) op
-                               (show indent multi prec true u) in
+            match single_letter t, single_letter u with
+              | Some t, Some u when op = "·" -> t ^ u
+              | _ ->
+                  sprintf "%s %s %s" (show indent multi prec false t) op
+                                     (show indent multi prec true u) in
           let s = if (op = "→" || op = "∧" || op = "∨") && multi then
             let line = layout false in
             if String.length line <= 60 then line
