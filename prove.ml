@@ -6,43 +6,45 @@ open Proof
 open Thf
 open Util
 
-let first_var = function
-  | Base "ℕ" -> "a"
-  | Fun (_, Bool) -> "P"
-  | _ -> "x"
+let first_var start_var = function
+  | Fun (_, Bool) -> 'P'
+  | _ -> start_var
 
 let next_var x names =
   let all = map snd names in
   let rec next x =
-    if mem x all then next (char_to_string (Char.chr (Char.code (x.[0]) + 1)))
+    if mem x all then next (Char.chr (Char.code x + 1))
     else x in
   next x
 
 let rename_vars f =
+  let num_vars = length (all_vars f) in
+  let start_var =
+    if num_vars <= 3 then 'x' else Char.chr (Char.code 'z' - num_vars + 1) in
   let rec rename names h = match h with
     | Const (id, typ) -> (Const (id, typ), names)
-    | Var (id, typ) -> (Var (assoc id names, typ), names)
+    | Var (id, typ) -> (Var (char_to_string (assoc id names), typ), names)
     | App (f, g) | Eq (f, g) ->
         let (f, names) = rename names f in
         let (g, names) = rename names g in
         (app_or_eq h f g, names)
     | Lambda (id, typ, f) ->
-        let x = next_var (first_var typ) names in
+        let x = next_var (first_var start_var typ) names in
         let (f, names) = rename ((id, x) :: names) f in
-        (Lambda (x, typ, f), names) in
+        (Lambda (char_to_string x, typ, f), names) in
   fst (rename [] f)
 
 let skolem_names fs =
   let cs = filter (String.starts_with ~prefix:"esk") (unique (concat_map consts fs)) in
   let name names c =
-    let d = next_var (if String.ends_with ~suffix:"_0" c then "a" else "f") names in
+    let d = next_var 'a' names in
     (c, d) :: names in
   fold_left name [] cs
 
 let rec skolem_subst names f = match f with
   | Const (id, typ) ->
       (match assoc_opt id names with
-        | Some name -> Const ("$" ^ name, typ)
+        | Some name -> Const (char_to_string name, typ)
         | None -> f)
   | _ -> map_formula (skolem_subst names) f
 

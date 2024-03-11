@@ -173,13 +173,18 @@ let show_formula_multi multi f =
 
 let show_formula = show_formula_multi false
 
-let free_vars f =
-  let rec free = function
+let find_vars only_free f =
+  let rec find = function
     | Const _ -> []
     | Var (id, _) -> [id]
-    | App (t, u) | Eq (t, u) -> free t @ free u
-    | Lambda (id, _, t) -> remove id (free t) in
-  unique (free f)
+    | App (t, u) | Eq (t, u) -> find t @ find u
+    | Lambda (id, _, t) ->
+        if only_free then remove id (find t)
+        else id :: find t in
+  unique (find f)
+
+let all_vars = find_vars false
+let free_vars = find_vars true
 
 let consts f =
   let rec collect = function
