@@ -24,6 +24,8 @@ let eq_icase s t = (String.lowercase_ascii s = String.lowercase_ascii t)
 
 let is_char_in c s = Option.is_some (String.index_opt s c)
 
+let starts_with p s = String.starts_with ~prefix:p s
+
 let contains s1 s2 =
   let re = Str.regexp_string s2 in
     try ignore (Str.search_forward re s1 0); true
@@ -33,8 +35,7 @@ let contains s1 s2 =
 let replace s = Str.global_replace (Str.regexp s)
 
 let remove_prefix p s =
-  if String.starts_with ~prefix:p s
-    then string_from s (String.length p) else s
+  if starts_with p s then string_from s (String.length p) else s
 
 let comma_join = String.concat ", "
 

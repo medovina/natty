@@ -1,3 +1,4 @@
+open Fun
 open List
 open Printf
 
@@ -43,7 +44,7 @@ let rename_vars f =
   fst (rename [] f)
 
 let skolem_names fs =
-  let cs = filter (String.starts_with ~prefix:"esk") (unique (concat_map consts fs)) in
+  let cs = filter (starts_with "esk") (unique (concat_map consts fs)) in
   let name names c =
     let d = next_var "a" names in
     (c, d) :: names in
@@ -97,9 +98,14 @@ let encode s =
 let simplify_info info =
   if info = "new_given" then "given" else info
 
-let id_to_num = remove_prefix "c_0_"
+let id_prefix = "c_0_"
 
-let proof_graph debug all_clauses proof_clauses highlight clause_info =
+let strip_id = remove_prefix id_prefix
+
+let id_to_num id =
+  if starts_with id_prefix id then Some (int_of_string (strip_id id)) else None
+
+let proof_graph debug all_clauses proof_clauses highlight clause_info shade =
   let index_of id =
     find_index (fun s -> s.name = id) proof_clauses in
   let box i { name; role; formula; source; _ } =
@@ -111,7 +117,7 @@ let proof_graph debug all_clauses proof_clauses highlight clause_info =
                     else None) all_clauses in
         match orig_name with
           | Some orig -> if orig = name then ""
-                         else sprintf " (%s)" (id_to_num orig)
+                         else sprintf " (%s)" (strip_id orig)
           | None -> " (none)"
       else "" in
     let name_suffix = sprintf "%s%s: " name suffix in
@@ -124,8 +130,11 @@ let proof_graph debug all_clauses proof_clauses highlight clause_info =
     let explain_info = String.concat "\\n\\n"
       ((if explain = "" then [] else [explain]) @ Option.to_list info) in
     let text = text ^ (if explain_info = "" then "" else "\\n" ^ explain_info) in
-    sprintf "  %d [shape = box, color = %s, %sfontname = monospace, label = \"%s\"]\n"
-      i color (if mem name highlight then "penwidth = 3, " else "") text in
+    sprintf "  %d [shape = box, color = %s, %s%sfontname = monospace, label = \"%s\"]\n"
+      i color
+      (if mem name highlight then "penwidth = 3, " else "")
+      (if shade name then "style = filled, fillcolor = oldlace," else "")
+      text in
   let arrows i clause =
     let arrow_from id = match index_of id with
       | Some index -> sprintf "  %d -> %d []\n" index i
@@ -168,7 +177,7 @@ let process_proof debug path = function
       match proof with
         | Some (proof_clauses, _) ->
             write_file (change_extension path ".dot")
-              (proof_graph debug all_clauses (adjust proof_clauses) [] [])
+              (proof_graph debug all_clauses (adjust proof_clauses) [] [] (const false))
         | _ -> ());
       if debug > 1 then
         write_trace (change_extension path ".trace") all_clauses);
@@ -257,17 +266,21 @@ let write_debug_tree thf_file roots clause_limit depth_limit min_roots =
         roots |> iter (fun id ->
           if Option.is_none (find_clause_opt id clauses) then
             failwith ("id not found: " ^ id));
+
+        let begin_main_phase = find_map (fun c ->
+          if c.info = "move_eval" then id_to_num c.name else None) clauses in
+        let is_pre_main id = id_to_num id < begin_main_phase in
         let clauses = skolem_adjust clauses clauses in
         let clause_map = StringMap.of_list(clauses |> map (fun c -> (c.name, c))) in
         let (_, down_map) = id_maps clauses in
         let rec info clause =
-          if clause.info = "new_given" then Some ("given @ " ^ id_to_num clause.name)
-          else
-            match lookup down_map clause.name with
-              | [child] ->
-                  let c = StringMap.find child clause_map in
-                  if is_empty c then info c else None
-              | _ -> None in
+          if clause.info = "new_given" && not (is_pre_main clause.name)
+            then Some ("given @ " ^ strip_id clause.name)
+            else
+              let child = lookup down_map clause.name |> find_map (fun id ->
+                let c = StringMap.find id clause_map in
+                if is_empty c then Some c else None) in
+              Option.bind child info in
         let reduced_clauses = filter_map (reduce_clause clause_map) clauses in
         let (child_parents, parent_children) = id_maps reduced_clauses in
         let below = count_roots (bfs roots depth_limit (lookup parent_children)) in
@@ -281,6 +294,7 @@ let write_debug_tree thf_file roots clause_limit depth_limit min_roots =
         let clause_info = reduced_clauses |> filter_map (fun c ->
           info c |> Option.map (fun i -> (c.name, i))) in
         let tree_file = (Filename.chop_extension thf_file) ^ "_tree.dot" in
-        write_file tree_file (proof_graph 0 [] tree_clauses roots clause_info)
+        write_file tree_file
+          (proof_graph 0 [] tree_clauses roots clause_info is_pre_main)
     | Failed (msg, _) ->
         print_endline msg
