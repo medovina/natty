@@ -219,12 +219,14 @@ let bfs roots max_depth children =
   let q = Queue.of_seq (List.to_seq (map (fun r -> (r, 0)) roots)) in
   let rec loop visited =
     match Queue.take_opt q with
-      | Some (x, depth) when depth < max_depth || max_depth = 0 ->
-          let cs = children x in
-          let new_cs = StringSet.diff (StringSet.of_list cs) visited in
-          let elems = Seq.map (fun x -> (x, depth + 1)) (StringSet.to_seq new_cs) in
-          Queue.add_seq q elems;
-          loop (StringSet.union new_cs visited)
+      | Some (x, depth) ->
+          if depth < max_depth - 1 || max_depth = 0 then
+            let cs = children x in
+            let new_cs = StringSet.diff (StringSet.of_list cs) visited in
+            let elems = Seq.map (fun x -> (x, depth + 1)) (StringSet.to_seq new_cs) in
+            Queue.add_seq q elems;
+            loop (StringSet.union new_cs visited)
+          else loop visited
       | _ -> StringSet.to_list visited in
   loop (StringSet.of_list roots)
 
