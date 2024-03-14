@@ -184,7 +184,6 @@ let rec prove debug dir = function
       let args = Array.of_list (
         [ prog; "--auto"; (if debug > 0 then "-l6" else "-s");
            "-T"; "10000"; "-p"; "--proof-statistics"; "-R"] @
-          (if debug > 1 then ["-S"; "--print-sat-info"] else []) @
           [thf_file dir id ]) in
       let result = if debug = 0 then
         let ic = Unix.open_process_args_in prog args in
@@ -201,40 +200,46 @@ let rec prove debug dir = function
   | [] -> print_endline "All theorems were proved."
   | _ -> assert false
 
-(* given list of (id, ancestors from some root)
-   returns list of (id, (num_roots, min_depth, all ancestors)) *)
-let gather_reachable =
-  let f ancestors (roots, min_depth, ancestors') =
-    (roots + 1, Int.min (length ancestors) min_depth, ancestors @ ancestors') in
-  group_by f (0, max_int, [])
+(* given list of ids, returns list of (id, num_roots) *)
+let count_roots =
+  let f _id roots = roots + 1 in
+  group_by Fun.id f 0
 
-let write_tree thf_file ids clause_limit depth_limit min_roots =
+let bfs roots max_depth children =
+  let q = Queue.of_seq (List.to_seq (map (fun r -> (r, 0)) roots)) in
+  let rec loop visited =
+    match Queue.take_opt q with
+      | Some (x, depth) when depth < max_depth || max_depth = 0 ->
+          let cs = children x in
+          let new_cs = StringSet.diff (StringSet.of_list cs) visited in
+          let elems = Seq.map (fun x -> (x, depth + 1)) (StringSet.to_seq new_cs) in
+          Queue.add_seq q elems;
+          loop (StringSet.union new_cs visited)
+      | _ -> StringSet.to_list visited in
+  loop (StringSet.of_list roots)
+
+let lookup map id = opt_default (assoc_opt id map) []
+
+let write_tree thf_file roots clause_limit depth_limit min_roots =
   match Proof_parse.parse_file 2 thf_file with
     | Success (clauses, _proof, _time) ->
         let clauses = if clause_limit = 0 then clauses else take clause_limit clauses in
         let clauses = skolem_adjust clauses clauses in
-        ids |> iter (fun id ->
+        roots |> iter (fun id ->
           if Option.is_none (find_clause_opt id clauses) then
             failwith ("id not found: " ^ id));
         let pairs_from clause =
-          map (fun parent -> (parent, clause.name)) (hypotheses_of clause) in
-        let pairs = std_sort (concat_map pairs_from clauses) in
-        let parent_map = gather_pairs pairs in
-        let reachable_from root =
-          let rec find ancestors id =
-            (id, ancestors) :: match assoc_opt id parent_map with
-              | Some children -> 
-                  concat_map (find (id :: ancestors)) children
-              | None -> [] in
-          (* join duplicates, since a clause could be reachable by more than one path *)
-          group_by (@) [] (find [] root) in
-        let reachable = gather_reachable (sort_by fst (concat_map reachable_from ids)) in
-        let tree_clause_ids = reachable |> filter_map (fun (id, (roots, min_depth, ancestors)) ->
-          if (roots >= min_roots || min_roots = 0) &&
-             (min_depth < depth_limit || depth_limit = 0) then Some (id :: ancestors) else None) in
-        let all_ids = unique (concat tree_clause_ids) in
-        let tree_clauses = map (fun id -> find_clause id clauses) all_ids in
-        printf "%d clauses found\n" (length tree_clauses);
+          map (fun parent -> (clause.name, parent)) (hypotheses_of clause) in
+        let pairs = concat_map pairs_from clauses in
+        let child_parents = gather_pairs pairs in
+        let parent_children = gather_pairs (map swap pairs) in
+        let below = count_roots (bfs roots depth_limit (lookup parent_children)) in
+        let selected_ids = below |> filter_map (fun (id, num_roots) ->
+          if num_roots >= min_roots || min_roots = 0 then Some id else None) in
+        let all_ids = bfs selected_ids 0 (lookup child_parents) in
+        let tree_clauses = filter_map (fun id -> find_clause_opt id clauses) all_ids in
+        printf "%d clauses matching, %d total\n"
+          (length selected_ids) (length tree_clauses);
         let tree_file = (Filename.chop_extension thf_file) ^ "_tree.dot" in
         write_file tree_file (proof_graph 0 [] tree_clauses)
     | Failed (msg, _) ->

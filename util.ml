@@ -1,10 +1,6 @@
 open List
 open MParser
 
-(* options *)
-
-let (let*) = Option.bind
-
 (* chars *)
 
 let is_lower c = 'a' <= c && c <= 'z'
@@ -64,7 +60,26 @@ let utf8_len s =
     else let n = ulen (Char.code s.[k]) in 1 + len (k + n)
   in len 0 
 
+module StringType = struct
+  type t = string
+  let compare = Stdlib.compare
+end
+
+module StringSet = Set.Make(StringType)
+
+(* options *)
+
+let (let*) = Option.bind
+
+let opt_default opt def = Option.value opt ~default:def
+
+(* tuples *)
+
+let swap (x, y) = (y, x)
+
 (* lists *)
+
+let (let+) = fun a f -> concat_map f a
 
 let singleton x = [x]
 
@@ -112,18 +127,20 @@ let sort_by f = sort (fun x y -> Stdlib.compare (f x) (f y))
 
 let unique l = sort_uniq Stdlib.compare l
 
-let group_by fold init key_vals =
+let group_by key_fun fold init xs =
   let rec gather = function
     | [] -> []
-    | (key, x) :: key_vals ->
-        match gather key_vals with
+    | x :: xs ->
+        let key = key_fun x in
+        match gather xs with
           | [] -> [(key, fold x init)]
           | (key', acc) :: pairs as rest ->
               if key = key' then (key, fold x acc) :: pairs
               else (key, fold x init) :: rest in
-  gather (sort_by fst key_vals)
+  gather (sort_by key_fun xs)
 
-let gather_pairs xs = group_by cons [] xs
+let gather_pairs xs =
+  group_by fst (fun (_, x) acc -> cons x acc) [] xs
 
 (* I/O *)
 
