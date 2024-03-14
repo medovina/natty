@@ -60,12 +60,8 @@ let utf8_len s =
     else let n = ulen (Char.code s.[k]) in 1 + len (k + n)
   in len 0 
 
-module StringType = struct
-  type t = string
-  let compare = Stdlib.compare
-end
-
-module StringSet = Set.Make(StringType)
+module StringSet = Set.Make(String)
+module StringMap = Map.Make(String)
 
 (* options *)
 

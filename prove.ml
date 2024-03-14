@@ -99,7 +99,7 @@ let given = "new_given"
 let simplify_info info =
   if info = given then "given" else info
 
-let proof_graph debug all_clauses proof_clauses =
+let proof_graph debug all_clauses proof_clauses highlight =
   let index_of id =
     find_index (fun s -> s.name = id) proof_clauses in
   let box i { name; role; formula; source; info } =
@@ -114,8 +114,8 @@ let proof_graph debug all_clauses proof_clauses =
                          else sprintf " (%s)" (remove_prefix "c_0_" orig)
           | None -> " (none)"
       else "" in
-    let name = sprintf "%s%s: " name suffix in
-    let text = encode (indent_with_prefix name (show_formula_multi true formula)) in
+    let name_suffix = sprintf "%s%s: " name suffix in
+    let text = encode (indent_with_prefix name_suffix (show_formula_multi true formula)) in
     let hyps = hypotheses source in
     let explain =
       if length hyps <= 1 then comma_join (rev (source_rules source))
@@ -123,8 +123,8 @@ let proof_graph debug all_clauses proof_clauses =
     let explain =
       if info <> "" then sprintf "%s(%s)" explain (simplify_info info) else explain in
     let text = text ^ (if explain = "" then "" else "\\n" ^ explain) in
-    sprintf "  %d [shape = box, color = %s, fontname = monospace, label = \"%s\"]\n"
-      i color text in
+    sprintf "  %d [shape = box, color = %s, %sfontname = monospace, label = \"%s\"]\n"
+      i color (if mem name highlight then "penwidth = 3, " else "") text in
   let arrows i clause =
     let arrow_from id = match index_of id with
       | Some index -> sprintf "  %d -> %d []\n" index i
@@ -167,7 +167,7 @@ let process_proof debug path = function
       match proof with
         | Some (proof_clauses, _) ->
             write_file (change_extension path ".dot")
-              (proof_graph debug all_clauses (adjust proof_clauses))
+              (proof_graph debug all_clauses (adjust proof_clauses) [])
         | _ -> ());
       if debug > 1 then
         write_trace (change_extension path ".trace") all_clauses);
@@ -220,27 +220,49 @@ let bfs roots max_depth children =
 
 let lookup map id = opt_default (assoc_opt id map) []
 
+let parents clause =
+  if mem "distribute" (source_rules clause.source) then []
+  else hypotheses_of clause
+
 let write_tree thf_file roots clause_limit depth_limit min_roots =
   match Proof_parse.parse_file 2 thf_file with
     | Success (clauses, _proof, _time) ->
         let clauses = if clause_limit = 0 then clauses else take clause_limit clauses in
-        let clauses = skolem_adjust clauses clauses in
         roots |> iter (fun id ->
           if Option.is_none (find_clause_opt id clauses) then
             failwith ("id not found: " ^ id));
+        let clauses = skolem_adjust clauses clauses in
+        let clause_map = StringMap.of_list(clauses |> map (fun c -> (c.name, c))) in
+        let rec reduce id =
+          match StringMap.find_opt id clause_map with
+            | Some c -> (
+              match c.source with
+                | Id id' -> reduce id'
+                | _ -> id)
+            | None -> id in
+        let rec reduce_source s = match s with
+          | Id id -> Id (reduce id)
+          | Inference (name, status, parents) ->
+              Inference (name, status, map reduce_source parents)
+          | File _ -> s in
+        let reduce_clause c = match c.source with
+          | Id _ -> None
+          | _ -> Some { c with source = reduce_source c.source } in
+        let reduced_clauses = filter_map reduce_clause clauses in
         let pairs_from clause =
-          map (fun parent -> (clause.name, parent)) (hypotheses_of clause) in
-        let pairs = concat_map pairs_from clauses in
+          map (fun parent -> (clause.name, parent)) (parents clause) in
+        let pairs = concat_map pairs_from reduced_clauses in
         let child_parents = gather_pairs pairs in
         let parent_children = gather_pairs (map swap pairs) in
         let below = count_roots (bfs roots depth_limit (lookup parent_children)) in
         let selected_ids = below |> filter_map (fun (id, num_roots) ->
           if num_roots >= min_roots || min_roots = 0 then Some id else None) in
         let all_ids = bfs selected_ids 0 (lookup child_parents) in
-        let tree_clauses = filter_map (fun id -> find_clause_opt id clauses) all_ids in
+        let tree_clauses = filter_map
+          (fun id -> find_clause_opt id reduced_clauses) all_ids in
         printf "%d clauses matching, %d total\n"
           (length selected_ids) (length tree_clauses);
         let tree_file = (Filename.chop_extension thf_file) ^ "_tree.dot" in
-        write_file tree_file (proof_graph 0 [] tree_clauses)
+        write_file tree_file (proof_graph 0 [] tree_clauses roots)
     | Failed (msg, _) ->
         print_endline msg
