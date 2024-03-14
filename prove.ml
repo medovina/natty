@@ -291,9 +291,13 @@ let write_debug_tree thf_file roots clause_limit depth_limit min_roots =
             Option.bind child info in
         let reduced_clauses = filter_map (reduce_clause clause_map) clauses in
         let (child_parents, parent_children) = id_maps reduced_clauses in
-        let below = count_roots (bfs roots depth_limit (lookup parent_children)) in
-        let selected_ids = below |> filter_map (fun (id, num_roots) ->
-          if num_roots >= min_roots || min_roots = 0 then Some id else None) in
+        let selected_ids =
+          if min_roots = 0 then bfs roots depth_limit (lookup parent_children)
+          else
+            roots |> concat_map (fun root ->
+                bfs [root] depth_limit (lookup parent_children)) |>
+              count_roots |> filter_map (fun (id, num_roots) ->
+                if num_roots >= min_roots then Some id else None) in
         let all_ids = bfs selected_ids 0 (lookup child_parents) in
         let tree_clauses = filter_map
           (fun id -> find_clause_opt id reduced_clauses) all_ids in
