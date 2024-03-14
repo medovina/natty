@@ -242,16 +242,18 @@ let id_maps clauses =
 
 let is_empty c = match c.source with
   | Id _ -> true
-  | _ -> false
+  | _ -> match source_rules c.source with
+    | ["variable_rename"] -> true
+    | _ -> false
 
 let reduce_clause clause_map c =
   let rec reduce id =
     match StringMap.find_opt id clause_map with
-      | Some c -> (
-        match c.source with
-          | Id id' -> reduce id'
-          | _ -> id)
-      | None -> id in
+      | Some c when is_empty c -> (
+        match hypotheses c.source with
+          | [id'] -> reduce id'
+          | _ -> assert false )
+      | _ -> id in
   let rec reduce_source s = match s with
     | Id id -> Id (reduce id)
     | Inference (name, status, parents) ->
