@@ -240,26 +240,27 @@ let id_maps clauses =
   let pairs = concat_map pairs_from clauses in
   (gather_pairs pairs, gather_pairs (map swap pairs))
 
-let is_empty c = match c.source with
+let is_empty clause_map c = match c.source with
   | Id _ -> true
   | _ -> match source_rules c.source with
     | ["variable_rename"] -> true
+    | ["fof_nnf"] -> (
+        match StringMap.find_opt (get_hypothesis c) clause_map with
+          | Some parent -> parent.formula = c.formula
+          | _ -> false)
     | _ -> false
 
 let reduce_clause clause_map c =
   let rec reduce id =
     match StringMap.find_opt id clause_map with
-      | Some c when is_empty c -> (
-        match hypotheses c.source with
-          | [id'] -> reduce id'
-          | _ -> assert false )
+      | Some c when is_empty clause_map c -> reduce (get_hypothesis c)
       | _ -> id in
   let rec reduce_source s = match s with
     | Id id -> Id (reduce id)
     | Inference (name, status, parents) ->
         Inference (name, status, map reduce_source parents)
     | File _ -> s in
-  if is_empty c then None else Some { c with source = reduce_source c.source }
+  if is_empty clause_map c then None else Some { c with source = reduce_source c.source }
 
 let write_debug_tree thf_file roots clause_limit depth_limit min_roots =
   match Proof_parse.parse_file 2 thf_file with
@@ -281,7 +282,7 @@ let write_debug_tree thf_file roots clause_limit depth_limit min_roots =
             else
               let child = lookup down_map clause.name |> find_map (fun id ->
                 let c = StringMap.find id clause_map in
-                if is_empty c then Some c else None) in
+                if is_empty clause_map c then Some c else None) in
               Option.bind child info in
         let reduced_clauses = filter_map (reduce_clause clause_map) clauses in
         let (child_parents, parent_children) = id_maps reduced_clauses in

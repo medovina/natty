@@ -34,6 +34,10 @@ let rec hypotheses = function
 
 let hypotheses_of clause = hypotheses clause.source
 
+let get_hypothesis clause = match hypotheses_of clause with
+  | [id] -> id
+  | _ -> assert false
+
 let rec source_rules = function
   | Inference (name, _, children) ->
       name :: concat_map source_rules children
