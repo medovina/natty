@@ -273,17 +273,20 @@ let write_debug_tree thf_file roots clause_limit depth_limit min_roots =
         let begin_main_phase = find_map (fun c ->
           if c.info = "move_eval" then id_to_num c.name else None) clauses in
         let is_pre_main id = id_to_num id < begin_main_phase in
+        let is_given clause = clause.info = "new_given" && not (is_pre_main clause.name) in
+        let all_given = clauses |> filter_map (fun c ->
+          if is_given c then Some c.name else None) in
         let clauses = skolem_adjust clauses clauses in
         let clause_map = StringMap.of_list(clauses |> map (fun c -> (c.name, c))) in
         let (_, down_map) = id_maps clauses in
         let rec info clause =
-          if clause.info = "new_given" && not (is_pre_main clause.name)
-            then Some ("given @ " ^ strip_id clause.name)
-            else
-              let child = lookup down_map clause.name |> find_map (fun id ->
-                let c = StringMap.find id clause_map in
-                if is_empty clause_map c then Some c else None) in
-              Option.bind child info in
+          if is_given clause then
+            Some (sprintf "given #%d @ %s" (index_of clause.name all_given) (strip_id clause.name))
+          else
+            let child = lookup down_map clause.name |> find_map (fun id ->
+              let c = StringMap.find id clause_map in
+              if is_empty clause_map c then Some c else None) in
+            Option.bind child info in
         let reduced_clauses = filter_map (reduce_clause clause_map) clauses in
         let (child_parents, parent_children) = id_maps reduced_clauses in
         let below = count_roots (bfs roots depth_limit (lookup parent_children)) in
