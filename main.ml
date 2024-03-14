@@ -75,6 +75,6 @@ match args with
       ignore (process_proof debug file result)
   | { command = "tree"; command_args = [ids]; id_limit; depth_limit; min_roots; _ } ->
       let ids = String.split_on_char ',' ids in
-      write_tree file ids id_limit depth_limit min_roots
+      write_debug_tree file ids id_limit depth_limit min_roots
   | _ ->
       usage()
