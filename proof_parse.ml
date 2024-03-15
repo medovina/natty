@@ -14,14 +14,17 @@ let line s = spaces >>? string s << newline
 
 let empty = skip_many (skip space <|> skip comment)
 
+let integer = empty >>? (many1_chars digit |>> int_of_string)
+
 let str s = empty >>? string s
 
 let parens p = str "(" >> p << str ")"
 
 let brackets p = str "[" >> p << str "]"
 
-let chars first = pipe2 first (many_chars (alphanum <|> char '_' <|> char '-'))
-  (fun c s -> char_to_string c ^ s)
+let id_chars = many_chars (alphanum <|> char '_' <|> char '-')
+
+let chars first = pipe2 first id_chars (fun c s -> char_to_string c ^ s)
 
 let quoted_id = char '\'' >> many_chars_until any_char (char '\'')
 
@@ -101,13 +104,21 @@ let rec source s = choice [
   id |>> fun id -> Id id
 ] s
 
+let clause_info = triple
+  (str "\'" >> chars lowercase)
+  (option (parens id_chars))
+  (str "\'" >> (option (str "," >> str "info" >> parens (
+    pipe2 integer (str "," >> integer)
+      (fun proof_depth proof_size -> { proof_depth; proof_size })))))
+
 let proof_clause = empty >>?
   str "thf" >> parens ( (id << str ",") >>= fun name ->
   choice [
     str "type" >> str "," >> thf_type >>$ [];
-    pipe4 id (str "," >> formula)
-      (str "," >> source) (opt "" (str "," >> brackets quoted_id))
-      (fun role f source info -> [{name; role; formula = f; source; info}])
+    pipe4 id (str "," >> formula) (str "," >> source)
+      (opt ("", None, None) (str "," >> brackets clause_info))
+      (fun role f source (info, arg, attributes) ->
+        [{name; role; formula = f; source; info; arg; attributes}])
   ]) << str "."
 
 let stat name =

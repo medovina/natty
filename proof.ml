@@ -15,9 +15,13 @@ let rec show_source = function
   | Inference (id, _, parents) ->
       sprintf "%s(%s)" id (comma_join (map show_source parents))
 
+type clause_attributes = {
+  proof_depth: int; proof_size: int
+}
+
 type clause = {
   name: id; role: string; formula: formula; source: source;
-  info: string
+  info: string; arg: string option; attributes: clause_attributes option
 }
 
 let map_clause fn clause = { clause with formula = fn (clause.formula) }
