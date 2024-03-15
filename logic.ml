@@ -184,6 +184,7 @@ let show_formula_multi multi f =
   show 0 multi (-1) false f
 
 let show_formula = show_formula_multi false
+let show_multi = show_formula_multi true
 
 let find_vars only_free f =
   let rec find = function

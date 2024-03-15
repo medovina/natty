@@ -121,7 +121,7 @@ let proof_graph debug all_clauses proof_clauses highlight clause_info shade =
           | None -> " (none)"
       else "" in
     let name_suffix = sprintf "%s%s: " name suffix in
-    let text = encode (indent_with_prefix name_suffix (show_formula_multi true formula)) in
+    let text = encode (indent_with_prefix name_suffix (show_multi formula)) in
     let hyps = hypotheses source in
     let explain =
       if length hyps <= 1 then comma_join (rev (source_rules source))
@@ -148,11 +148,34 @@ let write_trace file clauses =
   clauses |> iter (fun { name; formula; source; info; _ } ->
     fprintf oc "%s%s [%s]%s\n"
       (if info = "new_given" then "\n" else "")
-      (indent_with_prefix (name ^ ": ") (show_formula_multi true formula))
+      (indent_with_prefix (name ^ ": ") (show_multi formula))
       (show_source source)
       (if info <> "" then sprintf " (%s)" (simplify_info info) else "")
-      )
-      ;
+      );
+  close_out oc
+
+let find_main_phase clauses = clauses |> find_map (fun c ->
+  if c.info = "move_eval" then id_to_num c.name else None)
+  
+let write_given_trace file clauses =
+  let main_phase = find_main_phase clauses in
+  let oc = open_out file in
+  let rec iter n = function
+    | [] -> ()
+    | { name; formula; info; arg; _ } :: rest ->
+        let n' =
+          if info = "new_given" && id_to_num name >= main_phase
+            then (
+              let queue = match arg with
+                | Some arg -> sprintf "[%s] " arg
+                | None -> "" in
+              let prefix = sprintf "%d. %s%s: " n queue name in
+              fprintf oc "%s\n"
+                (indent_with_prefix prefix (show_multi formula));
+              n + 1)
+            else n in
+        iter n' rest in
+  iter 1 clauses;
   close_out oc
 
 let skolem_adjust clauses =
@@ -179,8 +202,9 @@ let process_proof debug path = function
             write_file (change_extension path ".dot")
               (proof_graph debug all_clauses (adjust proof_clauses) [] [] (const false))
         | _ -> ());
-      if debug > 1 then
-        write_trace (change_extension path ".trace") all_clauses);
+      if debug > 1 then (
+        write_trace (change_extension path ".trace") all_clauses;
+        write_given_trace (change_extension path ".given.trace") all_clauses));
     Option.is_some proof
   | Failed (msg, _) ->
     print_endline msg;
@@ -272,8 +296,7 @@ let write_debug_tree thf_file roots clause_limit depth_limit min_roots =
           if Option.is_none (find_clause_opt id clauses) then
             failwith ("id not found: " ^ id));
 
-        let begin_main_phase = find_map (fun c ->
-          if c.info = "move_eval" then id_to_num c.name else None) clauses in
+        let begin_main_phase = find_main_phase clauses in
         let is_pre_main id = id_to_num id < begin_main_phase in
         let is_given clause = clause.info = "new_given" && not (is_pre_main clause.name) in
         let all_given = clauses |> filter_map (fun c ->
@@ -283,7 +306,8 @@ let write_debug_tree thf_file roots clause_limit depth_limit min_roots =
         let (_, down_map) = id_maps clauses in
         let rec info clause =
           if is_given clause then
-            Some (sprintf "given #%d @ %s" (index_of clause.name all_given) (strip_id clause.name))
+            Some (sprintf "given #%d @ %s" (index_of clause.name all_given + 1)
+                    (strip_id clause.name))
           else
             let child = lookup down_map clause.name |> find_map (fun id ->
               let c = StringMap.find id clause_map in
