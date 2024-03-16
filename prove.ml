@@ -223,6 +223,13 @@ let process_proof debug path = function
     print_endline msg;
     false
 
+let heuristic = "(" ^ String.concat "," [
+  "1.ConjectureRelativeSymbolWeight(SimulateSOS,0.5,100,100,100,100,1.5,1.5,1)";
+  "4.ConjectureRelativeSymbolWeight(ConstPrio,0.1,100,100,100,100,1.5,1.5,1.5)";
+  "1.FIFOWeight(PreferProcessed)";
+  "1.ConjectureRelativeSymbolWeight(PreferNonGoals,0.5,100,100,100,100,1.5,1.5,1)";
+  "4.Refinedweight(SimulateSOS,3,2,2,1.5,2)" ] ^ ")"
+
 let rec prove debug dir = function
   | Theorem (id, _, _) as thm :: thms ->
       print_endline (show_statement true thm);
@@ -230,6 +237,7 @@ let rec prove debug dir = function
       let debug_out = mk_path (dir ^ "_dbg") (id ^ ".thf") in
       let args = Array.of_list (
         [ prog; "--auto"; (if debug > 0 then "-l6" else "-s");
+           "-Hnew=" ^ heuristic; "-x new";
            "-T"; "10000"; "-p"; "--proof-statistics"; "-R"] @
           [thf_file dir id ]) in
       let result = if debug = 0 then

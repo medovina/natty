@@ -140,7 +140,8 @@ let heuristic_eval = regexp heuristic_regexp
 
 let proof_item = choice [
   (proof_clause |>> map mk_left);
-  (str "# heuristic_def:" >> quotes (parens (comma_sep1 heuristic_eval)) |>>
+  (str "# heuristic_def:" >>
+    quotes (optional (str "new=") >> parens (comma_sep1 heuristic_eval)) |>>
     fun hs -> [Right hs]);
   comment >>$ []
 ]
