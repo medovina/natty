@@ -127,7 +127,8 @@ let proof_graph debug all_clauses proof_clauses highlight clause_info shade =
     let text = encode (indent_with_prefix name_suffix (show_multi formula)) in
     let hyps = hypotheses source in
     let explain =
-      if length hyps <= 1 then comma_join (rev (source_rules source))
+      if length hyps <= 1 then
+        comma_join (subtract (rev (source_rules source)) ["variable_rename"])
       else show_source source in
     let explain_info = String.concat "\\n\\n"
       ((if explain = "" then [] else [explain]) @ Option.to_list outcome) in
@@ -273,28 +274,29 @@ let id_maps clauses mapper =
   let pairs = concat_map pairs_from clauses in
   (gather_pairs pairs, gather_pairs (map swap pairs))
 
-let is_empty clause_map c = match c.source with
+let is_empty c = match c.source with
   | Id _ -> true
-  | _ -> match source_rules c.source with
-    | ["variable_rename"] -> true
-    | ["fof_nnf"] -> (
-        match StringMap.find_opt (get_hypothesis c) clause_map with
-          | Some parent -> parent.formula = c.formula
-          | _ -> false)
-    | _ -> false
+  | _ -> false
 
-let reduce_clause clause_map resolve c =
+let reduce_clause clause_map down_map resolve c =
+  let has_one_child c = match assoc_opt c.name down_map with
+    | Some [_] -> true
+    | _ -> false in
+  let elide c = is_empty c || has_one_child c && match source_rules c.source with
+    | [rule] -> mem rule
+        ["assume_negation"; "fof_nnf"; "shift_quantors"; "skolemize"; "variable_rename"]
+    | _ -> false in
   let rec reduce id =
     let id = resolve id in
     match StringMap.find_opt id clause_map with
-      | Some c when is_empty clause_map c -> reduce (get_hypothesis c)
-      | _ -> id in
-  let rec reduce_source s = match s with
-    | Id id -> Id (reduce id)
+      | Some c when elide c -> reduce_source c.source
+      | _ -> Id id
+  and reduce_source s = match s with
+    | Id id -> reduce id
     | Inference (name, status, parents) ->
         Inference (name, status, map reduce_source parents)
     | File _ -> s in
-  if is_empty clause_map c then None else Some { c with source = reduce_source c.source }
+  if elide c then None else Some { c with source = reduce_source c.source }
 
 let write_debug_tree thf_file roots clause_limit depth_limit min_roots =
   match Proof_parse.parse_file 2 thf_file with
@@ -319,7 +321,7 @@ let write_debug_tree thf_file roots clause_limit depth_limit min_roots =
         let rec descendents clause =
           let child = lookup down_map clause.name |> find_map (fun id ->
             let c = StringMap.find id clause_map in
-            if is_empty clause_map c then Some c else None) in
+            if is_empty c then Some c else None) in
           match child with
             | None -> []
             | Some c -> c :: descendents c in
@@ -333,7 +335,8 @@ let write_debug_tree thf_file roots clause_limit depth_limit min_roots =
           let eval_attrs = ds |> find_map (fun c ->
             if is_eval c then c.attributes else None) in
           (outcome, eval_attrs) in
-        let reduced_clauses = filter_map (reduce_clause clause_map resolve) clauses in
+        let reduced_clauses =
+          filter_map (reduce_clause clause_map down_map resolve) clauses in
         let (child_parents, parent_children) = id_maps reduced_clauses Fun.id in
         let selected_ids =
           if min_roots = 0 then bfs roots depth_limit (lookup parent_children)
