@@ -105,6 +105,10 @@ let strip_id = remove_prefix id_prefix
 let id_to_num id =
   if starts_with id_prefix id then int_of_string_opt (strip_id id) else None
 
+let show_attributes prefix = function
+  | Some atts -> prefix ^ sprintf "(%d/%d)" atts.proof_depth atts.proof_size
+  | None -> ""
+
 let proof_graph debug all_clauses proof_clauses highlight clause_info shade =
   let index_of id =
     find_index (fun s -> s.name = id) proof_clauses in
@@ -120,9 +124,7 @@ let proof_graph debug all_clauses proof_clauses highlight clause_info shade =
           | Some orig -> if orig = name then ""
                          else sprintf " (%s)" orig
           | None -> " (none)"
-      else match eval_info with
-        | Some atts -> sprintf " (%d/%d)" atts.proof_depth atts.proof_size
-        | None -> "" in
+      else show_attributes " " eval_info in
     let name_suffix = sprintf "%s%s: " name suffix in
     let text = encode (indent_with_prefix name_suffix (show_multi formula)) in
     let hyps = hypotheses source in
@@ -170,7 +172,7 @@ let write_given_trace file clauses heuristic_def =
 
   let rec loop n = function
     | [] -> ()
-    | { name; formula; info; arg; _ } :: rest ->
+    | { name; formula; info; arg; attributes; _ } :: rest ->
         let n' =
           if info = "new_given" && id_to_num name >= main_phase
             then (
@@ -178,8 +180,9 @@ let write_given_trace file clauses heuristic_def =
                 | Some arg -> sprintf "[%s] " arg
                 | None -> "" in
               let prefix = sprintf "%d. %s%s: " n queue name in
-              fprintf oc "%s\n"
-                (indent_with_prefix prefix (show_multi formula));
+              fprintf oc "%s%s\n"
+                (indent_with_prefix prefix (show_multi formula))
+                (show_attributes "   " attributes);
               n + 1)
             else n in
         loop n' rest in
