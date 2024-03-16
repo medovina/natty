@@ -103,7 +103,7 @@ let id_prefix = "c_0_"
 let strip_id = remove_prefix id_prefix
 
 let id_to_num id =
-  if starts_with id_prefix id then Some (int_of_string (strip_id id)) else None
+  if starts_with id_prefix id then int_of_string_opt (strip_id id) else None
 
 let proof_graph debug all_clauses proof_clauses highlight clause_info shade =
   let index_of id =
@@ -265,13 +265,11 @@ let bfs roots max_depth children =
 
 let lookup map id = opt_default (assoc_opt id map) []
 
-let parents clause =
-  if mem "distribute" (source_rules clause.source) then []
-  else hypotheses_of clause
+let parents clause = hypotheses_of clause
 
-let id_maps clauses =
+let id_maps clauses mapper =
   let pairs_from clause =
-    map (fun parent -> (clause.name, parent)) (parents clause) in
+    map (fun parent -> (clause.name, mapper parent)) (parents clause) in
   let pairs = concat_map pairs_from clauses in
   (gather_pairs pairs, gather_pairs (map swap pairs))
 
@@ -285,8 +283,9 @@ let is_empty clause_map c = match c.source with
           | _ -> false)
     | _ -> false
 
-let reduce_clause clause_map c =
+let reduce_clause clause_map resolve c =
   let rec reduce id =
+    let id = resolve id in
     match StringMap.find_opt id clause_map with
       | Some c when is_empty clause_map c -> reduce (get_hypothesis c)
       | _ -> id in
@@ -301,10 +300,14 @@ let write_debug_tree thf_file roots clause_limit depth_limit min_roots =
   match Proof_parse.parse_file 2 thf_file with
     | Success { clauses; _ } ->
         let clauses = if clause_limit = 0 then clauses else take clause_limit clauses in
+        let clause_map = StringMap.of_list (clauses |> map (fun c -> (c.name, c))) in
         roots |> iter (fun id ->
-          if Option.is_none (find_clause_opt id clauses) then
-            failwith ("id not found: " ^ id));
-
+          if not (StringMap.mem id clause_map) then failwith ("id not found: " ^ id));
+        let resolve id =
+          if StringMap.mem id clause_map then id
+          else match id_to_num id with
+            | Some n -> (nth clauses (n - 1)).name
+            | None -> id in
         let begin_main_phase = find_main_phase clauses in
         let is_pre_main id = id_to_num id < begin_main_phase in
         let is_given clause = clause.info = "new_given" && not (is_pre_main clause.name) in
@@ -312,8 +315,7 @@ let write_debug_tree thf_file roots clause_limit depth_limit min_roots =
         let all_given = clauses |> filter_map (fun c ->
           if is_given c then Some c.name else None) in
         let clauses = skolem_adjust clauses clauses in
-        let clause_map = StringMap.of_list(clauses |> map (fun c -> (c.name, c))) in
-        let (_, down_map) = id_maps clauses in
+        let (_, down_map) = id_maps clauses resolve in
         let rec descendents clause =
           let child = lookup down_map clause.name |> find_map (fun id ->
             let c = StringMap.find id clause_map in
@@ -331,8 +333,8 @@ let write_debug_tree thf_file roots clause_limit depth_limit min_roots =
           let eval_attrs = ds |> find_map (fun c ->
             if is_eval c then c.attributes else None) in
           (outcome, eval_attrs) in
-        let reduced_clauses = filter_map (reduce_clause clause_map) clauses in
-        let (child_parents, parent_children) = id_maps reduced_clauses in
+        let reduced_clauses = filter_map (reduce_clause clause_map resolve) clauses in
+        let (child_parents, parent_children) = id_maps reduced_clauses Fun.id in
         let selected_ids =
           if min_roots = 0 then bfs roots depth_limit (lookup parent_children)
           else
