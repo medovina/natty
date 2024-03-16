@@ -157,10 +157,15 @@ let write_trace file clauses =
 let find_main_phase clauses = clauses |> find_map (fun c ->
   if c.info = "move_eval" then id_to_num c.name else None)
   
-let write_given_trace file clauses =
+let write_given_trace file clauses heuristic_def =
   let main_phase = find_main_phase clauses in
   let oc = open_out file in
-  let rec iter n = function
+
+  heuristic_def |> Option.iter (fun hs ->
+    hs |> iteri (fun i h -> fprintf oc "[%d] %s\n" i h);
+    fprintf oc "\n");
+
+  let rec loop n = function
     | [] -> ()
     | { name; formula; info; arg; _ } :: rest ->
         let n' =
@@ -174,8 +179,9 @@ let write_given_trace file clauses =
                 (indent_with_prefix prefix (show_multi formula));
               n + 1)
             else n in
-        iter n' rest in
-  iter 1 clauses;
+        loop n' rest in
+  loop 1 clauses;
+  
   close_out oc
 
 let skolem_adjust clauses =
@@ -184,7 +190,7 @@ let skolem_adjust clauses =
   map (map_clause adjust)
 
 let process_proof debug path = function
-  | MParser.Success (all_clauses, proof, time) ->
+  | MParser.Success { clauses = all_clauses; heuristic_def; proof; user_time = time } ->
     let time = float_of_string time in
     let all = match proof with
       | Some (proof_clauses, steps) ->
@@ -204,7 +210,8 @@ let process_proof debug path = function
         | _ -> ());
       if debug > 1 then (
         write_trace (change_extension path ".trace") all_clauses;
-        write_given_trace (change_extension path ".given.trace") all_clauses));
+        write_given_trace
+          (change_extension path ".given.trace") all_clauses heuristic_def));
     Option.is_some proof
   | Failed (msg, _) ->
     print_endline msg;
@@ -290,7 +297,7 @@ let reduce_clause clause_map c =
 
 let write_debug_tree thf_file roots clause_limit depth_limit min_roots =
   match Proof_parse.parse_file 2 thf_file with
-    | Success (clauses, _proof, _time) ->
+    | Success { clauses; _ } ->
         let clauses = if clause_limit = 0 then clauses else take clause_limit clauses in
         roots |> iter (fun id ->
           if Option.is_none (find_clause_opt id clauses) then

@@ -1,4 +1,6 @@
+open Either
 open List
+
 open MParser
 
 (* chars *)
@@ -69,6 +71,16 @@ module StringMap = Map.Make(String)
 let (let*) = Option.bind
 
 let opt_default opt def = Option.value opt ~default:def
+
+(* either *)
+
+let mk_left x = Left x
+
+let gather_left_right xs =
+  let f x (ls, rs) = match x with
+    | Left l -> (l :: ls, rs)
+    | Right r -> (ls, r :: rs) in
+  fold_right f xs ([], [])
 
 (* tuples *)
 

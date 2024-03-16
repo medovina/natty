@@ -1,6 +1,8 @@
+open Either
 open List
 
 open MParser
+open MParser_RE
 
 open Logic
 open Proof
@@ -8,19 +10,23 @@ open Util
 
 let any_line = skip_many_until any_char newline
 
-let comment = string "#" <|> string "/*" << any_line
-
 let line s = spaces >>? string s << newline
 
-let empty = skip_many (skip space <|> skip comment)
+let empty = spaces
 
 let integer = empty >>? (many1_chars digit |>> int_of_string)
 
 let str s = empty >>? string s
 
-let parens p = str "(" >> p << str ")"
+let between_str l r p = between (str l) (str r) p
 
-let brackets p = str "[" >> p << str "]"
+let parens p = between_str "(" ")" p
+let brackets p = between_str "[" "]" p
+let quotes p = between_str "\"" "\"" p
+
+let comma_sep1 p = sep_by1 p (str ",")
+
+let comment = str "#" <|> str "/*" << any_line
 
 let id_chars = many_chars (alphanum <|> char '_' <|> char '-')
 
@@ -88,7 +94,7 @@ let rec term s = choice [
   quantifier "^" lambda
   ] s
 and quantifier s mk =
-  pipe2 (str s >> brackets (sep_by1 arg (str ",")) << str ":") term
+  pipe2 (str s >> brackets (comma_sep1 arg) << str ":") term
     (build_quant mk)
 and formula s = expression operators term s
 
@@ -125,21 +131,33 @@ let stat name =
   (skip_many_until any_line (string ("# " ^ name)) >> spaces >>
     str ":" >> spaces >> many_chars (digit <|> char '.'))
 
-let proof_found = spaces >>? line "# Proof found!" >> line "# SZS status Theorem"
+let szs_status = spaces >>? string "# SZS status " << any_line
 
-let end_inferences = spaces >>?
-  optional comment >>? string "# SZS status " << any_line
+let szs_theorem = line "# SZS status Theorem"
 
-let proof_file debug = triple
+let heuristic_regexp = make_regexp {|\d\.\w+\([\w\d.,]+\)|}
+let heuristic_eval = regexp heuristic_regexp
+
+let proof_item = choice [
+  (proof_clause |>> map mk_left);
+  (str "# heuristic_def:" >> quotes (parens (comma_sep1 heuristic_eval)) |>>
+    fun hs -> [Right hs]);
+  comment >>$ []
+]
+
+let proof_file debug = pipe3
   (if debug > 1 then 
-	  many (not_followed_by end_inferences "" >> proof_clause ) |>> concat
+	  many (not_followed_by szs_status "" >> proof_item ) |>>
+      concat |>> gather_left_right
    else
-    many (not_followed_by end_inferences "" >> any_line) >>$ [])
+    many (not_followed_by szs_status "" >> any_line) >>$ ([], []))
   (option (pair
-    (proof_found >> line "# SZS output start CNFRefutation" >>
+    (szs_theorem >> line "# SZS output start CNFRefutation" >>
      many_until proof_clause (line "# SZS output end CNFRefutation") |>> concat)
     (stat "Proof object total steps")))
   (stat "User time")
+  (fun (clauses, hs) proof user_time ->
+    { clauses; heuristic_def = nth_opt hs 0; proof; user_time })
 ;;
 
 let parse debug text = MParser.parse_string (proof_file debug) text ()

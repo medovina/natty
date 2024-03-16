@@ -52,3 +52,10 @@ let gather_hypotheses clauses =
   let is_axiom id =
     (find_clause id clauses).role = "axiom" in
   unique (filter is_axiom ids)
+
+type e_proof = {
+  clauses: clause list;
+  heuristic_def : string list option;
+  proof: (clause list * string) option;  (* proof clauses, total steps *)
+  user_time: string
+}
