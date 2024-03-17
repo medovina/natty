@@ -229,33 +229,30 @@ let skolem_adjust clauses =
   let adjust f = rename_vars (skolem_subst skolem_map f) in
   map (map_clause adjust)
 
-let process_proof debug path = function
-  | MParser.Success { clauses = all_clauses; heuristic_def; proof; user_time = time } ->
-    let time = float_of_string time in
-    let all = match proof with
-      | Some (proof_clauses, steps) ->
-          let hyps = gather_hypotheses proof_clauses in
-          printf "  %.1f s, %s steps [%s]\n\n" time steps (comma_join hyps);
-          if debug > 1 then all_clauses else proof_clauses
-      | None ->
-          printf "failed to prove (%.1f s)!\n" time;
-          all_clauses in
-    if debug > 0 then (
-      let adjust = skolem_adjust all in
-      let all_clauses = adjust all in (
-      match proof with
-        | Some (proof_clauses, _) ->
-            write_file (change_extension path ".dot")
-              (proof_graph debug all_clauses (adjust proof_clauses) [] [] (const false))
-        | _ -> ());
-      if debug > 1 then (
-        write_trace (change_extension path ".trace") all_clauses;
-        write_given_trace
-          (change_extension path ".given.trace") all_clauses heuristic_def));
-    Option.is_some proof
-  | Failed (msg, _) ->
-    print_endline msg;
-    false
+let process_proof debug path
+      { clauses = all_clauses; heuristic_def; proof; user_time = time } =
+  let time = float_of_string time in
+  let all = match proof with
+    | Some (proof_clauses, steps) ->
+        let hyps = gather_hypotheses proof_clauses in
+        printf "  %.1f s, %s steps [%s]\n\n" time steps (comma_join hyps);
+        if debug > 1 then all_clauses else proof_clauses
+    | None ->
+        printf "failed to prove (%.1f s)!\n" time;
+        all_clauses in
+  if debug > 0 then (
+    let adjust = skolem_adjust all in
+    let all_clauses = adjust all in (
+    match proof with
+      | Some (proof_clauses, _) ->
+          write_file (change_extension path ".proof.dot")
+            (proof_graph debug all_clauses (adjust proof_clauses) [] [] (const false))
+      | _ -> ());
+    if debug > 1 then (
+      write_trace (change_extension path ".trace") all_clauses;
+      write_given_trace
+        (change_extension path ".given.trace") all_clauses heuristic_def));
+  Option.is_some proof
 
 let heuristic = "(" ^ String.concat "," [
   "1.ConjectureRelativeSymbolWeight(SimulateSOS,0.5,100,100,100,100,1.5,1.5,1)";
@@ -264,37 +261,12 @@ let heuristic = "(" ^ String.concat "," [
   "1.ConjectureRelativeSymbolWeight(PreferNonGoals,0.5,100,100,100,100,1.5,1.5,1)";
   "4.Refinedweight(SimulateSOS,3,2,2,1.5,2)" ] ^ ")"
 
-let rec prove debug dir = function
-  | Theorem (id, _, _) as thm :: thms ->
-      print_endline (show_statement true thm);
-      let prog = "eprover-ho" in
-      let debug_out = mk_path (dir ^ "_dbg") (id ^ ".thf") in
-      let args = Array.of_list (
-        [ prog; "--auto"; (if debug > 0 then "-l6" else "-s");
-           "-Hnew=" ^ heuristic; "-x new";
-           "-T"; "10000"; "-p"; "--proof-statistics"; "-R"] @
-          [thf_file dir id ]) in
-      let result = if debug = 0 then
-        let ic = Unix.open_process_args_in prog args in
-        let process_out = In_channel.input_all ic in
-        In_channel.close ic;
-        Proof_parse.parse 0 process_out
-      else
-        let out_descr = Unix.openfile debug_out [Unix.O_WRONLY; Unix.O_CREAT; Unix.O_TRUNC] 0o640  in
-        let pid = Unix.create_process prog args Unix.stdin out_descr out_descr in
-        ignore (Unix.waitpid [] pid);
-        Proof_parse.parse_file debug debug_out in
-      if process_proof debug debug_out result then
-        prove debug dir thms
-  | [] -> print_endline "All theorems were proved."
-  | _ -> assert false
-
 (* given list of ids, returns list of (id, num_roots) *)
 let count_roots =
   let f _id roots = roots + 1 in
   group_by Fun.id f 0
 
-let lookup map id = opt_default (assoc_opt id map) []
+let lookup map id = opt_default (StringMap.find_opt id map) []
 
 let parents clause = hypotheses_of clause
 
@@ -302,14 +274,15 @@ let id_maps clauses mapper =
   let pairs_from clause =
     map (fun parent -> (clause.name, mapper parent)) (parents clause) in
   let pairs = concat_map pairs_from clauses in
-  (gather_pairs pairs, gather_pairs (map swap pairs))
+  (StringMap.of_list (gather_pairs pairs),
+   StringMap.of_list (gather_pairs (map swap pairs)))
 
 let is_empty c = match c.source with
   | Id _ -> true
   | _ -> false
 
 let reduce_clause clause_map down_map resolve c =
-  let has_one_child c = match assoc_opt c.name down_map with
+  let has_one_child c = match StringMap.find_opt c.name down_map with
     | Some [_] -> true
     | _ -> false in
   let elide c = is_empty c || has_one_child c && match source_rules c.source with
@@ -328,61 +301,88 @@ let reduce_clause clause_map down_map resolve c =
     | File _ -> s in
   if elide c then None else Some { c with source = reduce_source c.source }
 
-let write_debug_tree thf_file roots clause_limit depth_limit min_roots =
-  match Proof_parse.parse_file 2 thf_file with
-    | Success { clauses; _ } ->
-        let clauses = if clause_limit = 0 then clauses else take clause_limit clauses in
-        let clause_map = make_map clauses in
-        roots |> iter (fun id ->
-          if not (StringMap.mem id clause_map) then failwith ("id not found: " ^ id));
-        let resolve id =
-          if StringMap.mem id clause_map then id
-          else match id_to_num id with
-            | Some n -> (nth clauses (n - 1)).name
-            | None -> id in
-        let begin_main_phase = find_main_phase clauses in
-        let is_pre_main id = id_to_num id < begin_main_phase in
-        let is_given clause = clause.info = "new_given" && not (is_pre_main clause.name) in
-        let is_eval clause = clause.info = "eval" || clause.info = "move_eval" in
-        let all_given = clauses |> filter_map (fun c ->
-          if is_given c then Some c.name else None) in
-        let clauses = skolem_adjust clauses clauses in
-        let (_, down_map) = id_maps clauses resolve in
-        let rec descendents clause =
-          let child = lookup down_map clause.name |> find_map (fun id ->
-            let c = StringMap.find id clause_map in
-            if is_empty c then Some c else None) in
-          match child with
-            | None -> []
-            | Some c -> c :: descendents c in
-        let info clause =
-          let ds = descendents clause in
-          let outcome = ds |> find_map (fun c ->
-            if is_given c then
-              Some (sprintf "given #%d @ %s" (index_of c.name all_given + 1)
-                      (strip_id c.name))
-            else None) in
-          let eval_attrs = ds |> find_map (fun c ->
-            if is_eval c then c.attributes else None) in
-          (outcome, eval_attrs) in
-        let reduced_clauses =
-          filter_map (reduce_clause clause_map down_map resolve) clauses in
-        let (child_parents, parent_children) = id_maps reduced_clauses Fun.id in
-        let selected_ids =
-          if min_roots = 0 then bfs roots depth_limit (lookup parent_children)
-          else
-            roots |> concat_map (fun root ->
-                bfs [root] depth_limit (lookup parent_children)) |>
-              count_roots |> filter_map (fun (id, num_roots) ->
-                if num_roots >= min_roots then Some id else None) in
-        let all_ids = bfs selected_ids 0 (lookup child_parents) in
-        let tree_clauses = filter_map
-          (fun id -> find_clause_opt id reduced_clauses) all_ids in
-        printf "%d clauses matching, %d total\n"
-          (length selected_ids) (length tree_clauses);
-        let clause_info = reduced_clauses |> map (fun c -> (c.name, info c)) in
-        let tree_file = (Filename.chop_extension thf_file) ^ "_tree.dot" in
-        write_file tree_file
-          (proof_graph 0 [] tree_clauses roots clause_info is_pre_main)
-    | Failed (msg, _) ->
-        print_endline msg
+let write_tree clauses roots clause_limit depth_limit min_roots outfile =
+  let clauses = if clause_limit = 0 then clauses else take clause_limit clauses in
+  let clause_map = make_map clauses in
+  roots |> iter (fun id ->
+    if not (StringMap.mem id clause_map) then failwith ("id not found: " ^ id));
+  let resolve id =
+    if StringMap.mem id clause_map then id
+    else match id_to_num id with
+      | Some n -> (nth clauses (n - 1)).name
+      | None -> id in
+  let begin_main_phase = find_main_phase clauses in
+  let is_pre_main id = id_to_num id < begin_main_phase in
+  let is_given clause = clause.info = "new_given" && not (is_pre_main clause.name) in
+  let is_eval clause = clause.info = "eval" || clause.info = "move_eval" in
+  let all_given = clauses |> filter_map (fun c ->
+    if is_given c then Some c.name else None) in
+  let clauses = skolem_adjust clauses clauses in
+  let (_, down_map) = id_maps clauses resolve in
+  let rec descendents clause =
+    let child = lookup down_map clause.name |> find_map (fun id ->
+      let c = StringMap.find id clause_map in
+      if is_empty c then Some c else None) in
+    match child with
+      | None -> []
+      | Some c -> c :: descendents c in
+  let info clause =
+    let ds = descendents clause in
+    let outcome = ds |> find_map (fun c ->
+      if is_given c then
+        Some (sprintf "given #%d @ %s" (index_of c.name all_given + 1)
+                (strip_id c.name))
+      else None) in
+    let eval_attrs = ds |> find_map (fun c ->
+      if is_eval c then c.attributes else None) in
+    (outcome, eval_attrs) in
+  let reduced_clauses =
+    filter_map (reduce_clause clause_map down_map resolve) clauses in
+  let (child_parents, parent_children) = id_maps reduced_clauses Fun.id in
+  let selected_ids =
+    if min_roots = 0 then bfs roots depth_limit (lookup parent_children)
+    else
+      roots |> concat_map (fun root ->
+          bfs [root] depth_limit (lookup parent_children)) |>
+        count_roots |> filter_map (fun (id, num_roots) ->
+          if num_roots >= min_roots then Some id else None) in
+  let all_ids = bfs selected_ids 0 (lookup child_parents) in
+  let tree_clauses = filter_map
+    (fun id -> find_clause_opt id reduced_clauses) all_ids in
+  let clause_info = reduced_clauses |> map (fun c -> (c.name, info c)) in
+  write_file outfile
+    (proof_graph 0 [] tree_clauses roots clause_info is_pre_main);
+  (length selected_ids, length tree_clauses)
+
+let rec prove debug dir = function
+  | Theorem (id, _, _) as thm :: thms ->
+      print_endline (show_statement true thm);
+      let prog = "eprover-ho" in
+      let debug_out = mk_path (dir ^ "_dbg") (id ^ ".thf") in
+      let args = Array.of_list (
+        [ prog; "--auto"; (if debug > 0 then "-l6" else "-s");
+            "-Hnew=" ^ heuristic; "-x new";
+            "-T"; "10000"; "-p"; "--proof-statistics"; "-R"] @
+          [thf_file dir id ]) in
+      let result = if debug = 0 then
+        let ic = Unix.open_process_args_in prog args in
+        let process_out = In_channel.input_all ic in
+        In_channel.close ic;
+        Proof_parse.parse 0 process_out
+      else
+        let out_descr = Unix.openfile debug_out [Unix.O_WRONLY; Unix.O_CREAT; Unix.O_TRUNC] 0o640 in
+        let pid = Unix.create_process prog args Unix.stdin out_descr out_descr in
+        ignore (Unix.waitpid [] pid);
+        Proof_parse.parse_file debug debug_out in (
+      match result with
+        | MParser.Success ({ clauses; _} as e_proof) ->
+            if process_proof debug debug_out e_proof then (
+              if debug > 1 then
+                let final = nth clauses (length clauses - 2) in
+                ignore (write_tree clauses [final.name] 0 0 0
+                  (change_extension debug_out ".dot"));
+              prove debug dir thms)
+        | Failed (msg, _) ->
+            print_endline msg)
+  | [] -> print_endline "All theorems were proved."
+  | _ -> assert false

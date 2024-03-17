@@ -1,4 +1,5 @@
 open List
+open Printf
 
 open Prove
 open Util
@@ -70,11 +71,21 @@ match args with
             prove debug dir names
         | Failed (msg, _) ->
             print_endline msg)
-  | { command = "process"; debug; _ } ->
-      let result = Proof_parse.parse_file debug file in
-      ignore (process_proof debug file result)
+  | { command = "process"; debug; _ } -> (
+      match Proof_parse.parse_file debug file with
+        | MParser.Success e_proof ->
+            ignore (process_proof debug file e_proof)
+        | Failed (msg, _) ->
+            print_endline msg)
   | { command = "tree"; command_args = [ids]; id_limit; depth_limit; min_roots; _ } ->
-      let ids = String.split_on_char ',' ids in
-      write_debug_tree file ids id_limit depth_limit min_roots
+      let ids = String.split_on_char ',' ids in (
+      match Proof_parse.parse_file 2 file with
+        | Success { clauses; _ } ->
+            let outfile = change_extension file "_tree.dot" in
+            let (matching, total) =
+              write_tree clauses ids id_limit depth_limit min_roots outfile in
+            printf "%d clauses matching, %d total\n" matching total
+        | Failed (msg, _) ->
+            print_endline msg)
   | _ ->
       usage()
