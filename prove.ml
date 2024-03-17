@@ -91,7 +91,7 @@ let write_files dir prog =
           match proof with
             | Some (Formulas fs) ->
                 fs |> mapi (fun j f ->
-                  let step_name = sprintf "%s_%d" name j in
+                  let step_name = sprintf "%s_%d" name (j + 1) in
                   let t = Theorem (step_name, f, None) in
                   write_thf dir step_name proven t;
                   t)
