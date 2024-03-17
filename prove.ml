@@ -7,6 +7,21 @@ open Proof
 open Thf
 open Util
 
+let bfs roots max_depth children =
+  let q = Queue.of_seq (List.to_seq (map (fun r -> (r, 0)) roots)) in
+  let rec loop visited =
+    match Queue.take_opt q with
+      | Some (x, depth) ->
+          if depth < max_depth - 1 || max_depth = 0 then
+            let cs = children x in
+            let new_cs = StringSet.diff (StringSet.of_list cs) visited in
+            let elems = Seq.map (fun x -> (x, depth + 1)) (StringSet.to_seq new_cs) in
+            Queue.add_seq q elems;
+            loop (StringSet.union new_cs visited)
+          else loop visited
+      | _ -> StringSet.to_list visited in
+  loop (StringSet.of_list roots)
+
 let first_var start_var = function
   | Fun (_, Bool) -> "P"
   | _ -> start_var
@@ -162,31 +177,50 @@ let write_trace file clauses =
 let find_main_phase clauses = clauses |> find_map (fun c ->
   if c.info = "move_eval" then id_to_num c.name else None)
   
+let make_map clauses = StringMap.of_list (clauses |> map (fun c -> (c.name, c)))
+
 let write_given_trace file clauses heuristic_def =
   let main_phase = find_main_phase clauses in
+  let is_given c = c.info = "new_given" && id_to_num c.name >= main_phase in
   let oc = open_out file in
 
   heuristic_def |> Option.iter (fun hs ->
     hs |> iteri (fun i h -> fprintf oc "[%d] %s\n" i h);
     fprintf oc "\n");
 
-  let rec loop n = function
-    | [] -> ()
-    | { name; formula; info; arg; attributes; _ } :: rest ->
-        let n' =
-          if info = "new_given" && id_to_num name >= main_phase
-            then (
-              let queue = match arg with
-                | Some arg -> sprintf "[%s] " arg
-                | None -> "" in
-              let prefix = sprintf "%d. %s%s: " n queue name in
-              fprintf oc "%s%s\n"
-                (indent_with_prefix prefix (show_multi formula))
-                (show_attributes "   " attributes);
-              n + 1)
-            else n in
-        loop n' rest in
-  loop 1 clauses;
+  let all_given = filter is_given clauses in
+
+  let final = last clauses in
+  let used =
+    if final.formula = mk_false then
+      let clause_map = make_map clauses in
+      let parents id = match StringMap.find_opt id clause_map with
+        | Some c -> hypotheses_of c
+        | None -> [] in
+      let ancestors = bfs [final.name] 0 parents in
+      ancestors |> filter_map (fun id ->
+        Option.bind (StringMap.find_opt id clause_map) (fun c ->
+          if is_given c then Some c else None))
+    else [] in
+
+  let print_clause n c =
+    let queue = match c.arg with
+    | Some arg -> sprintf "[%s] " arg
+    | None -> "" in
+    let dot = if mem c used then '*' else '.' in
+    let prefix = sprintf "%d%c %s%s: " (n + 1) dot queue c.name in
+    fprintf oc "%s%s\n"
+      (indent_with_prefix prefix (show_multi c.formula))
+      (show_attributes "   " c.attributes) in
+
+  if used <> [] then (
+    fprintf oc "used in proof:\n";
+    used |> map (fun c -> (index_of c all_given, c)) |> sort_by fst |>
+      iter (fun (i, c) -> print_clause i c);
+    fprintf oc "\n");
+
+  fprintf oc "all given:\n";
+  all_given |> iteri print_clause;
   
   close_out oc
 
@@ -260,21 +294,6 @@ let count_roots =
   let f _id roots = roots + 1 in
   group_by Fun.id f 0
 
-let bfs roots max_depth children =
-  let q = Queue.of_seq (List.to_seq (map (fun r -> (r, 0)) roots)) in
-  let rec loop visited =
-    match Queue.take_opt q with
-      | Some (x, depth) ->
-          if depth < max_depth - 1 || max_depth = 0 then
-            let cs = children x in
-            let new_cs = StringSet.diff (StringSet.of_list cs) visited in
-            let elems = Seq.map (fun x -> (x, depth + 1)) (StringSet.to_seq new_cs) in
-            Queue.add_seq q elems;
-            loop (StringSet.union new_cs visited)
-          else loop visited
-      | _ -> StringSet.to_list visited in
-  loop (StringSet.of_list roots)
-
 let lookup map id = opt_default (assoc_opt id map) []
 
 let parents clause = hypotheses_of clause
@@ -313,7 +332,7 @@ let write_debug_tree thf_file roots clause_limit depth_limit min_roots =
   match Proof_parse.parse_file 2 thf_file with
     | Success { clauses; _ } ->
         let clauses = if clause_limit = 0 then clauses else take clause_limit clauses in
-        let clause_map = StringMap.of_list (clauses |> map (fun c -> (c.name, c))) in
+        let clause_map = make_map clauses in
         roots |> iter (fun id ->
           if not (StringMap.mem id clause_map) then failwith ("id not found: " ^ id));
         let resolve id =
