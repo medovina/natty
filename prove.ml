@@ -334,13 +334,18 @@ let write_tree clauses roots clause_limit depth_limit min_roots outfile =
       | Some c -> c :: descendents c in
   let info clause =
     let ds = descendents clause in
-    let outcome = ds |> find_map (fun c ->
-      if is_given c || c.info = "orphaned" then
+    let outcomes = ds |> filter_map (fun c ->
+      if is_given c || c.info = "simplifiable" && not (is_pre_main c.name) ||
+          c.info = "orphaned" then
         let event = if is_given c
           then sprintf "given #%d" (index_of c.name all_given + 1)
-          else sprintf "%s(%s)" c.info (above (Option.get (c.arg))) in
+          else match c.arg with
+            | Some arg -> sprintf "%s(%s)" c.info (above arg)
+            | None -> c.info in
         Some (sprintf "%s @ %s" event (strip_id c.name))
       else None) in
+    let outcome = if outcomes = [] then None
+      else Some (String.concat "\\n" outcomes) in
     let eval_attrs = ds |> find_map (fun c ->
       if is_eval c then c.attributes else None) in
     (outcome, eval_attrs) in
