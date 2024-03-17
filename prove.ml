@@ -259,7 +259,8 @@ let heuristic = "(" ^ String.concat "," [
   "4.ConjectureRelativeSymbolWeight(ConstPrio,0.1,100,100,100,100,1.5,1.5,1.5)";
   "1.FIFOWeight(PreferProcessed)";
   "1.ConjectureRelativeSymbolWeight(PreferNonGoals,0.5,100,100,100,100,1.5,1.5,1)";
-  "4.Refinedweight(SimulateSOS,3,2,2,1.5,2)" ] ^ ")"
+  "4.Refinedweight(SimulateSOS,3,2,2,1.5,2)"
+  ] ^ ")"
 
 (* given list of ids, returns list of (id, num_roots) *)
 let count_roots =
@@ -319,6 +320,11 @@ let write_tree clauses roots clause_limit depth_limit min_roots outfile =
     if is_given c then Some c.name else None) in
   let clauses = skolem_adjust clauses clauses in
   let (_, down_map) = id_maps clauses resolve in
+  let rec above id = match StringMap.find_opt id clause_map with
+    | Some c -> (match c.source with
+        | Id id -> above id
+        | _ -> id)
+    | _ -> id in
   let rec descendents clause =
     let child = lookup down_map clause.name |> find_map (fun id ->
       let c = StringMap.find id clause_map in
@@ -329,9 +335,11 @@ let write_tree clauses roots clause_limit depth_limit min_roots outfile =
   let info clause =
     let ds = descendents clause in
     let outcome = ds |> find_map (fun c ->
-      if is_given c then
-        Some (sprintf "given #%d @ %s" (index_of c.name all_given + 1)
-                (strip_id c.name))
+      if is_given c || c.info = "orphaned" then
+        let event = if is_given c
+          then sprintf "given #%d" (index_of c.name all_given + 1)
+          else sprintf "%s(%s)" c.info (above (Option.get (c.arg))) in
+        Some (sprintf "%s @ %s" event (strip_id c.name))
       else None) in
     let eval_attrs = ds |> find_map (fun c ->
       if is_eval c then c.attributes else None) in
