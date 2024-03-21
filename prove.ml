@@ -94,11 +94,11 @@ let write_files dir prog =
                   let step_name = sprintf "%s_%d" name (j + 1) in
                   let t = Theorem (step_name, f, None) in
                   write_thf dir step_name proven t;
-                  t)
+                  (t, true))
             | Some _ -> assert false
             | None ->
                 write_thf dir name proven stmt;
-                [stmt])
+                [(stmt, false)])
       | _ -> [] )) |> concat
 
 let colors = [
@@ -254,13 +254,15 @@ let process_proof debug path
         (change_extension path ".given.trace") all_clauses heuristic_def));
   Option.is_some proof
 
-let heuristic = "(" ^ String.concat "," [
+let base_heuristic = [
   "1.ConjectureRelativeSymbolWeight(SimulateSOS,0.5,100,100,100,100,1.5,1.5,1)";
   "4.ConjectureRelativeSymbolWeight(ConstPrio,0.1,100,100,100,100,1.5,1.5,1.5)";
   "1.FIFOWeight(PreferProcessed)";
   "1.ConjectureRelativeSymbolWeight(PreferNonGoals,0.5,100,100,100,100,1.5,1.5,1)";
   "4.Refinedweight(SimulateSOS,3,2,2,1.5,2)"
-  ] ^ ")"
+  ]
+
+let proof_heuristic = base_heuristic
 
 (* given list of ids, returns list of (id, num_roots) *)
 let count_roots =
@@ -368,13 +370,15 @@ let write_tree clauses roots clause_limit depth_limit min_roots outfile =
   (length selected_ids, length tree_clauses)
 
 let rec prove debug dir = function
-  | Theorem (id, _, _) as thm :: thms ->
+  | (Theorem (id, _, _) as thm, in_proof) :: thms ->
       print_endline (show_statement true thm);
       let prog = "eprover-ho" in
       let debug_out = mk_path (dir ^ "_dbg") (id ^ ".thf") in
+      let heuristic = if in_proof then proof_heuristic else base_heuristic in
+      let heuristic_def = "(" ^ String.concat "," heuristic ^ ")" in
       let args = Array.of_list (
         [ prog; "--auto"; (if debug > 0 then "-l6" else "-s");
-            "-Hnew=" ^ heuristic; "-x new";
+            "-Hnew=" ^ heuristic_def; "-x new";
             "-T"; "10000"; "-p"; "--proof-statistics"; "-R"] @
           [thf_file dir id ]) in
       let result = if debug = 0 then
