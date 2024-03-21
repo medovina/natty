@@ -379,7 +379,7 @@ let rec prove debug dir = function
       let args = Array.of_list (
         [ prog; "--auto"; (if debug > 0 then "-l6" else "-s");
             "-Hnew=" ^ heuristic_def; "-x new";
-            "-T"; "10000"; "-p"; "--proof-statistics"; "-R"] @
+            "--soft-cpu-limit=3"; "-p"; "--proof-statistics"; "-R"] @
           [thf_file dir id ]) in
       let result = if debug = 0 then
         let ic = Unix.open_process_args_in prog args in
@@ -393,13 +393,13 @@ let rec prove debug dir = function
         Proof_parse.parse_file debug debug_out in (
       match result with
         | MParser.Success ({ clauses; _} as e_proof) ->
-            if process_proof debug debug_out e_proof then (
+            if process_proof debug debug_out e_proof then
               if debug > 1 then
                 let final = nth clauses (length clauses - 2) in
                 ignore (write_tree clauses [final.name] 0 0 0
-                  (change_extension debug_out ".dot"));
-              prove debug dir thms)
+                  (change_extension debug_out ".dot"))
         | Failed (msg, _) ->
-            print_endline msg)
+            print_endline msg);
+      prove debug dir thms
   | [] -> print_endline "All theorems were proved."
   | _ -> assert false

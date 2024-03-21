@@ -17,7 +17,6 @@ Axiom.  There is a binary operation · : ℕ → ℕ → ℕ such that for all n
 
   a. n · 0 = 0.
   b. n · s(m) = (n · m) + n.
-  c. s(n) · m = nm + m.   # temporary hack
 
 Theorem.  Let a, b, c : ℕ.
 
@@ -32,7 +31,7 @@ Theorem.  Let a, b, c : ℕ.
   9. a · 1 = a = 1 · a.
   10. c(a + b) = ca + cb.
   11. (ab)c = a(bc). 
-#   12. s(a) · b = ab + b.
+  12. s(a) · b = ab + b.
   13. ab = ba.
   14. (a + b)c = ac + bc.
   15. If ab = 0 then a = 0 or b = 0.
@@ -40,10 +39,6 @@ Theorem.  Let a, b, c : ℕ.
 
 Proof.
 
-#  12. For any a, use induction on b.
-
-  16. We will use induction on a.  First let a : ℕ = 0, and let b, c : ℕ with c ≠ 0 and ac = bc. Then bc = ac = 0.  Since c ≠ 0, we must have b = 0 by part (15) of this theorem, so a = b.
+  16. We use induction on a.  First let a : ℕ = 0, and let b, c : ℕ with c ≠ 0 and ac = bc. Then bc = ac = 0.  Since c ≠ 0, we must have b = 0 by part (15) of this theorem, so a = b.
 
   Now let a: ℕ, and suppose that for all b, c : ℕ, if c ≠ 0 and ac = bc then a = b.  Let j, k : ℕ, and suppose that k ≠ 0 and s(a) · k = jk.  We deduce that ka + k = jk.  If j = 0, then by part (15) either s(a) = 0 or k = 0, which is a contradiction.  Hence j ≠ 0.  By Lemma 1 there is some p : ℕ such that j = s(p).  Therefore ka + k = s(p) · k, and we see that ka + k = kp + k.  It follows that ka = kp, so ak = pk.  By the inductive hypothesis, it follows that a = p.  Therefore s(a) = s(p) = j.
-
-  # We have proved the inductive case.
