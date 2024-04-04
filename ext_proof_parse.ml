@@ -90,7 +90,7 @@ let rec term s = choice [
   var |>> (fun id -> Var (id, unknown_type));
   (str "~" >> term) |>> mk_not;
   quantifier "!" mk_for_all;
-  quantifier "?" exists;
+  quantifier "?" mk_exists;
   quantifier "^" lambda
   ] s
 and quantifier s mk =

@@ -94,18 +94,20 @@ let binder' name (id, typ) f = binder name id typ f
 let mk_for_all = binder "∀"
 let mk_for_all' = binder' "∀"
 
-let exists = binder "∃"
+let mk_exists = binder "∃"
 
 let mk_eq f g = Eq (f, g)
 
 let mk_neq f g = mk_not (mk_eq f g)
 
 type formula_kind =
+  | Not of formula
   | Binary of id * formula * formula
   | Quant of id * id * typ * formula
   | Other of formula
 
 let kind = function
+  | App (Const ("¬", _), f) -> Not f
   | App (App (Const (op, _), t), u) ->
       Binary (op, t, u)
   | App (Const (q, _), Lambda (id, typ, u)) when q = "∀" || q = "∃" ->
@@ -145,6 +147,9 @@ let show_formula_multi multi f =
     let show_eq eq f g = parens (eq_prec < outer)
       (sprintf "%s %s %s" (show1 eq_prec false f) eq (show1 eq_prec true g)) in
     match kind f with
+      | Not g -> (match g with
+        | Eq (t, u) -> show_eq "≠" t u
+        | _ -> parens (not_prec < outer) ("¬" ^ show1 not_prec false g))
       | Binary (op, t, u) when mem_assoc op binary_ops ->
           let prec = assoc op binary_ops in
           let p = prec < outer ||
@@ -172,9 +177,6 @@ let show_formula_multi multi f =
       | _ -> match f with
         | Const (id, _typ) -> id
         | Var (id, _typ) -> id
-        | App (Const ("¬", _), g) -> (match g with
-            | Eq (t, u) -> show_eq "≠" t u
-            | _ -> parens (not_prec < outer) ("¬" ^ show1 not_prec false g))
         | App (t, u) ->
             sprintf "%s(%s)" (show1 10 false t) (show1 (-1) false u)
         | Lambda (id, typ, t) ->
@@ -284,6 +286,18 @@ let outer_eq f =
     | Eq (a, _), Eq(_, b) -> Eq(a, b)
     | _ -> failwith "outer_eq"
 
+let next_var x avoid =
+  let rec next x =
+    if mem x avoid then
+      let wrap c = sprintf "%c'" c in  (* add prime mark *)
+      let t = match x.[0] with
+        | 'o' -> wrap 'a'  (* constants a .. o *)
+        | 'z' -> wrap 'q'  (* variables q .. z *)
+        | _ -> char_to_string (Char.chr (Char.code x.[0] + 1)) in
+      next (t ^ string_from x 1)
+    else x in
+  next x
+    
 (* statements *)
 
 type proof_step =

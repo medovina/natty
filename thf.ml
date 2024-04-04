@@ -26,6 +26,10 @@ let binary = [("∧", "&"); ("∨", "|"); ("→", "=>")]
 let rec thf outer right f =
   let parens b s = if b && outer <> "" then sprintf "(%s)" s else s in
   match kind f with
+    | Not f -> (match f with
+      | Eq(t, u) ->
+          parens true (sprintf "%s != %s" (thf "=" false t) (thf "=" true u))
+      | _ -> sprintf "~ %s" (thf "¬" false f))
     | Binary (op, t, u) when mem op logical_binary ->
         let s = sprintf "%s %s %s"
           (thf op false t) (assoc op binary) (thf op true u) in
@@ -37,15 +41,9 @@ let rec thf outer right f =
       | Const ("⊥", _) -> "$false"
       | Const (id, _) -> quote id
       | Var (id, _) -> capitalize id
-      | App (t, u) -> (
-          match t, u with
-            | Const ("¬", _), Eq(t, u) ->
-                parens true (sprintf "%s != %s" (thf "=" false t) (thf "=" true u))
-            | Const ("¬", _), u -> sprintf "~ %s" (thf "¬" false u)
-            | _, _ ->
-                let s = sprintf "%s @ %s" (thf "@" false t) (thf "@" true u) in
-                parens (outer <> "@" || right) s
-                ) 
+      | App (t, u) ->
+          let s = sprintf "%s @ %s" (thf "@" false t) (thf "@" true u) in
+          parens (outer <> "@" || right) s
       | Lambda (id, typ, f) -> quant "^" [(id, typ)] f
       | Eq (t, u) ->
           parens true (sprintf "%s = %s" (thf "=" false t) (thf "=" true u))

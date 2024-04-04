@@ -79,7 +79,7 @@ match args with
               );
               mk_dir dir;
               write_file dir_source (read_file source));
-            if prover = "" then Prove.prove prog else (
+            if prover = "" then Prove.prove_all prog else (
               if debug > 0 then clean_dir (dir ^ "_dbg");
               let names = write_files dir prog in
               ext_prove debug dir names)

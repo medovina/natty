@@ -26,19 +26,6 @@ let first_var start_var = function
   | Fun (_, Bool) -> "P"
   | _ -> start_var
 
-let next_var x names =
-  let all = map snd names in
-  let rec next x =
-    if mem x all then
-      let wrap c = sprintf "%c'" c in  (* add prime mark *)
-      let t = match x.[0] with
-        | 'o' -> wrap 'a'  (* constants a .. o *)
-        | 'z' -> wrap 'q'  (* variables q .. z *)
-        | _ -> char_to_string (Char.chr (Char.code x.[0] + 1)) in
-      next (t ^ string_from x 1)
-    else x in
-  next x
-
 let rename_vars f =
   let num_vars = count_binders f in
   let start_var = char_to_string (
@@ -53,7 +40,7 @@ let rename_vars f =
         let (g, names) = rename names g in
         (app_or_eq h f g, names)
     | Lambda (id, typ, f) ->
-        let x = next_var (first_var start_var typ) names in
+        let x = next_var (first_var start_var typ) (map snd names) in
         let (f, names) = rename ((id, x) :: names) f in
         (Lambda (x, typ, f), names) in
   fst (rename [] f)
@@ -61,7 +48,7 @@ let rename_vars f =
 let skolem_names fs =
   let cs = filter (starts_with "esk") (unique (concat_map consts fs)) in
   let name names c =
-    let d = next_var "a" names in
+    let d = next_var "a" (map snd names) in
     (c, d) :: names in
   fold_left name [] cs
 

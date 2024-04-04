@@ -116,7 +116,7 @@ and exists_prop s = pipe3
   (str "There is" >> ((str "some" >>$ true) <|> (str "no" >>$ false)))
   id_type (str "such that" >> proposition)
   (fun some (id, typ) p ->
-    (if some then Fun.id else mk_not) (exists id typ p)) s
+    (if some then Fun.id else mk_not) (mk_exists id typ p)) s
 
 and proposition s = choice [
   for_all_prop; exists_prop; if_then_prop; either_or_prop; small_prop
