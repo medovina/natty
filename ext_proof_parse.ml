@@ -5,7 +5,7 @@ open MParser
 open MParser_RE
 
 open Logic
-open Proof
+open Ext_proof
 open Util
 
 let any_line = skip_many_until any_char newline

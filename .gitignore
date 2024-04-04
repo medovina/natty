@@ -1,4 +1,6 @@
 _build
 *.dot
+*.orig.n
+*.out
 *.thf
 *.trace

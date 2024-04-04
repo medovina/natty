@@ -3,7 +3,7 @@ open List
 open Printf
 
 open Logic
-open Proof
+open Ext_proof
 open Thf
 open Util
 
@@ -75,13 +75,15 @@ let rec skolem_subst names f = match f with
 let thf_file dir name = mk_path dir (name ^ ".thf")
 
 let write_thf dir name proven stmt =
-  let out = open_out (thf_file dir name) in
-  let write is_last stmt = (
-    fprintf out "%% %s\n" (show_statement false stmt);
-    fprintf out "%s\n\n" (thf_statement is_last stmt)) in
-  iter (write false) proven;
-  write true stmt;
-  Out_channel.close out
+  let f = thf_file dir name in
+  if not (Sys.file_exists f) then (
+    let out = open_out f in
+    let write is_last stmt = (
+      fprintf out "%% %s\n" (show_statement false stmt);
+      fprintf out "%s\n\n" (thf_statement is_last stmt)) in
+    iter (write false) proven;
+    write true stmt;
+    Out_channel.close out)
 
 let write_files dir prog = 
   prog |> mapi (fun i stmt -> (
@@ -366,28 +368,23 @@ let rec ext_prove debug dir = function
   | Theorem (id, _, _) as thm :: thms ->
       print_endline (show_statement true thm);
       let prog = "eprover-ho" in
-      let debug_out = mk_path (dir ^ "_dbg") (id ^ ".thf") in
+      let out_file = mk_path (if debug = 0 then dir else dir ^ "_dbg") (id ^ "_e.out") in
       let args = Array.of_list (
         [ prog; "--auto"; (if debug > 0 then "-l6" else "-s");
             "--soft-cpu-limit=3"; "-p"; "--proof-statistics"; "-R"] @
           [thf_file dir id ]) in
-      let result = if debug = 0 then
-        let ic = Unix.open_process_args_in prog args in
-        let process_out = In_channel.input_all ic in
-        In_channel.close ic;
-        Proof_parse.parse 0 process_out
-      else
-        let out_descr = Unix.openfile debug_out [Unix.O_WRONLY; Unix.O_CREAT; Unix.O_TRUNC] 0o640 in
+      let result =
+        let out_descr = Unix.openfile out_file [Unix.O_WRONLY; Unix.O_CREAT; Unix.O_TRUNC] 0o640 in
         let pid = Unix.create_process prog args Unix.stdin out_descr out_descr in
         ignore (Unix.waitpid [] pid);
-        Proof_parse.parse_file debug debug_out in (
+        Ext_proof_parse.parse_file debug out_file in (
       match result with
         | MParser.Success ({ clauses; _} as e_proof) ->
-            if process_proof debug debug_out e_proof then
+            if process_proof debug out_file e_proof then
               if debug > 1 then
                 let final = nth clauses (length clauses - 2) in
                 ignore (write_tree clauses [final.name] 0 0 0
-                  (change_extension debug_out ".dot"))
+                  (change_extension out_file ".dot"))
         | Failed (msg, _) ->
             print_endline msg);
       ext_prove debug dir thms

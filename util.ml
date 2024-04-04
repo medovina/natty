@@ -158,11 +158,25 @@ let mk_path = Filename.concat
 let change_extension path ext =
   Filename.chop_extension path ^ ext
 
+let mk_dir dir = Sys.mkdir dir 0o755
+
+let empty_dir dir =
+  Sys.readdir dir |> Array.iter (fun file -> Sys.remove (mk_path dir file))
+
+let rm_dir dir =
+  if Sys.file_exists dir then (
+    empty_dir dir;
+    Sys.rmdir dir
+  )
+
 let clean_dir dir =
-  if Sys.file_exists dir then
-    Sys.readdir dir |> Array.iter (fun file -> Sys.remove (mk_path dir file))
-  else
-    Sys.mkdir dir 0o755
+  if Sys.file_exists dir then empty_dir dir else mk_dir dir
+
+let read_file filename =
+  let ch = open_in_bin filename in
+  let s = really_input_string ch (in_channel_length ch) in
+  close_in ch;
+  s
 
 let write_file filename text =
   let oc = open_out filename in
