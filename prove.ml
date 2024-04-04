@@ -99,7 +99,10 @@ let write_files dir prog =
             | None ->
                 write_thf dir name proven stmt;
                 [(stmt, false)])
-      | _ -> [] )) |> concat
+      | _ ->
+        printf "%s\n" (show_statement true stmt);
+        []
+      )) |> concat
 
 let colors = [
   ("axiom", "forestgreen"); ("conjecture", "red");

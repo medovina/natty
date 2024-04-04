@@ -129,7 +129,7 @@ let rec gather_implies f = match kind f with
 
 let premises f = split_last (gather_implies f)
 
-let binary_ops = [("·", 6); ("+", 5); ("∧", 3); ("∨", 2); ("→", 0)]
+let binary_ops = [("·", 6); ("+", 5); ("-", 5); ("∧", 3); ("∨", 2); ("→", 0)]
 let not_prec = 7
 let eq_prec = 4
 let quantifier_prec = 1

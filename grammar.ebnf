@@ -67,7 +67,7 @@ axiom_decl = 'a type' id |
 
 axiom_group = 'Axiom.'
     ('There exists' | 'There is') axiom_decl {('and' | 'with') axiom_decl}
-    'such that' propositions
+    ('such that' propositions | '.')
 
 (* definitions *)
 

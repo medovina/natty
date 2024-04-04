@@ -29,7 +29,7 @@ let var = empty >>? (letter |>> char_to_string)
 
 let id = var <|> any_str ["𝔹"; "ℕ"]
 
-let sym = (empty >>? (digit <|> char '+') |>> char_to_string) <|> str "·"
+let sym = (empty >>? (digit <|> char '+' <|> char '-') |>> char_to_string) <|> str "·"
 
 let id_or_sym = id <|> sym
 
@@ -67,7 +67,7 @@ and terms s = (term >>= fun t -> many_fold_left (binop_unknown "·") t next_term
 
 and operators = [
   [ infix "·" (binop_unknown "·") Assoc_left ];
-  [ infix "+" (binop_unknown "+") Assoc_left ];
+  [ infix "+" (binop_unknown "+") Assoc_left;  infix "-" (binop_unknown "-") Assoc_left ];
   [ infix "=" mk_eq Assoc_right ; infix "≠" mk_neq Assoc_right ]
 ]
 
@@ -163,12 +163,14 @@ let count_label c label =
   if label = "" then sprintf "%d" !c
   else sprintf "%d_%s" !c label
 
+let axiom_propositions = pipe2 propositions get_user_state
+  (fun props (ax, _) -> incr ax;
+    props |> map (fun (label, f, name) ->
+      Axiom (count_label ax label, f, name)))
+
 let axiom_group = str "Axiom." >> any_str ["There exists"; "There is"] >> pipe2
   (sep_by1 axiom_decl (any_str ["and"; "with"]))
-  (str "such that" >> pipe2 propositions get_user_state
-    (fun props (ax, _) -> incr ax;
-      props |> map (fun (label, f, name) ->
-        Axiom (count_label ax label, f, name))))
+  ((str "such that" >> axiom_propositions) <|> (str "." >>$ []))
   (@)
 
 (* definitions *)
