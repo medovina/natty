@@ -94,11 +94,11 @@ let write_files dir prog =
                   let step_name = sprintf "%s_%d" name (j + 1) in
                   let t = Theorem (step_name, f, None) in
                   write_thf dir step_name proven t;
-                  (t, true))
+                  t)
             | Some _ -> assert false
             | None ->
                 write_thf dir name proven stmt;
-                [(stmt, false)])
+                [stmt])
       | _ ->
         printf "%s\n" (show_statement true stmt);
         []
@@ -257,16 +257,6 @@ let process_proof debug path
         (change_extension path ".given.trace") all_clauses heuristic_def));
   Option.is_some proof
 
-let base_heuristic = [
-  "1.ConjectureRelativeSymbolWeight(SimulateSOS,0.5,100,100,100,100,1.5,1.5,1)";
-  "4.ConjectureRelativeSymbolWeight(ConstPrio,0.1,100,100,100,100,1.5,1.5,1.5)";
-  "1.FIFOWeight(PreferProcessed)";
-  "1.ConjectureRelativeSymbolWeight(PreferNonGoals,0.5,100,100,100,100,1.5,1.5,1)";
-  "4.Refinedweight(SimulateSOS,3,2,2,1.5,2)"
-  ]
-
-let proof_heuristic = base_heuristic
-
 (* given list of ids, returns list of (id, num_roots) *)
 let count_roots =
   let f _id roots = roots + 1 in
@@ -372,16 +362,13 @@ let write_tree clauses roots clause_limit depth_limit min_roots outfile =
     (proof_graph 0 [] tree_clauses roots clause_info is_pre_main);
   (length selected_ids, length tree_clauses)
 
-let rec prove debug dir = function
-  | (Theorem (id, _, _) as thm, in_proof) :: thms ->
+let rec ext_prove debug dir = function
+  | Theorem (id, _, _) as thm :: thms ->
       print_endline (show_statement true thm);
       let prog = "eprover-ho" in
       let debug_out = mk_path (dir ^ "_dbg") (id ^ ".thf") in
-      let heuristic = if in_proof then proof_heuristic else base_heuristic in
-      let heuristic_def = "(" ^ String.concat "," heuristic ^ ")" in
       let args = Array.of_list (
         [ prog; "--auto"; (if debug > 0 then "-l6" else "-s");
-            "-Hnew=" ^ heuristic_def; "-x new";
             "--soft-cpu-limit=3"; "-p"; "--proof-statistics"; "-R"] @
           [thf_file dir id ]) in
       let result = if debug = 0 then
@@ -403,6 +390,6 @@ let rec prove debug dir = function
                   (change_extension debug_out ".dot"))
         | Failed (msg, _) ->
             print_endline msg);
-      prove debug dir thms
+      ext_prove debug dir thms
   | [] -> print_endline "All theorems were proved."
   | _ -> assert false

@@ -1,7 +1,7 @@
 open List
 open Printf
 
-open Prove
+open Ext_prove
 open Util
 
 type parsed_args = {
@@ -41,17 +41,17 @@ let usage () =
   print_endline
 {|usage: prover [options] [command] <file>
 
-  options:
+  global options:
     -d<level>     debug level
                     (0 = default, 1 = thf log + proof graph, 2 = trace file)
-    -h<num>       debug tree depth limit
-    -l<num>       debug tree id limit
-    -r<num>       debug tree minimum roots
 
   commands:
     process       process .thf log
     tree:id,...   generate debug tree from .thf log
-  |};
+      -h<num>       debug tree depth limit
+      -l<num>       debug tree id limit
+      -r<num>       debug tree minimum roots
+    |};
   exit 1
 
 ;;
@@ -68,7 +68,7 @@ match args with
             clean_dir dir;
             if debug > 0 then clean_dir (dir ^ "_dbg");
             let names = write_files dir prog in
-            prove debug dir names
+            ext_prove debug dir names
         | Failed (msg, _) ->
             print_endline msg)
   | { command = "process"; debug; _ } -> (
