@@ -116,6 +116,11 @@ let fold_left1 f = function
   | [] -> failwith "fold_left1: empty list"
   | x :: xs -> fold_left f x xs    
 
+let rec fold_right1 f = function
+  | [] -> failwith "fold_right1: empty list"
+  | [x] -> x
+  | x :: xs -> f x (fold_right1 f xs)
+
 let fold_lefti (f: 'a -> int -> 'b -> 'a) (acc: 'a) (xs: 'b list): 'a =
   let rec fn i acc xs = match xs with
     | [] -> acc

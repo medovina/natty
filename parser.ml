@@ -88,12 +88,12 @@ let so_or_have = so <|> have
 let comma_and = str "," >>? str "and" <<? not_followed_by so_or_have ""
 
 let prop_operators = [
-  [ infix "and" mk_and Assoc_left ];
-  [ infix "or" mk_or Assoc_left ];
+  [ infix "and" _and Assoc_left ];
+  [ infix "or" _or Assoc_left ];
   [ infix "implies" implies Assoc_right ];
-  [ Postfix (str "for all" >> id_type |>> mk_for_all') ];
-  [ Infix (comma_and >>$ mk_and, Assoc_left) ];
-  [ Infix (str "," >>? str "or" >>$ mk_or, Assoc_left) ];
+  [ Postfix (str "for all" >> id_type |>> _for_all') ];
+  [ Infix (comma_and >>$ _and, Assoc_left) ];
+  [ Infix (str "," >>? str "or" >>$ _or, Assoc_left) ];
 ]
 
 let small_prop = expression prop_operators atomic
@@ -105,7 +105,7 @@ let if_then_prop =
     implies
 
 let either_or_prop =
-  str "either" >> small_prop |>> fun f -> match kind f with
+  str "either" >> small_prop |>> fun f -> match bool_kind f with
     | Binary ("∨", _, _) -> f
     | _ -> failwith "either: expected or"
 
@@ -116,7 +116,7 @@ and exists_prop s = pipe3
   (str "There is" >> ((str "some" >>$ true) <|> (str "no" >>$ false)))
   id_type (str "such that" >> proposition)
   (fun some (id, typ) p ->
-    (if some then Fun.id else mk_not) (mk_exists id typ p)) s
+    (if some then Fun.id else _not) (_exists id typ p)) s
 
 and proposition s = choice [
   for_all_prop; exists_prop; if_then_prop; either_or_prop; small_prop
@@ -124,7 +124,7 @@ and proposition s = choice [
 
 (* top propositions *)
 
-let rec let_prop s = pipe2 (str "Let" >> id_type << str ".") top_prop mk_for_all' s
+let rec let_prop s = pipe2 (str "Let" >> id_type << str ".") top_prop _for_all' s
 
 and suppose s = pipe2
   (str "Suppose that" >> sep_by1 proposition (str ", and that") << str ".")
@@ -189,7 +189,7 @@ let reason = str "by" >>? choice [
 ]
 
 let opt_contra f = opt f
-  (str "," >>? str "which is a contradiction" >>$ mk_and f (implies f mk_false))
+  (str "," >>? str "which is a contradiction" >>$ _and f (implies f mk_false))
 
 let rec proof_intro_prop s = choice [
   pipe2 (str "if" >> small_prop) (opt_str "," >> str "then" >> proof_prop) implies;
@@ -207,7 +207,7 @@ let assert_step = choice [
   ]
 
 let mk_step f =
-  match kind f with
+  match any_kind f with
     | Quant ("∃", x, typ, f) -> IsSome (x, typ, f)
     | _ -> Assert f
 

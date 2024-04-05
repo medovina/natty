@@ -22,29 +22,6 @@ let bfs roots max_depth children =
       | _ -> StringSet.to_list visited in
   loop (StringSet.of_list roots)
 
-let first_var start_var = function
-  | Fun (_, Bool) -> "P"
-  | _ -> start_var
-
-let rename_vars f =
-  let num_vars = count_binders f in
-  let start_var = char_to_string (
-    if num_vars <= 3 then 'x' else
-      let c = Char.chr (Char.code 'z' - num_vars + 1) in
-      if c < 'q' then 'q' else c) in
-  let rec rename names h = match h with
-    | Const (id, typ) -> (Const (id, typ), names)
-    | Var (id, typ) -> (Var (assoc id names, typ), names)
-    | App (f, g) | Eq (f, g) ->
-        let (f, names) = rename names f in
-        let (g, names) = rename names g in
-        (app_or_eq h f g, names)
-    | Lambda (id, typ, f) ->
-        let x = next_var (first_var start_var typ) (map snd names) in
-        let (f, names) = rename ((id, x) :: names) f in
-        (Lambda (x, typ, f), names) in
-  fst (rename [] f)
-
 let skolem_names fs =
   let cs = filter (starts_with "esk") (unique (concat_map consts fs)) in
   let name names c =

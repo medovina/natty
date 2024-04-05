@@ -127,12 +127,12 @@ and block_formulas env f (Block (step, children)) =
     | LetVal (id, _typ, value) -> apply (fun f -> subst1 f value id)
     | Assume a -> apply (implies a)
     | IsSome (id, typ, g) ->
-        (mk_exists id typ g :: map (fun f -> mk_for_all id typ (implies g f)) fs,
+        (_exists id typ g :: map (fun f -> _for_all id typ (implies g f)) fs,
          outer_eq concl)
     | By (name, outer, var) ->
         let goals = proof_by env f name outer var in
         let (fs, _) = blocks_formulas env f (children @ map mk_assert goals) in
-        (fs, fold_left1 mk_and goals)
+        (fs, fold_left1 _and goals)
 
 let expand_proof env f = function
   | Steps steps ->

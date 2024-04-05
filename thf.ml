@@ -25,12 +25,12 @@ let binary = [("∧", "&"); ("∨", "|"); ("→", "=>")]
 
 let rec thf outer right f =
   let parens b s = if b && outer <> "" then sprintf "(%s)" s else s in
-  match kind f with
+  match bool_kind f with
     | Not f -> (match f with
       | Eq(t, u) ->
           parens true (sprintf "%s != %s" (thf "=" false t) (thf "=" true u))
       | _ -> sprintf "~ %s" (thf "¬" false f))
-    | Binary (op, t, u) when mem op logical_binary ->
+    | Binary (op, t, u) ->
         let s = sprintf "%s %s %s"
           (thf op false t) (assoc op binary) (thf op true u) in
         parens (op <> "∧" && op <> "∨" || op <> outer) s

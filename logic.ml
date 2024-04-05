@@ -15,6 +15,8 @@ let rec show_type = function
   | Fun (t, u) -> sprintf "(%s → %s)" (show_type t) (show_type u)
   | Base id -> id
 
+let mk_fun_type t u = Fun (t, u)
+
 let mk_base_type = function
   | "𝔹" -> Bool
   | id -> Base id
@@ -28,6 +30,12 @@ type formula =
   | Lambda of id * typ * formula
   | Eq of formula * formula
 
+let mk_var' (id, typ) = Var (id, typ)
+let mk_app f g = App (f, g)
+let mk_eq f g = Eq (f, g)
+
+let apply = fold_left1 mk_app
+
 let is_eq = function
   | Eq _ -> true
   | _ -> false
@@ -37,6 +45,13 @@ let map_formula fn = function
   | Lambda (id, typ, f) -> Lambda (id, typ, fn f)
   | Eq (f, g) -> Eq (fn f, fn g)
   | f -> f
+
+let rec fold_left_formula fn acc = function
+  | App (f, g) | Eq (f, g) ->
+      let acc = fold_left_formula fn acc f in
+      fold_left_formula fn acc g
+  | Lambda (_, _, f) -> fold_left_formula fn acc f
+  | _ -> acc
 
 let app_or_eq h f g = match h with
   | App _ -> App (f, g)
@@ -71,7 +86,7 @@ let alpha_equiv =
 let mk_false = Const ("⊥", Bool)
 let mk_true = Const ("⊤", Bool)
 
-let mk_not f = App (Const ("¬", Fun (Bool, Bool)), f)
+let _not f = App (Const ("¬", Fun (Bool, Bool)), f)
 
 let logical_binary = ["∧"; "∨"; "→"]
 
@@ -82,8 +97,8 @@ let binop_unknown op = binop op unknown_type
 
 let logical_op op = binop op (Fun (Bool, Fun (Bool, Bool)))
 
-let mk_and = logical_op "∧"
-let mk_or = logical_op "∨"
+let _and = logical_op "∧"
+let _or = logical_op "∨"
 let implies1 = logical_op "→"
 
 let lambda id typ f = Lambda (id, typ, f)
@@ -91,14 +106,12 @@ let lambda id typ f = Lambda (id, typ, f)
 let binder name id typ f = App (Const (name, quant_type), Lambda (id, typ, f))
 let binder' name (id, typ) f = binder name id typ f
 
-let mk_for_all = binder "∀"
-let mk_for_all' = binder' "∀"
+let _for_all = binder "∀"
+let _for_all' = binder' "∀"
 
-let mk_exists = binder "∃"
+let _exists = binder "∃"
 
-let mk_eq f g = Eq (f, g)
-
-let mk_neq f g = mk_not (mk_eq f g)
+let mk_neq f g = _not (mk_eq f g)
 
 type formula_kind =
   | Not of formula
@@ -106,26 +119,30 @@ type formula_kind =
   | Quant of id * id * typ * formula
   | Other of formula
 
-let kind = function
+let kind boolean = function
   | App (Const ("¬", _), f) -> Not f
-  | App (App (Const (op, _), t), u) ->
-      Binary (op, t, u)
+  | App (App (Const (op, _), t), u)
+      when mem op logical_binary || (not boolean) ->
+        Binary (op, t, u)
   | App (Const (q, _), Lambda (id, typ, u)) when q = "∀" || q = "∃" ->
       Quant(q, id, typ, u)
   | f -> Other f
 
-let rec gather_associative op f = match kind f with
+let bool_kind = kind true
+let any_kind = kind false
+
+let rec gather_associative op f = match any_kind f with
   | Binary (op', f, g) when op' = op ->
       gather_associative op f @ gather_associative op g
   | _ -> [f]
 
 let gather_and = gather_associative "∧"
 
-let implies f g = match kind f with
+let implies f g = match bool_kind f with
   | Binary ("∧", s, t) -> implies1 s (implies1 t g)
   | _ -> implies1 f g
 
-let rec gather_implies f = match kind f with
+let rec gather_implies f = match bool_kind f with
   | Binary ("→", f, g) -> f :: gather_implies g
   | _ -> [f]
 
@@ -146,7 +163,7 @@ let show_formula_multi multi f =
     let show1 outer right f = show indent multi outer right f in
     let show_eq eq f g = parens (eq_prec < outer)
       (sprintf "%s %s %s" (show1 eq_prec false f) eq (show1 eq_prec true g)) in
-    match kind f with
+    match any_kind f with
       | Not g -> (match g with
         | Eq (t, u) -> show_eq "≠" t u
         | _ -> parens (not_prec < outer) ("¬" ^ show1 not_prec false g))
@@ -210,14 +227,14 @@ let consts f =
   unique (collect f)
 
 let for_all_vars_typ (ids, typ) f =
-  fold_right (fun id f -> mk_for_all id typ f) ids f
+  fold_right (fun id f -> _for_all id typ f) ids f
 
 let for_all_vars_typ_if_free (ids, typ) f =
   for_all_vars_typ (intersect ids (free_vars f), typ) f
 
-let for_all_vars_typs = fold_right mk_for_all'
+let for_all_vars_typs = fold_right _for_all'
 
-let rec gather_quant q f = match kind f with
+let rec gather_quant q f = match any_kind f with
   | Quant (q', id, typ, u) when q = q' ->
       let (qs, f) = gather_quant q u in ((id, typ) :: qs, f)
   | _ -> ([], f)
@@ -231,12 +248,12 @@ let rec rename id avoid =
 let rec subst1 t u x = match t with
   | Const _ -> t
   | Var (y, _) -> if x = y then u else t
-  | App (f, g) -> App (subst1 f u x, subst1 g u x)
+  | App (f, g) | Eq (f, g) ->
+      app_or_eq t (subst1 f u x) (subst1 g u x)
   | Lambda (y, typ, t') -> if x = y then t else
       if not (mem y (free_vars u)) then Lambda (y, typ, subst1 t' u x)
       else let y' = rename y (x :: free_vars t') in
         Lambda (y', typ, subst1 (subst1 t' (Var (y', typ)) y) u x)
-  | Eq (f, g) -> Eq (subst1 f u x, subst1 g u x)
 
 let subst_n subst f =
   fold_left (fun f (x, t) -> subst1 f t x) f subst
@@ -272,7 +289,7 @@ let multi_eq f =
     | f -> [f] in
   let rec join = function
     | [x; y] -> mk_eq x y
-    | x :: y :: xs -> mk_and (mk_eq x y) (join (y :: xs))
+    | x :: y :: xs -> _and (mk_eq x y) (join (y :: xs))
     | _ -> assert false in
   match collect f with
     | [] -> assert false
@@ -297,7 +314,30 @@ let next_var x avoid =
       next (t ^ string_from x 1)
     else x in
   next x
-    
+
+let first_var start_var = function
+  | Fun (_, Bool) -> "P"
+  | _ -> start_var
+
+let rename_vars f =
+  let num_vars = count_binders f in
+  let start_var = char_to_string (
+    if num_vars <= 3 then 'x' else
+      let c = Char.chr (Char.code 'z' - num_vars + 1) in
+      if c < 'q' then 'q' else c) in
+  let rec rename names h = match h with
+    | Const (id, typ) -> (Const (id, typ), names)
+    | Var (id, typ) -> (Var (assoc id names, typ), names)
+    | App (f, g) | Eq (f, g) ->
+        let (f, names) = rename names f in
+        let (g, names) = rename names g in
+        (app_or_eq h f g, names)
+    | Lambda (id, typ, f) ->
+        let x = next_var (first_var start_var typ) (map snd names) in
+        let (f, names) = rename ((id, x) :: names) f in
+        (Lambda (x, typ, f), names) in
+  fst (rename [] f)
+  
 (* statements *)
 
 type proof_step =

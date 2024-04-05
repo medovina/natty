@@ -65,8 +65,8 @@ let operators = [
   [ infix "@" (fun f g -> App (f, g)) Assoc_left ];
   [ infix1 eq mk_eq Assoc_left;
     infix "!=" mk_neq Assoc_left ];
-  [ infix "&" mk_and Assoc_left ];
-  [ infix "|" mk_or Assoc_left ];
+  [ infix "&" _and Assoc_left ];
+  [ infix "|" _or Assoc_left ];
   [ infix "=>" implies1 Assoc_left ];
   (* [ infix "<=>" (fun f g -> Iff (f, g)) Assoc_left ] *)
 ]
@@ -88,9 +88,9 @@ let rec term s = choice [
   str "'*'" >>$ Const ("·", unknown_type);
   id |>> (fun id -> Const (id, unknown_type));
   var |>> (fun id -> Var (id, unknown_type));
-  (str "~" >> term) |>> mk_not;
-  quantifier "!" mk_for_all;
-  quantifier "?" mk_exists;
+  (str "~" >> term) |>> _not;
+  quantifier "!" _for_all;
+  quantifier "?" _exists;
   quantifier "^" lambda
   ] s
 and quantifier s mk =
