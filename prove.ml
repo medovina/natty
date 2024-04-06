@@ -3,7 +3,17 @@ open Logic
 open Printf
 open Util
 
-type clause = formula list
+type clause = {
+  rule: string;
+  parents: clause list;
+  lits: formula list
+}
+
+let mk_clause rule parents lits = { rule; parents; lits }
+
+let clause_formula clause =
+  assert (length clause.lits = 1);
+  hd (clause.lits)
 
 let rec nnf fm = match bool_kind fm with
   | Not f -> (match bool_kind f with
@@ -58,11 +68,17 @@ let rec all_consts f =
     | f -> fold_left_formula all_consts acc f in
   gather [] f 
 
-let clausify consts f =
-  let (consts, f) = skolemize [] consts (nnf f) in
-  (consts, to_cnf (remove_universal (rename_vars f)))
+let clausify consts clause =
+  let (consts, f) = skolemize [] consts (nnf (clause_formula clause)) in
+  let f = remove_universal (rename_vars f) in
+  let clauses = match to_cnf f with
+    | [lits] -> [mk_clause "clausify" [clause] lits]
+    | cnf ->
+        let c = mk_clause "clausify" [clause] [f]
+        in map (mk_clause "split" [c]) cnf in
+  (consts, clauses)
 
-let clause_to_formula = fold_left1 _or
+let clause_to_formula clause = fold_left1 _or clause.lits
 
 let clauses_to_formula cs = fold_left1 _and (map clause_to_formula cs)
 
@@ -72,35 +88,42 @@ let to_equation = function
   | App (Const ("¬", _), f) -> (false, f, mk_true)
   | f -> (true, f, mk_true)
 
-let is_inductive f = match kind f with
+let is_inductive clause = match kind (clause_formula clause) with
   | Quant ("∀", _, Fun (_, Bool), _) -> true
   | _ -> false
 
 type env = {
   clauses: clause list;
-  inductive: formula list;
+  inductive: clause list;
   consts: id list
 }
 
 let empty_env = { clauses = []; inductive = []; consts = [] }
 
-let prove env f =
+let to_clause stmt = stmt_formula stmt |> Option.map (fun f ->
+  mk_clause (stmt_name stmt) [] [f])
+
+let prove env stmt =
+  let clause = Option.get (to_clause stmt) in
+  let f = clause_formula clause in
   let env = match kind f with
     | Quant ("∀", x, typ, f) ->
-        let add_inductive env ind = match kind ind with
+        let add_inductive env ind = match kind (clause_formula ind) with
           | Quant ("∀", y, Fun(typ', Bool), g) ->
               if typ = typ' then
                 let g = reduce (subst1 g (Lambda (x, typ, f)) y) in
                 printf "\n  inductive instantiation:\n";
                 printf "%s\n" (indent_lines 2 (show_multi g));
-                let (consts, g_clauses) = clausify env.consts g in
+                let inst = mk_clause "inst" [ind] [g] in
+                let (consts, g_clauses) = clausify env.consts inst in
                 printf "%s\n\n" (indent_lines 2 (show_multi (clauses_to_formula g_clauses)));
                 { env with clauses = g_clauses @ env.clauses; consts }
               else env
           | _ -> failwith "not inductive" in
         fold_left add_inductive env env.inductive
     | _ -> env in
-  let (_, clauses) = clausify env.consts (_not f) in
+  let negated = mk_clause "negate" [clause] [_not (clause_formula clause)] in
+  let (_, clauses) = clausify env.consts negated in
   printf "  %s\n" (show_multi (clauses_to_formula clauses));
   false
 
@@ -110,16 +133,16 @@ let prove_all prog =
     | stmt :: rest ->
         printf "%s\n" (show_statement true stmt);
         if (match stmt with
-          | Theorem (_, f, _) -> prove env f
+          | Theorem _ -> prove env stmt
           | _ -> true) then
-          let add_known env f =
-            if is_inductive f then
-              { env with inductive = f :: env.inductive }
+          let add_known env clause =
+            if is_inductive clause then
+              { env with inductive = clause :: env.inductive }
             else
-              let (consts, f_clauses) = clausify env.consts f in
+              let (consts, f_clauses) = clausify env.consts clause in
               printf "  %s\n" (show_multi (clauses_to_formula f_clauses));
               { env with clauses = f_clauses @ env.clauses; consts } in
-          let env = opt_fold add_known env (stmt_formula stmt) in
+          let env = opt_fold add_known env (to_clause stmt) in
           print_newline ();
           let env = { env with consts = Option.to_list (stmt_const stmt) @ env.consts } in
           prove_stmts env rest

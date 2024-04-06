@@ -279,10 +279,15 @@ let simp = function
 
 let unify =
   let rec unify' subst t u = match simp t, simp u with
-    | Const (id, typ), Const (id', typ') ->
-        if id = id' && typ = typ' then Some [] else None
-    | Var (id, typ), f | f, Var (id, typ) ->
-        if typ = type_of f then Some ((id, f) :: subst) else None
+    | Const (c, typ), Const (c', typ') ->
+        if c = c' && typ = typ' then Some subst else None
+    | Var (x, typ), f | f, Var (x, typ) ->
+        if typ = type_of f then
+          let f = subst_n subst f in
+          if mem x (free_vars f) then None else
+            let subst = subst |> map (fun (y, g) -> (y, subst1 g f x)) in
+            Some ((x, f) :: subst)
+        else None
     | App (f, g), App (f', g') | Eq (f, g), Eq (f', g') ->
         let* subst = unify' subst f f' in
         unify' subst g g'
@@ -393,6 +398,13 @@ type statement =
   | Definition of id * typ * formula
   | Theorem of id * formula * proof option
 
+let stmt_name = function
+  | TypeDecl id -> "type " ^ id
+  | ConstDecl (id, _) -> "const " ^ id
+  | Axiom (id, _, _) -> "axiom " ^ id
+  | Definition (id, _, _) -> "definition " ^ id
+  | Theorem (id, _, _) -> "theorem " ^ id
+
 let stmt_formula = function
   | Axiom (_, f, _) -> Some f
   | Definition (_, _, f) -> Some f
@@ -410,13 +422,12 @@ let axiom_named name = function
 
 let show_statement multi s =
   let show = show_formula_multi multi in
-  match s with
-    | TypeDecl id -> sprintf "type %s" id
-    | ConstDecl (id, typ) -> sprintf "const %s : %s" id (show_type typ)
-    | Axiom (id, f, _) -> sprintf "axiom %s: %s" id (show f)
-    | Definition (id, typ, f) ->
-        sprintf "definition %s : %s ; %s" id (show_type typ) (show f)
-    | Theorem (name, t, _) ->
-        sprintf "theorem %s:" name ^
-          (if multi then "\n" ^ indent_lines 2 (show t)
-          else " " ^ show t)
+  stmt_name s ^ match s with
+    | TypeDecl _ -> ""
+    | ConstDecl (_, typ) -> sprintf " : %s" (show_type typ)
+    | Axiom (_, f, _) -> sprintf ": %s" (show f)
+    | Definition (_, typ, f) ->
+        sprintf " : %s ; %s" (show_type typ) (show f)
+    | Theorem (_, t, _) -> ":" ^
+        (if multi then "\n" ^ indent_lines 2 (show t)
+        else " " ^ show t)
