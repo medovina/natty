@@ -348,7 +348,30 @@ let rename_vars f =
         let (f, names) = rename ((id, x) :: names) f in
         (Lambda (x, typ, f), names) in
   fst (rename [] f)
-  
+
+let collect f =
+  let rec coll = function
+    | Const (id, _) -> (id, [])
+    | App (f, g) ->
+        let (id, args) = coll f in
+        (id, g :: args)
+    | _ -> failwith "collect" in
+  let (id, args) = coll f in
+  (id, rev args)
+
+let rec lpo_gt s t =
+  let rec list_gt ss ts = match ss, ts with
+    | [], [] -> false
+    | s :: ss, t :: ts -> lpo_gt s t && list_gt ss ts
+    | _ -> failwith "list_gt" in
+  match s, t with
+    | s, Var (x, _) -> mem x (free_vars s) && s <> t
+    | Var _, _ -> false
+    | _ -> let (f, ss), (g, ts) = collect s, collect t in
+        exists (fun u -> lpo_gt u t) ss ||
+        for_all (fun u -> lpo_gt s u) ts &&
+          (f > g || list_gt ss ts)
+
 (* statements *)
 
 type proof_step =

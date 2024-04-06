@@ -100,6 +100,9 @@ type env = {
 
 let empty_env = { clauses = []; inductive = []; consts = [] }
 
+let refute _clauses =
+  false
+
 let to_clause stmt = stmt_formula stmt |> Option.map (fun f ->
   mk_clause (stmt_name stmt) [] [f])
 
@@ -123,9 +126,9 @@ let prove env stmt =
         fold_left add_inductive env env.inductive
     | _ -> env in
   let negated = mk_clause "negate" [clause] [_not (clause_formula clause)] in
-  let (_, clauses) = clausify env.consts negated in
-  printf "  %s\n" (show_multi (clauses_to_formula clauses));
-  false
+  let (_, f_clauses) = clausify env.consts negated in
+  printf "  %s\n" (show_multi (clauses_to_formula f_clauses));
+  refute (f_clauses @ env.clauses)
 
 let prove_all prog =
   let rec prove_stmts env = function
