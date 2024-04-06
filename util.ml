@@ -72,6 +72,8 @@ let (let*) = Option.bind
 
 let opt_default opt def = Option.value opt ~default:def
 
+let opt_fold f acc opt = fold_left f acc (Option.to_list opt)
+
 (* either *)
 
 let mk_left x = Left x

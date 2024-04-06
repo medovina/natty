@@ -207,7 +207,7 @@ let assert_step = choice [
   ]
 
 let mk_step f =
-  match any_kind f with
+  match kind f with
     | Quant ("∃", x, typ, f) -> IsSome (x, typ, f)
     | _ -> Assert f
 

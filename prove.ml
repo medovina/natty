@@ -58,9 +58,9 @@ let rec all_consts f =
     | f -> fold_left_formula all_consts acc f in
   gather [] f 
 
-let clausify f =
-  let (_, f) = skolemize [] (all_consts f) (nnf f) in
-  to_cnf (remove_universal (rename_vars f))
+let clausify consts f =
+  let (consts, f) = skolemize [] consts (nnf f) in
+  (consts, to_cnf (remove_universal (rename_vars f)))
 
 let clause_to_formula = fold_left1 _or
 
@@ -72,19 +72,56 @@ let to_equation = function
   | App (Const ("¬", _), f) -> (false, f, mk_true)
   | f -> (true, f, mk_true)
 
-let prove _known f =
-  printf "%s\n" (show_multi f);
-  printf "%s\n" (show_multi (clauses_to_formula (clausify f)));
-  print_endline "Not proved.\n"
+let is_inductive f = match kind f with
+  | Quant ("∀", _, Fun (_, Bool), _) -> true
+  | _ -> false
+
+type env = {
+  clauses: clause list;
+  inductive: formula list;
+  consts: id list
+}
+
+let empty_env = { clauses = []; inductive = []; consts = [] }
+
+let prove env f =
+  let env = match kind f with
+    | Quant ("∀", x, typ, f) ->
+        let add_inductive env ind = match kind ind with
+          | Quant ("∀", y, Fun(typ', Bool), g) ->
+              if typ = typ' then
+                let g = reduce (subst1 g (Lambda (x, typ, f)) y) in
+                printf "\n  inductive instantiation:\n";
+                printf "%s\n" (indent_lines 2 (show_multi g));
+                let (consts, g_clauses) = clausify env.consts g in
+                printf "%s\n\n" (indent_lines 2 (show_multi (clauses_to_formula g_clauses)));
+                { env with clauses = g_clauses @ env.clauses; consts }
+              else env
+          | _ -> failwith "not inductive" in
+        fold_left add_inductive env env.inductive
+    | _ -> env in
+  let (_, clauses) = clausify env.consts (_not f) in
+  printf "  %s\n" (show_multi (clauses_to_formula clauses));
+  false
 
 let prove_all prog =
-  let rec loop known = function
-    | [] -> print_endline "No theorems were proved."
-    | stmt :: rest -> match stmt with
-        | Axiom (_, f, _) | Definition (_, _, f) ->
-            loop (f :: known) rest
-        | Theorem (_, f, _) ->
-            prove known f;
-            loop (f :: known) rest
-        | _ -> loop known rest in
-  loop [] prog
+  let rec prove_stmts env = function
+    | [] -> print_endline "All theorems were proved."
+    | stmt :: rest ->
+        printf "%s\n" (show_statement true stmt);
+        if (match stmt with
+          | Theorem (_, f, _) -> prove env f
+          | _ -> true) then
+          let add_known env f =
+            if is_inductive f then
+              { env with inductive = f :: env.inductive }
+            else
+              let (consts, f_clauses) = clausify env.consts f in
+              printf "  %s\n" (show_multi (clauses_to_formula f_clauses));
+              { env with clauses = f_clauses @ env.clauses; consts } in
+          let env = opt_fold add_known env (stmt_formula stmt) in
+          print_newline ();
+          let env = { env with consts = Option.to_list (stmt_const stmt) @ env.consts } in
+          prove_stmts env rest
+        else print_endline "  Not proved.\n" in
+  prove_stmts empty_env prog

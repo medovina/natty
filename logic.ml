@@ -119,7 +119,7 @@ type formula_kind =
   | Quant of id * id * typ * formula
   | Other of formula
 
-let kind boolean = function
+let fkind boolean = function
   | App (Const ("¬", _), f) -> Not f
   | App (App (Const (op, _), t), u)
       when mem op logical_binary || (not boolean) ->
@@ -128,10 +128,10 @@ let kind boolean = function
       Quant(q, id, typ, u)
   | f -> Other f
 
-let bool_kind = kind true
-let any_kind = kind false
+let bool_kind = fkind true
+let kind = fkind false
 
-let rec gather_associative op f = match any_kind f with
+let rec gather_associative op f = match kind f with
   | Binary (op', f, g) when op' = op ->
       gather_associative op f @ gather_associative op g
   | _ -> [f]
@@ -163,7 +163,7 @@ let show_formula_multi multi f =
     let show1 outer right f = show indent multi outer right f in
     let show_eq eq f g = parens (eq_prec < outer)
       (sprintf "%s %s %s" (show1 eq_prec false f) eq (show1 eq_prec true g)) in
-    match any_kind f with
+    match kind f with
       | Not g -> (match g with
         | Eq (t, u) -> show_eq "≠" t u
         | _ -> parens (not_prec < outer) ("¬" ^ show1 not_prec false g))
@@ -234,7 +234,7 @@ let for_all_vars_typ_if_free (ids, typ) f =
 
 let for_all_vars_typs = fold_right _for_all'
 
-let rec gather_quant q f = match any_kind f with
+let rec gather_quant q f = match kind f with
   | Quant (q', id, typ, u) when q = q' ->
       let (qs, f) = gather_quant q u in ((id, typ) :: qs, f)
   | _ -> ([], f)
@@ -261,9 +261,15 @@ let subst_n subst f =
 let rec reduce = function
   | App (f, g) -> (match reduce f, reduce g with
       | Lambda (x, _typ, f), g -> reduce (subst1 f g x)
+      | Const ("¬", _), Const ("⊤", Bool) -> mk_false
+      | Const ("¬", _), Const ("⊥", Bool) -> mk_true
+      | App(Const ("→", _), Const("⊤", Bool)), g -> g
+      | App(Const ("→", _), Const("⊥", Bool)), _ -> mk_true
       | f, g -> App (f, g))
   | Lambda (id, typ, f) -> Lambda (id, typ, reduce f)
-  | Eq (f, g) -> Eq (reduce f, reduce g)
+  | Eq (f, g) ->
+      let f, g = reduce f, reduce g in
+      if f = g then mk_true else Eq (f, g)
   | f -> f
 
 let simp = function
@@ -386,6 +392,17 @@ type statement =
   | Axiom of id * formula * id option (* id, formula, name *)
   | Definition of id * typ * formula
   | Theorem of id * formula * proof option
+
+let stmt_formula = function
+  | Axiom (_, f, _) -> Some f
+  | Definition (_, _, f) -> Some f
+  | Theorem (_, f, _) -> Some f
+  | _ -> None
+
+let stmt_const = function
+  | ConstDecl (id, _) -> Some id
+  | Definition (id, _, _) -> Some id
+  | _ -> None
 
 let axiom_named name = function
   | Axiom (_id, f, Some n) when eq_icase n name -> Some f
