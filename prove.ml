@@ -64,12 +64,6 @@ let rec to_cnf f = match bool_kind f with
       [x @ y]
   | _ -> [[f]]
 
-let rec all_consts f =
-  let gather acc = function
-    | Const (id, _typ) -> id :: acc
-    | f -> fold_left_formula all_consts acc f in
-  gather [] f 
-
 let clausify consts clause =
   let (consts, f) = skolemize [] consts (nnf (clause_formula clause)) in
   let f = remove_universal (rename_vars f) in
@@ -84,12 +78,6 @@ let clause_to_formula clause = fold_left1 _or clause.lits
 
 let clauses_to_formula cs = fold_left1 _and (map clause_to_formula cs)
 
-let to_equation = function
-  | Eq (f, g) -> (true, f, g)
-  | App (Const ("¬", _), Eq (f, g)) -> (false, f, g)
-  | App (Const ("¬", _), f) -> (false, f, mk_true)
-  | f -> (true, f, mk_true)
-
 let is_inductive clause = match kind (clause_formula clause) with
   | Quant ("∀", _, Fun (_, Bool), _) -> true
   | _ -> false
@@ -102,8 +90,102 @@ type env = {
 
 let empty_env = { clauses = []; inductive = []; consts = [] }
 
-let refute _clauses =
-  false
+let rec lpo_gt s t =
+  let rec list_gt ss ts = match ss, ts with
+    | [], [] -> false
+    | s :: ss, t :: ts -> lpo_gt s t && list_gt ss ts
+    | _ -> failwith "list_gt" in
+  match s, t with
+    | s, Var (x, _) -> mem x (free_vars s) && s <> t
+    | Var _, _ -> false
+    | _ -> let (f, ss), (g, ts) = collect s, collect t in
+        exists (fun u -> lpo_gt u t) ss ||
+        for_all (fun u -> lpo_gt s u) ts &&
+          (f > g || list_gt ss ts)
+
+let eq_terms = function
+  | Eq (f, g) -> (true, f, g)
+  | App (Const ("¬", _), Eq (f, g)) -> (false, f, g)
+  | App (Const ("¬", _), f) -> (false, f, mk_true)
+  | f -> (true, f, mk_true)
+
+let eq_formula eq f g = match eq, f, g with
+  | true, f, Const ("⊤", _) -> f
+  | false, f, Const ("⊤", _) -> _not f
+  | true, Const ("⊤", _), f -> f
+  | false, Const ("⊤", _), f -> _not f
+  | true, f, g -> Eq (f, g)
+  | false, f, g -> mk_neq f g
+
+(*      C ∨ s ≠ t
+ *     ───────────   eq_res (equality resolution) 
+ *         Cσ          σ = mgu(s, t)  *)
+
+let eq_res c =
+  let+ lit = c.lits in
+  match eq_terms lit with
+    | (false, s, t) -> (
+        match unify s t with
+          | None -> []
+          | Some sub ->
+              let d = map (subst_n sub) (remove lit c.lits) in
+              [mk_clause "eq_res" [c] d])
+    | _ -> []
+
+let subterms t =
+  let rec gather acc t = t :: match t with  
+    | App (f, g) | Eq (f, g) -> gather (gather acc g) f
+    | _ -> [] in
+  gather [] t
+
+(* replace v with u in t *)
+let rec replace u v t =
+  if t == v then u  (* physical equality test *)
+  else map_formula (replace u v) t 
+
+(*     C ∨ s = t    D ∨ u[s'] ≐ v
+ *    ────────────────────────────   super (superposition)
+ *        (C ∨ D ∨ u[t] ≐ v)σ          σ = mgu(s, s')
+ *
+ *     s' is not a variable *)
+
+let super c d =
+  let+ c, d = [(c, d); (d, c)] in
+  let+ lit = c.lits in
+  match eq_terms lit with
+    | (true, s, t) ->
+        let+ s, t = [(s, t); (t, s)] in
+        let+ lit' = remove lit d.lits in
+        let (eq, u, v) = eq_terms lit' in
+        let+ u, v = [(u, v); (v, u)] in
+        let+ s' = filter (Fun.negate is_var) (subterms u) in (
+        match unify s s' with
+          | None -> []
+          | Some sub ->
+              let uv' = eq_formula eq (replace t s' u) v in
+              let e = map (subst_n sub) (
+                remove lit c.lits @ remove lit' d.lits @ [uv']) in
+              [mk_clause "super" [c; d] e])
+    | _ -> []
+
+let refute clauses =
+  let queue = Queue.of_seq (to_seq clauses) in
+  let rec loop used =
+    match (Queue.take_opt queue) with
+      | None -> None
+      | Some clause ->
+          printf "%s\n" (indent_with_prefix "given: " (show_multi (clause_to_formula clause)));
+          let used = clause :: used in
+          let new_clauses = eq_res clause @ concat_map (super clause) used in
+          new_clauses |> iter (fun c ->
+            printf "%s\n" (show_multi (clause_to_formula c)));
+          print_newline ();
+          match find_opt (fun c -> c.lits = []) new_clauses with
+            | Some c -> Some c
+            | None ->
+                queue_add queue new_clauses;
+                loop used
+  in loop []
 
 let to_clause stmt = stmt_formula stmt |> Option.map (fun f ->
   mk_clause (stmt_name stmt) [] [f])
@@ -138,7 +220,12 @@ let prove_all prog =
     | stmt :: rest ->
         printf "%s\n" (show_statement true stmt);
         if (match stmt with
-          | Theorem _ -> prove env stmt
+          | Theorem _ -> (
+              match prove env stmt with
+                | Some _clause ->
+                    printf "proof found!\n";
+                    true
+                | None -> false)
           | _ -> true) then
           let add_known env clause =
             if is_inductive clause then

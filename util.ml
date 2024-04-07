@@ -197,3 +197,7 @@ let single s = count 1 s
 let triple p q r = pipe3 p q r (fun x y z -> (x, y, z))
 
 let quadruple p q r s = pipe4 p q r s (fun w x y z -> (w, x, y, z))
+
+(* queue *)
+
+let queue_add q xs = Queue.add_seq q (to_seq xs)

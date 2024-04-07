@@ -36,6 +36,10 @@ let mk_eq f g = Eq (f, g)
 
 let apply = fold_left1 mk_app
 
+let is_var = function
+  | Var _ -> true
+  | _ -> false
+
 let is_eq = function
   | Eq _ -> true
   | _ -> false
@@ -45,13 +49,6 @@ let map_formula fn = function
   | Lambda (id, typ, f) -> Lambda (id, typ, fn f)
   | Eq (f, g) -> Eq (fn f, fn g)
   | f -> f
-
-let rec fold_left_formula fn acc = function
-  | App (f, g) | Eq (f, g) ->
-      let acc = fold_left_formula fn acc f in
-      fold_left_formula fn acc g
-  | Lambda (_, _, f) -> fold_left_formula fn acc f
-  | _ -> acc
 
 let app_or_eq h f g = match h with
   | App _ -> App (f, g)
@@ -358,16 +355,3 @@ let collect f =
     | _ -> failwith "collect" in
   let (id, args) = coll f in
   (id, rev args)
-
-let rec lpo_gt s t =
-  let rec list_gt ss ts = match ss, ts with
-    | [], [] -> false
-    | s :: ss, t :: ts -> lpo_gt s t && list_gt ss ts
-    | _ -> failwith "list_gt" in
-  match s, t with
-    | s, Var (x, _) -> mem x (free_vars s) && s <> t
-    | Var _, _ -> false
-    | _ -> let (f, ss), (g, ts) = collect s, collect t in
-        exists (fun u -> lpo_gt u t) ss ||
-        for_all (fun u -> lpo_gt s u) ts &&
-          (f > g || list_gt ss ts)
