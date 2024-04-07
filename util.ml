@@ -158,6 +158,8 @@ let group_by key_fun fold init xs =
 let gather_pairs xs =
   group_by fst (fun (_, x) acc -> cons x acc) [] xs
 
+let is_maximal gt x ys = not (exists (fun y -> gt y x) ys)
+
 (* I/O *)
 
 let mk_path = Filename.concat
@@ -201,3 +203,16 @@ let quadruple p q r s = pipe4 p q r s (fun w x y z -> (w, x, y, z))
 (* queue *)
 
 let queue_add q xs = Queue.add_seq q (to_seq xs)
+
+(* multisets *)
+
+let rec remove_once x = function
+  | [] -> []
+  | y :: ys ->
+      if x = y then ys else y :: remove_once x ys
+
+let multi_sub xs ys = fold_left (Fun.flip remove_once) xs ys
+
+let multi_gt gt xs ys =
+  let xy, yx = multi_sub xs ys, multi_sub ys xs in
+  xy <> [] && yx |> for_all (fun y -> xy |> exists (fun x -> gt x y))

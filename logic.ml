@@ -23,6 +23,10 @@ let mk_base_type = function
 
 let unknown_type = Base "?"
 
+let rec arity = function
+  | Fun (_, typ) -> 1 + arity typ
+  | _ -> 0
+
 type formula =
   | Const of id * typ
   | Var of id * typ
@@ -346,12 +350,12 @@ let rename_vars f =
         (Lambda (x, typ, f), names) in
   fst (rename [] f)
 
-let collect f =
-  let rec coll = function
-    | Const (id, _) -> (id, [])
+let collect_args f =
+  let rec collect = function
+    | Const _ as c -> (c, [])
     | App (f, g) ->
-        let (id, args) = coll f in
+        let (id, args) = collect f in
         (id, g :: args)
-    | _ -> failwith "collect" in
-  let (id, args) = coll f in
+    | _ -> failwith "collect_args" in
+  let (id, args) = collect f in
   (id, rev args)
