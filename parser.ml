@@ -4,6 +4,7 @@ open Printf
 open MParser
 
 open Logic
+open Statement
 open Util
 
 let (<<?) p q = attempt (p << q)

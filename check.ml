@@ -2,6 +2,7 @@ open List
 open Printf
 
 open Logic
+open Statement
 open Util
 
 let is_const id = function

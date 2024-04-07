@@ -2,8 +2,9 @@ open Fun
 open List
 open Printf
 
-open Logic
 open Ext_proof
+open Logic
+open Statement
 open Thf
 open Util
 

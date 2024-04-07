@@ -1,6 +1,8 @@
 open List
-open Logic
 open Printf
+
+open Logic
+open Statement
 open Util
 
 type clause = {
