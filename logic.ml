@@ -72,18 +72,6 @@ let rec count_binders = function
   | App (f, g) | Eq (f, g) -> count_binders f + count_binders g
   | Lambda (_, _, f) -> 1 + count_binders f
 
-let alpha_equiv =
-  let rec equiv ((vars1, vars2) as vars) f g = match f, g with
-    | Const (x, _xtyp), Const (y, _ytyp) -> x = y
-    | Var (x, _xtyp), Var (y, _ytyp) ->
-        index_of x vars1 = index_of y vars2
-    | App (f1, g1), App (f2, g2) | Eq (f1, g1), Eq (f2, g2) ->
-        equiv vars f1 f2 && equiv vars g1 g2
-    | Lambda (x, xtyp, f), Lambda (y, ytyp, g) ->
-        xtyp = ytyp && equiv (x :: vars1, y :: vars2) f g
-    | _ -> false in
-  equiv ([], [])
-
 let mk_false = Const ("⊥", Bool)
 let mk_true = Const ("⊤", Bool)
 

@@ -109,8 +109,6 @@ let const_gt f g =
     | _ -> failwith "const_gt"
 
 let rec lpo_gt s t =
-  printf "s = %s\n" (show_multi s);
-  printf "t = %s\n" (show_multi t);
   let rec list_gt ss ts = match ss, ts with
     | [], [] -> false
     | s :: ss, t :: ts ->
@@ -120,9 +118,9 @@ let rec lpo_gt s t =
     | s, Var (x, _) -> mem x (free_vars s) && s <> t
     | Var _, _ -> false
     | _ -> let (f, ss), (g, ts) = collect_args s, collect_args t in
-        exists (fun u -> lpo_gt u t) ss ||
-        for_all (fun u -> lpo_gt s u) ts &&
-          (const_gt f g || list_gt ss ts)
+        exists (fun s_i -> s_i = t || lpo_gt s_i t) ss ||
+        for_all (fun t_j -> lpo_gt s t_j) ts &&
+          (const_gt f g || f = g && list_gt ss ts)
 
 let eq_terms = function
   | Eq (f, g) -> (true, f, g)
@@ -142,6 +140,27 @@ let lit_to_multi f =
 
 let lit_gt f g =
   multi_gt (multi_gt lpo_gt) (lit_to_multi f) (lit_to_multi g)
+
+let rec prefix_vars = function
+  | Var (x, typ) -> Var ("$" ^ x, typ)
+  | f -> map_formula prefix_vars f
+
+let unprefix_vars lits =
+  let rec build_map vars = function
+    | [] -> []
+    | var :: rest ->
+        if var.[0] = '$' then
+          let v = string_from var 1 in
+          let w = next_var v vars in
+          (var, w) :: build_map (w :: vars) rest
+        else build_map vars rest in
+  let vars = all_vars (fold_left1 _or lits) in
+  let var_map = build_map vars vars in
+  let rec fix = function
+    | Var (v, typ) as var ->
+        if v.[0] = '$' then Var (assoc v var_map, typ) else var
+    | f -> map_formula fix f in
+  map fix lits
 
 (*      C ∨ s ≠ t
  *     ───────────   eq_res (equality resolution) 
@@ -182,11 +201,12 @@ let rec replace u v t =
 
 let super c d =
   let+ c, d = [(c, d); (d, c)] in
-  let+ lit = c.lits in
+  let c_lits = map prefix_vars c.lits in
+  let+ lit = c_lits in
   match eq_terms lit with
     | (true, s, t) ->
         let+ s, t = [(s, t); (t, s)] in
-        let+ lit' = remove lit d.lits in
+        let+ lit' = d.lits in
         let (pos, u, v) = eq_terms lit' in
         let+ u, v = [(u, v); (v, u)] in
         let+ s' = filter (Fun.negate is_var) (subterms u) in (  (* v *)
@@ -198,14 +218,14 @@ let super c d =
               if lpo_gt t1 s1 then [] else  (* i *)
                 let u1, v1 = subst_n sub u, subst_n sub v in
                 let u_v = mk_eq u1 v1 in
-                if lpo_gt v1 u1 || pos && lpo_gt s_t u_v then [] else  (* ii, vi *)
-                  let c1 = map (subst_n sub) (remove lit c.lits) in
-                  if not (is_maximal lpo_gt s_t c1) then [] else  (* iii *)
+                if lpo_gt v1 u1 || pos && lit_gt s_t u_v then [] else  (* ii, vi *)
+                  let c1 = map (subst_n sub) (remove lit c_lits) in
+                  if not (is_maximal lit_gt s_t c1) then [] else  (* iii *)
                     let d1 = map (subst_n sub) (remove lit' d.lits) in
-                    if not (is_maximal lpo_gt u_v d1) then [] else (* iv *)
+                    if not (is_maximal lit_gt u_v d1) then [] else (* iv *)
                       let uv' = eq_formula pos (replace t s' u) v in
                       let e = c1 @ d1 @ [subst_n sub uv'] in
-                      [mk_clause "superposition" [c; d] e])
+                      [mk_clause "superposition" [c; d] (unprefix_vars e)])
     | _ -> []
 
 let refute clauses =
