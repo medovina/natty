@@ -237,12 +237,30 @@ let super c d =
                       [mk_clause rule [c; d] (unprefix_vars e)])
     | _ -> []
 
-let vacuous = function
-  | Eq (x, y) when x = y -> true
-  | _ -> false
+(* We judge a clause to be a tautology if the conjunction of its negated
+ * literals implies any positive literal via transitivity of equality, e.g.
+ *   x ≠ y ∨ y ≠ z ∨ x = z.
+ * (A literal t = t is vacuously implied in this way.) *)
+let is_tautology lits =
+  let neq_pair lit = match eq_terms lit with
+    | (true, _, _) -> None
+    | (false, f, g) -> Some (f, g) in
+  let neq_pairs = filter_map neq_pair lits in
+  let neighbors x = neq_pairs |> filter_map
+    (fun (f, g) -> if x = f then Some g else if x = g then Some f else None) in
+  let is_implied lit = match eq_terms lit with
+    | (true, f, g) ->
+        let rec search visited = function
+          | [] -> false
+          | x :: xs -> x = g ||
+              let ns = subtract (neighbors x) visited in
+              search (ns @ visited) (ns @ xs) in
+        search [f] [f]
+    | (false, _, _) -> false in
+  exists is_implied lits
 
 let simplify clause =
-  if exists vacuous clause.lits then None else Some clause
+  if is_tautology clause.lits then None else Some clause
 
 let rec canonical_formula = function
   | Eq (f, g) ->
