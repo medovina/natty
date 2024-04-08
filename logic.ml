@@ -320,24 +320,36 @@ let first_var start_var = function
   | Fun (_, Bool) -> "P"
   | _ -> start_var
 
+(* Alpha-equivalent formulas should have the same form after renaming.
+ * We choose a new name for each variable as soon as we encounter it in
+ * the formula structure.  Note that free_vars returns variable names in
+ * alphabetical order.  We can't use this order for choosing new names since it
+ * may not be isomorphic across equivalent formulas. *)
 let rename_vars f =
-  let num_vars = count_binders f in
+  let num_vars = count_binders f + length (free_vars f) in
   let start_var = char_to_string (
     if num_vars <= 3 then 'x' else
       let c = Char.chr (Char.code 'z' - num_vars + 1) in
       if c < 'q' then 'q' else c) in
-  let rec rename names h = match h with
-    | Const (id, typ) -> (Const (id, typ), names)
-    | Var (id, typ) -> (Var (assoc id names, typ), names)
-    | App (f, g) | Eq (f, g) ->
-        let (f, names) = rename names f in
-        let (g, names) = rename names g in
-        (app_or_eq h f g, names)
-    | Lambda (id, typ, f) ->
-        let x = next_var (first_var start_var typ) (map snd names) in
-        let (f, names) = rename ((id, x) :: names) f in
-        (Lambda (x, typ, f), names) in
-  fst (rename [] f)
+  let rec rename name_map used h =
+    let next typ = next_var (first_var start_var typ) used in
+    match h with
+      | Const (id, typ) -> (Const (id, typ), name_map, used)
+      | Var (id, typ) -> (
+          match assoc_opt id name_map with
+            | Some name -> (Var (name, typ), name_map, used)
+            | None -> 
+                let x = next typ in (Var (x, typ), (id, x) :: name_map, x :: used))
+      | App (f, g) | Eq (f, g) ->
+          let (f, name_map, used) = rename name_map used f in
+          let (g, name_map, used) = rename name_map used g in
+          (app_or_eq h f g, name_map, used)
+      | Lambda (id, typ, f) ->
+          let x = next typ in
+          let (f, name_map, used) = rename ((id, x) :: name_map) (x :: used) f in
+          (Lambda (x, typ, f), remove_assoc id name_map, used) in
+  let (f, _map, _used) = rename [] [] f in
+  f
 
 let collect_args f =
   let rec collect = function

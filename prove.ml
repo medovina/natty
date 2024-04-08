@@ -28,10 +28,16 @@ let print_clause with_origin prefix clause =
     (indent_with_prefix prefix (show_multi (clause_to_formula clause))) origin
 
 let mk_clause rule parents lits =
+  { id = 0; rule; parents; lits }
+
+let number_clause clause =
   incr clause_counter;
-  let clause = { id = !clause_counter; rule; parents; lits } in
+  let clause = { clause with id = !clause_counter } in
   print_clause true "" clause;
   clause
+
+let create_clause rule parents lits =
+  number_clause (mk_clause rule parents lits)
 
 let clause_formula clause =
   assert (length clause.lits = 1);
@@ -87,7 +93,7 @@ let rec to_cnf f = match bool_kind f with
 let clausify consts clause =
   let (consts, f) = skolemize [] consts (nnf (clause_formula clause)) in
   let f = remove_universal (rename_vars f) in
-  let clauses = map (fun lits -> mk_clause "clausify" [clause] lits) (to_cnf f) in
+  let clauses = map (fun lits -> create_clause "clausify" [clause] lits) (to_cnf f) in
   (consts, clauses)
 
 let is_inductive clause = match kind (clause_formula clause) with
@@ -231,26 +237,57 @@ let super c d =
                       [mk_clause rule [c; d] (unprefix_vars e)])
     | _ -> []
 
+let vacuous = function
+  | Eq (x, y) when x = y -> true
+  | _ -> false
+
+let simplify clause =
+  if exists vacuous clause.lits then None else Some clause
+
+let rec canonical_formula = function
+  | Eq (f, g) ->
+      let f, g = canonical_formula f, canonical_formula g in
+      if f < g then Eq (f, g) else Eq (g, f)
+  | f -> map_formula canonical_formula f
+
+(* approximate: equivalent lits could possibly have different canonical forms *)
+let canonical clause =
+  let lits = sort Stdlib.compare (map canonical_formula clause.lits) in
+  rename_vars (fold_left1 _or lits)
+
+module FormulaSet = Set.Make(struct
+  type t = formula
+  let compare = Stdlib.compare
+end)
+
 let refute clauses =
   print_newline ();
+  let found = FormulaSet.of_list (map canonical clauses) in
   let queue = Queue.of_seq (to_seq clauses) in
-  let rec loop used =
+  let rec loop found used =
     match (Queue.take_opt queue) with
       | None -> None
       | Some clause ->
           print_clause false "given: " clause;
-          let new_clauses = eq_res clause @ concat_map (super clause) used in
+          let new_clauses = eq_res clause @ concat_map (super clause) used |>
+            filter_map simplify in
+          let check_clause (found, out) c =
+            let f = canonical c in
+            if FormulaSet.mem f found then (found, out)
+            else (FormulaSet.add f found, c :: out) in
+          let (found, new_clauses) = fold_left check_clause (found, []) new_clauses in
+          let new_clauses = map number_clause (rev new_clauses) in
           let used = clause :: used in
           print_newline ();
           match find_opt (fun c -> c.lits = []) new_clauses with
             | Some c -> Some c
             | None ->
                 queue_add queue new_clauses;
-                loop used
-  in loop []
+                loop found used
+  in loop found []
 
 let to_clause stmt = stmt_formula stmt |> Option.map (fun f ->
-  mk_clause (stmt_name stmt) [] [f])
+  create_clause (stmt_name stmt) [] [f])
 
 let prove known stmt =
   clause_counter := 0;
@@ -278,14 +315,14 @@ let prove known stmt =
           | Quant ("∀", y, Fun(typ', Bool), g) ->
               if typ = typ' then
                 let g = reduce (subst1 g (Lambda (x, typ, f)) y) in
-                let inst = mk_clause "inductive" [ind] [g] in
+                let inst = create_clause "inductive" [ind] [g] in
                 let (consts, g_clauses) = clausify env.consts inst in
                 { env with clauses = env.clauses @ g_clauses; consts }
               else env
           | _ -> failwith "not inductive" in
         fold_left add_inductive env env.inductive
     | _ -> env in
-  let negated = mk_clause "negate" [clause] [_not (clause_formula clause)] in
+  let negated = create_clause "negate" [clause] [_not (clause_formula clause)] in
   let (_, f_clauses) = clausify env.consts negated in
   refute (env.clauses @ f_clauses)
 
