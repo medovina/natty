@@ -77,7 +77,7 @@ let colors = [
 
 let encode s =
   if is_char_in '\n' s
-    then replace "\n" "\\l" s ^ "\\l" (* all lines left-aligned *)
+    then str_replace "\n" "\\l" s ^ "\\l" (* all lines left-aligned *)
     else s ^ "\\n"  (* centers string *)
 
 let simplify_info info =

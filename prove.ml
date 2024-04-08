@@ -225,7 +225,10 @@ let super c d =
                     if not (is_maximal lit_gt u_v d1) then [] else (* iv *)
                       let uv' = eq_formula pos (replace t s' u) v in
                       let e = c1 @ d1 @ [subst_n sub uv'] in
-                      [mk_clause "superposition" [c; d] (unprefix_vars e)])
+                      let st = str_replace "\\$" "" (show_formula (Eq (s, t))) in
+                      let uv = show_formula (mk_eq' pos u v) in
+                      let rule = sprintf "superposition: %s / %s" st uv in
+                      [mk_clause rule [c; d] (unprefix_vars e)])
     | _ -> []
 
 let refute clauses =

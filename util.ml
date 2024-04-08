@@ -33,8 +33,8 @@ let contains s1 s2 =
     try ignore (Str.search_forward re s1 0); true
     with Not_found -> false
 
-(* 'replace s t u' replaces s with t in u *)
-let replace s = Str.global_replace (Str.regexp s)
+(* 'str_replace s t u' replaces s with t in u *)
+let str_replace s = Str.global_replace (Str.regexp s)
 
 let remove_prefix p s =
   if starts_with p s then string_from s (String.length p) else s

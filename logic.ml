@@ -101,6 +101,7 @@ let _for_all' = binder' "∀"
 let _exists = binder "∃"
 
 let mk_neq f g = _not (mk_eq f g)
+let mk_eq' eq f g = (if eq then mk_eq else mk_neq) f g
 
 type formula_kind =
   | Not of formula
