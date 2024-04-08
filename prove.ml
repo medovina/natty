@@ -252,7 +252,24 @@ let refute clauses =
 let to_clause stmt = stmt_formula stmt |> Option.map (fun f ->
   mk_clause (stmt_name stmt) [] [f])
 
-let prove env stmt =
+let prove known stmt =
+  clause_counter := 0;
+  let extend_env env stmt =
+    match to_clause stmt with
+      | Some clause ->
+          let env =
+            if is_inductive clause then
+              { env with inductive = clause :: env.inductive }
+            else
+              let (consts, f_clauses) = clausify env.consts clause in
+              { env with clauses = rev f_clauses @ env.clauses; consts } in
+          print_newline ();
+          env
+      | None -> env in
+  let all_consts = filter_map stmt_const known in
+  let initial_env = { clauses = []; inductive = []; consts = all_consts } in
+  let env = fold_left extend_env initial_env known in
+  let env = { env with clauses = rev env.clauses; inductive = rev env.inductive } in
   let clause = Option.get (to_clause stmt) in
   let f = clause_formula clause in
   let env = match kind f with
@@ -261,38 +278,29 @@ let prove env stmt =
           | Quant ("∀", y, Fun(typ', Bool), g) ->
               if typ = typ' then
                 let g = reduce (subst1 g (Lambda (x, typ, f)) y) in
-                let inst = mk_clause "inst" [ind] [g] in
+                let inst = mk_clause "inductive" [ind] [g] in
                 let (consts, g_clauses) = clausify env.consts inst in
-                { env with clauses = g_clauses @ env.clauses; consts }
+                { env with clauses = env.clauses @ g_clauses; consts }
               else env
           | _ -> failwith "not inductive" in
         fold_left add_inductive env env.inductive
     | _ -> env in
   let negated = mk_clause "negate" [clause] [_not (clause_formula clause)] in
   let (_, f_clauses) = clausify env.consts negated in
-  refute (f_clauses @ env.clauses)
+  refute (env.clauses @ f_clauses)
 
 let prove_all prog =
-  let rec prove_stmts env = function
+  let rec prove_stmts known = function
     | [] -> print_endline "All theorems were proved."
     | stmt :: rest ->
         if (match stmt with
           | Theorem _ -> (
-              match prove env stmt with
+              match prove known stmt with
                 | Some _clause ->
                     printf "proof found!\n";
                     true
                 | None -> false)
-          | _ -> true) then
-          let add_known env clause =
-            if is_inductive clause then
-              { env with inductive = clause :: env.inductive }
-            else
-              let (consts, f_clauses) = clausify env.consts clause in
-              { env with clauses = f_clauses @ env.clauses; consts } in
-          let env = opt_fold add_known env (to_clause stmt) in
-          print_newline ();
-          let env = { env with consts = Option.to_list (stmt_const stmt) @ env.consts } in
-          prove_stmts env rest
+          | _ -> true) then (
+          prove_stmts (known @ [stmt]) rest)
         else print_endline "  Not proved.\n" in
-  prove_stmts empty_env prog
+  prove_stmts [] prog
