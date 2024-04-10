@@ -259,8 +259,27 @@ let is_tautology lits =
     | (false, _, _) -> false in
   exists is_implied lits
 
+module FormulaSet = Set.Make(struct
+  type t = formula
+  let compare = Stdlib.compare
+end)
+
+let variants = function
+  | Eq (f, g) -> [Eq (f, g); Eq (g, f)]
+  | f -> [f]
+
+let dedup lits =
+  let rec dedup' seen = function
+    | [] -> []
+    | (f :: lits) ->
+        if variants f |> exists (fun v -> FormulaSet.mem v seen)
+          then dedup' seen lits
+        else f :: dedup' (FormulaSet.add f seen) lits in
+  dedup' FormulaSet.empty lits
+
 let simplify clause =
-  if is_tautology clause.lits then None else Some clause
+  if is_tautology clause.lits then None
+    else Some { clause with lits = dedup clause.lits }
 
 let rec canonical_formula = function
   | Eq (f, g) ->
@@ -272,11 +291,6 @@ let rec canonical_formula = function
 let canonical clause =
   let lits = sort Stdlib.compare (map canonical_formula clause.lits) in
   rename_vars (fold_left1 _or lits)
-
-module FormulaSet = Set.Make(struct
-  type t = formula
-  let compare = Stdlib.compare
-end)
 
 let refute clauses =
   print_newline ();
