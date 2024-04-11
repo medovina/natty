@@ -56,6 +56,11 @@ let map_formula fn = function
   | Eq (f, g) -> Eq (fn f, fn g)
   | f -> f
 
+let fold_left_formula fn acc = function
+  | App (f, g) | Eq (f, g) -> fn (fn acc f) g
+  | Lambda (_id, _typ, f) -> fn acc f
+  | _ -> acc
+
 let app_or_eq h f g = match h with
   | App _ -> App (f, g)
   | Eq _ -> Eq (f, g)

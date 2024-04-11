@@ -55,25 +55,75 @@ type env = {
 
 let empty_env = { clauses = []; inductive = []; consts = [] }
 
+(* Symbol precedence.  ⊥ > ⊤ have the lowest precedence.  We group other
+ * symbols by arity, then (arbitrarily) alphabetically. *)
 let const_gt f g =
   match f, g with
+    | Const (c, _), Const ("⊤", _) -> c <> "⊤"
+    | Const (c, _), Const ("⊥", _) -> c <> "⊥"
     | Const (f, f_type), Const (g, g_type) ->
-       (arity f_type, f) > (arity g_type, g)
+        (arity f_type, f) > (arity g_type, g)
     | _ -> failwith "const_gt"
 
+let rec lex_gt gt ss ts = match ss, ts with
+  | [], [] -> false
+  | s :: ss, t :: ts ->
+    gt s t || s = t && lex_gt gt ss ts
+  | _ -> failwith "lex_gt"
+
+(* Lexicographic path ordering on first-order terms *)
 let rec lpo_gt s t =
-  let rec list_gt ss ts = match ss, ts with
-    | [], [] -> false
-    | s :: ss, t :: ts ->
-      lpo_gt s t || s = t && list_gt ss ts
-    | _ -> failwith "list_gt" in
   match s, t with
     | s, Var (x, _) -> mem x (free_vars s) && s <> t
     | Var _, _ -> false
     | _ -> let (f, ss), (g, ts) = collect_args s, collect_args t in
         exists (fun s_i -> s_i = t || lpo_gt s_i t) ss ||
         for_all (fun t_j -> lpo_gt s t_j) ts &&
-          (const_gt f g || f = g && list_gt ss ts)
+          (const_gt f g || f = g && lex_gt lpo_gt ss ts)
+
+let rec inc_var x = function
+  | [] -> [(x, 1)]
+  | (y, n) :: rest ->
+      if x = y then (y, n + 1) :: rest
+      else (y, n) :: inc_var x rest
+
+let count_vars f =
+  let rec count acc = function
+    | Var (v, _) -> inc_var v acc
+    | f -> fold_left_formula count acc f in
+  count [] f
+
+let lookup_var v vars = opt_default (assoc_opt v vars) 0
+
+let sym_weight = function
+  | "∀" | "∃" -> 1_000_000
+  | _ -> 1
+
+let rec term_weight = function
+  | Const (c, _) -> sym_weight c
+  | Var _ -> 1
+  | App (f, g) | Eq (f, g) -> term_weight f + term_weight g
+  | Lambda (_, _, f) -> term_weight f
+
+let unary_check s t = match s, t with
+  | App (Const (f, _), g), Var (v, _) ->
+      let rec check = function
+        | App (Const (f', _), g) -> f' = f && check g
+        | Var (v', _) -> v' = v
+        | _ -> false in
+      check g
+  | _ -> false
+
+(* Knuth-Bendix ordering on first-order terms *)
+let rec kb_gt s t =
+  let s_vars, t_vars = count_vars s, count_vars t in
+  if s_vars |> for_all (fun (v, n) -> n >= lookup_var v t_vars) then
+    let ws, wt = term_weight s, term_weight t in
+    ws > wt || ws = wt && (
+      unary_check s t ||
+      let (f, ss), (g, ts) = collect_args s, collect_args t in
+      const_gt f g || f = g && lex_gt kb_gt ss ts)
+  else false
 
 let get_index x map =
   match index_of_opt x !map with
@@ -121,6 +171,12 @@ let encode_term type_map fluid_map t =
       | u -> u
   in fn [] t
 
+let term_gt s t =
+  let type_map, fluid_map = ref [], ref [] in
+  let s1 = encode_term type_map fluid_map s in
+  let t1 = encode_term type_map fluid_map t in
+  kb_gt s1 t1
+
 let eq_terms = function
   | Eq (f, g) -> (true, f, g)
   | App (Const ("¬", _), Eq (f, g)) -> (false, f, g)
@@ -138,7 +194,7 @@ let lit_to_multi f =
   if eq then [[t]; [u]] else [[t; u]]
 
 let lit_gt f g =
-  multi_gt (multi_gt lpo_gt) (lit_to_multi f) (lit_to_multi g)
+  multi_gt (multi_gt term_gt) (lit_to_multi f) (lit_to_multi g)
 
 let rec prefix_vars = function
   | Var (x, typ) -> Var ("$" ^ x, typ)
@@ -214,10 +270,10 @@ let super c d =
           | Some sub ->
               let s1, t1 = subst_n sub s, subst_n sub t in
               let s_t = mk_eq s1 t1 in
-              if lpo_gt t1 s1 then [] else  (* i *)
+              if term_gt t1 s1 then [] else  (* i *)
                 let u1, v1 = subst_n sub u, subst_n sub v in
                 let u_v = mk_eq u1 v1 in
-                if lpo_gt v1 u1 || pos && lit_gt s_t u_v then [] else  (* ii, vi *)
+                if term_gt v1 u1 || pos && lit_gt s_t u_v then [] else  (* ii, vi *)
                   let c1 = map (subst_n sub) (remove lit c_lits) in
                   if not (is_maximal lit_gt s_t c1) then [] else  (* iii *)
                     let d1 = map (subst_n sub) (remove lit' d.lits) in
