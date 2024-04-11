@@ -112,8 +112,10 @@ let rec take n xs =
       | x :: xs -> x :: take (n - 1) xs
       | [] -> failwith "take"
 
-let index_of y xs = Option.get (find_index (fun z -> z = y) xs)
-   
+let index_of_opt x ys = find_index (fun z -> z = x) ys
+
+let index_of x ys = Option.get (index_of_opt x ys)
+
 let fold_left1 f = function
   | [] -> failwith "fold_left1: empty list"
   | x :: xs -> fold_left f x xs    

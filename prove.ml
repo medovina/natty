@@ -43,59 +43,6 @@ let clause_formula clause =
   assert (length clause.lits = 1);
   hd (clause.lits)
 
-let rec nnf fm = match bool_kind fm with
-  | Not f -> (match bool_kind f with
-    | Not f -> nnf f
-    | Binary ("∧", f, g) -> _or (nnf (_not f)) (nnf (_not g))
-    | Binary ("∨", f, g) -> _and (nnf (_not f)) (nnf (_not g))
-    | Binary ("→", f, g) -> _and (nnf f) (nnf (_not g))
-    | Quant ("∀", x, typ, f) -> _exists x typ (nnf (_not f))
-    | Quant ("∃", x, typ, f) -> _for_all x typ (nnf (_not f))
-    | _ -> fm)
-  | Binary ("→", f, g) -> _or (nnf (_not f)) (nnf g)
-  | Binary (op, f, g) -> logical_op op (nnf f) (nnf g)
-  | Quant (q, x, typ, f) -> binder q x typ (nnf f)
-  | _ -> fm
-
-let rec skolemize outer_vars consts f = match bool_kind f with
-  | Binary (op, f, g) ->
-      let (consts, f) = skolemize outer_vars consts f in
-      let (consts, g) = skolemize outer_vars consts g in
-      (consts, logical_op op f g)
-  | Quant ("∀", x, typ, f) ->
-      let (consts, f) = skolemize ((x, typ) :: outer_vars) consts f in
-      (consts, _for_all x typ f)
-  | Quant ("∃", x, typ, f) ->
-      let c = next_var "c" consts in
-      let outer = rev outer_vars in
-      let outer_types = map snd outer in
-      let c_type = fold_right1 mk_fun_type (outer_types @ [typ]) in
-      let d = apply (Const (c, c_type) :: map mk_var' outer) in
-      skolemize outer_vars (c :: consts) (subst1 f d x)
-  | _ -> (consts, f)
-
-(* If f is in NNF and all variable names are unique, we can simply
- * remove universal quantifiers. *)
-let rec remove_universal f = match bool_kind f with
-  | Binary (op, f, g) when mem op logical_binary ->
-      logical_op op (remove_universal f) (remove_universal g)
-  | Quant ("∀", _, _, f) -> remove_universal f
-  | _ -> f
-
-let rec to_cnf f = match bool_kind f with
-  | Binary ("∧", f, g) -> to_cnf f @ to_cnf g
-  | Binary ("∨", f, g) ->
-      let+ x = to_cnf f in
-      let+ y = to_cnf g in
-      [x @ y]
-  | _ -> [[f]]
-
-let clausify consts clause =
-  let (consts, f) = skolemize [] consts (nnf (clause_formula clause)) in
-  let f = remove_universal (rename_vars f) in
-  let clauses = map (fun lits -> create_clause "clausify" [clause] lits) (to_cnf f) in
-  (consts, clauses)
-
 let is_inductive clause = match kind (clause_formula clause) with
   | Quant ("∀", _, Fun (_, Bool), _) -> true
   | _ -> false
@@ -127,6 +74,52 @@ let rec lpo_gt s t =
         exists (fun s_i -> s_i = t || lpo_gt s_i t) ss ||
         for_all (fun t_j -> lpo_gt s t_j) ts &&
           (const_gt f g || f = g && list_gt ss ts)
+
+let get_index x map =
+  match index_of_opt x !map with
+    | Some i -> length !map - 1 - i
+    | None ->
+        map := x :: !map;
+        length !map - 1
+
+(* Map higher-order terms to first-order terms as described in
+ * Bentkamp et al, section 3.9 "A Concrete Term Order". *)
+let encode_term type_map fluid_map t =
+  let encode_fluid t = _var ("@v" ^ string_of_int (get_index t fluid_map)) in
+  let encode_type typ = _const ("@t" ^ string_of_int (get_index typ type_map)) in
+  let rec fn outer t =
+    let prime = if outer = [] then "" else "'" in
+    let lookup_var v = match index_of_opt v outer with
+      | Some i -> _const ("@d" ^ string_of_int i)
+      | None -> _var v in
+    let u = match t with
+      | Const _ -> t
+      | Var (v, _) -> lookup_var v
+      | App _ ->
+          let (head, args) = collect_args t in
+          let head = match head with
+            | Var (v, _) -> lookup_var v
+            | _ -> head in (
+          match head with
+            | Var _ -> encode_fluid (apply (head :: args))
+            | Const (q, _) when q = "∀" || q = "∃" -> (
+                match args with
+                  | [Lambda (x, typ, f)] ->
+                      let q1 = _const (q ^ prime) in
+                      apply [q1; encode_type typ; fn (x :: outer) f]
+                  | _ -> failwith "encode_term")
+            | Const _ -> apply (head :: map (fn outer) args)
+            | _ -> failwith "encode_term")
+      | Lambda (x, typ, f) ->
+          if is_ground t then
+            apply [_const "λ"; encode_type typ; fn (x :: outer) f]
+          else encode_fluid t (* assume fluid *)
+      | Eq (t, u) ->
+          apply [_const "="; encode_type (type_of t); fn outer t; fn outer u] in
+    match u with
+      | Var (v, typ) -> Var (v ^ prime, typ)
+      | u -> u
+  in fn [] t
 
 let eq_terms = function
   | Eq (f, g) -> (true, f, g)
@@ -330,8 +323,7 @@ let prove known stmt =
             if is_inductive clause then
               { env with inductive = clause :: env.inductive }
             else
-              let (consts, f_clauses) = clausify env.consts clause in
-              { env with clauses = rev f_clauses @ env.clauses; consts } in
+              { env with clauses = clause :: env.clauses } in
           print_newline ();
           env
       | None -> env in
@@ -348,15 +340,13 @@ let prove known stmt =
               if typ = typ' then
                 let g = reduce (subst1 g (Lambda (x, typ, f)) y) in
                 let inst = create_clause "inductive" [ind] [g] in
-                let (consts, g_clauses) = clausify env.consts inst in
-                { env with clauses = env.clauses @ g_clauses; consts }
+                { env with clauses = env.clauses @ [inst] }
               else env
           | _ -> failwith "not inductive" in
         fold_left add_inductive env env.inductive
     | _ -> env in
   let negated = create_clause "negate" [clause] [_not (clause_formula clause)] in
-  let (_, f_clauses) = clausify env.consts negated in
-  refute (env.clauses @ f_clauses)
+  refute (env.clauses @ [negated])
 
 let prove_all prog =
   let rec prove_stmts known = function

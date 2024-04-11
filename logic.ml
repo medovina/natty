@@ -34,6 +34,8 @@ type formula =
   | Lambda of id * typ * formula
   | Eq of formula * formula
 
+let _const c = Const (c, unknown_type)
+let _var v = Var (v, unknown_type)
 let mk_var' (id, typ) = Var (id, typ)
 let mk_app f g = App (f, g)
 let mk_eq f g = Eq (f, g)
@@ -195,6 +197,15 @@ let show_formula_multi multi f =
 let show_formula = show_formula_multi false
 let show_multi = show_formula_multi true
 
+let is_ground f =
+  let rec has_free outer = function
+    | Const _ -> false
+    | Var (v, _) -> not (mem v outer)
+    | Lambda (x, _, f) -> has_free (x :: outer) f
+    | App (t, u) | Eq (t, u) ->
+        has_free outer t || has_free outer u in
+  not (has_free [] f)
+
 let find_vars only_free f =
   let rec find = function
     | Const _ -> []
@@ -351,12 +362,11 @@ let rename_vars f =
   let (f, _map, _used) = rename [] [] f in
   f
 
-let collect_args f =
+let collect_args t =
   let rec collect = function
-    | Const _ as c -> (c, [])
     | App (f, g) ->
-        let (id, args) = collect f in
-        (id, g :: args)
-    | _ -> failwith "collect_args" in
-  let (id, args) = collect f in
-  (id, rev args)
+        let (head, args) = collect f in
+        (head, g :: args)
+    | head -> (head, []) in
+  let (head, args) = collect t in
+  (head, rev args)
