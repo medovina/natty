@@ -267,27 +267,23 @@ let rec subst1 t u x = match t with
 let subst_n subst f =
   fold_left (fun f (x, t) -> subst1 f t x) f subst
   
+(* β-reduction *)
 let rec reduce = function
   | App (f, g) -> (match reduce f, reduce g with
-      | Lambda (x, _typ, f), g -> reduce (subst1 f g x)
-      | Const ("¬", _), Const ("⊤", Bool) -> _false
-      | Const ("¬", _), Const ("⊥", Bool) -> _true
-      | App(Const ("→", _), Const("⊤", Bool)), g -> g
-      | App(Const ("→", _), Const("⊥", Bool)), _ -> _true
+      | Lambda (x, _typ, f), g -> reduce (subst1 f g x)  
       | f, g -> App (f, g))
   | Lambda (id, typ, f) -> Lambda (id, typ, reduce f)
-  | Eq (f, g) ->
-      let f, g = reduce f, reduce g in
-      if f = g then _true else Eq (f, g)
+  | Eq (f, g) -> Eq (reduce f, reduce g)
   | f -> f
 
-let simp = function
-  | Lambda (id, typ, App (f, Var (id', typ'))) when id = id' && typ = typ' ->
-      f  (* η-reduction *)
+let rsubst subst f = reduce (subst_n subst f)
+
+let eta = function
+  | Lambda (id, typ, App (f, Var (id', typ'))) when id = id' && typ = typ' -> f  
   | f -> f
 
 let unify =
-  let rec unify' subst t u = match simp t, simp u with
+  let rec unify' subst t u = match eta t, eta u with
     | Const (c, typ), Const (c', typ') ->
         if c = c' && typ = typ' then Some subst else None
     | Var (x, typ), f | f, Var (x, typ) ->
