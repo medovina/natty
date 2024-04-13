@@ -190,7 +190,7 @@ let reason = str "by" >>? choice [
 ]
 
 let opt_contra f = opt f
-  (str "," >>? str "which is a contradiction" >>$ _and f (implies f mk_false))
+  (str "," >>? str "which is a contradiction" >>$ _and f (implies f _false))
 
 let rec proof_intro_prop s = choice [
   pipe2 (str "if" >> small_prop) (opt_str "," >> str "then" >> proof_prop) implies;

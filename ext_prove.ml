@@ -162,7 +162,7 @@ let write_given_trace file clauses heuristic_def =
 
   let final = last clauses in
   let used =
-    if final.formula = mk_false then
+    if final.formula = _false then
       let clause_map = make_map clauses in
       let parents id = match StringMap.find_opt id clause_map with
         | Some c -> hypotheses_of c

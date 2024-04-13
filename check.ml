@@ -112,7 +112,7 @@ let infer_blocks steps =
   blocks
 
 let rec blocks_formulas env f = function
-  | [] -> ([], mk_true)
+  | [] -> ([], _true)
   | block :: rest ->
       let (fs, concl) = block_formulas env f block in
       let (gs, final_concl) = blocks_formulas env f rest in

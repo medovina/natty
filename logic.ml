@@ -79,8 +79,8 @@ let rec count_binders = function
   | App (f, g) | Eq (f, g) -> count_binders f + count_binders g
   | Lambda (_, _, f) -> 1 + count_binders f
 
-let mk_false = Const ("⊥", Bool)
-let mk_true = Const ("⊤", Bool)
+let _false = Const ("⊥", Bool)
+let _true = Const ("⊤", Bool)
 
 let _not f = App (Const ("¬", Fun (Bool, Bool)), f)
 
@@ -267,15 +267,15 @@ let subst_n subst f =
 let rec reduce = function
   | App (f, g) -> (match reduce f, reduce g with
       | Lambda (x, _typ, f), g -> reduce (subst1 f g x)
-      | Const ("¬", _), Const ("⊤", Bool) -> mk_false
-      | Const ("¬", _), Const ("⊥", Bool) -> mk_true
+      | Const ("¬", _), Const ("⊤", Bool) -> _false
+      | Const ("¬", _), Const ("⊥", Bool) -> _true
       | App(Const ("→", _), Const("⊤", Bool)), g -> g
-      | App(Const ("→", _), Const("⊥", Bool)), _ -> mk_true
+      | App(Const ("→", _), Const("⊥", Bool)), _ -> _true
       | f, g -> App (f, g))
   | Lambda (id, typ, f) -> Lambda (id, typ, reduce f)
   | Eq (f, g) ->
       let f, g = reduce f, reduce g in
-      if f = g then mk_true else Eq (f, g)
+      if f = g then _true else Eq (f, g)
   | f -> f
 
 let simp = function
