@@ -86,8 +86,6 @@ let _not f = App (Const ("¬", Fun (Bool, Bool)), f)
 
 let logical_binary = ["∧"; "∨"; "→"]
 
-let quant_type = Fun (Fun (Base "_", Bool), Bool)
-
 let binop op typ f g = App (App (Const (op, typ), f), g) 
 let binop_unknown op = binop op unknown_type
 
@@ -99,13 +97,18 @@ let implies1 = logical_op "→"
 
 let lambda id typ f = Lambda (id, typ, f)
 
-let binder name id typ f = App (Const (name, quant_type), Lambda (id, typ, f))
-let binder' name (id, typ) f = binder name id typ f
+let binder c id typ f = App (c, Lambda (id, typ, f))
+let binder' c (id, typ) f = binder c id typ f
 
-let _for_all = binder "∀"
-let _for_all' = binder' "∀"
+let quant_type = Fun (Fun (Base "_", Bool), Bool)
 
-let _exists = binder "∃"
+let c_for_all = Const("∀", quant_type)
+let c_exists = Const("∃", quant_type)
+
+let _for_all = binder c_for_all
+let _for_all' = binder' c_for_all
+
+let _exists = binder c_exists
 
 let mk_neq f g = _not (mk_eq f g)
 let mk_eq' eq f g = (if eq then mk_eq else mk_neq) f g

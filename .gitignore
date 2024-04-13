@@ -1,5 +1,6 @@
 _build
 *.dot
+*.old
 *.orig.n
 *.out
 *.thf
