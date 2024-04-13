@@ -110,11 +110,15 @@ let super cp dp d' d_lit =
           | Some sub ->
               let c' = replace t' u c in
               let e = subst_n sub (fold_left1 _or (d' @ [c'])) in
-              [mk_pformula "superposition" [dp; cp] (unprefix_vars e)])
+              let tt'_show = show_formula (Eq (t, t')) in
+              let u_show = str_replace "\\$" "" (show_formula u) in
+              let rule = sprintf "sup: %s / %s" tt'_show u_show in
+              [mk_pformula rule [dp; cp] (unprefix_vars e)])
 
 let clausify pformula rule =
   let rec run lits =
     let split f = match bool_kind f with
+      | Binary ("→", s, t) -> Some [_not s; t]
       | Quant ("∀", x, typ, f) ->
           let f =
             let vars = concat_map free_vars lits in
