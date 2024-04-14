@@ -95,6 +95,10 @@ let _and = logical_op "∧"
 let _or = logical_op "∨"
 let implies1 = logical_op "→"
 
+let multi_or = function
+  | [] -> _false
+  | xs -> fold_left1 _or xs
+
 let lambda id typ f = Lambda (id, typ, f)
 
 let binder c id typ f = App (c, Lambda (id, typ, f))
