@@ -114,12 +114,16 @@ let mk_neq f g = _not (mk_eq f g)
 let mk_eq' eq f g = (if eq then mk_eq else mk_neq) f g
 
 type formula_kind =
+  | True
+  | False
   | Not of formula
   | Binary of id * formula * formula
   | Quant of id * id * typ * formula
   | Other of formula
 
 let fkind boolean = function
+  | Const ("⊤", _) -> True
+  | Const ("⊥", _) -> False
   | App (Const ("¬", _), f) -> Not f
   | App (App (Const (op, _), t), u)
       when mem op logical_binary || (not boolean) ->
@@ -164,6 +168,8 @@ let show_formula_multi multi f =
     let show_eq eq f g = parens (eq_prec < outer)
       (sprintf "%s %s %s" (show1 eq_prec false f) eq (show1 eq_prec true g)) in
     match kind f with
+      | True -> "⊤"
+      | False -> "⊥"
       | Not g -> (match g with
         | Eq (t, u) -> show_eq "≠" t u
         | _ -> parens (not_prec < outer) ("¬" ^ show1 not_prec false g))

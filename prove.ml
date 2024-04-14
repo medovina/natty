@@ -35,6 +35,10 @@ let number_formula clause =
 let create_pformula rule parents formula =
   number_formula (mk_pformula rule parents formula)
 
+let is_inductive pformula = match kind pformula.formula with
+  | Quant ("∀", _, Fun (_, Bool), _) -> true
+  | _ -> false
+
 (* Symbol precedence.  ⊥ > ⊤ have the lowest precedence.  We group other
  * symbols by arity, then (arbitrarily) alphabetically. *)
  let const_gt f g =
@@ -87,13 +91,15 @@ let unary_check s t = match s, t with
 (* Knuth-Bendix ordering on first-order terms *)
 let rec kb_gt s t =
   let s_vars, t_vars = count_vars s, count_vars t in
-  if s_vars |> for_all (fun (v, n) -> n >= lookup_var v t_vars) then
+  (s_vars |> for_all (fun (v, n) -> n >= lookup_var v t_vars)) &&
     let ws, wt = term_weight s, term_weight t in
     ws > wt || ws = wt && (
       unary_check s t ||
-      let (f, ss), (g, ts) = collect_args s, collect_args t in
-      const_gt f g || f = g && lex_gt kb_gt ss ts)
-  else false
+      match s, t with
+        | App _, App _ ->
+            let (f, ss), (g, ts) = collect_args s, collect_args t in
+            const_gt f g || f = g && lex_gt kb_gt ss ts
+        | _ -> false)
 
 let get_index x map =
   match index_of_opt x !map with
@@ -230,7 +236,8 @@ let super cp dp d' d_lit =
           | Some sub ->
               let d1 = map (rsubst sub) d' in
               let tt1 = rsubst sub (Eq (t, t')) in
-              if not (is_maximal lit_gt tt1 d1) then [] else  (* iii *)
+              if not (is_inductive dp) &&
+                 not (is_maximal lit_gt tt1 d1) then [] else  (* iii *)
                 let c' = replace t' u c in
                 let e = fold_left1 _or (d1 @ [rsubst sub c']) in
                 let tt'_show = show_formula (Eq (t, t')) in
@@ -247,7 +254,40 @@ let rec expand f = match split f with
   | Some (s, t) -> expand s @ expand t
   | None -> [f]
 
-let is_tautology pf = mem _true (expand pf.formula)
+let rec simp f = match bool_kind f with
+  | Not f ->
+      let f = simp f in (
+      match bool_kind f with
+        | True -> _false
+        | False -> _true
+        | _ -> _not f)
+  | Binary (op, p, q) ->
+      let p, q = simp p, simp q in (
+      match op, bool_kind p, bool_kind q with
+        | "∧", True, _ -> q
+        | "∧", _, True -> p
+        | "∧", False, _ -> _false
+        | "∧", _, False -> _false
+        | "∨", True, _ -> _true
+        | "∨", _, True -> _true
+        | "∨", False, _ -> q
+        | "∨", _, False -> p
+        | "→", True, _ -> q
+        | "→", _, True -> _true
+        | "→", False, _ -> _true
+        | "→", _, False -> simp (_not p)
+        | _ -> logical_op op p q)
+  | Other (Eq (f, g)) ->
+      let f, g = simp f, simp g in
+      if f = g then _true else Eq (f, g)
+  | _ -> map_formula simp f
+
+let is_tautology f = mem _true (expand f)
+
+let simplify pformula =
+  let f = simp pformula.formula in
+  if is_tautology f then None
+  else Some { pformula with formula = f }
 
 let clausify pformula rule =
   let rec run lits =
@@ -287,8 +327,8 @@ let refute pformulas =
       | None -> None
       | Some pformula ->
           print_formula false "given: " pformula;
-          let new_pformulas = concat_map (all_super pformula) used |>
-            filter (Fun.negate is_tautology) in
+          let new_pformulas = concat_map (all_super pformula) used in
+          let new_pformulas = filter_map simplify new_pformulas in
           let new_pformulas = map number_formula (rev new_pformulas) in
           let used = pformula :: used in
           print_newline ();
@@ -300,7 +340,7 @@ let refute pformulas =
   in loop []
 
 let to_pformula stmt = stmt_formula stmt |> Option.map (fun f ->
-  create_pformula (stmt_name stmt) [] f)
+  create_pformula (stmt_name stmt) [] (rename_vars f))
 
 let prove known_stmts stmt =
   formula_counter := 0;

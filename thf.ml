@@ -27,6 +27,8 @@ let binary = [("∧", "&"); ("∨", "|"); ("→", "=>")]
 let rec thf outer right f =
   let parens b s = if b && outer <> "" then sprintf "(%s)" s else s in
   match bool_kind f with
+    | True -> "$true"
+    | False -> "$false"
     | Not f -> (match f with
       | Eq(t, u) ->
           parens true (sprintf "%s != %s" (thf "=" false t) (thf "=" true u))
@@ -39,7 +41,6 @@ let rec thf outer right f =
         let (ids_typs, f) = gather_quant q u in
         quant (if q = "∀" then "!" else "?") ((id, typ) :: ids_typs) f
     | _ -> match f with
-      | Const ("⊥", _) -> "$false"
       | Const (id, _) -> quote id
       | Var (id, _) -> capitalize id
       | App (t, u) ->
