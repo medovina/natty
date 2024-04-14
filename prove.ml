@@ -11,7 +11,8 @@ type pformula = {
   id: int;
   rule: string;
   parents: pformula list;
-  formula: formula
+  formula: formula;
+  cost: int
 }
 
 let print_formula with_origin prefix pformula =
@@ -23,8 +24,11 @@ let print_formula with_origin prefix pformula =
   printf "%s%s\n"
     (indent_with_prefix prefix (show_multi pformula.formula)) origin
 
-let mk_pformula rule parents formula =
-  { id = 0; rule; parents; formula }
+let merge_cost parents = sum (map (fun p -> p.cost) parents)
+
+let mk_pformula rule parents formula delta =
+  { id = 0; rule; parents; formula;
+    cost = merge_cost parents + delta }
 
 let number_formula clause =
   incr formula_counter;
@@ -32,10 +36,10 @@ let number_formula clause =
   print_formula true "" clause;
   clause
 
-let create_pformula rule parents formula =
-  number_formula (mk_pformula rule parents formula)
+let create_pformula rule parents formula delta =
+  number_formula (mk_pformula rule parents formula delta)
 
-let is_inductive pformula = match kind pformula.formula with
+let is_inductive formula = match kind formula with
   | Quant ("∀", _, Fun (_, Bool), _) -> true
   | _ -> false
 
@@ -236,14 +240,14 @@ let super cp dp d' d_lit =
           | Some sub ->
               let d1 = map (rsubst sub) d' in
               let tt1 = rsubst sub (Eq (t, t')) in
-              if not (is_inductive dp) &&
+              if not (is_inductive dp.formula) &&
                  not (is_maximal lit_gt tt1 d1) then [] else  (* iii *)
                 let c' = replace t' u c in
                 let e = fold_left1 _or (d1 @ [rsubst sub c']) in
                 let tt'_show = show_formula (Eq (t, t')) in
                 let u_show = str_replace "\\$" "" (show_formula u) in
                 let rule = sprintf "sup: %s / %s" tt'_show u_show in
-                [mk_pformula rule [dp; cp] (unprefix_vars e)])
+                [mk_pformula rule [dp; cp] (unprefix_vars e) 0])
 
 let split f = match bool_kind f with
   | Binary ("∨", s, t) -> Some (s, t)
@@ -317,7 +321,12 @@ let clausify pformula rule =
     loop [] lits in
   rule pformula [] pformula.formula @ run [pformula.formula]
 
-let all_super cp dp = clausify cp (super dp) @ clausify dp (super cp)
+let max_cost = 1
+
+let all_super cp dp =
+  let new_cost = merge_cost [cp; dp] in
+  if new_cost > max_cost then []
+  else clausify cp (super dp) @ clausify dp (super cp)
 
 let refute pformulas =
   print_newline ();
@@ -340,7 +349,8 @@ let refute pformulas =
   in loop []
 
 let to_pformula stmt = stmt_formula stmt |> Option.map (fun f ->
-  create_pformula (stmt_name stmt) [] (rename_vars f))
+  let init_cost = if is_inductive f then 1 else 0 in
+  create_pformula (stmt_name stmt) [] (rename_vars f) init_cost)
 
 let prove known_stmts stmt =
   formula_counter := 0;
@@ -349,7 +359,8 @@ let prove known_stmts stmt =
       | Some p -> print_newline(); Some p
       | None -> None) in
   let pformula = Option.get (to_pformula stmt) in
-  let negated = create_pformula "negate" [pformula] (_not pformula.formula) in
+  let negated =
+    create_pformula "negate" [pformula] (_not pformula.formula) 0 in
   refute (known @ [negated])
 
 let prove_all prog =

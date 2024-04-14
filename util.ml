@@ -162,6 +162,8 @@ let gather_pairs xs =
 
 let is_maximal gt x ys = not (exists (fun y -> gt y x) ys)
 
+let sum f = fold_left (+) 0 f
+
 (* I/O *)
 
 let mk_path = Filename.concat
