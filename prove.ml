@@ -156,7 +156,9 @@ let term_gt s t =
   let s1 = encode_term type_map fluid_map s in
   let t1 = encode_term type_map fluid_map t in
   kb_gt s1 t1
-  
+
+let term_ge s t = s = t || term_gt s t
+
 let terms = function
   | Eq (f, g) -> (true, f, g)
   | App (Const ("¬", _), Eq (f, g)) -> (false, f, g)
@@ -225,7 +227,8 @@ let rec replace_in_term u v t =
  *
  *     (i) u is not fluid
  *     (ii) u is not a variable
- *     (iii) t = t' is maximal in D w.r.t. σ
+ *     (iii) tσ ≰ t'σ
+ *     (iv) t = t' is maximal in D w.r.t. σ
  *)
 let super cp dp d' d_lit =
   let c = prefix_vars cp.formula in
@@ -238,12 +241,14 @@ let super cp dp d' d_lit =
         match unify t u with
           | None -> []
           | Some sub ->
-              let d1 = map (rsubst sub) d' in
-              let tt1 = rsubst sub (Eq (t, t')) in
-              if not (is_inductive dp.formula) &&
-                 not (is_maximal lit_gt tt1 d1) then [] else  (* iii *)
+              let d'_s = map (rsubst sub) d' in
+              let t_s, t'_s = rsubst sub t, rsubst sub t' in
+              let t_eq_t'_s = Eq (t_s, t'_s) in
+              if term_ge t'_s t_s ||   (* iii *)
+                 not (is_inductive dp.formula) &&
+                 not (is_maximal lit_gt t_eq_t'_s d'_s) then [] else  (* iv *)
                 let c' = replace_in_term t' u c in
-                let e = multi_or (d1 @ [rsubst sub c']) in
+                let e = multi_or (d'_s @ [rsubst sub c']) in
                 let tt'_show = show_formula (Eq (t, t')) in
                 let u_show = str_replace "\\$" "" (show_formula u) in
                 let rule = sprintf "sup: %s / %s" tt'_show u_show in
