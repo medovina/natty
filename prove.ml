@@ -215,9 +215,9 @@ let is_fluid t = match t with
   | _ -> false
 
 (* replace v with u in t *)
-let rec replace u v t =
+let rec replace_in_term u v t =
   if t == v then u  (* physical equality test *)
-  else map_formula (replace u v) t 
+  else map_formula (replace_in_term u v) t 
 
 (*      D:[D' ∨ t = t']    C⟨u⟩
  *    ───────────────────────────   sup
@@ -242,7 +242,7 @@ let super cp dp d' d_lit =
               let tt1 = rsubst sub (Eq (t, t')) in
               if not (is_inductive dp.formula) &&
                  not (is_maximal lit_gt tt1 d1) then [] else  (* iii *)
-                let c' = replace t' u c in
+                let c' = replace_in_term t' u c in
                 let e = fold_left1 _or (d1 @ [rsubst sub c']) in
                 let tt'_show = show_formula (Eq (t, t')) in
                 let u_show = str_replace "\\$" "" (show_formula u) in
@@ -293,40 +293,68 @@ let simplify pformula =
   if is_tautology f then None
   else Some { pformula with formula = f }
 
-let clausify pformula rule =
+let clausify_step pformula lits =
+  let new_clauses f = match split f with
+    | Some (s, t) -> Some [s; t]
+    | None -> match bool_kind f with
+      | Quant ("∀", x, typ, f) ->
+          let f =
+            let vars = concat_map free_vars lits in
+            if mem x vars then 
+              let y = next_var x vars in
+              subst1 f (Var (y, typ)) x
+            else f in
+          Some [f]
+      | Not g -> (match bool_kind g with
+        | Binary ("→", f, g) -> Some [_and f (_not g)]
+        | Quant ("∀", x, typ, g) ->
+            let skolem = Const (sprintf "%s%d" x pformula.id, typ) in
+            Some [subst1 (_not g) skolem x]
+        | _ -> None)
+      | _ -> None in
+  let rec loop before = function
+    | [] -> None
+    | lit :: after ->
+        match new_clauses lit with
+          | Some fs -> Some (rev before @ fs @ after, fs)
+          | None -> loop (lit :: before) after in
+  if lits = [] then Some ([pformula.formula], [pformula.formula])  (* initial step *)
+  else loop [] lits
+
+let run_clausify pformula rule =
   let rec run lits =
-    let clauses f = match split f with
-      | Some (s, t) -> Some [s; t]
-      | None -> match bool_kind f with
-        | Quant ("∀", x, typ, f) ->
-            let f =
-              let vars = concat_map free_vars lits in
-              if mem x vars then 
-                let y = next_var x vars in
-                subst1 f (Var (y, typ)) x
-              else f in
-            Some [f]
-        | _ -> None in
-    let rec loop before = function
-      | [] -> []
-      | lit :: after ->
-          match clauses lit with
-            | Some fs ->
-                let lits = rev before @ fs @ after in
-                let new_pformulas =
-                  let+ f = fs in
-                  rule pformula (remove f lits) f in
-                new_pformulas @ run lits
-            | None -> loop (lit :: before) after in
-    loop [] lits in
-  rule pformula [] pformula.formula @ run [pformula.formula]
+    match clausify_step pformula lits with
+      | None -> []
+      | Some (lits, fs) ->
+          let new_pformulas =
+            let+ f = fs in
+            rule pformula (remove f lits) f in
+          new_pformulas @ run lits in
+  run []
 
 let max_cost = 1
 
 let all_super cp dp =
   let new_cost = merge_cost [cp; dp] in
   if new_cost > max_cost then []
-  else clausify cp (super dp) @ clausify dp (super cp)
+  else run_clausify cp (super dp) @ run_clausify dp (super cp)
+
+let all_oc pformula =
+  let rec run lits =
+    match clausify_step pformula lits with
+      | None -> []
+      | Some (lits, fs) ->
+          let split_on lit = match bool_kind lit with
+            | Binary ("∧", f, g) ->
+                let new_formulas = [f; g] |> map (fun t ->
+                  let u = fold_left1 _or (replace t lit lits) in
+                  mk_pformula "oc" [pformula] u 0) in
+                Some new_formulas
+            | _ -> None in
+          match find_map split_on fs with
+            | Some new_formulas -> new_formulas
+            | None -> run lits in
+  if is_inductive pformula.formula then [] else run []
 
 let refute pformulas =
   print_newline ();
@@ -336,7 +364,8 @@ let refute pformulas =
       | None -> None
       | Some pformula ->
           print_formula false "given: " pformula;
-          let new_pformulas = concat_map (all_super pformula) used in
+          let new_pformulas =
+            concat_map (all_super pformula) used @ all_oc pformula in
           let new_pformulas = filter_map simplify new_pformulas in
           let new_pformulas = map number_formula (rev new_pformulas) in
           let used = pformula :: used in

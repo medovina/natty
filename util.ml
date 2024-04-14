@@ -139,6 +139,13 @@ let subtract xs ys = filter (fun x -> not (mem x ys)) xs
 
 let remove x xs = subtract xs [x]
 
+(* Replace x by y exactly once in the list zs. *)
+let rec replace y x = function
+  | [] -> failwith "replace"
+  | z :: zs ->
+      if z = x then y :: zs
+      else z :: replace y x zs
+
 let std_sort xs = sort Stdlib.compare xs
 
 let sort_by f = sort (fun x y -> Stdlib.compare (f x) (f y))
