@@ -218,10 +218,9 @@ let is_fluid t = match t with
   | Lambda _ -> not (is_ground t) (* approximate *)
   | _ -> false
 
-(* replace v with u in t *)
-let rec replace_in_term u v t =
-  if t == v then u  (* physical equality test *)
-  else map_formula (replace_in_term u v) t 
+let is_applied_symbol f = match bool_kind f with
+  | True | False | Not _ | Binary _ -> true
+  | _ -> false
 
 (*      D:[D' ∨ t = t']    C⟨u⟩
  *    ───────────────────────────   sup
@@ -232,6 +231,7 @@ let rec replace_in_term u v t =
  *     (iii) tσ ≰ t'σ
  *     (iv) Cσ ≰ Dσ
  *     (v) t = t' is maximal in D w.r.t. σ
+ *     (vi) tσ is not a fully applied logical symbol
  *)
 let super cp dp d' d_lit =
   let c = prefix_vars (remove_universal cp.formula) in
@@ -247,16 +247,18 @@ let super cp dp d' d_lit =
               let d'_s = map (rsubst sub) d' in
               let t_s, t'_s = rsubst sub t, rsubst sub t' in
               let t_eq_t'_s = Eq (t_s, t'_s) in
-              if term_ge t'_s t_s ||   (* iii *)
-                 not (is_maximal lit_gt t_eq_t'_s d'_s) then [] else  (* v *)
-                let c_s, d_s = rsubst sub c, t_eq_t'_s :: d'_s in
-                if clause_gt d_s [c_s] then [] else
-                  let c' = replace_in_term t' u c in
-                  let e = multi_or (d'_s @ [rsubst sub c']) in
-                  let tt'_show = show_formula (Eq (t, t')) in
-                  let u_show = str_replace "\\$" "" (show_formula u) in
-                  let rule = sprintf "sup: %s / %s" tt'_show u_show in
-                  [mk_pformula rule [dp; cp] (unprefix_vars e) 0])
+              let c_s, d_s = rsubst sub c, t_eq_t'_s :: d'_s in
+              if term_ge t'_s t_s ||  (* iii *)
+                 clause_gt d_s [c_s] ||  (* iv *)
+                 not (is_maximal lit_gt t_eq_t'_s d'_s) ||  (* v *)
+                 is_applied_symbol t_s  (* vi *)
+              then [] else
+                let c' = replace_in_formula t' u c in
+                let e = multi_or (d'_s @ [rsubst sub c']) in
+                let tt'_show = show_formula (Eq (t, t')) in
+                let u_show = str_replace "\\$" "" (show_formula u) in
+                let rule = sprintf "sup: %s / %s" tt'_show u_show in
+                [mk_pformula rule [dp; cp] (unprefix_vars e) 0])
 
 (*      C' ∨ u ≠ u'
  *     ────────────   eres
@@ -430,7 +432,7 @@ let prove_all prog =
           | Theorem _ -> (
               match prove known_stmts stmt with
                 | Some _clause ->
-                    printf "proof found!\n";
+                    printf "proof found!\n\n";
                     true
                 | None -> false)
           | _ -> true) then (

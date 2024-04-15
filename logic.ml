@@ -266,7 +266,12 @@ let rec remove_universal f = match bool_kind f with
 
 let rec rename id avoid =
   if mem id avoid then rename (id ^ "'") avoid else id
-  
+
+(* replace v with u in t *)
+let rec replace_in_formula u v t =
+  if t == v then u  (* physical equality test *)
+  else map_formula (replace_in_formula u v) t 
+
 (* t[u/x] *)
 let rec subst1 t u x = match t with
   | Const _ -> t
