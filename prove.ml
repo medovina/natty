@@ -202,14 +202,16 @@ let unprefix_vars f =
   fix [] f
   
 let green_subterms t =
-  let rec gather acc t = t :: match t with
+  let rec gather parent_eq acc t = (t, parent_eq) :: match t with
     | App _ ->
         let (head, args) = collect_args t in
         if head = c_for_all || head = c_exists then acc
-        else fold_left gather acc args
-    | Eq (f, g) -> fold_left gather acc [f; g]
+        else fold_left (gather parent_eq) acc args
+    | Eq (f, g) ->
+        let acc = gather ((f, g) :: parent_eq) acc f in
+        gather ((g, f) :: parent_eq) acc g
     | _-> [] in
-  gather [] t
+  gather [] [] t
 
 let is_fluid t = match t with
   | App _ ->
@@ -222,6 +224,10 @@ let is_applied_symbol f = match bool_kind f with
   | True | False | Not _ | Binary _ -> true
   | _ -> false
 
+let is_eligible sub parent_eq =
+  parent_eq |> for_all (fun (s, t) ->
+    not (term_gt (subst_n sub t) (subst_n sub s)))
+
 (*      D:[D' ∨ t = t']    C⟨u⟩
  *    ───────────────────────────   sup
  *          (D' ∨ C⟨t'⟩)σ             σ ∈ csu(t, u)
@@ -229,9 +235,10 @@ let is_applied_symbol f = match bool_kind f with
  *     (i) u is not fluid
  *     (ii) u is not a variable
  *     (iii) tσ ≰ t'σ
- *     (iv) Cσ ≰ Dσ
- *     (v) t = t' is maximal in D w.r.t. σ
- *     (vi) tσ is not a fully applied logical symbol
+ *     (iv) the position of u is eligible in C w.r.t. σ
+ *     (v) Cσ ≰ Dσ
+ *     (vi) t = t' is maximal in D w.r.t. σ
+ *     (vii) tσ is not a fully applied logical symbol
  *)
 let super cp dp d' d_lit =
   let c = prefix_vars (remove_universal cp.formula) in
@@ -240,7 +247,8 @@ let super cp dp d' d_lit =
     | (true, t, t') ->
         let+ t, t' = [(t, t'); (t', t)] in
         let exclude u = is_var u || is_fluid u in  (* i, ii *)
-        let+ u = filter (Fun.negate exclude) (green_subterms c) in (
+        let+ (u, parent_eq) = green_subterms c |>
+          filter (fun (t, _) -> not (exclude t)) in
         match unify t u with
           | None -> []
           | Some sub ->
@@ -249,16 +257,17 @@ let super cp dp d' d_lit =
               let t_eq_t'_s = Eq (t_s, t'_s) in
               let c_s, d_s = rsubst sub c, t_eq_t'_s :: d'_s in
               if term_ge t'_s t_s ||  (* iii *)
-                 clause_gt d_s [c_s] ||  (* iv *)
-                 not (is_maximal lit_gt t_eq_t'_s d'_s) ||  (* v *)
-                 is_applied_symbol t_s  (* vi *)
+                 not (is_eligible sub parent_eq) ||  (* iv *)
+                 clause_gt d_s [c_s] ||  (* v *)
+                 not (is_maximal lit_gt t_eq_t'_s d'_s) ||  (* vi *)
+                 is_applied_symbol t_s  (* vii *)
               then [] else
                 let c' = replace_in_formula t' u c in
                 let e = multi_or (d'_s @ [rsubst sub c']) in
                 let tt'_show = show_formula (Eq (t, t')) in
                 let u_show = str_replace "\\$" "" (show_formula u) in
                 let rule = sprintf "sup: %s / %s" tt'_show u_show in
-                [mk_pformula rule [dp; cp] (unprefix_vars e) 0])
+                [mk_pformula rule [dp; cp] (unprefix_vars e) 0]
 
 (*      C' ∨ u ≠ u'
  *     ────────────   eres
