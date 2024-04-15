@@ -210,7 +210,7 @@ let green_subterms t =
     | Eq (f, g) ->
         let acc = gather ((f, g) :: parent_eq) acc f in
         gather ((g, f) :: parent_eq) acc g
-    | _-> [] in
+    | _-> acc in
   gather [] [] t
 
 let is_fluid t = match t with
@@ -329,6 +329,7 @@ let rec simp f = match bool_kind f with
         | "→", _, True -> _true
         | "→", False, _ -> _true
         | "→", _, False -> simp (_not p)
+        | "→", t, u when t = u -> _true
         | _ -> logical_op op p q)
   | Other (Eq (f, g)) ->
       let f, g = simp f, simp g in
