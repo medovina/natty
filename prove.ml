@@ -228,6 +228,19 @@ let is_eligible sub parent_eq =
   parent_eq |> for_all (fun (s, t) ->
     not (term_gt (subst_n sub t) (subst_n sub s)))
 
+(* Clausify ignoring quantifiers and conjunctions *)
+let rec mini_clausify f = match bool_kind f with
+  | Binary ("∨", f, g) -> mini_clausify f @ mini_clausify g
+  | Binary ("→", f, g) -> mini_clausify (_not f) @ mini_clausify g
+  | Not g -> (match bool_kind g with
+    | Binary ("∧", f, g) -> mini_clausify (_not f) @ mini_clausify (_not g)
+    | _ -> [f])
+  | _ -> [f]
+
+let top_positive u c =
+  mem u (mini_clausify c) &&
+    let (pos, _, _) = terms u in pos
+
 (*      D:[D' ∨ t = t']    C⟨u⟩
  *    ───────────────────────────   sup
  *          (D' ∨ C⟨t'⟩)σ             σ ∈ csu(t, u)
@@ -239,6 +252,7 @@ let is_eligible sub parent_eq =
  *     (v) Cσ ≰ Dσ
  *     (vi) t = t' is maximal in D w.r.t. σ
  *     (vii) tσ is not a fully applied logical symbol
+ *     (viii) if t'σ = ⊥, u is at the top level of a positive literal
  *)
 let super cp dp d' d_lit =
   let c = prefix_vars (remove_universal cp.formula) in
@@ -260,7 +274,8 @@ let super cp dp d' d_lit =
                  not (is_eligible sub parent_eq) ||  (* iv *)
                  clause_gt d_s [c_s] ||  (* v *)
                  not (is_maximal lit_gt t_eq_t'_s d'_s) ||  (* vi *)
-                 is_applied_symbol t_s  (* vii *)
+                 is_applied_symbol t_s || (* vii *)
+                 t'_s = _false && not (top_positive u c)  (* viii *)
               then [] else
                 let c' = replace_in_formula t' u c in
                 let e = multi_or (d'_s @ [rsubst sub c']) in
