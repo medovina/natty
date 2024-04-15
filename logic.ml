@@ -260,6 +260,10 @@ let rec gather_quant q f = match kind f with
 
 let for_alls = gather_quant "∀"
 
+let rec remove_universal f = match bool_kind f with
+  | Quant ("∀", _x, _typ, g) -> remove_universal g
+  | _ -> f
+
 let rec rename id avoid =
   if mem id avoid then rename (id ^ "'") avoid else id
   

@@ -171,7 +171,9 @@ let lit_to_multi f =
 
 let lit_gt f g =
   multi_gt (multi_gt term_gt) (lit_to_multi f) (lit_to_multi g)
-  
+
+let clause_gt = multi_gt lit_gt
+
 let prefix_vars f =
   let rec prefix outer = function
     | Var (x, typ) when not (mem x outer) ->
@@ -228,10 +230,11 @@ let rec replace_in_term u v t =
  *     (i) u is not fluid
  *     (ii) u is not a variable
  *     (iii) tσ ≰ t'σ
- *     (iv) t = t' is maximal in D w.r.t. σ
+ *     (iv) Cσ ≰ Dσ
+ *     (v) t = t' is maximal in D w.r.t. σ
  *)
 let super cp dp d' d_lit =
-  let c = prefix_vars cp.formula in
+  let c = prefix_vars (remove_universal cp.formula) in
   match terms d_lit with
     | (false, _, _) -> []
     | (true, t, t') ->
@@ -245,14 +248,15 @@ let super cp dp d' d_lit =
               let t_s, t'_s = rsubst sub t, rsubst sub t' in
               let t_eq_t'_s = Eq (t_s, t'_s) in
               if term_ge t'_s t_s ||   (* iii *)
-                 not (is_inductive dp.formula) &&
-                 not (is_maximal lit_gt t_eq_t'_s d'_s) then [] else  (* iv *)
-                let c' = replace_in_term t' u c in
-                let e = multi_or (d'_s @ [rsubst sub c']) in
-                let tt'_show = show_formula (Eq (t, t')) in
-                let u_show = str_replace "\\$" "" (show_formula u) in
-                let rule = sprintf "sup: %s / %s" tt'_show u_show in
-                [mk_pformula rule [dp; cp] (unprefix_vars e) 0])
+                 not (is_maximal lit_gt t_eq_t'_s d'_s) then [] else  (* v *)
+                let c_s, d_s = rsubst sub c, t_eq_t'_s :: d'_s in
+                if clause_gt d_s [c_s] then [] else
+                  let c' = replace_in_term t' u c in
+                  let e = multi_or (d'_s @ [rsubst sub c']) in
+                  let tt'_show = show_formula (Eq (t, t')) in
+                  let u_show = str_replace "\\$" "" (show_formula u) in
+                  let rule = sprintf "sup: %s / %s" tt'_show u_show in
+                  [mk_pformula rule [dp; cp] (unprefix_vars e) 0])
 
 (*      C' ∨ u ≠ u'
  *     ────────────   eres
