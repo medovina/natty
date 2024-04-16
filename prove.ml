@@ -26,6 +26,8 @@ let print_formula with_origin prefix pformula =
 
 let merge_cost parents = sum (map (fun p -> p.cost) parents)
 
+let max_cost = 1
+
 let mk_pformula rule parents formula delta =
   { id = 0; rule; parents; formula;
     cost = merge_cost parents + delta }
@@ -99,11 +101,9 @@ let rec kb_gt s t =
     let ws, wt = term_weight s, term_weight t in
     ws > wt || ws = wt && (
       unary_check s t ||
-      match s, t with
-        | App _, App _ ->
-            let (f, ss), (g, ts) = collect_args s, collect_args t in
-            const_gt f g || f = g && lex_gt kb_gt ss ts
-        | _ -> false)
+      is_app_or_const s && is_app_or_const t &&
+          let (f, ss), (g, ts) = collect_args s, collect_args t in
+          const_gt f g || f = g && lex_gt kb_gt ss ts)
 
 let get_index x map =
   match index_of_opt x !map with
@@ -174,6 +174,58 @@ let lit_gt f g =
 
 let clause_gt = multi_gt lit_gt
 
+let split f = match bool_kind f with
+  | Binary ("∨", s, t) -> Some (s, t)
+  | Binary ("→", s, t) -> Some (_not s, t)
+  | _ -> None
+
+let clausify_step pformula lits =
+  let rec new_lits f = match split f with
+    | Some (s, t) -> Some ([s; t], [])
+    | None -> match bool_kind f with
+      | Quant ("∀", x, typ, f) ->
+          let f =
+            let vars = concat_map free_vars lits in
+            if mem x vars then 
+              let y = next_var x vars in
+              subst1 f (Var (y, typ)) x
+            else f in
+          Some ([f], [f])
+      | Quant ("∃", x, typ, f) ->
+          let skolem = Const (sprintf "%s%d" x pformula.id, typ) in
+          let f = subst1 f skolem x in
+          Some ([f], [f])
+      | Not g -> (match bool_kind g with
+        | Binary ("→", f, g) -> Some ([_and f (_not g)], [])
+        | Quant ("∀", x, typ, g) ->
+            new_lits (_exists x typ (_not g))
+        | Quant ("∃", x, typ, g) ->
+            new_lits (_for_all x typ (_not g))
+        | _ -> None)
+      | _ -> None in
+  let rec loop before = function
+    | [] -> None
+    | lit :: after ->
+        match new_lits lit with
+          | Some (lits, exposed) -> Some (rev before @ lits @ after, lits, exposed)
+          | None -> loop (lit :: before) after in
+  if lits = [] then
+    let f = pformula.formula in
+    Some ([f], [f], [f])  (* initial step *)
+  else loop [] lits
+
+let clausify_steps pformula =
+  let rec run lits =
+    match clausify_step pformula lits with
+      | None -> []
+      | Some ((lits, _, _) as step) -> step :: run lits in
+  run []
+
+let run_clausify pformula rule =
+  let+ (lits, new_lits, _) = clausify_steps pformula in
+  let+ f = new_lits in
+  rule pformula (remove1 f lits) f
+  
 let prefix_vars f =
   let rec prefix outer = function
     | Var (x, typ) when not (mem x outer) ->
@@ -254,35 +306,52 @@ let top_positive u c =
  *     (vii) tσ is not a fully applied logical symbol
  *     (viii) if t'σ = ⊥, u is at the top level of a positive literal
  *)
-let super cp dp d' d_lit =
-  let c = prefix_vars (remove_universal cp.formula) in
-  match terms d_lit with
+let super dp d' t_t' cp c c1 =
+  match terms t_t' with
     | (false, _, _) -> []
     | (true, t, t') ->
-        let+ t, t' = [(t, t'); (t', t)] in
-        let exclude u = is_var u || is_fluid u in  (* i, ii *)
-        let+ (u, parent_eq) = green_subterms c |>
-          filter (fun (t, _) -> not (exclude t)) in
+        let+ t, t' = [(t, t'); (t', t)] |>
+          filter (fun (t, t') -> not (term_ge t' t)) in  (* iii: pre-check *)
+        let+ (u, parent_eq) = green_subterms c1 |>
+          filter (fun (u, _) -> not (is_var u || is_fluid u)) in  (* i, ii *)
         match unify t u with
           | None -> []
           | Some sub ->
               let d'_s = map (rsubst sub) d' in
               let t_s, t'_s = rsubst sub t, rsubst sub t' in
               let t_eq_t'_s = Eq (t_s, t'_s) in
-              let c_s, d_s = rsubst sub c, t_eq_t'_s :: d'_s in
+              let d_s = t_eq_t'_s :: d'_s in
+              let c_s = map (rsubst sub) c in
+              let c1_s = rsubst sub c1 in
               if term_ge t'_s t_s ||  (* iii *)
+                 not (is_maximal lit_gt c1_s c_s) ||  (* iv *)
                  not (is_eligible sub parent_eq) ||  (* iv *)
-                 clause_gt d_s [c_s] ||  (* v *)
+                 clause_gt d_s c_s ||  (* v *)
                  not (is_maximal lit_gt t_eq_t'_s d'_s) ||  (* vi *)
                  is_applied_symbol t_s || (* vii *)
-                 t'_s = _false && not (top_positive u c)  (* viii *)
+                 t'_s = _false && not (top_positive u c1)  (* viii *)
               then [] else
-                let c' = replace_in_formula t' u c in
-                let e = multi_or (d'_s @ [rsubst sub c']) in
-                let tt'_show = show_formula (Eq (t, t')) in
-                let u_show = str_replace "\\$" "" (show_formula u) in
+                let c1_t' = replace_in_formula t' u c1 in
+                let c_s = replace1 (rsubst sub c1_t') c1_s c_s in
+                let e = multi_or (d'_s @ c_s) in
+                let tt'_show = str_replace "\\$" "" (show_formula (Eq (t, t'))) in
+                let u_show = show_formula u in
                 let rule = sprintf "sup: %s / %s" tt'_show u_show in
                 [mk_pformula rule [dp; cp] (unprefix_vars e) 0]
+
+let all_super dp cp =
+  let new_cost = merge_cost [dp; cp] in
+  if new_cost > max_cost then []
+  else (
+    let d_steps, c_steps = clausify_steps dp, clausify_steps cp in
+    let+ (dp, d_steps, cp, c_steps) =
+      [(dp, d_steps, cp, c_steps); (cp, c_steps, dp, d_steps)] in
+    let+ (d_lits, new_lits, _) = d_steps in
+    let d_lits, new_lits = map prefix_vars d_lits, map prefix_vars new_lits in
+    let+ d_lit = new_lits in
+    let+ (c_lits, _, exposed_lits) = c_steps in
+    let+ c_lit = exposed_lits in
+    super dp (remove1 d_lit d_lits) d_lit cp c_lits c_lit)
 
 (*      C' ∨ u ≠ u'
  *     ────────────   eres
@@ -298,10 +367,24 @@ let eres cp c' c_lit =
               let c1 = map (rsubst sub) c' in
               [mk_pformula "eres" [cp] (multi_or c1) 0]
 
-let split f = match bool_kind f with
-  | Binary ("∨", s, t) -> Some (s, t)
-  | Binary ("→", s, t) -> Some (_not s, t)
-  | _ -> None
+let all_eres cp = run_clausify cp eres
+
+let all_oc pformula =
+  let rec run lits =
+    match clausify_step pformula lits with
+      | None -> []
+      | Some (lits, new_lits, _) ->
+          let split_on lit = match bool_kind lit with
+            | Binary ("∧", f, g) ->
+                let new_formulas = [f; g] |> map (fun t ->
+                  let u = multi_or (replace1 t lit lits) in
+                  mk_pformula "oc" [pformula] u 0) in
+                Some new_formulas
+            | _ -> None in
+          match find_map split_on new_lits with
+            | Some new_formulas -> new_formulas
+            | None -> run lits in
+  if is_inductive pformula.formula then [] else run []
 
 let rec expand f = match split f with
   | Some (s, t) -> expand s @ expand t
@@ -342,75 +425,6 @@ let simplify pformula =
   let f = simp pformula.formula in
   if is_tautology f then None
   else Some { pformula with formula = f }
-
-let clausify_step pformula lits =
-  let rec new_clauses f = match split f with
-    | Some (s, t) -> Some [s; t]
-    | None -> match bool_kind f with
-      | Quant ("∀", x, typ, f) ->
-          let f =
-            let vars = concat_map free_vars lits in
-            if mem x vars then 
-              let y = next_var x vars in
-              subst1 f (Var (y, typ)) x
-            else f in
-          Some [f]
-      | Quant ("∃", x, typ, f) ->
-          let skolem = Const (sprintf "%s%d" x pformula.id, typ) in
-          Some [subst1 f skolem x]
-      | Not g -> (match bool_kind g with
-        | Binary ("→", f, g) -> Some [_and f (_not g)]
-        | Quant ("∀", x, typ, g) ->
-            new_clauses (_exists x typ (_not g))
-        | Quant ("∃", x, typ, g) ->
-            new_clauses (_for_all x typ (_not g))
-        | _ -> None)
-      | _ -> None in
-  let rec loop before = function
-    | [] -> None
-    | lit :: after ->
-        match new_clauses lit with
-          | Some fs -> Some (rev before @ fs @ after, fs)
-          | None -> loop (lit :: before) after in
-  if lits = [] then Some ([pformula.formula], [pformula.formula])  (* initial step *)
-  else loop [] lits
-
-let run_clausify pformula rule =
-  let rec run lits =
-    match clausify_step pformula lits with
-      | None -> []
-      | Some (lits, fs) ->
-          let new_pformulas =
-            let+ f = fs in
-            rule pformula (remove f lits) f in
-          new_pformulas @ run lits in
-  run []
-
-let max_cost = 1
-
-let all_super cp dp =
-  let new_cost = merge_cost [cp; dp] in
-  if new_cost > max_cost then []
-  else run_clausify cp (super dp) @ run_clausify dp (super cp)
-
-let all_eres cp = run_clausify cp eres
-
-let all_oc pformula =
-  let rec run lits =
-    match clausify_step pformula lits with
-      | None -> []
-      | Some (lits, fs) ->
-          let split_on lit = match bool_kind lit with
-            | Binary ("∧", f, g) ->
-                let new_formulas = [f; g] |> map (fun t ->
-                  let u = multi_or (replace t lit lits) in
-                  mk_pformula "oc" [pformula] u 0) in
-                Some new_formulas
-            | _ -> None in
-          match find_map split_on fs with
-            | Some new_formulas -> new_formulas
-            | None -> run lits in
-  if is_inductive pformula.formula then [] else run []
 
 let refute pformulas =
   print_newline ();

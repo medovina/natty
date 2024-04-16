@@ -139,12 +139,16 @@ let subtract xs ys = filter (fun x -> not (mem x ys)) xs
 
 let remove x xs = subtract xs [x]
 
+let rec remove1 x = function
+  | [] -> failwith "not found"
+  | y :: ys -> if x = y then ys else y :: remove1 x ys
+
 (* Replace x by y exactly once in the list zs. *)
-let rec replace y x = function
-  | [] -> failwith "replace"
+let rec replace1 y x = function
+  | [] -> failwith "replace1"
   | z :: zs ->
       if z = x then y :: zs
-      else z :: replace y x zs
+      else z :: replace1 y x zs
 
 let std_sort xs = sort Stdlib.compare xs
 
@@ -167,7 +171,8 @@ let group_by key_fun fold init xs =
 let gather_pairs xs =
   group_by fst (fun (_, x) acc -> cons x acc) [] xs
 
-let is_maximal gt x ys = not (exists (fun y -> gt y x) ys)
+let is_maximal gt x ys =
+  not (exists (fun y -> y <> x && gt y x) ys)
 
 let sum f = fold_left (+) 0 f
 

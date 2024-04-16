@@ -50,6 +50,10 @@ let is_eq = function
   | Eq _ -> true
   | _ -> false
 
+let is_app_or_const = function
+  | App _ | Const _ -> true
+  | _ -> false
+
 let map_formula fn = function
   | App (f, g) -> App (fn f, fn g)
   | Lambda (id, typ, f) -> Lambda (id, typ, fn f)
