@@ -226,6 +226,10 @@ let run_clausify pformula rule =
   let+ f = new_lits in
   rule pformula (remove1 f lits) f
   
+let clausify pformula =
+  let (lits, _, _) = last (clausify_steps pformula) in
+  lits
+
 let prefix_vars f =
   let rec prefix outer = function
     | Var (x, typ) when not (mem x outer) ->
@@ -426,10 +430,27 @@ let simplify pformula =
   if is_tautology f then None
   else Some { pformula with formula = f }
 
+module FormulaSet = Set.Make(struct
+  type t = formula
+  let compare = Stdlib.compare
+end)
+
+let rec canonical_lit = function
+  | Eq (f, g) ->
+      let f, g = canonical_lit f, canonical_lit g in
+      if f < g then Eq (f, g) else Eq (g, f)
+  | f -> map_formula canonical_lit f
+
+(* approximate: equivalent formulas could possibly have different canonical forms *)
+let canonical pformula =
+  let lits = sort Stdlib.compare (map canonical_lit (clausify pformula)) in
+  rename_vars (fold_left1 _or lits)
+
 let refute pformulas =
   print_newline ();
+  let found = FormulaSet.of_list (map canonical pformulas) in
   let queue = Queue.of_seq (to_seq pformulas) in
-  let rec loop used =
+  let rec loop found used =
     match (Queue.take_opt queue) with
       | None -> None
       | Some pformula ->
@@ -438,6 +459,11 @@ let refute pformulas =
             concat_map (all_super pformula) used @
             all_eres pformula @ all_oc pformula in
           let new_pformulas = filter_map simplify new_pformulas in
+          let dup_check (found, out) p =
+            let f = canonical p in
+            if FormulaSet.mem f found then (found, out)
+            else (FormulaSet.add f found, p :: out) in
+          let (found, new_pformulas) = fold_left dup_check (found, []) new_pformulas in
           let new_pformulas = map number_formula (rev new_pformulas) in
           let used = pformula :: used in
           print_newline ();
@@ -445,8 +471,8 @@ let refute pformulas =
             | Some c -> Some c
             | None ->
                 queue_add queue new_pformulas;
-                loop used
-  in loop []
+                loop found used
+  in loop found []
 
 let to_pformula stmt = stmt_formula stmt |> Option.map (fun f ->
   let init_cost = if is_inductive f then 1 else 0 in
