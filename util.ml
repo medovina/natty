@@ -63,8 +63,8 @@ let utf8_len s =
     else let n = ulen (Char.code s.[k]) in 1 + len (k + n)
   in len 0 
 
-module StringSet = Set.Make(String)
-module StringMap = Map.Make(String)
+module StringSet = Set.Make (String)
+module StringMap = Map.Make (String)
 
 (* options *)
 
@@ -174,7 +174,7 @@ let gather_pairs xs =
 let is_maximal gt x ys =
   not (exists (fun y -> y <> x && gt y x) ys)
 
-let sum f = fold_left (+) 0 f
+let sum xs = fold_left (+.) 0.0 xs
 
 (* I/O *)
 
@@ -215,10 +215,6 @@ let single s = count 1 s
 let triple p q r = pipe3 p q r (fun x y z -> (x, y, z))
 
 let quadruple p q r s = pipe4 p q r s (fun w x y z -> (w, x, y, z))
-
-(* queue *)
-
-let queue_add q xs = Queue.add_seq q (to_seq xs)
 
 (* multisets *)
 

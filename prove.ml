@@ -12,7 +12,8 @@ type pformula = {
   rule: string;
   parents: pformula list;
   formula: formula;
-  cost: int
+  goal: bool;
+  cost: float
 }
 
 let print_formula with_origin prefix pformula =
@@ -21,16 +22,25 @@ let print_formula with_origin prefix pformula =
     if with_origin then sprintf " [%s]" (comma_join
       ((pformula.parents |> map (fun p -> string_of_int (p.id))) @ [pformula.rule]))
     else "" in
-  printf "%s%s\n"
-    (indent_with_prefix prefix (show_multi pformula.formula)) origin
+  printf "%s%s {%s%.2f}\n"
+    (indent_with_prefix prefix (show_multi pformula.formula))
+    origin (if pformula.goal then "g " else "") pformula.cost
 
-let merge_cost parents = sum (map (fun p -> p.cost) parents)
+let is_inductive pformula = match kind pformula.formula with
+  | Quant ("∀", _, Fun (_, Bool), _) -> true
+  | _ -> false
+  
+let merge_cost parents delta =
+  sum (map (fun p -> p.cost) parents) +.
+    (if exists is_inductive parents then 1.0 else delta)
 
-let max_cost = 1
+let max_cost = 1.3
 
 let mk_pformula rule parents formula delta =
+  let as_goal = delta = -1.0 in
   { id = 0; rule; parents; formula;
-    cost = merge_cost parents + delta }
+    goal = as_goal || exists (fun p -> p.goal) parents;
+    cost = if as_goal then 0.0 else merge_cost parents delta }
 
 let number_formula clause =
   incr formula_counter;
@@ -40,10 +50,6 @@ let number_formula clause =
 
 let create_pformula rule parents formula delta =
   number_formula (mk_pformula rule parents formula delta)
-
-let is_inductive formula = match kind formula with
-  | Quant ("∀", _, Fun (_, Bool), _) -> true
-  | _ -> false
 
 (* Symbol precedence.  ⊥ > ⊤ have the lowest precedence.  We group other
  * symbols by arity, then (arbitrarily) alphabetically. *)
@@ -75,15 +81,19 @@ let count_vars f =
 
 let lookup_var v vars = opt_default (assoc_opt v vars) 0
 
-let sym_weight = function
-  | "∀" | "∃" -> 1_000_000
+let sym_weight for_kb = function
+  | "∀" | "∃" -> if for_kb then 1_000_000 else 1
   | _ -> 1
 
-let rec term_weight = function
-  | Const (c, _) -> sym_weight c
-  | Var _ -> 1
-  | App (f, g) | Eq (f, g) -> term_weight f + term_weight g
-  | Lambda (_, _, f) -> term_weight f
+let term_weight for_kb =
+  let rec weight = function
+    | Const (c, _) -> sym_weight for_kb c
+    | Var _ -> 1
+    | App (f, g) | Eq (f, g) -> weight f + weight g
+    | Lambda (_, _, f) -> weight f in
+  weight
+
+let basic_weight = term_weight false
 
 let unary_check s t = match s, t with
   | App (Const (f, _), g), Var (v, _) ->
@@ -98,7 +108,7 @@ let unary_check s t = match s, t with
 let rec kb_gt s t =
   let s_vars, t_vars = count_vars s, count_vars t in
   (s_vars |> for_all (fun (v, n) -> n >= lookup_var v t_vars)) &&
-    let ws, wt = term_weight s, term_weight t in
+    let ws, wt = term_weight true s, term_weight true t in
     ws > wt || ws = wt && (
       unary_check s t ||
       is_app_or_const s && is_app_or_const t &&
@@ -341,10 +351,13 @@ let super dp d' t_t' cp c c1 =
                 let tt'_show = str_replace "\\$" "" (show_formula (Eq (t, t'))) in
                 let u_show = show_formula u in
                 let rule = sprintf "sup: %s / %s" tt'_show u_show in
-                [mk_pformula rule [dp; cp] (unprefix_vars e) 0]
+                let w, cw = basic_weight e, basic_weight cp.formula in
+                let cost =
+                  if w < cw then 0.01 else if w = cw then 0.02 else 1.0 in
+                [mk_pformula rule [dp; cp] (unprefix_vars e) cost]
 
 let all_super dp cp =
-  let new_cost = merge_cost [dp; cp] in
+  let new_cost = merge_cost [dp; cp] 0.0 in
   if new_cost > max_cost then []
   else (
     let d_steps, c_steps = clausify_steps dp, clausify_steps cp in
@@ -369,7 +382,7 @@ let eres cp c' c_lit =
           | None -> []
           | Some sub ->
               let c1 = map (rsubst sub) c' in
-              [mk_pformula "eres" [cp] (multi_or c1) 0]
+              [mk_pformula "eres" [cp] (multi_or c1) 0.01]
 
 let all_eres cp = run_clausify cp eres
 
@@ -382,13 +395,13 @@ let all_oc pformula =
             | Binary ("∧", f, g) ->
                 let new_formulas = [f; g] |> map (fun t ->
                   let u = multi_or (replace1 t lit lits) in
-                  mk_pformula "oc" [pformula] u 0) in
+                  mk_pformula "oc" [pformula] u 0.02) in
                 Some new_formulas
             | _ -> None in
           match find_map split_on new_lits with
             | Some new_formulas -> new_formulas
             | None -> run lits in
-  if is_inductive pformula.formula then [] else run []
+  if is_inductive pformula then [] else run []
 
 let rec expand f = match split f with
   | Some (s, t) -> expand s @ expand t
@@ -430,11 +443,6 @@ let simplify pformula =
   if is_tautology f then None
   else Some { pformula with formula = f }
 
-module FormulaSet = Set.Make(struct
-  type t = formula
-  let compare = Stdlib.compare
-end)
-
 let rec canonical_lit = function
   | Eq (f, g) ->
       let f, g = canonical_lit f, canonical_lit g in
@@ -446,19 +454,39 @@ let canonical pformula =
   let lits = sort Stdlib.compare (map canonical_lit (clausify pformula)) in
   rename_vars (fold_left1 _or lits)
 
+module FormulaSet = Set.Make (struct
+  type t = formula
+  let compare = Stdlib.compare
+end)
+
+module PFQueue = Psq.Make (struct
+  type t = pformula
+  let compare = Stdlib.compare
+end) (struct
+  type t = float * int
+  let compare = Stdlib.compare
+end)
+
+let queue_add queue pformulas =
+  let queue_element p =
+    (p, (p.cost, if p.goal then 0 else 1)) in
+  let extra = PFQueue.of_list (map queue_element pformulas) in
+  PFQueue.(++) queue extra
+
 let refute pformulas =
   print_newline ();
   let found = FormulaSet.of_list (map canonical pformulas) in
-  let queue = Queue.of_seq (to_seq pformulas) in
-  let rec loop found used =
-    match (Queue.take_opt queue) with
+  let queue = queue_add PFQueue.empty pformulas in
+  let rec loop queue found used =
+    match PFQueue.pop queue with
       | None -> None
-      | Some pformula ->
+      | Some ((pformula, _cost), queue) ->
           print_formula false "given: " pformula;
           let new_pformulas =
             concat_map (all_super pformula) used @
-            all_eres pformula @ all_oc pformula in
-          let new_pformulas = filter_map simplify new_pformulas in
+            all_eres pformula @ all_oc pformula |>
+              filter (fun p -> p.cost <= max_cost) |>
+              filter_map simplify in
           let dup_check (found, out) p =
             let f = canonical p in
             if FormulaSet.mem f found then (found, out)
@@ -470,13 +498,12 @@ let refute pformulas =
           match find_opt (fun p -> p.formula = _false) new_pformulas with
             | Some c -> Some c
             | None ->
-                queue_add queue new_pformulas;
-                loop found used
-  in loop found []
+                let queue = queue_add queue new_pformulas in
+                loop queue found used
+  in loop queue found []
 
 let to_pformula stmt = stmt_formula stmt |> Option.map (fun f ->
-  let init_cost = if is_inductive f then 1 else 0 in
-  create_pformula (stmt_name stmt) [] (rename_vars f) init_cost)
+  create_pformula (stmt_name stmt) [] (rename_vars f) 0.0)
 
 let prove known_stmts stmt =
   formula_counter := 0;
@@ -486,7 +513,7 @@ let prove known_stmts stmt =
       | None -> None) in
   let pformula = Option.get (to_pformula stmt) in
   let negated =
-    create_pformula "negate" [pformula] (_not pformula.formula) 0 in
+    create_pformula "negate" [pformula] (_not pformula.formula) (-1.0) in
   refute (known @ [negated])
 
 let prove_all prog =
