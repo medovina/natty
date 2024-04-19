@@ -17,7 +17,8 @@ type pformula = {
 }
 
 let print_formula with_origin prefix pformula =
-  let prefix = prefix ^ sprintf "%d. " (pformula.id) in
+  let prefix =
+    if pformula.id > 0 then prefix ^ sprintf "%d. " (pformula.id) else prefix in
   let origin =
     if with_origin then sprintf " [%s]" (comma_join
       ((pformula.parents |> map (fun p -> string_of_int (p.id))) @ [pformula.rule]))
@@ -42,11 +43,11 @@ let mk_pformula rule parents formula delta =
     goal = as_goal || exists (fun p -> p.goal) parents;
     cost = if as_goal then 0.0 else merge_cost parents delta }
 
-let number_formula clause =
+let number_formula pformula =
   incr formula_counter;
-  let clause = { clause with id = !formula_counter } in
-  print_formula true "" clause;
-  clause
+  let pformula = { pformula with id = !formula_counter } in
+  print_formula true "" pformula;
+  pformula
 
 let create_pformula rule parents formula delta =
   number_formula (mk_pformula rule parents formula delta)
@@ -321,40 +322,40 @@ let top_positive u c =
  *     (viii) if t'σ = ⊥, u is at the top level of a positive literal
  *)
 let super dp d' t_t' cp c c1 =
-  match terms t_t' with
+  let pairs = match terms t_t' with
     | (false, _, _) -> []
-    | (true, t, t') ->
-        let+ t, t' = [(t, t'); (t', t)] |>
-          filter (fun (t, t') -> not (term_ge t' t)) in  (* iii: pre-check *)
-        let+ (u, parent_eq) = green_subterms c1 |>
-          filter (fun (u, _) -> not (is_var u || is_fluid u)) in  (* i, ii *)
-        match unify t u with
-          | None -> []
-          | Some sub ->
-              let d'_s = map (rsubst sub) d' in
-              let t_s, t'_s = rsubst sub t, rsubst sub t' in
-              let t_eq_t'_s = Eq (t_s, t'_s) in
-              let d_s = t_eq_t'_s :: d'_s in
-              let c_s = map (rsubst sub) c in
-              let c1_s = rsubst sub c1 in
-              if term_ge t'_s t_s ||  (* iii *)
-                 not (is_maximal lit_gt c1_s c_s) ||  (* iv *)
-                 not (is_eligible sub parent_eq) ||  (* iv *)
-                 clause_gt d_s c_s ||  (* v *)
-                 not (is_maximal lit_gt t_eq_t'_s d'_s) ||  (* vi *)
-                 is_applied_symbol t_s || (* vii *)
-                 t'_s = _false && not (top_positive u c1)  (* viii *)
-              then [] else
-                let c1_t' = replace_in_formula t' u c1 in
-                let c_s = replace1 (rsubst sub c1_t') c1_s c_s in
-                let e = multi_or (d'_s @ c_s) in
-                let tt'_show = str_replace "\\$" "" (show_formula (Eq (t, t'))) in
-                let u_show = show_formula u in
-                let rule = sprintf "sup: %s / %s" tt'_show u_show in
-                let w, cw = basic_weight e, basic_weight cp.formula in
-                let cost =
-                  if w < cw then 0.01 else if w = cw then 0.02 else 1.0 in
-                [mk_pformula rule [dp; cp] (unprefix_vars e) cost]
+    | (true, t, t') -> [(t, t'); (t', t)] |>
+        filter (fun (t, t') -> not (term_ge t' t)) in  (* iii: pre-check *)
+  let+ (t, t') = pairs in
+  let+ (u, parent_eq) = green_subterms c1 |>
+    filter (fun (u, _) -> not (is_var u || is_fluid u)) in  (* i, ii *)
+  match unify t u with
+    | None -> []
+    | Some sub ->
+        let d'_s = map (rsubst sub) d' in
+        let t_s, t'_s = rsubst sub t, rsubst sub t' in
+        let t_eq_t'_s = Eq (t_s, t'_s) in
+        let d_s = t_eq_t'_s :: d'_s in
+        let c_s = map (rsubst sub) c in
+        let c1_s = rsubst sub c1 in
+        if term_ge t'_s t_s ||  (* iii *)
+            not (is_maximal lit_gt c1_s c_s) ||  (* iv *)
+            not (is_eligible sub parent_eq) ||  (* iv *)
+            clause_gt d_s c_s ||  (* v *)
+            not (is_maximal lit_gt t_eq_t'_s d'_s) ||  (* vi *)
+            is_applied_symbol t_s || (* vii *)
+            t'_s = _false && not (top_positive u c1)  (* viii *)
+        then [] else
+          let c1_t' = replace_in_formula t' u c1 in
+          let c_s = replace1 (rsubst sub c1_t') c1_s c_s in
+          let e = multi_or (d'_s @ c_s) in
+          let tt'_show = str_replace "\\$" "" (show_formula (Eq (t, t'))) in
+          let u_show = show_formula u in
+          let rule = sprintf "sup: %s / %s" tt'_show u_show in
+          let w, cw = basic_weight e, basic_weight cp.formula in
+          let cost =
+            if w < cw then 0.01 else if w = cw then 0.02 else 1.0 in
+          [mk_pformula rule [dp; cp] (unprefix_vars e) cost]
 
 let all_super dp cp =
   let new_cost = merge_cost [dp; cp] 0.0 in
@@ -454,7 +455,7 @@ let canonical pformula =
   let lits = sort Stdlib.compare (map canonical_lit (clausify pformula)) in
   rename_vars (fold_left1 _or lits)
 
-module FormulaSet = Set.Make (struct
+module FormulaMap = Map.Make (struct
   type t = formula
   let compare = Stdlib.compare
 end)
@@ -475,7 +476,8 @@ let queue_add queue pformulas =
 
 let refute pformulas =
   print_newline ();
-  let found = FormulaSet.of_list (map canonical pformulas) in
+  let found = FormulaMap.of_list (pformulas |> map
+    (fun p -> (canonical p, p))) in
   let queue = queue_add PFQueue.empty pformulas in
   let rec loop queue found used =
     match PFQueue.pop queue with
@@ -489,10 +491,15 @@ let refute pformulas =
               filter_map simplify in
           let dup_check (found, out) p =
             let f = canonical p in
-            if FormulaSet.mem f found then (found, out)
-            else (FormulaSet.add f found, p :: out) in
+            match FormulaMap.find_opt f found with
+              | Some pf ->
+                  print_formula true (sprintf "duplicate of #%d: " pf.id) p;
+                  (found, out)
+              | None ->
+                  let p = number_formula p in
+                  (FormulaMap.add f p found, p :: out) in
           let (found, new_pformulas) = fold_left dup_check (found, []) new_pformulas in
-          let new_pformulas = map number_formula (rev new_pformulas) in
+          let new_pformulas = rev new_pformulas in
           let used = pformula :: used in
           print_newline ();
           match find_opt (fun p -> p.formula = _false) new_pformulas with
