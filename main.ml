@@ -4,11 +4,12 @@ open Printf
 open Ext_prove
 open Util
 
-type parsed_args = {
+type options = {
+  debug: int;
+  show_proofs: bool;
   prover: string;
   command: string;
   command_args: string list;
-  debug: int;
   id_limit: int;
   depth_limit: int;
   min_roots: int
@@ -17,7 +18,8 @@ type parsed_args = {
 let parse_args args =
   let (args, file) = split_last args in
   let rec parse = function
-    | [] -> { prover = ""; command = ""; command_args = []; debug = 0;
+    | [] -> { debug = 0; show_proofs = false; prover = "";
+              command = ""; command_args = []; 
               depth_limit = 0; id_limit = 0; min_roots = 0 }
     | arg :: rest ->
         let args = parse rest in
@@ -30,8 +32,9 @@ let parse_args args =
               { args with debug = level }
             | 'h' -> { args with depth_limit = int_param () }
             | 'l' -> { args with id_limit = int_param () }
-            | 'p' -> { args with prover = "e" }
+            | 'p' -> { args with show_proofs = true }
             | 'r' -> { args with min_roots = int_param () }
+            | 'x' -> { args with prover = "e" }
             | _ -> failwith "unknown option"
         else (
           assert (args.command = "");
@@ -46,7 +49,8 @@ let usage () =
   global options:
     -d<level>     debug level
                     (0 = default, 1 = thf log + proof graph, 2 = trace file)
-    -p            use external prover (E)
+    -p            output proofs
+    -x            use external prover (E)
 
   commands:
     process       process .thf log
@@ -63,7 +67,7 @@ if Array.length Sys.argv = 1 then usage();
 
 let (args, source) = parse_args (tl (Array.to_list Sys.argv)) in
 match args with
-  | { command = ""; debug; prover; _ } -> (
+  | { command = ""; debug; show_proofs; prover; _ } -> (
       match Parser.parse (open_in source) with
         | Success prog ->
             let prog = Check.check_program prog in
@@ -79,7 +83,7 @@ match args with
               );
               mk_dir dir;
               write_file dir_source (read_file source));
-            if prover = "" then Prove.prove_all debug prog else (
+            if prover = "" then Prove.prove_all debug show_proofs prog else (
               if debug > 0 then clean_dir (dir ^ "_dbg");
               let names = write_files dir prog in
               ext_prove debug dir names)

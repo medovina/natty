@@ -20,16 +20,18 @@ type pformula = {
 }
 
 let print_formula with_origin prefix pformula =
-  if !debug > 0 then
-    let prefix =
-      if pformula.id > 0 then prefix ^ sprintf "%d. " (pformula.id) else prefix in
-    let origin =
-      if with_origin then sprintf " [%s]" (comma_join
-        ((pformula.parents |> map (fun p -> string_of_int (p.id))) @ [pformula.rule]))
-      else "" in
-    printf "%s%s {%s%.2f}\n"
-      (indent_with_prefix prefix (show_multi pformula.formula))
-      origin (if pformula.goal then "g " else "") pformula.cost
+  let prefix =
+    if pformula.id > 0 then prefix ^ sprintf "%d. " (pformula.id) else prefix in
+  let origin =
+    if with_origin then sprintf " [%s]" (comma_join
+      ((pformula.parents |> map (fun p -> string_of_int (p.id))) @ [pformula.rule]))
+    else "" in
+  printf "%s%s {%s%.2f}\n"
+    (indent_with_prefix prefix (show_multi pformula.formula))
+    origin (if pformula.goal then "g " else "") pformula.cost
+
+let dbg_print_formula with_origin prefix pformula =
+  if !debug > 0 then print_formula with_origin prefix pformula
 
 let is_inductive pformula = match kind pformula.formula with
   | Quant ("∀", _, Fun (_, Bool), _) -> true
@@ -42,12 +44,8 @@ let merge_cost parents = match parents with
     | [] -> 0.0
     | [p] -> p.cost
     | _ ->
-      let rec search visited acc = function
-        | [] -> acc
-        | p :: rest ->
-            let ns = subtractq p.parents visited in
-            search (ns @ visited) (acc +. p.delta) (ns @ rest) in
-      search parents 0.0 parents
+      let ancestors = search parents (fun p -> p.parents) in
+      sum (ancestors |> map (fun p -> p.delta))
 
 let total_cost parents delta =
   merge_cost parents +. adjust_delta parents delta
@@ -64,7 +62,7 @@ let mk_pformula rule parents formula delta =
 let number_formula pformula =
   incr formula_counter;
   let pformula = { pformula with id = !formula_counter } in
-  print_formula true "" pformula;
+  dbg_print_formula true "" pformula;
   pformula
 
 let create_pformula rule parents formula delta =
@@ -507,7 +505,7 @@ let refute pformulas =
     match PFQueue.pop queue with
       | None -> None
       | Some ((pformula, _cost), queue) ->
-          print_formula false "given: " pformula;
+          dbg_print_formula false "given: " pformula;
           let new_pformulas =
             concat_map (all_super pformula) used @
             all_eres pformula @ all_oc pformula |>
@@ -517,7 +515,7 @@ let refute pformulas =
             let f = canonical p in
             match FormulaMap.find_opt f found with
               | Some pf ->
-                  print_formula true (sprintf "duplicate of #%d: " pf.id) p;
+                  dbg_print_formula true (sprintf "duplicate of #%d: " pf.id) p;
                   (found, out)
               | None ->
                   let p = number_formula p in
@@ -547,7 +545,13 @@ let prove known_stmts stmt =
     create_pformula "negate" [pformula] (_not pformula.formula) (-1.0) in
   refute (known @ [negated])
 
-let prove_all _debug prog =
+let output_proof pformula =
+  let steps = search [pformula] (fun p -> p.parents) in
+  let id_compare p q = Int.compare p.id q.id in
+  List.sort id_compare steps |> iter (print_formula true "");
+  print_newline ()
+
+let prove_all _debug show_proofs prog =
   debug := _debug;
   let rec prove_stmts known_stmts = function
     | [] -> print_endline "All theorems were proved."
@@ -557,9 +561,10 @@ let prove_all _debug prog =
               print_endline (show_statement true stmt ^ "\n");
               let start = Sys.time () in
                 match prove known_stmts stmt with
-                  | Some _clause ->
+                  | Some pformula ->
                       let elapsed = Sys.time () -. start in
                       printf "proved in %.2f s\n\n" elapsed;
+                      if show_proofs then output_proof pformula;
                       true
                   | None -> false)
           | _ -> true) then (

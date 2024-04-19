@@ -178,6 +178,16 @@ let is_maximal gt x ys =
 
 let sum xs = fold_left (+.) 0.0 xs
 
+(* search *)
+
+let search xs neighbors =
+  let rec loop visited = function
+    | [] -> visited
+    | x :: rest ->
+        let ns = subtractq (neighbors x) visited in
+        loop (ns @ visited) (ns @ rest) in
+  loop xs xs
+
 (* I/O *)
 
 let mk_path = Filename.concat
