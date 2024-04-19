@@ -311,10 +311,13 @@ let unify =
         if c = c' && typ = typ' then Some subst else None
     | Var (x, typ), f | f, Var (x, typ) ->
         if typ = type_of f then
-          let f = subst_n subst f in
-          if mem x (free_vars f) then None else
-            let subst = subst |> map (fun (y, g) -> (y, subst1 g f x)) in
-            Some ((x, f) :: subst)
+          match assoc_opt x subst with
+            | Some g -> unify' subst f g
+            | None ->
+                let f = subst_n subst f in
+                if mem x (free_vars f) then None else
+                  let subst = subst |> map (fun (y, g) -> (y, subst1 g f x)) in
+                  Some ((x, f) :: subst)
         else None
     | App (f, g), App (f', g') | Eq (f, g), Eq (f', g') ->
         let* subst = unify' subst f f' in

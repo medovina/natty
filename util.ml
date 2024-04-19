@@ -137,6 +137,8 @@ let overlap xs ys = intersect xs ys <> []
 
 let subtract xs ys = filter (fun x -> not (mem x ys)) xs
 
+let subtractq xs ys = filter (fun x -> not (memq x ys)) xs
+
 let remove x xs = subtract xs [x]
 
 let rec remove1 x = function

@@ -13,6 +13,7 @@ type pformula = {
   parents: pformula list;
   formula: formula;
   goal: bool;
+  delta: float;
   cost: float
 }
 
@@ -30,18 +31,32 @@ let print_formula with_origin prefix pformula =
 let is_inductive pformula = match kind pformula.formula with
   | Quant ("∀", _, Fun (_, Bool), _) -> true
   | _ -> false
-  
-let merge_cost parents delta =
-  sum (map (fun p -> p.cost) parents) +.
-    (if exists is_inductive parents then 1.0 else delta)
+
+let adjust_delta parents delta =
+  if exists is_inductive parents then 1.0 else delta
+
+let merge_cost parents = match parents with
+    | [] -> 0.0
+    | [p] -> p.cost
+    | _ ->
+      let rec search visited acc = function
+        | [] -> acc
+        | p :: rest ->
+            let ns = subtractq p.parents visited in
+            search (ns @ visited) (acc +. p.delta) (ns @ rest) in
+      search parents 0.0 parents
+
+let total_cost parents delta =
+  merge_cost parents +. adjust_delta parents delta
 
 let max_cost = 1.3
 
 let mk_pformula rule parents formula delta =
-  let as_goal = delta = -1.0 in
+  let (as_goal, delta) = if delta = -1.0 then (true, 0.0) else (false, delta) in
   { id = 0; rule; parents; formula;
     goal = as_goal || exists (fun p -> p.goal) parents;
-    cost = if as_goal then 0.0 else merge_cost parents delta }
+    delta = adjust_delta parents delta;
+    cost = total_cost parents delta }
 
 let number_formula pformula =
   incr formula_counter;
@@ -304,9 +319,11 @@ let rec mini_clausify f = match bool_kind f with
     | _ -> [f])
   | _ -> [f]
 
-let top_positive u c =
-  mem u (mini_clausify c) &&
-    let (pos, _, _) = terms u in pos
+let top_positive u c sub inductive =
+  let (pos, _, _) = terms u in 
+  let cs = mini_clausify c in
+  pos && mem u cs &&
+    (inductive || is_maximal lit_gt (rsubst sub u) (map (rsubst sub) cs))
 
 (*      D:[D' ∨ t = t']    C⟨u⟩
  *    ───────────────────────────   sup
@@ -323,7 +340,9 @@ let top_positive u c =
  *)
 let super dp d' t_t' cp c c1 =
   let pairs = match terms t_t' with
-    | (false, _, _) -> []
+    | (false, _, _) -> (match bool_kind t_t' with
+        | Not (Eq _ as eq) -> [(eq, _false)]
+        | _ -> failwith "super")
     | (true, t, t') -> [(t, t'); (t', t)] |>
         filter (fun (t, t') -> not (term_ge t' t)) in  (* iii: pre-check *)
   let+ (t, t') = pairs in
@@ -341,10 +360,10 @@ let super dp d' t_t' cp c c1 =
         if term_ge t'_s t_s ||  (* iii *)
             not (is_maximal lit_gt c1_s c_s) ||  (* iv *)
             not (is_eligible sub parent_eq) ||  (* iv *)
-            clause_gt d_s c_s ||  (* v *)
+            t'_s <> _false && clause_gt d_s c_s ||  (* v *)
             not (is_maximal lit_gt t_eq_t'_s d'_s) ||  (* vi *)
             is_applied_symbol t_s || (* vii *)
-            t'_s = _false && not (top_positive u c1)  (* viii *)
+            t'_s = _false && not (top_positive u c1 sub (is_inductive cp))  (* viii *)
         then [] else
           let c1_t' = replace_in_formula t' u c1 in
           let c_s = replace1 (rsubst sub c1_t') c1_s c_s in
@@ -358,8 +377,7 @@ let super dp d' t_t' cp c c1 =
           [mk_pformula rule [dp; cp] (unprefix_vars e) cost]
 
 let all_super dp cp =
-  let new_cost = merge_cost [dp; cp] 0.0 in
-  if new_cost > max_cost then []
+  if total_cost [dp; cp] 0.0 > max_cost then []
   else (
     let d_steps, c_steps = clausify_steps dp, clausify_steps cp in
     let+ (dp, d_steps, cp, c_steps) =
