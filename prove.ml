@@ -5,6 +5,8 @@ open Logic
 open Statement
 open Util
 
+let debug = ref 0
+
 let formula_counter = ref 0
 
 type pformula = {
@@ -18,15 +20,16 @@ type pformula = {
 }
 
 let print_formula with_origin prefix pformula =
-  let prefix =
-    if pformula.id > 0 then prefix ^ sprintf "%d. " (pformula.id) else prefix in
-  let origin =
-    if with_origin then sprintf " [%s]" (comma_join
-      ((pformula.parents |> map (fun p -> string_of_int (p.id))) @ [pformula.rule]))
-    else "" in
-  printf "%s%s {%s%.2f}\n"
-    (indent_with_prefix prefix (show_multi pformula.formula))
-    origin (if pformula.goal then "g " else "") pformula.cost
+  if !debug > 0 then
+    let prefix =
+      if pformula.id > 0 then prefix ^ sprintf "%d. " (pformula.id) else prefix in
+    let origin =
+      if with_origin then sprintf " [%s]" (comma_join
+        ((pformula.parents |> map (fun p -> string_of_int (p.id))) @ [pformula.rule]))
+      else "" in
+    printf "%s%s {%s%.2f}\n"
+      (indent_with_prefix prefix (show_multi pformula.formula))
+      origin (if pformula.goal then "g " else "") pformula.cost
 
 let is_inductive pformula = match kind pformula.formula with
   | Quant ("∀", _, Fun (_, Bool), _) -> true
@@ -492,8 +495,11 @@ let queue_add queue pformulas =
   let extra = PFQueue.of_list (map queue_element pformulas) in
   PFQueue.(++) queue extra
 
+let dbg_newline () =
+  if !debug > 0 then print_newline ()
+
 let refute pformulas =
-  print_newline ();
+  dbg_newline ();
   let found = FormulaMap.of_list (pformulas |> map
     (fun p -> (canonical p, p))) in
   let queue = queue_add PFQueue.empty pformulas in
@@ -519,7 +525,7 @@ let refute pformulas =
           let (found, new_pformulas) = fold_left dup_check (found, []) new_pformulas in
           let new_pformulas = rev new_pformulas in
           let used = pformula :: used in
-          print_newline ();
+          dbg_newline ();
           match find_opt (fun p -> p.formula = _false) new_pformulas with
             | Some c -> Some c
             | None ->
@@ -534,24 +540,28 @@ let prove known_stmts stmt =
   formula_counter := 0;
   let known = known_stmts |> filter_map (fun s ->
     match to_pformula s with
-      | Some p -> print_newline(); Some p
+      | Some p -> dbg_newline (); Some p
       | None -> None) in
   let pformula = Option.get (to_pformula stmt) in
   let negated =
     create_pformula "negate" [pformula] (_not pformula.formula) (-1.0) in
   refute (known @ [negated])
 
-let prove_all prog =
+let prove_all _debug prog =
+  debug := _debug;
   let rec prove_stmts known_stmts = function
     | [] -> print_endline "All theorems were proved."
     | stmt :: rest ->
         if (match stmt with
           | Theorem _ -> (
-              match prove known_stmts stmt with
-                | Some _clause ->
-                    printf "proof found!\n\n";
-                    true
-                | None -> false)
+              print_endline (show_statement true stmt ^ "\n");
+              let start = Sys.time () in
+                match prove known_stmts stmt with
+                  | Some _clause ->
+                      let elapsed = Sys.time () -. start in
+                      printf "proved in %.2f s\n\n" elapsed;
+                      true
+                  | None -> false)
           | _ -> true) then (
           prove_stmts (known_stmts @ [stmt]) rest)
         else print_endline "Not proved.\n" in

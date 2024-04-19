@@ -74,13 +74,13 @@ let axiom_named name = function
   | _ -> None
 
 let show_statement multi s =
-  let show = show_formula_multi multi in
-  stmt_name s ^ match s with
-    | TypeDecl _ -> ""
-    | ConstDecl (_, typ) -> sprintf " : %s" (show_type typ)
-    | Axiom (_, f, _) -> sprintf ": %s" (show f)
+  let name = stmt_name s in
+  let show prefix f =
+    indent_with_prefix (name ^ ": " ^ prefix) (show_formula_multi multi f) in
+  match s with
+    | TypeDecl _ -> name
+    | ConstDecl (_, typ) -> sprintf "%s : %s" name (show_type typ)
+    | Axiom (_, f, _) -> show "" f
     | Definition (_, typ, f) ->
-        sprintf " : %s ; %s" (show_type typ) (show f)
-    | Theorem (_, t, _) -> ":" ^
-        (if multi then "\n" ^ indent_lines 2 (show t)
-        else " " ^ show t)
+        show (sprintf "%s ; " (show_type typ)) f
+    | Theorem (_, f, _) -> show "" f
