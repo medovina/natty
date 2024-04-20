@@ -99,7 +99,7 @@ let count_vars f =
 let lookup_var v vars = opt_default (assoc_opt v vars) 0
 
 let sym_weight for_kb = function
-  | "∀" | "∃" -> if for_kb then 1_000_000 else 1
+  | "∀" | "∃" -> if for_kb then 1_000_000 else 0
   | _ -> 1
 
 let term_weight for_kb =
