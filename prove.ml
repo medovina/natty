@@ -387,7 +387,8 @@ let super dp d' t_t' cp c c1 =
           [mk_pformula rule [dp; cp] (unprefix_vars e) cost]
 
 let all_super dp cp =
-  if total_cost [dp; cp] 0.0 > max_cost then []
+  if total_cost [dp; cp] 0.0 > max_cost ||
+    dp = cp && is_inductive dp then []
   else (
     let d_steps, c_steps = clausify_steps dp, clausify_steps cp in
     let+ (dp, d_steps, cp, c_steps) =
@@ -455,7 +456,7 @@ let rewrite dp cp =
               let t_s, t'_s = u, rsubst sub t' in
               if term_gt t_s t'_s &&  (* (i) *)
                  clause_gt (clausify cp) [Eq (t_s, t'_s)] then (* (ii) *)
-                let e = replace_in_formula t'_s t_s u in
+                let e = replace_in_formula t'_s t_s c in
                 [mk_pformula "rw" [dp; cp] e 0.0]
               else []
           | _ -> [])
