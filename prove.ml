@@ -284,17 +284,24 @@ let unprefix_vars f =
     | f -> map_formula (fix outer) f in
   fix [] f
   
-let green_subterms t =
+let subterms is_blue t =
   let rec gather parent_eq acc t = (t, parent_eq) :: match t with
     | App _ ->
         let (head, args) = collect_args t in
-        if head = c_for_all || head = c_exists then acc
+        if head = c_for_all || head = c_exists then
+          if is_blue then match args with
+            | [Lambda (_x, _typ, f)] -> gather parent_eq acc f
+            | _ -> acc
+          else acc
         else fold_left (gather parent_eq) acc args
     | Eq (f, g) ->
         let acc = gather ((f, g) :: parent_eq) acc f in
         gather ((g, f) :: parent_eq) acc g
     | _-> acc in
   gather [] [] t
+
+let green_subterms = subterms false
+let blue_subterms t = map fst (subterms true t)
 
 let is_fluid t = match t with
   | App _ ->
@@ -326,6 +333,9 @@ let top_positive u c sub inductive =
   pos && mem u cs &&
     (inductive || is_maximal lit_gt (rsubst sub u) (map (rsubst sub) cs))
 
+let eq_pairs t t' = [(t, t'); (t', t)] |>
+  filter (fun (t, t') -> not (term_ge t' t))
+
 (*      D:[D' ∨ t = t']    C⟨u⟩
  *    ───────────────────────────   sup
  *          (D' ∨ C⟨t'⟩)σ             σ ∈ csu(t, u)
@@ -337,15 +347,14 @@ let top_positive u c sub inductive =
  *     (v) Cσ ≰ Dσ
  *     (vi) t = t' is maximal in D w.r.t. σ
  *     (vii) tσ is not a fully applied logical symbol
- *     (viii) if t'σ = ⊥, u is at the top level of a positive literal
- *)
+ *     (viii) if t'σ = ⊥, u is at the top level of a positive literal  *)
+
 let super dp d' t_t' cp c c1 =
   let pairs = match terms t_t' with
     | (false, _, _) -> (match bool_kind t_t' with
         | Not (Eq _ as eq) -> [(eq, _false)]
         | _ -> failwith "super")
-    | (true, t, t') -> [(t, t'); (t', t)] |>
-        filter (fun (t, t') -> not (term_ge t' t)) in  (* iii: pre-check *)
+    | (true, t, t') -> eq_pairs t t' in   (* iii: pre-check *)
   let+ (t, t') = pairs in
   let+ (u, parent_eq) = green_subterms c1 |>
     filter (fun (u, _) -> not (is_var u || is_fluid u)) in  (* i, ii *)
@@ -406,7 +415,11 @@ let eres cp c' c_lit =
 
 let all_eres cp = run_clausify cp eres
 
-let all_oc pformula =
+(*     (s ∧ t) ∨ C
+ *    ──────────────   split
+ *     s ∨ C, t ∨ C      *)
+
+let all_split pformula =
   let rec run lits =
     match clausify_step pformula lits with
       | None -> []
@@ -422,6 +435,38 @@ let all_oc pformula =
             | Some new_formulas -> new_formulas
             | None -> run lits in
   if is_inductive pformula then [] else run []
+
+(*     t = t'    C⟨tσ⟩
+ *   ═══════════════════   demod
+ *     t = t'    C⟨t'σ⟩
+ *
+ *   (i) tσ > t'σ
+ *   (ii) C > (t = t')σ   *)
+
+let rewrite dp cp =
+  match remove_universal dp.formula with
+    | Eq (t, t') ->
+        let+ (t, t') = eq_pairs t t' (* i: pre-check *) in
+        let t, t' = prefix_vars t, prefix_vars t' in
+        let c = cp.formula in
+        let+ u = blue_subterms c in (
+        match try_match t u with
+          | Some sub ->
+              let t_s, t'_s = u, rsubst sub t' in
+              if term_gt t_s t'_s &&  (* (i) *)
+                 clause_gt (clausify cp) [Eq (t_s, t'_s)] then (* (ii) *)
+                let e = replace_in_formula t'_s t_s u in
+                [mk_pformula "rw" [dp; cp] e 0.0]
+              else []
+          | _ -> [])
+    | _ -> []
+
+let rewrite_from ps q =
+  let rewrite_opt cp dp =
+    match rewrite dp cp with
+      | new_cp :: _ -> Some new_cp
+      | _ -> None in
+  find_map (rewrite_opt q) ps
 
 let rec expand f = match split f with
   | Some (s, t) -> expand s @ expand t
@@ -496,6 +541,41 @@ let queue_add queue pformulas =
 let dbg_newline () =
   if !debug > 0 then print_newline ()
 
+let rec rw_simplify existing used found p =
+  let (rewritten, p) = match rewrite_from used p with
+    | Some p -> (true, p)
+    | None -> (false, p) in
+  if existing && not rewritten then Some (p, found)
+  else match simplify p with
+    | None -> None
+    | Some p ->
+        let f = canonical p in
+        match FormulaMap.find_opt f found with
+          | Some pf ->
+              dbg_print_formula true (sprintf "duplicate of #%d: " pf.id) p;
+              None
+          | None ->
+              let p = number_formula p in
+              let found = FormulaMap.add f p found in
+              if rewritten then rw_simplify true used found p
+              else Some (p, found)
+
+let rec rw_simplify_all used found = function
+  | [] -> ([], found)
+  | p :: ps ->
+      let (ps', found) = rw_simplify_all used found ps in
+      match rw_simplify false used found p with
+        | None -> (ps', found)
+        | Some (p', found) -> (p' :: ps', found)
+
+let rec back_simplify from = function
+  | [] -> ([], [])
+  | p :: ps ->
+      let (ps', rewritten) = back_simplify from ps in
+      match rewrite_from [from] p with
+        | Some p' -> (ps', p' :: rewritten)
+        | None -> (p :: ps', rewritten)
+
 let refute pformulas =
   dbg_newline ();
   let found = FormulaMap.of_list (pformulas |> map
@@ -504,31 +584,24 @@ let refute pformulas =
   let rec loop queue found used =
     match PFQueue.pop queue with
       | None -> None
-      | Some ((pformula, _cost), queue) ->
-          dbg_print_formula false "given: " pformula;
-          let new_pformulas =
-            concat_map (all_super pformula) used @
-            all_eres pformula @ all_oc pformula |>
-              filter (fun p -> p.cost <= max_cost) |>
-              filter_map simplify in
-          let dup_check (found, out) p =
-            let f = canonical p in
-            match FormulaMap.find_opt f found with
-              | Some pf ->
-                  dbg_print_formula true (sprintf "duplicate of #%d: " pf.id) p;
-                  (found, out)
-              | None ->
-                  let p = number_formula p in
-                  (FormulaMap.add f p found, p :: out) in
-          let (found, new_pformulas) = fold_left dup_check (found, []) new_pformulas in
-          let new_pformulas = rev new_pformulas in
-          let used = pformula :: used in
-          dbg_newline ();
-          match find_opt (fun p -> p.formula = _false) new_pformulas with
-            | Some c -> Some c
-            | None ->
-                let queue = queue_add queue new_pformulas in
-                loop queue found used
+      | Some ((p, _cost), queue) ->
+          dbg_print_formula false "given: " p;
+          match rw_simplify true used found p with
+            | None -> loop queue found used
+            | Some (p, found) ->
+                let (used, rewritten) = back_simplify p used in
+                let used = p :: used in
+                let generated =
+                  concat_map (all_super p) used @ all_eres p @ all_split p |>
+                    filter (fun p -> p.cost <= max_cost) in
+                let (new_pformulas, found) =
+                  rw_simplify_all used found (rewritten @ generated) in
+                dbg_newline ();
+                match find_opt (fun p -> p.formula = _false) new_pformulas with
+                  | Some c -> Some c
+                  | None ->
+                      let queue = queue_add queue new_pformulas in
+                      loop queue found used
   in loop queue found []
 
 let to_pformula stmt = stmt_formula stmt |> Option.map (fun f ->

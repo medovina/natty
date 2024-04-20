@@ -271,7 +271,7 @@ let rec remove_universal f = match bool_kind f with
 let rec rename id avoid =
   if mem id avoid then rename (id ^ "'") avoid else id
 
-(* replace v with u in t *)
+(* replace [u/v] in t *)
 let rec replace_in_formula u v t =
   if t == v then u  (* physical equality test *)
   else map_formula (replace_in_formula u v) t 
@@ -305,11 +305,11 @@ let eta = function
   | Lambda (id, typ, App (f, Var (id', typ'))) when id = id' && typ = typ' -> f  
   | f -> f
 
-let unify =
+let unify_or_match is_unify =
   let rec unify' subst t u = match eta t, eta u with
     | Const (c, typ), Const (c', typ') ->
         if c = c' && typ = typ' then Some subst else None
-    | Var (x, typ), f | f, Var (x, typ) ->
+    | Var (x, typ), f | f, Var (x, typ) when is_unify ->
         if typ = type_of f then
           match assoc_opt x subst with
             | Some g -> unify' subst f g
@@ -324,6 +324,9 @@ let unify =
         unify' subst g g'
     | _, _ -> None
   in unify' []
+
+let unify = unify_or_match true
+let try_match = unify_or_match false
 
 let multi_eq f =
   let rec collect = function
