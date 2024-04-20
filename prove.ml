@@ -61,12 +61,12 @@ let mk_pformula rule parents formula delta =
 
 let number_formula pformula =
   incr formula_counter;
-  let pformula = { pformula with id = !formula_counter } in
-  dbg_print_formula true "" pformula;
-  pformula
+  { pformula with id = !formula_counter }
 
 let create_pformula rule parents formula delta =
-  number_formula (mk_pformula rule parents formula delta)
+  let pformula = number_formula (mk_pformula rule parents formula delta) in
+  dbg_print_formula true "" pformula;
+  pformula
 
 (* Symbol precedence.  ⊥ > ⊤ have the lowest precedence.  We group other
  * symbols by arity, then (arbitrarily) alphabetically. *)
@@ -542,30 +542,46 @@ let queue_add queue pformulas =
 let dbg_newline () =
   if !debug > 0 then print_newline ()
 
-let rec rw_simplify existing used found p =
-  let (rewritten, p) = match rewrite_from used p with
-    | Some p -> (true, p)
-    | None -> (false, p) in
-  if existing && not rewritten then Some (p, found)
+let rw_simplify' used found p =
+  let (p, new_formulas) =
+    if p.id = 0 then
+      let p = number_formula p in (p, [p])
+    else (p, []) in
+  let rec repeat_rewrite p fs = match rewrite_from used p with
+    | None -> (p, fs)
+    | Some p ->
+        let p = number_formula p in
+        repeat_rewrite p (p :: fs) in
+  let (p, new_formulas) = repeat_rewrite p new_formulas in
+  if new_formulas = [] then Some (p, found, [])  (* no need to simplify *)
   else match simplify p with
     | None -> None
     | Some p ->
         let f = canonical p in
         match FormulaMap.find_opt f found with
           | Some pf ->
-              dbg_print_formula true (sprintf "duplicate of #%d: " pf.id) p;
+              if !debug > 0 then (
+                let prefix = sprintf "duplicate of #%d: " pf.id in
+                printf "%s\n" (indent_with_prefix prefix (show_multi p.formula)));
               None
           | None ->
-              let p = number_formula p in
-              let found = FormulaMap.add f p found in
-              if rewritten then rw_simplify true used found p
-              else Some (p, found)
+              Some (p, FormulaMap.add f p found, new_formulas)
+
+let rw_simplify used found p =
+  let counter = !formula_counter in
+  match rw_simplify' used found p with
+    | None ->
+        formula_counter := counter;
+        None
+    | Some (p, found, new_formulas) ->
+        rev new_formulas |> iter (dbg_print_formula true "");
+        Some (p, found)
 
 let rec rw_simplify_all used found = function
   | [] -> ([], found)
   | p :: ps ->
       let (ps', found) = rw_simplify_all used found ps in
-      match rw_simplify false used found p with
+      match rw_simplify used found p with
         | None -> (ps', found)
         | Some (p', found) -> (p' :: ps', found)
 
@@ -587,7 +603,7 @@ let refute pformulas =
       | None -> None
       | Some ((p, _cost), queue) ->
           dbg_print_formula false "given: " p;
-          match rw_simplify true used found p with
+          match rw_simplify used found p with
             | None -> loop queue found used
             | Some (p, found) ->
                 let (used, rewritten) = back_simplify p used in

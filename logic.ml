@@ -309,7 +309,7 @@ let unify_or_match is_unify =
   let rec unify' subst t u = match eta t, eta u with
     | Const (c, typ), Const (c', typ') ->
         if c = c' && typ = typ' then Some subst else None
-    | Var (x, typ), f | f, Var (x, typ) when is_unify ->
+    | Var (x, typ), f ->
         if typ = type_of f then
           match assoc_opt x subst with
             | Some g -> unify' subst f g
@@ -319,6 +319,7 @@ let unify_or_match is_unify =
                   let subst = subst |> map (fun (y, g) -> (y, subst1 g f x)) in
                   Some ((x, f) :: subst)
         else None
+    | _f, Var (_x, _typ) when is_unify -> unify' subst u t
     | App (f, g), App (f', g') | Eq (f, g), Eq (f', g') ->
         let* subst = unify' subst f f' in
         unify' subst g g'
