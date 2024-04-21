@@ -12,8 +12,9 @@ let formula_counter = ref 0
 type pformula = {
   id: int;
   rule: string;
-  rewrites: int list;
   parents: pformula list;
+  rewrites: pformula list;
+  simp: bool;
   formula: formula;
   goal: bool;
   delta: float;
@@ -27,10 +28,10 @@ let print_formula with_origin prefix pformula =
     if with_origin then
       let parents = pformula.parents |> map (fun p -> string_of_int (p.id)) in
       let rule = if pformula.rule <> "" then [pformula.rule] else [] in
-      let rewriting = remove 0 pformula.rewrites in
-      let rw = if rewriting = [] then []
-        else [sprintf "rw(%s)" (comma_join (map string_of_int rewriting))] in
-      let simp = if mem 0 pformula.rewrites then ["simp"] else [] in
+      let rewrites = pformula.rewrites |> map (fun r -> r.id) in
+      let rw = if rewrites = [] then []
+        else [sprintf "rw(%s)" (comma_join (map string_of_int rewrites))] in
+      let simp = if pformula.simp then ["simp"] else [] in
       let all = parents @ rule @ rw @ simp in
       sprintf " [%s]" (comma_join all)
     else "" in
@@ -62,7 +63,7 @@ let max_cost = 1.3
 
 let mk_pformula rule parents formula delta =
   let (as_goal, delta) = if delta = -1.0 then (true, 0.0) else (false, delta) in
-  { id = 0; rule; rewrites = []; parents; formula;
+  { id = 0; rule; rewrites = []; simp = false; parents; formula;
     goal = as_goal || exists (fun p -> p.goal) parents;
     delta = adjust_delta parents delta;
     cost = total_cost parents delta }
@@ -451,11 +452,14 @@ let all_split pformula =
             | None -> run lits in
   if is_inductive pformula then [] else run []
 
-let update p rewriting_id f =
+let update p rewriting f =
+  let (r, simp) = match rewriting with
+    | Some p -> ([p], false)
+    | None -> ([], true) in
   if p.id = 0 then
-    { p with rewrites = add_unique rewriting_id p.rewrites; formula = f }
+    { p with rewrites = union r p.rewrites; simp = p.simp || simp; formula = f }
   else
-    { id = 0; rule = ""; rewrites = [rewriting_id]; parents = [p];
+    { id = 0; rule = ""; rewrites = r; simp; parents = [p];
       goal = p.goal; delta = 0.0; cost = p.cost; formula = f }
 
 (*     t = t'    C⟨tσ⟩
@@ -478,7 +482,7 @@ let rewrite dp cp =
               if term_gt t_s t'_s &&  (* (i) *)
                  clause_gt (clausify cp) [Eq (t_s, t'_s)] then (* (ii) *)
                 let e = replace_in_formula t'_s t_s c in
-                [update cp dp.id e]
+                [update cp (Some dp) e]
               else []
           | _ -> [])
     | _ -> []
@@ -526,7 +530,7 @@ let rec simp f = match bool_kind f with
 let simplify pformula =
   let f = simp pformula.formula in
   if f = pformula.formula then pformula
-  else update pformula 0 f
+  else update pformula None f
 
 let is_tautology f = mem _true (expand f)
 
@@ -642,7 +646,8 @@ let prove known_stmts stmt =
   refute (known @ [negated])
 
 let output_proof pformula =
-  let steps = search [pformula] (fun p -> p.parents) in
+  let steps =
+    search [pformula] (fun p -> unique (p.parents @ p.rewrites)) in
   let id_compare p q = Int.compare p.id q.id in
   List.sort id_compare steps |> iter (print_formula true "");
   print_newline ()

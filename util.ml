@@ -145,15 +145,14 @@ let rec remove1 x = function
   | [] -> failwith "not found"
   | y :: ys -> if x = y then ys else y :: remove1 x ys
 
+let union xs ys = subtract xs ys @ ys
+
 (* Replace x by y exactly once in the list zs. *)
 let rec replace1 y x = function
   | [] -> failwith "replace1"
   | z :: zs ->
       if z = x then y :: zs
       else z :: replace1 y x zs
-
-let add_unique x xs =
-  if mem x xs then xs else x :: xs
 
 let std_sort xs = sort Stdlib.compare xs
 
