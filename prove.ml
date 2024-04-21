@@ -625,18 +625,19 @@ let refute pformulas =
             | None -> loop queue found used
             | Some (p, found) ->
                 let (used, rewritten) = back_simplify p used in
-                let used = p :: used in
-                let generated =
-                  concat_map (all_super p) used @ all_eres p @ all_split p |>
-                    filter (fun p -> p.cost <= max_cost) in
-                let (new_pformulas, found) =
-                  rw_simplify_all used found (rewritten @ generated) in
-                dbg_newline ();
-                match find_opt (fun p -> p.formula = _false) new_pformulas with
-                  | Some c -> Some c
-                  | None ->
-                      let queue = queue_add queue new_pformulas in
-                      loop queue found used
+                if p.formula = _false then Some p else
+                  let used = p :: used in
+                  let generated =
+                    concat_map (all_super p) used @ all_eres p @ all_split p |>
+                      filter (fun p -> p.cost <= max_cost) in
+                  let (new_pformulas, found) =
+                    rw_simplify_all used found (rewritten @ generated) in
+                  dbg_newline ();
+                  match find_opt (fun p -> p.formula = _false) new_pformulas with
+                    | Some p -> Some p
+                    | None ->
+                        let queue = queue_add queue new_pformulas in
+                        loop queue found used
   in loop queue found []
 
 let to_pformula stmt = stmt_formula stmt |> Option.map (fun f ->
