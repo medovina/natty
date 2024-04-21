@@ -505,6 +505,7 @@ let rec simp f = match bool_kind f with
       match bool_kind f with
         | True -> _false
         | False -> _true
+        | Not g -> g
         | _ -> _not f)
   | Binary (op, p, q) ->
       let p, q = simp p, simp q in (
