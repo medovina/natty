@@ -320,7 +320,9 @@ let unify_or_match is_unify =
     | Var (x, typ), f ->
         if typ = type_of f then
           match assoc_opt x subst with
-            | Some g -> unify' subst f g
+            | Some g ->
+                if is_unify then unify' subst f g
+                else if f = g then Some subst else None
             | None ->
                 let f = subst_n subst f in
                 if mem x (free_vars f) then None else
