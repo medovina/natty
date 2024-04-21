@@ -218,10 +218,13 @@ let clausify_step pformula lits =
               subst1 f (Var (y, typ)) x
             else f in
           Some ([f], [f])
-      | Quant ("∃", x, typ, f) ->
-          let skolem = Const (sprintf "%s%d" x pformula.id, typ) in
-          let f = subst1 f skolem x in
-          Some ([f], [f])
+      | Quant ("∃", x, typ, g) ->
+          let vars_types = free_vars_types f in
+          let skolem_type = fold_right1 mk_fun_type (typ :: map snd vars_types) in
+          let skolem_const = Const (sprintf "%s%d" x pformula.id, skolem_type) in
+          let skolem = apply (skolem_const :: map mk_var' vars_types) in
+          let g = subst1 g skolem x in
+          Some ([g], [g])
       | Not g -> (match bool_kind g with
         | Binary ("→", f, g) -> Some ([_and f (_not g)], [])
         | Quant ("∀", x, typ, g) ->

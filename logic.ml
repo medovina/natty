@@ -228,18 +228,22 @@ let is_ground f =
         has_free outer t || has_free outer u in
   not (has_free [] f)
 
-let find_vars only_free f =
+let find_vars_types only_free f =
   let rec find = function
     | Const _ -> []
-    | Var (id, _) -> [id]
+    | Var (id, typ) -> [(id, typ)]
     | App (t, u) | Eq (t, u) -> find t @ find u
-    | Lambda (id, _, t) ->
-        if only_free then remove id (find t)
-        else id :: find t in
-  unique (find f)
+    | Lambda (id, typ, t) ->
+        if only_free then remove (id, typ) (find t)
+        else (id, typ) :: find t in
+  find f
+
+let find_vars only_free f =
+  unique (map fst (find_vars_types only_free f))
 
 let all_vars = find_vars false
 let free_vars = find_vars true
+let free_vars_types = find_vars_types true
 
 let consts f =
   let rec collect = function
