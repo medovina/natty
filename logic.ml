@@ -105,18 +105,19 @@ let multi_or = function
 
 let lambda id typ f = Lambda (id, typ, f)
 
-let binder c id typ f = App (c, Lambda (id, typ, f))
-let binder' c (id, typ) f = binder c id typ f
-
 let quant_type = Fun (Fun (Base "_", Bool), Bool)
+
+let quant q id typ f =
+  App (Const (q, quant_type), Lambda (id, typ, f))
+  
+let quant' q (id, typ) f = quant q id typ f
+
+let _for_all = quant "∀"
+let _for_all' = quant' "∀"
+let _exists = quant "∃"
 
 let c_for_all = Const("∀", quant_type)
 let c_exists = Const("∃", quant_type)
-
-let _for_all = binder c_for_all
-let _for_all' = binder' c_for_all
-
-let _exists = binder c_exists
 
 let mk_neq f g = _not (mk_eq f g)
 let mk_eq' eq f g = (if eq then mk_eq else mk_neq) f g
@@ -270,6 +271,9 @@ let for_alls = gather_quant "∀"
 
 let rec remove_universal f = match bool_kind f with
   | Quant ("∀", _x, _typ, g) -> remove_universal g
+  | Not g -> (match bool_kind g with
+      | Quant ("∃", _x, _typ, h) -> remove_universal (_not h)
+      | _ -> f)
   | _ -> f
 
 let rec rename id avoid =

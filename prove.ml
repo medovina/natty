@@ -470,21 +470,22 @@ let update p rewriting f =
  *   (ii) C > (t = t')σ   *)
 
 let rewrite dp cp =
-  match remove_universal dp.formula with
-    | Eq (t, t') ->
-        let+ (t, t') = eq_pairs t t' (* i: pre-check *) in
-        let t, t' = prefix_vars t, prefix_vars t' in
-        let c = cp.formula in
-        let+ u = blue_subterms c in (
-        match try_match t u with
-          | Some sub ->
-              let t_s, t'_s = u, rsubst sub t' in
-              if term_gt t_s t'_s &&  (* (i) *)
-                 clause_gt (clausify cp) [Eq (t_s, t'_s)] then (* (ii) *)
-                let e = replace_in_formula t'_s t_s c in
-                [update cp (Some dp) e]
-              else []
-          | _ -> [])
+  let pairs = match remove_universal dp.formula with
+    | Eq (t, t') -> eq_pairs t t' (* i: pre-check *)
+    | App (Const ("¬", _), Eq _) as neq -> [(neq, _true)]
+    | _ -> [] in
+  let+ (t, t') = pairs in
+  let t, t' = prefix_vars t, prefix_vars t' in
+  let c = cp.formula in
+  let+ u = blue_subterms c in
+  match try_match t u with
+    | Some sub ->
+        let t_s, t'_s = u, rsubst sub t' in
+        if term_gt t_s t'_s &&  (* (i) *)
+           clause_gt (clausify cp) [Eq (t_s, t'_s)] then (* (ii) *)
+          let e = replace_in_formula t'_s t_s c in
+          [update cp (Some dp) e]
+        else []
     | _ -> []
 
 let rewrite_from ps q =
@@ -522,6 +523,12 @@ let rec simp f = match bool_kind f with
         | "→", _, False -> simp (_not p)
         | "→", t, u when t = u -> _true
         | _ -> logical_op op p q)
+  | Quant (q, x, typ, f) ->
+      let f = simp f in (
+      match bool_kind f with
+        | True -> _true
+        | False -> _false
+        | _ -> quant q x typ f)
   | Other (Eq (f, g)) ->
       let f, g = simp f, simp g in
       if f = g then _true else Eq (f, g)
