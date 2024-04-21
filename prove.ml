@@ -12,6 +12,7 @@ let formula_counter = ref 0
 type pformula = {
   id: int;
   rule: string;
+  rewrites: int list;
   parents: pformula list;
   formula: formula;
   goal: bool;
@@ -23,8 +24,15 @@ let print_formula with_origin prefix pformula =
   let prefix =
     if pformula.id > 0 then prefix ^ sprintf "%d. " (pformula.id) else prefix in
   let origin =
-    if with_origin then sprintf " [%s]" (comma_join
-      ((pformula.parents |> map (fun p -> string_of_int (p.id))) @ [pformula.rule]))
+    if with_origin then
+      let parents = pformula.parents |> map (fun p -> string_of_int (p.id)) in
+      let rule = if pformula.rule <> "" then [pformula.rule] else [] in
+      let rewriting = remove 0 pformula.rewrites in
+      let rw = if rewriting = [] then []
+        else [sprintf "rw(%s)" (comma_join (map string_of_int rewriting))] in
+      let simp = if mem 0 pformula.rewrites then ["simp"] else [] in
+      let all = parents @ rule @ rw @ simp in
+      sprintf " [%s]" (comma_join all)
     else "" in
   printf "%s%s {%s%.2f}\n"
     (indent_with_prefix prefix (show_multi pformula.formula))
@@ -54,19 +62,22 @@ let max_cost = 1.3
 
 let mk_pformula rule parents formula delta =
   let (as_goal, delta) = if delta = -1.0 then (true, 0.0) else (false, delta) in
-  { id = 0; rule; parents; formula;
+  { id = 0; rule; rewrites = []; parents; formula;
     goal = as_goal || exists (fun p -> p.goal) parents;
     delta = adjust_delta parents delta;
     cost = total_cost parents delta }
 
-let number_formula pformula =
-  incr formula_counter;
-  { pformula with id = !formula_counter }
+let rec number_formula pformula =
+  if pformula.id > 0 then pformula
+  else
+    let parents = map number_formula pformula.parents in
+    incr formula_counter;
+    let p = { pformula with parents; id = !formula_counter } in
+    dbg_print_formula true "" p;
+    p
 
 let create_pformula rule parents formula delta =
-  let pformula = number_formula (mk_pformula rule parents formula delta) in
-  dbg_print_formula true "" pformula;
-  pformula
+  number_formula (mk_pformula rule parents formula delta)
 
 (* Symbol precedence.  ⊥ > ⊤ have the lowest precedence.  We group other
  * symbols by arity, then (arbitrarily) alphabetically. *)
@@ -440,8 +451,15 @@ let all_split pformula =
             | None -> run lits in
   if is_inductive pformula then [] else run []
 
+let update p rewriting_id f =
+  if p.id = 0 then
+    { p with rewrites = add_unique rewriting_id p.rewrites; formula = f }
+  else
+    { id = 0; rule = ""; rewrites = [rewriting_id]; parents = [p];
+      goal = p.goal; delta = 0.0; cost = p.cost; formula = f }
+
 (*     t = t'    C⟨tσ⟩
- *   ═══════════════════   demod
+ *   ═══════════════════   rw
  *     t = t'    C⟨t'σ⟩
  *
  *   (i) tσ > t'σ
@@ -460,7 +478,7 @@ let rewrite dp cp =
               if term_gt t_s t'_s &&  (* (i) *)
                  clause_gt (clausify cp) [Eq (t_s, t'_s)] then (* (ii) *)
                 let e = replace_in_formula t'_s t_s c in
-                [mk_pformula "rw" [dp; cp] e 0.0]
+                [update cp dp.id e]
               else []
           | _ -> [])
     | _ -> []
@@ -505,12 +523,12 @@ let rec simp f = match bool_kind f with
       if f = g then _true else Eq (f, g)
   | _ -> map_formula simp f
 
-let is_tautology f = mem _true (expand f)
-
 let simplify pformula =
   let f = simp pformula.formula in
-  if is_tautology f then None
-  else Some { pformula with formula = f }
+  if f = pformula.formula then pformula
+  else update pformula 0 f
+
+let is_tautology f = mem _true (expand f)
 
 let rec canonical_lit = function
   | Eq (f, g) ->
@@ -545,21 +563,15 @@ let queue_add queue pformulas =
 let dbg_newline () =
   if !debug > 0 then print_newline ()
 
-let rw_simplify' used found p =
-  let (p, new_formulas) =
-    if p.id = 0 then
-      let p = number_formula p in (p, [p])
-    else (p, []) in
-  let rec repeat_rewrite p fs = match rewrite_from used p with
-    | None -> (p, fs)
-    | Some p ->
-        let p = number_formula p in
-        repeat_rewrite p (p :: fs) in
-  let (p, new_formulas) = repeat_rewrite p new_formulas in
-  if new_formulas = [] then Some (p, found, [])  (* no need to simplify *)
-  else match simplify p with
-    | None -> None
-    | Some p ->
+let rw_simplify used found pformula =
+  let rec repeat_rewrite p = match rewrite_from used p with
+    | None -> p
+    | Some p -> repeat_rewrite p in
+  let p = repeat_rewrite pformula in
+  if p.id > 0 then Some (p, found)
+  else let p = simplify p in
+    if is_tautology p.formula then None
+    else 
         let f = canonical p in
         match FormulaMap.find_opt f found with
           | Some pf ->
@@ -568,17 +580,8 @@ let rw_simplify' used found p =
                 printf "%s\n" (indent_with_prefix prefix (show_multi p.formula)));
               None
           | None ->
-              Some (p, FormulaMap.add f p found, new_formulas)
-
-let rw_simplify used found p =
-  let counter = !formula_counter in
-  match rw_simplify' used found p with
-    | None ->
-        formula_counter := counter;
-        None
-    | Some (p, found, new_formulas) ->
-        rev new_formulas |> iter (dbg_print_formula true "");
-        Some (p, found)
+              let p = number_formula p in
+              Some (p, FormulaMap.add f p found)
 
 let rec rw_simplify_all used found = function
   | [] -> ([], found)

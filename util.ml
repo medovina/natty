@@ -152,6 +152,9 @@ let rec replace1 y x = function
       if z = x then y :: zs
       else z :: replace1 y x zs
 
+let add_unique x xs =
+  if mem x xs then xs else x :: xs
+
 let std_sort xs = sort Stdlib.compare xs
 
 let sort_by f = sort (fun x y -> Stdlib.compare (f x) (f y))
