@@ -558,6 +558,45 @@ let simplify pformula =
 
 let is_tautology f = mem _true (expand f)
 
+let associative_axiom f =
+  let is_assoc (f, g) = match kind f, kind g with
+    | Binary (op, f1, Var (z, _)), Binary (op3, Var (x', _), g1) -> (
+        match kind f1, kind g1 with
+          | Binary (op2, Var (x, _), Var (y, _)),
+            Binary (op4, Var (y', _), Var (z', _))
+              when op = op2 && op2 = op3 && op3 = op4 &&
+                  (x, y, z) = (x', y', z') -> Some op
+          | _ -> None)
+    | _ -> None in
+  remove_universal f |> function
+    | Eq (f, g) -> find_map is_assoc [(f, g); (g, f)]
+    | _ -> None
+
+let commutative_axiom f = remove_universal f |> function
+    | Eq (f, g) -> (match kind f, kind g with
+        | Binary (op, Var (x, _), Var (y, _)), Binary (op', Var (y', _), Var (x', _))
+            when (op, x, y) = (op', x', y') -> Some op
+        | _ -> None)
+    | _ -> None
+
+let rec gather_op op f = match kind f with
+  | Binary (op', f, g) when op = op' ->
+      gather_op op f @ gather_op op g
+  | _ -> [f]
+
+let is_ac_tautology ac_ops = function
+  | Eq (f, g) as eq -> (
+      match kind f with
+        | Binary (op, _, _) when mem op ac_ops ->
+            let b =
+              std_sort (gather_op op f) = std_sort (gather_op op g) &&
+              not (associative_axiom eq = Some op || commutative_axiom eq = Some op) in
+            if b && !debug > 0 then
+              printf "AC tautology: %s\n" (show_formula eq);
+            b
+        | _ -> false)
+  | _ -> false
+
 let rec canonical_lit = function
   | Eq (f, g) ->
       let f, g = canonical_lit f, canonical_lit g in
@@ -591,14 +630,14 @@ let queue_add queue pformulas =
 let dbg_newline () =
   if !debug > 0 then print_newline ()
 
-let rw_simplify used found pformula =
+let rw_simplify ac_ops used found pformula =
   let rec repeat_rewrite p = match rewrite_from used p with
     | None -> p
     | Some p -> repeat_rewrite p in
   let p = repeat_rewrite pformula in
   if p.id > 0 then Some (p, found)
   else let p = simplify p in
-    if is_tautology p.formula then None
+    if is_tautology p.formula || is_ac_tautology ac_ops p.formula then None
     else 
         let f = canonical p in
         match FormulaMap.find_opt f found with
@@ -611,11 +650,11 @@ let rw_simplify used found pformula =
               let p = number_formula p in
               Some (p, FormulaMap.add f p found)
 
-let rec rw_simplify_all used found = function
+let rec rw_simplify_all ac_ops used found = function
   | [] -> ([], found)
   | p :: ps ->
-      let (ps', found) = rw_simplify_all used found ps in
-      match rw_simplify used found p with
+      let (ps', found) = rw_simplify_all ac_ops used found ps in
+      match rw_simplify ac_ops used found p with
         | None -> (ps', found)
         | Some (p', found) -> (p' :: ps', found)
 
@@ -627,8 +666,17 @@ let rec back_simplify from = function
         | Some p' -> (ps', p' :: rewritten)
         | None -> (p :: ps', rewritten)
 
+let find_ac_ops pformulas =
+  let formulas = map (fun p -> p.formula) pformulas in
+  let associative = filter_map associative_axiom formulas in
+  let commutative = filter_map commutative_axiom formulas in
+  intersect associative commutative
+
 let refute pformulas =
   dbg_newline ();
+  let ac_ops = find_ac_ops pformulas in
+  if !debug > 0 && ac_ops <> [] then
+    printf "AC operators: %s\n\n" (comma_join ac_ops);
   let found = FormulaMap.of_list (pformulas |> map
     (fun p -> (canonical p, p))) in
   let queue = queue_add PFQueue.empty pformulas in
@@ -637,7 +685,7 @@ let refute pformulas =
       | None -> None
       | Some ((p, _cost), queue) ->
           dbg_print_formula false "given: " p;
-          match rw_simplify used found p with
+          match rw_simplify ac_ops used found p with
             | None -> loop queue found used
             | Some (p, found) ->
                 let (used, rewritten) = back_simplify p used in
@@ -647,7 +695,7 @@ let refute pformulas =
                     concat_map (all_super p) used @ all_eres p @ all_split p |>
                       filter (fun p -> p.cost <= max_cost) in
                   let (new_pformulas, found) =
-                    rw_simplify_all used found (rewritten @ generated) in
+                    rw_simplify_all ac_ops used found (rewritten @ generated) in
                   dbg_newline ();
                   match find_opt (fun p -> p.formula = _false) new_pformulas with
                     | Some p -> Some p
