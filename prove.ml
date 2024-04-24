@@ -110,13 +110,13 @@ let count_vars f =
 
 let lookup_var v vars = opt_default (assoc_opt v vars) 0
 
-let sym_weight for_kb = function
+let sym_weight for_kb c typ = match c with
   | "∀" | "∃" -> if for_kb then 1_000_000 else 0
-  | _ -> 1
+  | _ -> if arity typ = 1 then 2 else 1
 
 let term_weight for_kb =
   let rec weight = function
-    | Const (c, _) -> sym_weight for_kb c
+    | Const (c, typ) -> sym_weight for_kb c typ
     | Var _ -> 1
     | App (f, g) | Eq (f, g) -> weight f + weight g
     | Lambda (_, _, f) -> weight f in
