@@ -218,6 +218,22 @@ let split f = match bool_kind f with
   | Binary ("→", s, t) -> Some (_not s, t)
   | _ -> None
 
+(*      s = ⊤ ∨ C                 s = ⊥ ∨ C
+      ═════════════   oc       ══════════════   oc
+        oc(s) ∨ C                oc(¬s) ∨ C
+
+        oc(s ∨ t) = s = ⊤ ∨ t = ⊤
+        oc(s → t) = s = ⊥ ∨ t = ⊤
+        oc(∀x.s) = s[y/x] = ⊤  (y not in s or C)
+        oc(∃x.s) = s[k(y̅)/x] = ⊤
+        oc(¬(s ∧ t)) = s = ⊤ ∨ t = ⊥
+        oc(¬(∀x.s)) = s[k(y̅)/x] = ⊥
+        oc(¬(∃x.s)) = s[y/x] = ⊥  (y not in s or C)
+        
+        k is a new constant
+        y̅ are all free variables in ∃x.s
+*)
+
 let clausify_step pformula lits =
   let rec new_lits f = match split f with
     | Some (s, t) -> Some ([s; t], [])
@@ -432,7 +448,7 @@ let eres cp c' c_lit =
 let all_eres cp = run_clausify cp eres
 
 (*     (s ∧ t) ∨ C
- *    ──────────────   split
+ *    ═══════════════   split
  *     s ∨ C, t ∨ C      *)
 
 let all_split pformula =
@@ -444,7 +460,7 @@ let all_split pformula =
             | Binary ("∧", f, g) ->
                 let new_formulas = [f; g] |> map (fun t ->
                   let u = multi_or (replace1 t lit lits) in
-                  mk_pformula "oc" [pformula] u 0.02) in
+                  mk_pformula "split" [pformula] u 0.02) in
                 Some new_formulas
             | _ -> None in
           match find_map split_on new_lits with
