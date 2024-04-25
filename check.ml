@@ -118,19 +118,20 @@ let rec blocks_formulas env f = function
   | block :: rest ->
       let (fs, concl) = block_formulas env f block in
       let (gs, final_concl) = blocks_formulas env f rest in
-      (fs @ map (fun f -> implies concl f) gs,
+      (fs @ map_fst (fun f -> implies concl f) gs,
       if rest = [] then concl else final_concl)
 
 and block_formulas env f (Block (step, children)) =
   let (fs, concl) = (blocks_formulas env f) children in
-  let apply fn = (map fn fs, fn concl) in
+  let apply fn = (map_fst fn fs, fn concl) in
   match step with
-    | Assert f -> ([f], f)
+    | Assert f -> ([(f, f)], f)
     | Let (ids, typ) -> apply (for_all_vars_typ (ids, typ))
     | LetVal (id, _typ, value) -> apply (fun f -> subst1 f value id)
     | Assume a -> apply (implies a)
     | IsSome (id, typ, g) ->
-        (_exists id typ g :: map (fun f -> _for_all id typ (implies g f)) fs,
+        let ex = _exists id typ g in
+        ((ex, ex) :: map_fst (fun f -> _for_all id typ (implies g f)) fs,
          outer_eq concl)
     | By (name, outer, var) ->
         let goals = proof_by env f name outer var in
@@ -142,7 +143,7 @@ let expand_proof env f = function
       let blocks = infer_blocks steps in
       if !debug > 0 then print_blocks blocks;
       let fs = fst (blocks_formulas env f (blocks @ [mk_assert f])) in
-      Formulas (map (top_check env) fs)
+      Formulas (map_fst (top_check env) fs)
   | _ -> assert false
 
 let check_stmt env stmt =

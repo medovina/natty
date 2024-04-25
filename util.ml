@@ -98,6 +98,8 @@ let (let+) = fun a f -> concat_map f a
 
 let singleton x = [x]
 
+let map_fst f = map (fun (x, y) -> (f x, y))
+
 let rec last = function
   | [] -> failwith "last"
   | [x] -> x

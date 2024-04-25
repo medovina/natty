@@ -42,7 +42,7 @@ let show_proof_step = function
 
 type proof =
   | Steps of proof_step list
-  | Formulas of formula list
+  | Formulas of (formula * formula) list  (* full, short original *)
 
 type statement =
   | TypeDecl of id

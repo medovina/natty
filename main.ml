@@ -1,6 +1,7 @@
 open List
 open Printf
 
+open Logic
 open Options
 open Statement
 open Thf_gen
@@ -8,10 +9,11 @@ open Util
 
 let thf_file dir name = mk_path dir (name ^ ".thf")
 
-let write_thf dir name proven stmt =
+let write_thf dir name proven stmt problem =
   let f = thf_file dir name in
   if not (Sys.file_exists f) then (
     let out = open_out f in
+    fprintf out "%% Problem: %s\n\n" (show_formula problem);
     let write is_last stmt = (
       fprintf out "%% %s\n" (show_statement false stmt);
       fprintf out "%s\n\n" (thf_statement is_last stmt)) in
@@ -22,17 +24,17 @@ let write_thf dir name proven stmt =
 let write_files dir prog = 
   prog |> iteri (fun i stmt -> (
     match stmt with
-      | Theorem (name, _, proof) ->
+      | Theorem (name, formula, proof) ->
           let proven = take i prog in (
           match proof with
             | Some (Formulas fs) ->
-                fs |> iteri (fun j f ->
+                fs |> iteri (fun j (f, orig) ->
                   let step_name = sprintf "%s_%d" name (j + 1) in
                   let t = Theorem (step_name, f, None) in
-                  write_thf dir step_name proven t)
+                  write_thf dir step_name proven t orig)
             | Some _ -> assert false
             | None ->
-                write_thf dir name proven stmt)
+                write_thf dir name proven stmt (remove_universal formula))
       | _ -> ()
       ))
 
