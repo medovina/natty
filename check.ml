@@ -5,6 +5,8 @@ open Logic
 open Statement
 open Util
 
+let debug = ref 0
+
 let is_const id = function
   | ConstDecl (i, typ) when i = id -> Some typ
   | Definition (i, typ, _f) when i = id -> Some typ
@@ -138,7 +140,7 @@ and block_formulas env f (Block (step, children)) =
 let expand_proof env f = function
   | Steps steps ->
       let blocks = infer_blocks steps in
-      if false then print_blocks blocks;
+      if !debug > 0 then print_blocks blocks;
       let fs = fst (blocks_formulas env f (blocks @ [mk_assert f])) in
       Formulas (map (top_check env) fs)
   | _ -> assert false
@@ -153,7 +155,8 @@ let check_stmt env stmt =
         Theorem (name, f, Option.map (expand_proof env f) proof)
     | stmt -> stmt
 
-let check_program stmts =
+let check_program _debug stmts =
+  debug := _debug;
   let check env stmt =
     let stmt = check_stmt env stmt in
     (stmt :: env, stmt) in

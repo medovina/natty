@@ -1,6 +1,7 @@
 open List
 open Printf
 
+open Options
 open Statement
 open Thf_gen
 open Util
@@ -35,40 +36,6 @@ let write_files dir prog =
       | _ -> ()
       ))
 
-type options = {
-  debug: int;
-  show_proofs: bool;
-  export: bool;
-}
-
-let parse_args args =
-  let (args, file) = split_last args in
-  let rec parse = function
-    | [] -> { debug = 0; show_proofs = false; export = false }
-    | arg :: rest ->
-        let args = parse rest in
-        if arg.[0] = '-' then
-          match arg.[1] with
-            | 'd' ->
-              let level =
-                if arg = "-d" then 1 else int_of_string (string_from arg 2) in
-              { args with debug = level }
-            | 'p' -> { args with show_proofs = true }
-            | 'x' -> { args with export = true }
-            | _ -> failwith "unknown option"
-        else failwith "option expected" in
-  (parse args, file)
-
-let usage () =
-  print_endline
-{|usage: prover [options] <file>.{n,thf}
-
-    -d<level>     debug level
-    -p            output proofs
-    -x            export theorems to THF files
-    |};
-  exit 1
-
 ;;
 
 if Array.length Sys.argv = 1 then usage();
@@ -81,12 +48,12 @@ let (opts, source) = parse_args (tl (Array.to_list Sys.argv)) in
     | _ -> failwith "unknown extension" in
   match parser (open_in source) with
     | Success prog ->
-        let prog = Check.check_program prog in
+        let prog = Check.check_program opts.debug prog in
         if opts.export then
           let dir = Filename.remove_extension source in
           clean_dir dir;
           write_files dir prog
         else
-          Prove.prove_all opts.debug opts.show_proofs (ext = ".thf") prog
+          Prove.prove_all opts (ext = ".thf") prog
     | Failed (msg, _) ->
         print_endline msg

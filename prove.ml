@@ -2,6 +2,7 @@ open List
 open Printf
 
 open Logic
+open Options
 open Statement
 open Util
 
@@ -672,7 +673,14 @@ let find_ac_ops pformulas =
   let commutative = filter_map commutative_axiom formulas in
   intersect associative commutative
 
-let refute pformulas =
+type result = Proof of pformula * float | Timeout | GaveUp
+
+let szs = function
+  | Proof _ -> "Theorem"
+  | Timeout -> "Timeout"
+  | GaveUp -> "GaveUp"
+
+let refute timeout pformulas =
   dbg_newline ();
   let ac_ops = find_ac_ops pformulas in
   if !debug > 0 && ac_ops <> [] then
@@ -680,16 +688,19 @@ let refute pformulas =
   let found = FormulaMap.of_list (pformulas |> map
     (fun p -> (canonical p, p))) in
   let queue = queue_add PFQueue.empty pformulas in
+  let start = Sys.time () in
+  let elapsed () = Sys.time () -. start in
   let rec loop queue found used =
-    match PFQueue.pop queue with
-      | None -> None
+    if elapsed () > timeout then Timeout
+    else match PFQueue.pop queue with
+      | None -> GaveUp
       | Some ((p, _cost), queue) ->
           dbg_print_formula false "given: " p;
           match rw_simplify ac_ops used found p with
             | None -> loop queue found used
             | Some (p, found) ->
                 let (used, rewritten) = back_simplify p used in
-                if p.formula = _false then Some p else
+                if p.formula = _false then Proof (p, elapsed ()) else
                   let used = p :: used in
                   let generated =
                     concat_map (all_super p) used @ all_eres p @ all_split p |>
@@ -698,7 +709,7 @@ let refute pformulas =
                     rw_simplify_all ac_ops used found (rewritten @ generated) in
                   dbg_newline ();
                   match find_opt (fun p -> p.formula = _false) new_pformulas with
-                    | Some p -> Some p
+                    | Some p -> Proof (p, elapsed ())
                     | None ->
                         let queue = queue_add queue new_pformulas in
                         loop queue found used
@@ -707,7 +718,7 @@ let refute pformulas =
 let to_pformula stmt = stmt_formula stmt |> Option.map (fun f ->
   create_pformula (stmt_name stmt) [] (rename_vars f) 0.0)
 
-let prove known_stmts stmt =
+let prove timeout known_stmts stmt =
   formula_counter := 0;
   let known = known_stmts |> filter_map (fun s ->
     match to_pformula s with
@@ -716,7 +727,7 @@ let prove known_stmts stmt =
   let pformula = Option.get (to_pformula stmt) in
   let negated =
     create_pformula "negate" [pformula] (_not pformula.formula) (-1.0) in
-  refute (known @ [negated])
+  refute timeout (known @ [negated])
 
 let output_proof pformula =
   let steps =
@@ -725,28 +736,26 @@ let output_proof pformula =
   List.sort id_compare steps |> iter (print_formula true "");
   print_newline ()
 
-let prove_all _debug show_proofs thf prog =
-  debug := _debug;
+let prove_all opts thf prog =
+  debug := opts.debug;
   let rec prove_stmts known_stmts = function
     | [] -> if (not thf) then print_endline "All theorems were proved."
     | stmt :: rest ->
         if (match stmt with
-          | Theorem _ -> (
+          | Theorem _ ->
               print_endline (show_statement true stmt ^ "\n");
-              let start = Sys.time () in
-                match prove known_stmts stmt with
-                  | Some pformula ->
-                      let elapsed = Sys.time () -. start in
+              let result = prove opts.timeout known_stmts stmt in
+              let b = match result with
+                  | Proof (pformula, elapsed) ->
                       printf "proved in %.2f s\n" elapsed;
-                      if thf then printf "SZS status Theorem\n";
-                      if show_proofs then (
+                      if opts.show_proofs then (
                         print_newline ();
                         output_proof pformula);
                       true
-                  | None -> false)
+                  | GaveUp -> printf "Not proved.\n"; false
+                  | Timeout -> printf "Time limit exceeded.\n"; false in
+              if thf then printf "SZS status %s\n" (szs result);
+              b
           | _ -> true) then (
-          prove_stmts (known_stmts @ [stmt]) rest)
-        else (
-          printf "Not proved.\n";
-          if thf then printf "SZS status GaveUp\n") in
+          prove_stmts (known_stmts @ [stmt]) rest) in
   prove_stmts [] prog
