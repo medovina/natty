@@ -13,7 +13,7 @@ let write_thf dir name proven stmt problem =
   let f = thf_file dir name in
   if not (Sys.file_exists f) then (
     let out = open_out f in
-    fprintf out "%% Problem: %s\n\n" (show_formula problem);
+    fprintf out "%% Problem: %s\n\n" (show_formula (remove_universal problem));
     let write is_last stmt = (
       fprintf out "%% %s\n" (show_statement false stmt);
       fprintf out "%s\n\n" (thf_statement is_last stmt)) in
@@ -34,7 +34,7 @@ let write_files dir prog =
                   write_thf dir step_name proven t orig)
             | Some _ -> assert false
             | None ->
-                write_thf dir name proven stmt (remove_universal formula))
+                write_thf dir name proven stmt formula)
       | _ -> ()
       ))
 

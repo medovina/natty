@@ -5,10 +5,10 @@ from os import path
 timeout = 5
 
 provers = [
-    ('Natty', f'./run'),
-    ('E 3.0.08-ho', f'eprover-ho --auto -s --cpu-limit={timeout}'),
-    ('Vampire 4.8', f'vampire -t {timeout}'),
-    ('Zipperposition 2.1', f'zipperposition --mode best --timeout {timeout}'),
+    ('Natty', f'./run -t{timeout}'),
+    ('E', f'eprover-ho --auto -s --cpu-limit={timeout}'),
+    ('Vampire', f'vampire -t {timeout}'),
+    ('Zipperposition', f'zipperposition --mode best --input tptp --timeout {timeout}'),
 ]
 
 if len(sys.argv) != 2:
@@ -21,17 +21,21 @@ files.sort(key = lambda s: [int(n) for n in s.split('_')])
 
 results = {}
 for file in files:
+    with open(path.join(dir, file + '.thf')) as f:
+        conjecture = f.readline().strip().removeprefix('% Problem: '.strip())
     name = file.replace('_', '.')
-    results[file] = { '' : f'thm {name}' }
+    results[file] = { '' : f'thm {name}', 'conjecture' : conjecture }
 
 results_file = dir + '_results.csv'
 if path.exists(results_file):
     with open(results_file) as f:
         reader = csv.DictReader(f)
         for row in reader:
-            name = row['']
-            if name in results:
-                results[name] = row
+            name, conjecture = row[''], row['conjecture']
+            r = [k for k, v in results.items()
+                 if (v[''], v['conjecture']) == (name, conjecture)]
+            if r != []:
+                results[r[0]] = row
 
 for prover, command in provers:
     for file, result in results.items():
@@ -89,7 +93,7 @@ for result in results.values():
             total[prover] += 2 * timeout
 
 with open(results_file, 'w') as out:
-    fieldnames = [''] + [p[0] for p in provers]
+    fieldnames = ['', 'conjecture'] + [p[0] for p in provers]
     writer = csv.DictWriter(out, fieldnames = fieldnames, extrasaction = 'ignore')
     writer.writeheader()
     writer.writerows(results.values())
