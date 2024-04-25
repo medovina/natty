@@ -1,63 +1,71 @@
 open List
 open Printf
 
-open Ext_prove
+open Statement
+open Thf
 open Util
+
+let thf_file dir name = mk_path dir (name ^ ".thf")
+
+let write_thf dir name proven stmt =
+  let f = thf_file dir name in
+  if not (Sys.file_exists f) then (
+    let out = open_out f in
+    let write is_last stmt = (
+      fprintf out "%% %s\n" (show_statement false stmt);
+      fprintf out "%s\n\n" (thf_statement is_last stmt)) in
+    iter (write false) proven;
+    write true stmt;
+    Out_channel.close out)
+
+let write_files dir prog = 
+  prog |> iteri (fun i stmt -> (
+    match stmt with
+      | Theorem (name, _, proof) ->
+          let proven = take i prog in (
+          match proof with
+            | Some (Formulas fs) ->
+                fs |> iteri (fun j f ->
+                  let step_name = sprintf "%s_%d" name (j + 1) in
+                  let t = Theorem (step_name, f, None) in
+                  write_thf dir step_name proven t)
+            | Some _ -> assert false
+            | None ->
+                write_thf dir name proven stmt)
+      | _ -> ()
+      ))
 
 type options = {
   debug: int;
   show_proofs: bool;
-  prover: string;
-  command: string;
-  command_args: string list;
-  id_limit: int;
-  depth_limit: int;
-  min_roots: int
+  export: bool;
 }
 
 let parse_args args =
   let (args, file) = split_last args in
   let rec parse = function
-    | [] -> { debug = 0; show_proofs = false; prover = "";
-              command = ""; command_args = []; 
-              depth_limit = 0; id_limit = 0; min_roots = 0 }
+    | [] -> { debug = 0; show_proofs = false; export = false }
     | arg :: rest ->
         let args = parse rest in
         if arg.[0] = '-' then
-          let int_param () = int_of_string (string_from arg 2) in
           match arg.[1] with
             | 'd' ->
               let level =
                 if arg = "-d" then 1 else int_of_string (string_from arg 2) in
               { args with debug = level }
-            | 'h' -> { args with depth_limit = int_param () }
-            | 'l' -> { args with id_limit = int_param () }
             | 'p' -> { args with show_proofs = true }
-            | 'r' -> { args with min_roots = int_param () }
-            | 'x' -> { args with prover = "e" }
+            | 'x' -> { args with export = true }
             | _ -> failwith "unknown option"
-        else (
-          assert (args.command = "");
-          let words = String.split_on_char ':' arg in
-          { args with command = hd words; command_args = tl words }) in
+        else failwith "option expected" in
   (parse args, file)
 
 let usage () =
   print_endline
-{|usage: prover [options] [command] <file>
+{|usage: prover [options] <file>
 
-  global options:
     -d<level>     debug level
-                    (0 = default, 1 = thf log + proof graph, 2 = trace file)
     -p            output proofs
-    -x            use external prover (E)
-
-  commands:
-    process       process .thf log
-    tree:id,...   generate debug tree from .thf log
-      -h<num>       debug tree depth limit
-      -l<num>       debug tree id limit
-      -r<num>       debug tree minimum roots
+    -x            export theorems to THF files
     |};
   exit 1
 
@@ -65,45 +73,15 @@ let usage () =
 
 if Array.length Sys.argv = 1 then usage();
 
-let (args, source) = parse_args (tl (Array.to_list Sys.argv)) in
-match args with
-  | { command = ""; debug; show_proofs; prover; _ } -> (
-      match Parser.parse (open_in source) with
-        | Success prog ->
-            let prog = Check.check_program prog in
-            let dir = Filename.remove_extension source in
-            let dir_source = mk_path dir (dir ^ ".orig.n") in
-            let dir_ok = Sys.file_exists dir_source &&
-              read_file dir_source = read_file source in
-            if not dir_ok then (
-              if Sys.file_exists dir then (
-                let bak_dir = dir ^ "_bak" in
-                rm_dir bak_dir;
-                Sys.rename dir bak_dir
-              );
-              mk_dir dir;
-              write_file dir_source (read_file source));
-            if prover = "" then Prove.prove_all debug show_proofs prog else (
-              if debug > 0 then clean_dir (dir ^ "_dbg");
-              let names = write_files dir prog in
-              ext_prove debug dir names)
-        | Failed (msg, _) ->
-            print_endline msg)
-  | { command = "process"; debug; _ } -> (
-      match Ext_proof_parse.parse_file debug source with
-        | MParser.Success e_proof ->
-            ignore (process_proof debug source e_proof)
-        | Failed (msg, _) ->
-            print_endline msg)
-  | { command = "tree"; command_args = [ids]; id_limit; depth_limit; min_roots; _ } ->
-      let ids = String.split_on_char ',' ids in (
-      match Ext_proof_parse.parse_file 2 source with
-        | Success { clauses; _ } ->
-            let outfile = change_extension source "_tree.dot" in
-            let (matching, total) =
-              write_tree clauses ids id_limit depth_limit min_roots outfile in
-            printf "%d clauses matching, %d total\n" matching total
-        | Failed (msg, _) ->
-            print_endline msg)
-  | _ ->
-      usage()
+let (opts, source) = parse_args (tl (Array.to_list Sys.argv)) in
+  match Parser.parse (open_in source) with
+    | Success prog ->
+        let prog = Check.check_program prog in
+        if opts.export then
+          let dir = Filename.remove_extension source in
+          clean_dir dir;
+          write_files dir prog
+        else
+          Prove.prove_all opts.debug opts.show_proofs prog
+    | Failed (msg, _) ->
+        print_endline msg
