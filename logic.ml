@@ -246,6 +246,10 @@ let all_vars = find_vars false
 let free_vars = find_vars true
 let free_vars_types = find_vars_types true
 
+let is_free_in x f = mem x (free_vars f)
+
+let is_free_in_any x fs = exists (fun f -> is_free_in x f) fs
+
 let consts f =
   let rec collect = function
     | Const (id, _) -> [id]
@@ -333,6 +337,16 @@ let unify_or_match is_unify =
     | App (f, g), App (f', g') | Eq (f, g), Eq (f', g') ->
         let* subst = unify' subst f f' in
         unify' subst g g'
+    | Lambda (x, xtyp, f), Lambda (y, ytyp, g) ->
+        let* subst = unify' subst f g in
+        let x', y' = assoc_opt x subst, assoc_opt y subst in
+        if (x' = None || x' = Some (Var (y, ytyp))) &&
+           (y' = None || y' = Some (Var (x, xtyp)))
+        then let subst = remove_assoc x (remove_assoc y subst) in
+            let fs = map snd subst in
+            if is_free_in_any x fs || is_free_in_any y fs then None
+            else Some subst
+        else None
     | _, _ -> None
   in unify' []
 
