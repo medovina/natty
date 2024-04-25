@@ -691,7 +691,7 @@ let refute timeout pformulas =
   let start = Sys.time () in
   let elapsed () = Sys.time () -. start in
   let rec loop queue found used =
-    if elapsed () > timeout then Timeout
+    if timeout > 0.0 && elapsed () > timeout then Timeout
     else match PFQueue.pop queue with
       | None -> GaveUp
       | Some ((p, _cost), queue) ->
