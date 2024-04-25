@@ -72,3 +72,4 @@ let thf_statement is_conjecture f =
         let t = if is_conjecture then "conjecture" else "theorem" in
         [sprintf "%s, %s, %s" (quote ("thm_" ^ name)) t (thf_formula f)] in
   unlines (map (sprintf "thf(%s).") (conv f))
+

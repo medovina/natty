@@ -2,7 +2,7 @@ open List
 open Printf
 
 open Statement
-open Thf
+open Thf_gen
 open Util
 
 let thf_file dir name = mk_path dir (name ^ ".thf")
@@ -61,7 +61,7 @@ let parse_args args =
 
 let usage () =
   print_endline
-{|usage: prover [options] <file>
+{|usage: prover [options] <file>.{n,thf}
 
     -d<level>     debug level
     -p            output proofs
@@ -74,7 +74,12 @@ let usage () =
 if Array.length Sys.argv = 1 then usage();
 
 let (opts, source) = parse_args (tl (Array.to_list Sys.argv)) in
-  match Parser.parse (open_in source) with
+  let ext = Filename.extension source in
+  let parser = match ext with
+    | ".n" -> Parser.parse
+    | ".thf" -> Thf_parse.parse
+    | _ -> failwith "unknown extension" in
+  match parser (open_in source) with
     | Success prog ->
         let prog = Check.check_program prog in
         if opts.export then
@@ -82,6 +87,6 @@ let (opts, source) = parse_args (tl (Array.to_list Sys.argv)) in
           clean_dir dir;
           write_files dir prog
         else
-          Prove.prove_all opts.debug opts.show_proofs prog
+          Prove.prove_all opts.debug opts.show_proofs (ext = ".thf") prog
     | Failed (msg, _) ->
         print_endline msg

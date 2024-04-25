@@ -725,10 +725,10 @@ let output_proof pformula =
   List.sort id_compare steps |> iter (print_formula true "");
   print_newline ()
 
-let prove_all _debug show_proofs prog =
+let prove_all _debug show_proofs thf prog =
   debug := _debug;
   let rec prove_stmts known_stmts = function
-    | [] -> print_endline "All theorems were proved."
+    | [] -> if (not thf) then print_endline "All theorems were proved."
     | stmt :: rest ->
         if (match stmt with
           | Theorem _ -> (
@@ -737,11 +737,16 @@ let prove_all _debug show_proofs prog =
                 match prove known_stmts stmt with
                   | Some pformula ->
                       let elapsed = Sys.time () -. start in
-                      printf "proved in %.2f s\n\n" elapsed;
-                      if show_proofs then output_proof pformula;
+                      printf "proved in %.2f s\n" elapsed;
+                      if thf then printf "SZS status Theorem\n";
+                      if show_proofs then (
+                        print_newline ();
+                        output_proof pformula);
                       true
                   | None -> false)
           | _ -> true) then (
           prove_stmts (known_stmts @ [stmt]) rest)
-        else print_endline "Not proved.\n" in
+        else (
+          printf "Not proved.\n";
+          if thf then printf "SZS status GaveUp\n") in
   prove_stmts [] prog

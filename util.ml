@@ -22,11 +22,15 @@ let n_spaces n = String.make n ' '
 let capitalize s =
   char_to_string (Char.uppercase_ascii s.[0]) ^ string_from s 1
 
-let eq_icase s t = (String.lowercase_ascii s = String.lowercase_ascii t) 
+let to_lower = String.lowercase_ascii
+
+let eq_icase s t = (to_lower s = to_lower t) 
 
 let is_char_in c s = Option.is_some (String.index_opt s c)
 
 let starts_with p s = String.starts_with ~prefix:p s
+
+let ends_with p s = String.ends_with ~suffix:p s
 
 let contains s1 s2 =
   let re = Str.regexp_string s2 in
