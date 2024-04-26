@@ -2,6 +2,8 @@
 
 Natty is a natural-language proof assistant with an embedded automatic prover for higher-order logic.  It can read input containing axioms, definitions, and theorems written in natural language with a restricted vocabulary and grammer.  Any theorem in the input may optionally include a proof, also written in natural language.  Natty translates the input into a series of statements of higher-order logic, and attempts to prove the input theorems automatically.
 
+Natty's automatic prover is based on a subset of the higher-order superposition calculus[^1].
+
 Natty is in an early stage of development, and is currently only able to prove some basic identities about the natural numbers.  As such, in its present form it will probably be of interest only to theorem proving researchers and enthusiasts.
 
 ### Prerequsities
@@ -69,3 +71,7 @@ $ python eval.py nat
 That will run all of these provers on all the THF files in the `nat` subdirectory, and generate a results file `nat_results.csv` that you can open in any spreadsheet program.
 
 To use this script, you will need to have E, Vampire, and Zipperposition installed and available in your `PATH`.  To omit any of these provers (or add more), edit `eval.py` and adjust the `provers` list at the top of the file.
+
+### References
+
+[^1]: Bentkamp, Alexander, et al. "Superposition for higher-order logic." _Journal of Automated Reasoning_ 67.1 (2023): 10.
