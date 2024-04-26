@@ -738,10 +738,15 @@ let output_proof pformula =
 
 let prove_all opts thf prog =
   debug := opts.debug;
-  let rec prove_stmts known_stmts = function
-    | [] -> if (not thf) then print_endline "All theorems were proved."
+  let rec prove_stmts known_stmts all_success = function
+    | [] ->
+        if (not thf) then
+          if all_success then
+            print_endline "All theorems were proved."
+          else if opts.keep_going then
+            print_endline "Some theorems were not proved."
     | stmt :: rest ->
-        if (match stmt with
+        let success = match stmt with
           | Theorem _ ->
               print_endline (show_statement true stmt ^ "\n");
               let result = prove opts.timeout known_stmts stmt in
@@ -755,7 +760,9 @@ let prove_all opts thf prog =
                   | GaveUp -> printf "Not proved.\n"; false
                   | Timeout -> printf "Time limit exceeded.\n"; false in
               if thf then printf "SZS status %s\n" (szs result);
+              print_newline ();
               b
-          | _ -> true) then (
-          prove_stmts (known_stmts @ [stmt]) rest) in
-  prove_stmts [] prog
+          | _ -> true in
+        if success || opts.keep_going then
+          prove_stmts (known_stmts @ [stmt]) (all_success && success) rest in
+  prove_stmts [] true prog
