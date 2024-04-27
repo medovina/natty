@@ -5,7 +5,7 @@ from os import path
 timeout = 5
 
 provers = [
-    ('Natty', f'./run -t{timeout}'),
+    ('Natty', f'./natty -t{timeout}'),
     ('E', f'eprover-ho --auto -s --cpu-limit={timeout}'),
     ('Vampire', f'vampire -t {timeout}'),
     ('Zipperposition', f'zipperposition --mode best --input tptp --timeout {timeout}'),
