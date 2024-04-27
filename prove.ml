@@ -19,8 +19,10 @@ type pformula = {
   formula: formula;
   goal: bool;
   delta: float;
-  cost: float
+  cost: float ref
 }
+
+let cost_of p = !(p.cost)
 
 let print_formula with_origin prefix pformula =
   let prefix =
@@ -38,7 +40,7 @@ let print_formula with_origin prefix pformula =
     else "" in
   printf "%s%s {%s%.2f}\n"
     (indent_with_prefix prefix (show_multi pformula.formula))
-    origin (if pformula.goal then "g " else "") pformula.cost
+    origin (if pformula.goal then "g " else "") (cost_of pformula)
 
 let dbg_print_formula with_origin prefix pformula =
   if !debug > 0 then print_formula with_origin prefix pformula
@@ -52,7 +54,7 @@ let adjust_delta parents delta =
 
 let merge_cost parents = match parents with
     | [] -> 0.0
-    | [p] -> p.cost
+    | [p] -> cost_of p
     | _ ->
       let ancestors = search parents (fun p -> p.parents) in
       sum (ancestors |> map (fun p -> p.delta))
@@ -67,7 +69,7 @@ let mk_pformula rule parents formula delta =
   { id = 0; rule; rewrites = []; simp = false; parents; formula;
     goal = as_goal || exists (fun p -> p.goal) parents;
     delta = adjust_delta parents delta;
-    cost = total_cost parents delta }
+    cost = ref (total_cost parents delta) }
 
 let rec number_formula pformula =
   if pformula.id > 0 then pformula
@@ -622,16 +624,17 @@ end) (struct
   let compare = Stdlib.compare
 end)
 
+let queue_cost p = (cost_of p, if p.goal then 0 else 1)
+
 let queue_add queue pformulas =
-  let queue_element p =
-    (p, (p.cost, if p.goal then 0 else 1)) in
+  let queue_element p = (p, queue_cost p) in
   let extra = PFQueue.of_list (map queue_element pformulas) in
-  PFQueue.(++) queue extra
+  queue := PFQueue.(++) !queue extra
 
 let dbg_newline () =
   if !debug > 0 then print_newline ()
 
-let rw_simplify ac_ops used found pformula =
+let rw_simplify queue ac_ops used found pformula =
   let rec repeat_rewrite p = match rewrite_from used p with
     | None -> p
     | Some p -> repeat_rewrite p in
@@ -643,19 +646,26 @@ let rw_simplify ac_ops used found pformula =
         let f = canonical p in
         match FormulaMap.find_opt f found with
           | Some pf ->
+              let adjust =
+                if cost_of p < cost_of pf then (
+                  pf.cost := cost_of p;
+                  if PFQueue.mem pf !queue then
+                    queue := PFQueue.adjust pf (Fun.const (queue_cost pf)) !queue;
+                  sprintf " (adjusted cost to %.2f)" (cost_of p))
+                else "" in
               if !debug > 0 then (
-                let prefix = sprintf "duplicate of #%d: " pf.id in
+                let prefix = sprintf "duplicate of #%d%s: " pf.id adjust in
                 printf "%s\n" (indent_with_prefix prefix (show_multi p.formula)));
               None
           | None ->
               let p = number_formula p in
               Some (p, FormulaMap.add f p found)
 
-let rec rw_simplify_all ac_ops used found = function
+let rec rw_simplify_all queue ac_ops used found = function
   | [] -> ([], found)
   | p :: ps ->
-      let (ps', found) = rw_simplify_all ac_ops used found ps in
-      match rw_simplify ac_ops used found p with
+      let (ps', found) = rw_simplify_all queue ac_ops used found ps in
+      match rw_simplify queue ac_ops used found p with
         | None -> (ps', found)
         | Some (p', found) -> (p' :: ps', found)
 
@@ -687,33 +697,35 @@ let refute timeout pformulas =
     printf "AC operators: %s\n\n" (comma_join ac_ops);
   let found = FormulaMap.of_list (pformulas |> map
     (fun p -> (canonical p, p))) in
-  let queue = queue_add PFQueue.empty pformulas in
+  let queue = ref PFQueue.empty in
+  queue_add queue pformulas;
   let start = Sys.time () in
   let elapsed () = Sys.time () -. start in
-  let rec loop queue found used =
+  let rec loop found used =
     if timeout > 0.0 && elapsed () > timeout then Timeout
-    else match PFQueue.pop queue with
+    else match PFQueue.pop !queue with
       | None -> GaveUp
-      | Some ((p, _cost), queue) ->
+      | Some ((p, _cost), q) ->
+          queue := q;
           dbg_print_formula false "given: " p;
-          match rw_simplify ac_ops used found p with
-            | None -> loop queue found used
+          match rw_simplify queue ac_ops used found p with
+            | None -> loop found used
             | Some (p, found) ->
                 let (used, rewritten) = back_simplify p used in
                 if p.formula = _false then Proof (p, elapsed ()) else
                   let used = p :: used in
                   let generated =
                     concat_map (all_super p) used @ all_eres p @ all_split p |>
-                      filter (fun p -> p.cost <= max_cost) in
+                      filter (fun p -> cost_of p <= max_cost) in
                   let (new_pformulas, found) =
-                    rw_simplify_all ac_ops used found (rewritten @ generated) in
+                    rw_simplify_all queue ac_ops used found (rewritten @ generated) in
                   dbg_newline ();
                   match find_opt (fun p -> p.formula = _false) new_pformulas with
                     | Some p -> Proof (p, elapsed ())
                     | None ->
-                        let queue = queue_add queue new_pformulas in
-                        loop queue found used
-  in loop queue found []
+                        queue_add queue new_pformulas;
+                        loop found used
+  in loop found []
 
 let to_pformula stmt = stmt_formula stmt |> Option.map (fun f ->
   create_pformula (stmt_name stmt) [] (rename_vars f) 0.0)
