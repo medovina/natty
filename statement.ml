@@ -11,6 +11,8 @@ type proof_step =
   | Assume of formula
   | IsSome of id * typ * formula
 
+let mk_assert f = Assert f
+
 let step_decl_vars = function
   | Let (ids, _) -> ids
   | LetVal (id, _, _) -> [id]
