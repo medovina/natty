@@ -220,6 +220,9 @@ let show_formula_multi multi f =
 let show_formula = show_formula_multi false
 let show_multi = show_formula_multi true
 
+let prefix_show prefix f =
+  indent_with_prefix prefix (show_multi f)
+
 let is_ground f =
   let rec has_free outer = function
     | Const _ -> false

@@ -198,6 +198,8 @@ let search xs neighbors =
 
 (* I/O *)
 
+let print_line = print_endline
+
 let mk_path = Filename.concat
 
 let change_extension path ext =

@@ -22,6 +22,7 @@ Theorem.  Let a, b, c : ℕ.
   5. a + b = b + a.
   6. a + s(b) ≠ 0.
   7. a + s(b) ≠ a.
+  8. If a + b = 0, then a = 0 and b = 0.
 
 Axiom.  There is a binary operation · : ℕ → ℕ → ℕ such that for all n, m : ℕ,
 
