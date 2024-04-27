@@ -321,36 +321,43 @@ let eta = function
   | f -> f
 
 let unify_or_match is_unify =
-  let rec unify' subst t u = match eta t, eta u with
-    | Const (c, typ), Const (c', typ') ->
-        if c = c' && typ = typ' then Some subst else None
-    | Var (x, typ), f ->
-        if typ = type_of f then
-          match assoc_opt x subst with
-            | Some g ->
-                if is_unify then unify' subst f g
-                else if f = g then Some subst else None
-            | None ->
-                let f = subst_n subst f in
-                if mem x (free_vars f) then None else
-                  let subst = subst |> map (fun (y, g) -> (y, subst1 g f x)) in
-                  Some ((x, f) :: subst)
-        else None
-    | _f, Var (_x, _typ) when is_unify -> unify' subst u t
-    | App (f, g), App (f', g') | Eq (f, g), Eq (f', g') ->
-        let* subst = unify' subst f f' in
-        unify' subst g g'
-    | Lambda (x, xtyp, f), Lambda (y, ytyp, g) ->
-        let* subst = unify' subst f g in
-        let x', y' = assoc_opt x subst, assoc_opt y subst in
-        if (x' = None || x' = Some (Var (y, ytyp))) &&
-           (y' = None || y' = Some (Var (x, xtyp)))
-        then let subst = remove_assoc x (remove_assoc y subst) in
-            let fs = map snd subst in
-            if is_free_in_any x fs || is_free_in_any y fs then None
-            else Some subst
-        else None
-    | _, _ -> None
+  let rec unify' subst t u =
+    let unify_pairs f g f' g' =
+      let* subst = unify' subst f f' in
+      unify' subst g g' in
+    match eta t, eta u with
+      | Const (c, typ), Const (c', typ') ->
+          if c = c' && typ = typ' then Some subst else None
+      | Var (x, typ), f ->
+          if typ = type_of f then
+            match assoc_opt x subst with
+              | Some g ->
+                  if is_unify then unify' subst f g
+                  else if f = g then Some subst else None
+              | None ->
+                  let f = subst_n subst f in
+                  if mem x (free_vars f) then None else
+                    let subst = subst |> map (fun (y, g) -> (y, subst1 g f x)) in
+                    Some ((x, f) :: subst)
+          else None
+      | _f, Var (_x, _typ) when is_unify -> unify' subst u t
+      | App (f, g), App (f', g') ->
+          unify_pairs f g f' g'
+      | Eq (f, g), Eq (f', g') -> (
+          match unify_pairs f g f' g' with
+            | Some subst -> Some subst
+            | None -> unify_pairs f g g' f')
+      | Lambda (x, xtyp, f), Lambda (y, ytyp, g) ->
+          let* subst = unify' subst f g in
+          let x', y' = assoc_opt x subst, assoc_opt y subst in
+          if (x' = None || x' = Some (Var (y, ytyp))) &&
+            (y' = None || y' = Some (Var (x, xtyp)))
+          then let subst = remove_assoc x (remove_assoc y subst) in
+              let fs = map snd subst in
+              if is_free_in_any x fs || is_free_in_any y fs then None
+              else Some subst
+          else None
+      | _, _ -> None
   in unify' []
 
 let unify = unify_or_match true
