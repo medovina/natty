@@ -1,5 +1,6 @@
 open Either
 open List
+open Printf
 
 open MParser
 
@@ -237,6 +238,11 @@ let single s = count 1 s
 let triple p q r = pipe3 p q r (fun x y z -> (x, y, z))
 
 let quadruple p q r s = pipe4 p q r s (fun w x y z -> (w, x, y, z))
+
+let trace msg s =
+  (return () |>> (fun _ -> printf "entering %s\n" msg)) >>
+  s |>> (fun x ->
+  printf "parsed %s\n" msg; x)
 
 (* multisets *)
 

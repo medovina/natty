@@ -37,7 +37,10 @@ let rec check_formula env vars =
         match typ_f with
           | Fun (tg, u) ->
               if subtype typ_g tg then (App (f, g), u)
-              else failwith ("type mismatch: " ^ show_formula formula)
+              else (
+                printf "type mismatch: can't apply %s : %s to %s : %s\n"
+                  (show_formula f) (show_type typ_f) (show_formula g) (show_type typ_g);
+                failwith "check_formula")
           | _ -> check (binop "·" unknown_type f g))
     | Lambda (id, typ, f) ->
         let (f, typ_f) = check_formula env ((id, typ) :: vars) f in
@@ -51,31 +54,6 @@ let rec check_formula env vars =
 let top_check env f =
   let (f, typ) = check_formula env [] f in
   if typ = Bool then f else failwith ("bool expected: " ^ show_formula f)
-
-let proof_by env f name outer var =
-  match find_map (axiom_named name) env with
-    | None -> failwith ("can't find axiom: " ^ name)
-    | Some ax ->
-        let (_, ax) = for_alls ax in
-        let (ps, concl) = premises ax in
-        let (vars_typs, f) = for_alls f in
-          match assoc_opt var vars_typs with
-            | None -> failwith ("no variable: " ^ var)
-            | Some typ -> (
-                let outer_vars_typs = map (fun v -> (v, assoc v vars_typs)) outer in
-                let inner_vars_typs =
-                  subtract vars_typs ((var, typ) :: outer_vars_typs) in (
-                let goal = for_all_vars_typs ((var, typ) :: inner_vars_typs) f in
-                match unify concl goal with
-                  | None ->
-                      printf "no match:\n  concl = %s\n  goal = %s\n"
-                        (show_formula concl) (show_formula goal);
-                      assert false
-                  | Some subst ->
-                      let g f = for_all_vars_typs outer_vars_typs
-                        (reduce (subst_n subst f)) in
-                      map g ps
-  ))
 
 type block = Block of proof_step * block list
 
@@ -103,7 +81,7 @@ let infer_blocks steps =
         if not in_use then ([], steps)
         else let (children, rest1) =
           match step with
-            | Assume _ | By _ -> infer vars rest
+            | Assume _ -> infer vars rest
             | _ -> match step_decl_vars step with
               | [] -> ([], rest)
               | step_vars -> infer (step_vars :: vars) rest in
@@ -133,10 +111,6 @@ and block_formulas env f (Block (step, children)) =
         let ex = _exists id typ g in
         ((ex, ex) :: map_fst (fun f -> _for_all id typ (implies g f)) fs,
          outer_eq concl)
-    | By (name, outer, var) ->
-        let goals = proof_by env f name outer var in
-        let (fs, _) = blocks_formulas env f (children @ map mk_assert goals) in
-        (fs, fold_left1 _and goals)
 
 let expand_proof env f = function
   | Steps steps ->

@@ -6,13 +6,15 @@ ids_type = id {',' id}+ typ
 
 (* terms *)
 
-term = sym | id '(' expr ')' | var | '(' expr ')'
+term =
+    sym | id '(' expr ')' | var | '(' expr ')'
+  | '{' var ':' typ '|' expr '}'
 
 terms = term+
 
 (* expressions *)
 
-op = '·' | '+' | '=' | '≠'
+op = '·' | '+' | '∈' | '=' | '≠'
 
 expr = terms | expr op expr
 
@@ -112,9 +114,7 @@ let_or_assume = let_val_step | let_step | assume_step
 
 let_or_assumes = let_or_assume {", and" let_or_assume}
 
-by_step = ['For any' var [',']] ['we' ['will']] 'use' word 'on' var
-
-proof_sentence = (let_or_assumes | assert_steps | by_step) '.'
+proof_sentence = (let_or_assumes | assert_steps) '.'
 
 proof_item = label proof_sentence+
 

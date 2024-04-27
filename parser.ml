@@ -57,7 +57,9 @@ let rec term s = choice [
   (pipe2 (id <<? str "(") (expr << str ")")
     (fun i f -> App (Var (i, unknown_type), f)));
   var |>> (fun v -> Var (v, unknown_type));
-  str "(" >> expr << str ")"
+  str "(" >> expr << str ")";
+  pipe3 (str "{" >> var) (str ":" >> typ) (str "|" >> expr << str "}")
+    (fun var typ expr -> Lambda (var, typ, expr))
  ] s
 
 and next_term s = (not_followed_by space "" >>? term) s
@@ -69,6 +71,7 @@ and terms s = (term >>= fun t -> many_fold_left (binop_unknown "·") t next_term
 and operators = [
   [ infix "·" (binop_unknown "·") Assoc_left ];
   [ infix "+" (binop_unknown "+") Assoc_left;  infix "-" (binop_unknown "-") Assoc_left ];
+  [ infix "∈" (Fun.flip mk_app) Assoc_none ];
   [ infix "=" mk_eq Assoc_right ; infix "≠" mk_neq Assoc_right ]
 ]
 
@@ -233,13 +236,8 @@ let let_or_assume = single let_val_step <|> let_step <|> single assume_step
 
 let let_or_assumes = (sep_by1 let_or_assume (str "," >> str "and")) |>> concat
 
-let by_step = pipe3
-  (opt [] (str "For any" >> single var << opt_str ","))
-  (optional (str "we" << opt_str "will") >> str "use" >> word) (str "on" >> var)
-  (fun outer w v -> By (w, outer, v))
-
 let proof_sentence =
-  (let_or_assumes <|> assert_steps <|> single by_step) << str "."
+  (let_or_assumes <|> assert_steps) << str "."
 
 let proof_item = pipe2 label (many1 proof_sentence |>> concat)
   (fun label steps -> (label, Steps steps))

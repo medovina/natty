@@ -10,8 +10,6 @@ type proof_step =
   | LetVal of id * typ * formula
   | Assume of formula
   | IsSome of id * typ * formula
-  | By of id * id list * id
-      (* theorem/axiom name, outer vars, induction variable *)
 
 let step_decl_vars = function
   | Let (ids, _) -> ids
@@ -34,11 +32,6 @@ let show_proof_step = function
   | Assume f -> sprintf "assume %s" (show_formula f)
   | IsSome (id, typ, f) -> sprintf "exists %s : %s : %s"
       id (show_type typ) (show_formula f)
-  | By (name, outer, var) ->
-      let for_any =
-        if outer = [] then ""
-        else " for any " ^ comma_join outer in
-      sprintf "by %s on %s%s" name var for_any
 
 type proof =
   | Steps of proof_step list
