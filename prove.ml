@@ -463,7 +463,7 @@ let all_split pformula =
             | Binary ("∧", f, g) ->
                 let new_formulas = [f; g] |> map (fun t ->
                   let u = multi_or (replace1 t lit lits) in
-                  mk_pformula "split" [pformula] u 0.01) in
+                  mk_pformula "split" [pformula] u 0.0) in
                 Some new_formulas
             | _ -> None in
           match find_map split_on new_lits with
