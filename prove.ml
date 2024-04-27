@@ -518,7 +518,9 @@ let rewrite_from ps q =
  *   ═══════════════   subsume
  *         C                 *)
 
-let subsumes cp dp = Option.is_some (try_match cp.formula dp.formula)
+let subsumes cp dp =
+  Option.is_some
+    (try_match (remove_universal cp.formula) (remove_universal dp.formula))
 
 let rec expand f = match split f with
   | Some (s, t) -> expand s @ expand t
