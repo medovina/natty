@@ -212,15 +212,15 @@ let assert_step = choice [
     (fun f g -> [f; g])
   ]
 
-let mk_steps f =
+let mk_step f =
   match kind f with
-    | Quant ("∃", x, typ, f) -> [IsSome (x, typ, f)]
-    | _ -> map mk_assert (gather_and f)
+    | Quant ("∃", x, typ, f) -> IsSome (x, typ, f)
+    | _ -> mk_assert f
 
 let assert_steps =
   let join = str "," >> ((str "and" >> so_or_have) <|> so) in
   pipe2 assert_step (many (join >> proof_prop))
-  (fun p ps -> concat_map mk_steps (p @ ps))
+  (fun p ps -> map mk_step (p @ ps))
 
 let _let = optional (any_str ["First"; "Now"]) >> str "let"
 

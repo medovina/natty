@@ -377,12 +377,22 @@ let multi_eq f =
     | [f] -> f
     | fs -> join fs
 
-let outer_eq f =
-  let fs = gather_and f in
-  assert (for_all is_eq fs);
-  match hd fs, last fs with
-    | Eq (a, _), Eq(_, b) -> Eq(a, b)
-    | _ -> failwith "outer_eq"
+let expand_multi_eq f =
+  let rec expand = function
+    | [] -> Some []
+    | Eq (_, g) as eq :: rest -> (
+        match expand rest with
+          | Some [] -> Some [eq]
+          | Some ((Eq (g', _) :: _) as eqs) when g = g' ->
+              Some (eq :: eqs)
+          | _ -> None)
+    | _ -> None in
+  match expand (gather_and f) with
+    | Some eqs -> (
+        match hd eqs, last eqs with
+          | Eq (a, _), Eq (_, b) -> Some (eqs, Eq (a, b))
+          | _ -> assert false)
+    | None -> None
 
 let next_var x avoid =
   let rec next x =

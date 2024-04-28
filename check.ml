@@ -105,20 +105,25 @@ and block_formulas (Block (step, children)) =
   let (fs, concl) = blocks_formulas children in
   let apply fn = (map_fst fn fs, fn concl) in
   match step with
-    | Assert f -> ([(f, f)], f)
+    | Assert f -> (
+        match expand_multi_eq f with
+          | Some (eqs, concl) ->
+              (map (fun eq -> (eq, eq)) eqs, concl)
+          | None -> ([(f, f)], f))
     | Let (ids, typ) -> apply (for_all_vars_typ (ids, typ))
     | LetVal (id, _typ, value) -> apply (fun f -> rsubst1 f value id)
     | Assume a -> apply (implies a)
     | IsSome (id, typ, g) ->
         let ex = _exists id typ g in
         ((ex, ex) :: map_fst (fun f -> _for_all id typ (implies g f)) fs,
-         outer_eq concl)
+         concl)
 
 let expand_proof env f = function
   | Steps steps ->
       let blocks = infer_blocks steps in
       if !debug > 0 then print_blocks blocks;
       let fs = fst (blocks_formulas (blocks @ [mk_assert f])) in
+      (* fs |> iter (fun (f, _) -> print_line (show_multi f)); *)
       Formulas (map_fst (top_check env) fs)
   | _ -> assert false
 
