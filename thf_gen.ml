@@ -25,6 +25,8 @@ let thf_type =
 
 let binary = [("∧", "&"); ("∨", "|"); ("→", "=>")]
 
+let to_var id = capitalize (str_replace "'" "_" id)
+
 let rec thf outer right f =
   let parens b s = if b && outer <> "" then sprintf "(%s)" s else s in
   match bool_kind f with
@@ -43,7 +45,7 @@ let rec thf outer right f =
         quant (if q = "∀" then "!" else "?") ((id, typ) :: ids_typs) f
     | _ -> match f with
       | Const (id, _) -> quote id
-      | Var (id, _) -> capitalize id
+      | Var (id, _) -> to_var id
       | App (t, u) ->
           let s = sprintf "%s @ %s" (thf "@" false t) (thf "@" true u) in
           parens (outer <> "@" || right) s
@@ -52,7 +54,7 @@ let rec thf outer right f =
           parens true (sprintf "%s = %s" (thf "=" false t) (thf "=" true u))
 
 and quant q ids_typs f =
-  let pair (id, typ) = sprintf "%s: %s" (capitalize id) (thf_type typ) in
+  let pair (id, typ) = sprintf "%s: %s" (to_var id) (thf_type typ) in
   let pairs = comma_join (map pair ids_typs) in
   sprintf "%s[%s]: %s" q pairs (thf q false f)
 
