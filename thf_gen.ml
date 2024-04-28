@@ -7,6 +7,7 @@ open Util
 
 let quote s =
   let s = str_replace "·" "*" s in
+  let s = str_replace "." "_" s in
   if is_lower (s.[0]) then s else sprintf "'%s'" s
 
 let base_type = function

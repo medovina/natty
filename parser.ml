@@ -165,7 +165,7 @@ let axiom_decl =
 
 let count_label c label =
   if label = "" then sprintf "%d" !c
-  else sprintf "%d_%s" !c label
+  else sprintf "%d.%s" !c label
 
 let axiom_propositions = pipe2 propositions get_user_state
   (fun props (ax, _) -> incr ax;

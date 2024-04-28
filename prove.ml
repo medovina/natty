@@ -745,13 +745,13 @@ let refute timeout pformulas =
 let to_pformula stmt = stmt_formula stmt |> Option.map (fun f ->
   create_pformula (stmt_name stmt) [] (rename_vars f) 0.0)
 
-let prove timeout known_stmts stmt =
+let prove timeout known_stmts thm =
   formula_counter := 0;
   let known = known_stmts |> filter_map (fun s ->
     match to_pformula s with
       | Some p -> dbg_newline (); Some p
       | None -> None) in
-  let pformula = Option.get (to_pformula stmt) in
+  let pformula = Option.get (to_pformula thm) in
   let negated =
     create_pformula "negate" [pformula] (_not pformula.formula) (-1.0) in
   refute timeout (known @ [negated])
@@ -763,20 +763,38 @@ let output_proof pformula =
   List.sort id_compare steps |> iter (print_formula true "");
   print_newline ()
 
+let expand_proofs stmts =
+  let rec expand known = function
+    | stmt :: stmts ->
+        let thms = match stmt with
+          | Theorem (name, formula, proof) as thm -> (
+              match proof with
+                | Some (Formulas fs) ->
+                    fs |> mapi (fun j (f, orig) ->
+                      let step_name = sprintf "%s.%d" name (j + 1) in
+                      let t = Theorem (step_name, f, None) in
+                      (t, orig, known))
+                | Some _ -> assert false
+                | None -> [(thm, formula, known)])
+          | _ -> [] in
+        thms @ expand (stmt :: known) stmts
+    | [] -> [] in
+  expand [] stmts
+
 let prove_all opts thf prog =
   debug := opts.debug;
-  let rec prove_stmts known_stmts all_success = function
+  let rec prove_stmts all_success = function
     | [] ->
         if (not thf) then
           if all_success then
             print_endline "All theorems were proved."
           else if opts.keep_going then
             print_endline "Some theorems were not proved."
-    | stmt :: rest ->
-        let success = match stmt with
+    | (thm, _, known) :: rest ->
+        let success = match thm with
           | Theorem _ ->
-              print_endline (show_statement true stmt ^ "\n");
-              let result = prove opts.timeout known_stmts stmt in
+              print_endline (show_statement true thm ^ "\n");
+              let result = prove opts.timeout (rev known) thm in
               let b = match result with
                   | Proof (pformula, elapsed) ->
                       printf "proved in %.2f s\n" elapsed;
@@ -789,7 +807,7 @@ let prove_all opts thf prog =
               if thf then printf "SZS status %s\n" (szs result);
               print_newline ();
               b
-          | _ -> true in
+          | _ -> assert false in
         if success || opts.keep_going then
-          prove_stmts (known_stmts @ [stmt]) (all_success && success) rest in
-  prove_stmts [] true prog
+          prove_stmts (all_success && success) rest in
+  prove_stmts true (expand_proofs prog)

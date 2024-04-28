@@ -39,7 +39,7 @@ let contains s1 s2 =
     with Not_found -> false
 
 (* 'str_replace s t u' replaces s with t in u *)
-let str_replace s = Str.global_replace (Str.regexp s)
+let str_replace s = Str.global_replace (Str.regexp_string s)
 
 let remove_prefix p s =
   if starts_with p s then string_from s (String.length p) else s

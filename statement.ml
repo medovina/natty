@@ -46,12 +46,19 @@ type statement =
   | Definition of id * typ * formula
   | Theorem of id * formula * proof option
 
-let stmt_name = function
-  | TypeDecl id -> "type " ^ id
-  | ConstDecl (id, _) -> "const " ^ id
-  | Axiom (id, _, _) -> "axiom " ^ id
-  | Definition (id, _, _) -> "definition " ^ id
-  | Theorem (id, _, _) -> "theorem " ^ id
+let stmt_id = function
+  | TypeDecl id -> id
+  | ConstDecl (id, _) -> id
+  | Axiom (id, _, _) -> id
+  | Definition (id, _, _) -> id
+  | Theorem (id, _, _) -> id
+
+let stmt_name stmt = (match stmt with
+  | TypeDecl _ -> "type"
+  | ConstDecl _ -> "const"
+  | Axiom _ -> "axiom"
+  | Definition _ -> "definition"
+  | Theorem _ -> "theorem") ^ " " ^ stmt_id stmt
 
 let stmt_formula = function
   | Axiom (_, f, _) -> Some f
