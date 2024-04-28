@@ -80,4 +80,4 @@ Proof. Let
 
   Let b, c : ℕ with c ≠ 0 and 0 · c = bc. Then bc = 0.  Since c ≠ 0, we must have b = 0.  So 0 = b, and hence 0 ∈ G.
 
-  Now let a : ℕ, and suppose that a ∈ G.  Let b, c : ℕ, and suppose that c ≠ 0 and s(a) · c = bc.  Then ca + c = bc.  If b = 0, then either s(a) = 0 or c = 0, which is a contradiction.  Hence b ≠ 0.  By Lemma 1 there is some p : ℕ such that b = s(p).  Therefore ca + c = s(p) · c, and we see that ca + c = cp + c.  It follows that ca = cp, so ac = pc.  By the inductive hypothesis, it follows that a = p.  Therefore s(a) = s(p) = b.  Hence s(a) ∈ G, and we deduce that x ∈ G for all x : ℕ.
+  Now let a : ℕ, and suppose that a ∈ G.  Let b, c : ℕ, and suppose that c ≠ 0 and s(a) · c = bc.  Then ca + c = bc.  If b = 0, then either s(a) = 0 or c = 0, which is a contradiction.  Hence b ≠ 0.  By Lemma 1 there is some p : ℕ such that b = s(p).  Therefore ca + c = s(p) · c, and we see that ca + c = cp + c.  It follows that ca = cp, so ac = pc.  By hypothesis it follows that a = p.  Therefore s(a) = s(p) = b.  Hence s(a) ∈ G, and we deduce that x ∈ G for all x : ℕ.

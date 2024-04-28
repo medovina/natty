@@ -191,7 +191,7 @@ let definition = pipe3
 let reason = str "by" >>? choice [
   str "lemma" >> number;
   str "part" >> str "(" >> number << str ")" << opt_str "of this theorem";
-  str "the inductive hypothesis"
+  str "hypothesis"
 ]
 
 let opt_contra f = opt f
