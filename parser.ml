@@ -50,36 +50,7 @@ let id_type = pair id (str ":" >> typ)
 
 let ids_type = pair (sep_by1 id (str ",")) (str ":" >> typ)
 
-(* terms *)
-
-let rec term s = choice [
-  (sym |>> fun c -> Const (c, unknown_type));
-  (pipe2 (id <<? str "(") (expr << str ")")
-    (fun i f -> App (Var (i, unknown_type), f)));
-  var |>> (fun v -> Var (v, unknown_type));
-  str "(" >> expr << str ")";
-  pipe3 (str "{" >> var) (str ":" >> typ) (str "|" >> expr << str "}")
-    (fun var typ expr -> Lambda (var, typ, expr))
- ] s
-
-and next_term s = (not_followed_by space "" >>? term) s
-
-and terms s = (term >>= fun t -> many_fold_left (binop_unknown "·") t next_term) s
-
-(* expressions *)
-
-and operators = [
-  [ infix "·" (binop_unknown "·") Assoc_left ];
-  [ infix "+" (binop_unknown "+") Assoc_left;  infix "-" (binop_unknown "-") Assoc_left ];
-  [ infix "∈" (Fun.flip mk_app) Assoc_none ];
-  [ infix "=" mk_eq Assoc_right ; infix "≠" mk_neq Assoc_right ]
-]
-
-and expr s = (expression operators terms |>> multi_eq) s
-
-let atomic = expr << opt_str "is true"
-
-(* small propositions *)
+(* operators for small propositions *)
 
 let so = any_str ["hence"; "so"; "then"; "therefore"]
 
@@ -100,20 +71,51 @@ let prop_operators = [
   [ Infix (str "," >>? str "or" >>$ _or, Assoc_left) ];
 ]
 
-let small_prop = expression prop_operators atomic
+(* terms *)
+
+let rec term s = choice [
+  (sym |>> fun c -> Const (c, unknown_type));
+  (pipe2 (id <<? str "(") (expr << str ")")
+    (fun i f -> App (Var (i, unknown_type), f)));
+  var |>> (fun v -> Var (v, unknown_type));
+  str "(" >> expr << str ")";
+  pipe3 (str "{" >> var) (str ":" >> typ) (str "|" >> proposition << str "}")
+    (fun var typ expr -> Lambda (var, typ, expr))
+ ] s
+
+and next_term s = (not_followed_by space "" >>? term) s
+
+and terms s = (term >>= fun t -> many_fold_left (binop_unknown "·") t next_term) s
+
+(* expressions *)
+
+and operators = [
+  [ infix "·" (binop_unknown "·") Assoc_left ];
+  [ infix "+" (binop_unknown "+") Assoc_left;  infix "-" (binop_unknown "-") Assoc_left ];
+  [ infix "∈" (Fun.flip mk_app) Assoc_none ];
+  [ infix "=" mk_eq Assoc_right ; infix "≠" mk_neq Assoc_right ]
+]
+
+and expr s = (expression operators terms |>> multi_eq) s
+
+and atomic s = (expr << opt_str "is true") s
+
+(* small propositions *)
+
+and small_prop s = expression prop_operators atomic s
 
 (* propositions *)
 
-let if_then_prop =
+and if_then_prop s =
   pipe2 (str "if" >> small_prop << opt_str ",") (str "then" >> small_prop)
-    implies
+    implies s
 
-let either_or_prop =
-  str "either" >> small_prop |>> fun f -> match bool_kind f with
+and either_or_prop s =
+  (str "either" >> small_prop |>> fun f -> match bool_kind f with
     | Binary ("∨", _, _) -> f
-    | _ -> failwith "either: expected or"
+    | _ -> failwith "either: expected or") s
 
-let rec for_all_prop s = pipe2
+and for_all_prop s = pipe2
   (str "For all" >> ids_type) (str "," >> proposition) for_all_vars_typ s
 
 and exists_prop s = pipe3
@@ -239,10 +241,14 @@ let let_or_assumes = (sep_by1 let_or_assume (str "," >> str "and")) |>> concat
 let proof_sentence =
   (let_or_assumes <|> assert_steps) << str "."
 
-let proof_item = pipe2 label (many1 proof_sentence |>> concat)
-  (fun label steps -> (label, Steps steps))
+let proof_steps =
+  many1 proof_sentence |>> (fun steps -> Steps (concat steps))
+
+let proof_item = pair label proof_steps
   
-let proofs = str "Proof." >> many1 proof_item
+let proofs = str "Proof." >> choice [
+  many1 proof_item;
+  proof_steps |>> (fun steps -> [("", steps)])]
 
 (* theorems *)
 

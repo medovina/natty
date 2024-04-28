@@ -59,12 +59,13 @@ type block = Block of proof_step * block list
 
 let mk_assert f = Block (Assert f, [])
 
-let print_blocks =
+let print_blocks blocks =
   let rec print indent blocks =
     blocks |> iter (fun (Block (step, children)) ->
       printf "%s%s\n" indent (show_proof_step step);
       print (indent ^ "  ") children) in
-  print ""
+  print "" blocks;
+  print_newline ()
 
 let infer_blocks steps =
   let rec all_vars = function
@@ -79,28 +80,29 @@ let infer_blocks steps =
           | [] -> true
           | top_vars :: _ -> overlap top_vars (all_vars steps) in
         if not in_use then ([], steps)
-        else let (children, rest1) =
-          match step with
-            | Assume _ -> infer vars rest
-            | _ -> match step_decl_vars step with
-              | [] -> ([], rest)
-              | step_vars -> infer (step_vars :: vars) rest in
+        else
+          let (children, rest1) =
+            match step with
+              | Assume _ -> infer vars rest
+              | _ -> match step_decl_vars step with
+                | [] -> ([], rest)
+                | step_vars -> infer (step_vars :: vars) rest in
           let (blocks, rest2) = infer vars rest1 in
           (Block (step, children) :: blocks, rest2) in
   let (blocks, rest) = infer [] steps in
   assert (rest = []);
   blocks
 
-let rec blocks_formulas env f = function
+let rec blocks_formulas = function
   | [] -> ([], _true)
   | block :: rest ->
-      let (fs, concl) = block_formulas env f block in
-      let (gs, final_concl) = blocks_formulas env f rest in
+      let (fs, concl) = block_formulas block in
+      let (gs, final_concl) = blocks_formulas rest in
       (fs @ map_fst (fun f -> implies concl f) gs,
       if rest = [] then concl else final_concl)
 
-and block_formulas env f (Block (step, children)) =
-  let (fs, concl) = (blocks_formulas env f) children in
+and block_formulas (Block (step, children)) =
+  let (fs, concl) = blocks_formulas children in
   let apply fn = (map_fst fn fs, fn concl) in
   match step with
     | Assert f -> ([(f, f)], f)
@@ -116,7 +118,7 @@ let expand_proof env f = function
   | Steps steps ->
       let blocks = infer_blocks steps in
       if !debug > 0 then print_blocks blocks;
-      let fs = fst (blocks_formulas env f (blocks @ [mk_assert f])) in
+      let fs = fst (blocks_formulas (blocks @ [mk_assert f])) in
       Formulas (map_fst (top_check env) fs)
   | _ -> assert false
 

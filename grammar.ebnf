@@ -8,7 +8,7 @@ ids_type = id {',' id}+ typ
 
 term =
     sym | id '(' expr ')' | var | '(' expr ')'
-  | '{' var ':' typ '|' expr '}'
+  | '{' var ':' typ '|' proposition '}'
 
 terms = term+
 
@@ -22,7 +22,7 @@ atomic = expr ['is true']
 
 (* small propositions *)
 
-prop_op 'and' | 'or' | 'implies' | ', and' | ', or'
+prop_op = 'and' | 'or' | 'implies' | ', and' | ', or'
 
 small_prop = atomic | small_prop prop_op small_prop | small_prop 'for all' id_type
 
@@ -116,9 +116,11 @@ let_or_assumes = let_or_assume {", and" let_or_assume}
 
 proof_sentence = (let_or_assumes | assert_steps) '.'
 
-proof_item = label proof_sentence+
+proof_steps = proof_sentence+
 
-proofs = 'Proof.' proof_item+
+proof_item = label proof_steps
+
+proofs = 'Proof.' (proof_item+ | proof_steps)
 
 (* theorems *)
 
