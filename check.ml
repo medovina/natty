@@ -105,7 +105,7 @@ and block_formulas env f (Block (step, children)) =
   match step with
     | Assert f -> ([(f, f)], f)
     | Let (ids, typ) -> apply (for_all_vars_typ (ids, typ))
-    | LetVal (id, _typ, value) -> apply (fun f -> subst1 f value id)
+    | LetVal (id, _typ, value) -> apply (fun f -> rsubst1 f value id)
     | Assume a -> apply (implies a)
     | IsSome (id, typ, g) ->
         let ex = _exists id typ g in

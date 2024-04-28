@@ -43,15 +43,28 @@ Theorem.  Let a, b, c : ℕ.
 
 Proof.
 
-4. Let a, b : ℕ.  Let G : ℕ → 𝔹 = { x : ℕ | (a · b) · x = a · (b · x) }.  We have (ab) · 0 = 0 = a(b · 0), so 0 ∈ G.  Now let k : ℕ, and suppose that k ∈ G.  Then
+4. Let a, b : ℕ.  Let G : ℕ → 𝔹 = { x : ℕ | (a · b) · x = a · (b · x) }.  We have (ab) · 0 = 0 = a(b · 0), so 0 ∈ G.  Now let c : ℕ, and suppose that c ∈ G.  Then
 
-  (a · b) · s(k) = (a · b) · k + a · b
-                 = a · (b · k) + a · b
-                 = a · (b · k + b)
-                 = a · (b · s(k)).
+  (a · b) · s(c) = (a · b) · c + a · b
+                 = a · (b · c) + a · b
+                 = a · (b · c + b)
+                 = a · (b · s(c)).
                  
-  So s(k) ∈ G.  Hence x ∈ G for all x : ℕ.
+  So s(c) ∈ G.  Hence x ∈ G for all x : ℕ.
 
-#  9. We use induction on a.  First let a : ℕ = 0, and let b, c : ℕ with c ≠ 0 and ac = bc. Then bc = ac = 0.  Since c ≠ 0, we must have b = 0 by part (8) of this theorem, so a = b.
-#
-# Now let a: ℕ, and suppose that for all b, c : ℕ, if c ≠ 0 and ac = bc then a = b.  Let j, k : ℕ, and suppose that k ≠ 0 and s(a) · k = jk.  We deduce that ka + k = jk.  If j = 0, then by part (8) either s(a) = 0 or k = 0, which is a contradiction.  Hence j ≠ 0.  By Lemma 1 there is some p : ℕ such that j = s(p).  Therefore ka + k = s(p) · k, and we see that ka + k = kp + k.  It follows that ka = kp, so ak = pk.  By the inductive hypothesis, it follows that a = p.  Therefore s(a) = s(p) = j.
+5. Let a : ℕ.  Let G : ℕ → 𝔹 = { x : ℕ | s(a) · x = ax + x }.  We have s(a) · 0 = 0 = a · 0 + 0, so 0 ∈ G.  Now let b : ℕ, and suppose that b ∈ G.  Then
+
+  s(a) · s(b) = s(a) · b + s(a)
+              = (ab + b) + s(a)
+              = ab + (b + s(a))
+              = ab + s(b + a)
+              = ab + s(a + b)
+              = ab + (a + s(b))
+              = (ab + a) + s(b)
+              = a · s(b) + s(b).
+
+  So s(b) ∈ G.  Hence x ∈ G for all x : ℕ.
+
+#9. We use induction on a.  First let a : ℕ = 0, and let b, c : ℕ with c ≠ 0 and ac = bc. Then bc = ac = 0.  Since c ≠ 0, we must have b = 0 by part (8) of this theorem, so a = b.
+
+#Now let a: ℕ, and suppose that for all b, c : ℕ, if c ≠ 0 and ac = bc then a = b.  Let j, k : ℕ, and suppose that k ≠ 0 and s(a) · k = jk.  We deduce that ka + k = jk.  If j = 0, then by part (8) either s(a) = 0 or k = 0, which is a contradiction.  Hence j ≠ 0.  By Lemma 1 there is some p : ℕ such that j = s(p).  Therefore ka + k = s(p) · k, and we see that ka + k = kp + k.  It follows that ka = kp, so ak = pk.  By the inductive hypothesis, it follows that a = p.  Therefore s(a) = s(p) = j.

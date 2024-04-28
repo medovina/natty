@@ -314,6 +314,7 @@ let rec reduce = function
   | Eq (f, g) -> Eq (reduce f, reduce g)
   | f -> f
 
+let rsubst1 t u x = reduce (subst1 t u x)
 let rsubst subst f = reduce (subst_n subst f)
 
 let eta = function
