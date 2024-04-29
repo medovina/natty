@@ -459,12 +459,17 @@ let all_split pformula =
     match clausify_step pformula lits with
       | None -> []
       | Some (lits, new_lits, _) ->
+          let split lit f g = 
+            let new_formulas = [f; g] |> map (fun t ->
+              let u = multi_or (replace1 t lit lits) in
+              mk_pformula "split" [pformula] u 0.0) in
+            Some new_formulas in
           let split_on lit = match bool_kind lit with
-            | Binary ("∧", f, g) ->
-                let new_formulas = [f; g] |> map (fun t ->
-                  let u = multi_or (replace1 t lit lits) in
-                  mk_pformula "split" [pformula] u 0.0) in
-                Some new_formulas
+            | Binary ("∧", f, g) -> split lit f g
+            | Not f -> (match bool_kind f with
+                | Binary ("∨", f, g) -> split lit (_not f) (_not g)
+                | Binary ("→", f, g) -> split lit f (_not g)
+                | _ -> None)
             | _ -> None in
           match find_map split_on new_lits with
             | Some new_formulas -> new_formulas
