@@ -29,10 +29,10 @@ let step_free_vars = function
 let show_proof_step = function
   | Assert f -> sprintf "assert %s" (show_formula f)
   | Let (ids, typ) -> sprintf "let %s : %s" (comma_join ids) (show_type typ)
-  | LetVal (id, typ, f) -> sprintf "let %s : %s = %s"
+  | LetVal (id, typ, f) -> sprintf "let_val %s : %s = %s"
       id (show_type typ) (show_formula f)
   | Assume f -> sprintf "assume %s" (show_formula f)
-  | IsSome (id, typ, f) -> sprintf "exists %s : %s : %s"
+  | IsSome (id, typ, f) -> sprintf "is_some %s : %s : %s"
       id (show_type typ) (show_formula f)
 
 type proof =

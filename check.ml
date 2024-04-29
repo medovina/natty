@@ -120,9 +120,9 @@ and block_formulas (Block (step, children)) =
 
 let expand_proof env f = function
   | Steps steps ->
-      let blocks = infer_blocks steps in
+      let blocks = infer_blocks steps @ [mk_assert f] in
       if !debug > 0 then print_blocks blocks;
-      let fs = fst (blocks_formulas (blocks @ [mk_assert f])) in
+      let fs = fst (blocks_formulas blocks) in
       (* fs |> iter (fun (f, _) -> print_line (show_multi f)); *)
       Formulas (map_fst (top_check env) fs)
   | _ -> assert false

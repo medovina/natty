@@ -87,7 +87,7 @@ so_or_have = so | have
 reason = 'by'
     ('lemma' number |
      'part (' number ')' ['of this theorem'] |
-     'the inductive hypothesis')
+     'hypothesis')
 
 contra = ',' 'which is a contradiction'
 
