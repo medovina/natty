@@ -531,7 +531,7 @@ let rec expand f = match split f with
   | Some (s, t) -> expand s @ expand t
   | None -> [f]
 
-let rec simp f = match kind f with
+let rec simp f = match bool_kind f with
   | Not f ->
       let f = simp f in (
       match bool_kind f with
@@ -539,7 +539,7 @@ let rec simp f = match kind f with
         | False -> _true
         | Not g -> g
         | _ -> _not f)
-  | Binary (op, typ, p, q) ->
+  | Binary (op, _, p, q) ->
       let p, q = simp p, simp q in (
       match op, bool_kind p, bool_kind q with
         | "∧", True, _ -> q
@@ -555,8 +555,7 @@ let rec simp f = match kind f with
         | "→", False, _ -> _true
         | "→", _, False -> simp (_not p)
         | "→", t, u when t = u -> _true
-        | "∈", _, _ -> simp (App (q, p))
-        | _ -> binop op typ p q)
+        | _ -> logical_op op p q)
   | Quant (q, x, typ, f) ->
       let f = simp f in (
       match bool_kind f with
@@ -569,7 +568,7 @@ let rec simp f = match kind f with
   | _ -> map_formula simp f
 
 let simplify pformula =
-  let f = reduce (simp pformula.formula) in
+  let f = simp pformula.formula in
   if f = pformula.formula then pformula
   else update pformula None f
 

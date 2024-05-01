@@ -122,8 +122,6 @@ let c_exists = Const("∃", quant_type)
 let mk_neq f g = _not (mk_eq f g)
 let mk_eq' eq f g = (if eq then mk_eq else mk_neq) f g
 
-let in_type = Fun (unknown_type, Fun (unknown_type, Bool))
-
 type formula_kind =
   | True
   | False
@@ -214,12 +212,8 @@ let show_formula_multi multi f =
         | App (t, u) ->
             sprintf "%s(%s)" (show1 10 false t) (show1 (-1) false u)
         | Lambda (id, typ, t) ->
-            let typ_s, body = show_type typ, show1 quantifier_prec false t in
-            let set_comp = type_of t = Bool in
-            let s = if set_comp
-              then sprintf "{%s : %s | %s}" id typ_s body
-              else sprintf "λ%s:%s.%s" id typ_s body in
-            parens (not set_comp && quantifier_prec < outer) s
+            parens (quantifier_prec < outer)
+              (sprintf "λ%s:%s.%s" id (show_type typ) (show1 quantifier_prec false t))
         | Eq (t, u) -> show_eq "=" t u in
   show 0 multi (-1) false f
 
