@@ -81,16 +81,18 @@ for prover, command in provers:
         result[prover] = res
 
 proved : defaultdict = defaultdict(int)
-total = defaultdict(float)
+total_time = defaultdict(float)
+total_score = defaultdict(float)
 
 for result in results.values():
     for prover, r in result.items():
         try:
             time = float(r)
             proved[prover] += 1
-            total[prover] += time
+            total_time[prover] += time
+            total_score[prover] += time
         except ValueError:
-            total[prover] += 2 * timeout
+            total_score[prover] += 2 * timeout
 
 with open(results_file, 'w') as out:
     fieldnames = ['', 'conjecture'] + [p[0] for p in provers]
@@ -103,8 +105,13 @@ with open(results_file, 'w') as out:
     proved[''] = f'proved (of {n})'
     writer.writerow(proved)
 
-    score = { prover : f'{t / n:.1f}' for prover, t in total.items() }
-    score[''] = 'avg time'
+    avg_time = { prover : f'{t / proved[prover]:.2f}' for prover, t in total_time.items() }
+    avg_time[''] = 'average time'
+    writer.writerow(avg_time)
+
+    score = { prover : f'{t / n:.2f}' for prover, t in total_score.items() }
+    score[''] = 'PAR-2 score'
+    print(score)
     writer.writerow(score)
 
     plural = '' if timeout == 1 else 's'
