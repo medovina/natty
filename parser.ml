@@ -92,7 +92,7 @@ and terms s = (term >>= fun t -> many_fold_left (binop_unknown "·") t next_term
 and operators = [
   [ infix "·" (binop_unknown "·") Assoc_left ];
   [ infix "+" (binop_unknown "+") Assoc_left;  infix "-" (binop_unknown "-") Assoc_left ];
-  [ infix "∈" (Fun.flip mk_app) Assoc_none ];
+  [ infix "∈" (binop_unknown "∈") Assoc_none ];
   [ infix "=" mk_eq Assoc_right ; infix "≠" mk_neq Assoc_right ]
 ]
 
@@ -112,7 +112,7 @@ and if_then_prop s =
 
 and either_or_prop s =
   (str "either" >> small_prop |>> fun f -> match bool_kind f with
-    | Binary ("∨", _, _) -> f
+    | Binary ("∨", _, _, _) -> f
     | _ -> failwith "either: expected or") s
 
 and for_all_prop s = pipe2

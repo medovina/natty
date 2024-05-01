@@ -217,8 +217,8 @@ let lit_gt f g =
 let clause_gt = multi_gt lit_gt
 
 let split f = match bool_kind f with
-  | Binary ("∨", s, t) -> Some (s, t)
-  | Binary ("→", s, t) -> Some (_not s, t)
+  | Binary ("∨", _, s, t) -> Some (s, t)
+  | Binary ("→", _, s, t) -> Some (_not s, t)
   | _ -> None
 
 (*      s = ⊤ ∨ C                 s = ⊥ ∨ C
@@ -257,7 +257,7 @@ let clausify_step pformula lits =
           let g = subst1 g skolem x in
           Some ([g], [g])
       | Not g -> (match bool_kind g with
-        | Binary ("→", f, g) -> Some ([_and f (_not g)], [])
+        | Binary ("→", _, f, g) -> Some ([_and f (_not g)], [])
         | Quant ("∀", x, typ, g) ->
             new_lits (_exists x typ (_not g))
         | Quant ("∃", x, typ, g) ->
@@ -354,10 +354,10 @@ let is_eligible sub parent_eq =
 
 (* Clausify ignoring quantifiers and conjunctions *)
 let rec mini_clausify f = match bool_kind f with
-  | Binary ("∨", f, g) -> mini_clausify f @ mini_clausify g
-  | Binary ("→", f, g) -> mini_clausify (_not f) @ mini_clausify g
+  | Binary ("∨", _, f, g) -> mini_clausify f @ mini_clausify g
+  | Binary ("→", _, f, g) -> mini_clausify (_not f) @ mini_clausify g
   | Not g -> (match bool_kind g with
-    | Binary ("∧", f, g) -> mini_clausify (_not f) @ mini_clausify (_not g)
+    | Binary ("∧", _, f, g) -> mini_clausify (_not f) @ mini_clausify (_not g)
     | _ -> [f])
   | _ -> [f]
 
@@ -465,10 +465,10 @@ let all_split pformula =
               mk_pformula "split" [pformula] u 0.0) in
             Some new_formulas in
           let split_on lit = match bool_kind lit with
-            | Binary ("∧", f, g) -> split lit f g
+            | Binary ("∧", _, f, g) -> split lit f g
             | Not f -> (match bool_kind f with
-                | Binary ("∨", f, g) -> split lit (_not f) (_not g)
-                | Binary ("→", f, g) -> split lit f (_not g)
+                | Binary ("∨", _, f, g) -> split lit (_not f) (_not g)
+                | Binary ("→", _, f, g) -> split lit f (_not g)
                 | _ -> None)
             | _ -> None in
           match find_map split_on new_lits with
@@ -531,7 +531,7 @@ let rec expand f = match split f with
   | Some (s, t) -> expand s @ expand t
   | None -> [f]
 
-let rec simp f = match bool_kind f with
+let rec simp f = match kind f with
   | Not f ->
       let f = simp f in (
       match bool_kind f with
@@ -539,7 +539,7 @@ let rec simp f = match bool_kind f with
         | False -> _true
         | Not g -> g
         | _ -> _not f)
-  | Binary (op, p, q) ->
+  | Binary (op, typ, p, q) ->
       let p, q = simp p, simp q in (
       match op, bool_kind p, bool_kind q with
         | "∧", True, _ -> q
@@ -555,7 +555,8 @@ let rec simp f = match bool_kind f with
         | "→", False, _ -> _true
         | "→", _, False -> simp (_not p)
         | "→", t, u when t = u -> _true
-        | _ -> logical_op op p q)
+        | "∈", _, _ -> simp (App (q, p))
+        | _ -> binop op typ p q)
   | Quant (q, x, typ, f) ->
       let f = simp f in (
       match bool_kind f with
@@ -568,7 +569,7 @@ let rec simp f = match bool_kind f with
   | _ -> map_formula simp f
 
 let simplify pformula =
-  let f = simp pformula.formula in
+  let f = reduce (simp pformula.formula) in
   if f = pformula.formula then pformula
   else update pformula None f
 
@@ -576,10 +577,10 @@ let is_tautology f = mem _true (expand f)
 
 let associative_axiom f =
   let is_assoc (f, g) = match kind f, kind g with
-    | Binary (op, f1, Var (z, _)), Binary (op3, Var (x', _), g1) -> (
+    | Binary (op, _, f1, Var (z, _)), Binary (op3, _, Var (x', _), g1) -> (
         match kind f1, kind g1 with
-          | Binary (op2, Var (x, _), Var (y, _)),
-            Binary (op4, Var (y', _), Var (z', _))
+          | Binary (op2, _, Var (x, _), Var (y, _)),
+            Binary (op4, _, Var (y', _), Var (z', _))
               when op = op2 && op2 = op3 && op3 = op4 &&
                   (x, y, z) = (x', y', z') -> Some op
           | _ -> None)
@@ -590,20 +591,20 @@ let associative_axiom f =
 
 let commutative_axiom f = remove_universal f |> function
     | Eq (f, g) -> (match kind f, kind g with
-        | Binary (op, Var (x, _), Var (y, _)), Binary (op', Var (y', _), Var (x', _))
+        | Binary (op, _, Var (x, _), Var (y, _)), Binary (op', _, Var (y', _), Var (x', _))
             when (op, x, y) = (op', x', y') -> Some op
         | _ -> None)
     | _ -> None
 
 let rec gather_op op f = match kind f with
-  | Binary (op', f, g) when op = op' ->
+  | Binary (op', _, f, g) when op = op' ->
       gather_op op f @ gather_op op g
   | _ -> [f]
 
 let is_ac_tautology ac_ops = function
   | Eq (f, g) as eq -> (
       match kind f with
-        | Binary (op, _, _) when mem op ac_ops ->
+        | Binary (op, _, _, _) when mem op ac_ops ->
             let b =
               std_sort (gather_op op f) = std_sort (gather_op op g) &&
               not (associative_axiom eq = Some op || commutative_axiom eq = Some op) in

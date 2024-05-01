@@ -32,6 +32,11 @@ let rec check_formula env vars =
         match assoc_opt id vars with
           | Some typ -> (Var (id, typ), typ)
           | None -> check_const env id)
+    | App (App (Const ("∈", _), f), g) ->
+        let (f, _), (g, _) = check f, check g in
+        let (_, gf_typ) = check (App (g, f)) in
+        if gf_typ = Bool then binop "∈" in_type f g, Bool
+          else failwith "bool expected"
     | App (f, g) ->
         let (f, typ_f), (g, typ_g) = check f, check g in (
         match typ_f with

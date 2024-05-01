@@ -122,11 +122,13 @@ let c_exists = Const("∃", quant_type)
 let mk_neq f g = _not (mk_eq f g)
 let mk_eq' eq f g = (if eq then mk_eq else mk_neq) f g
 
+let in_type = Fun (unknown_type, Fun (unknown_type, Bool))
+
 type formula_kind =
   | True
   | False
   | Not of formula
-  | Binary of id * formula * formula
+  | Binary of id * typ * formula * formula
   | Quant of id * id * typ * formula
   | Other of formula
 
@@ -134,9 +136,9 @@ let fkind boolean = function
   | Const ("⊤", _) -> True
   | Const ("⊥", _) -> False
   | App (Const ("¬", _), f) -> Not f
-  | App (App (Const (op, _), t), u)
+  | App (App (Const (op, typ), t), u)
       when mem op logical_binary || (not boolean) ->
-        Binary (op, t, u)
+        Binary (op, typ, t, u)
   | App (Const (q, _), Lambda (id, typ, u)) when q = "∀" || q = "∃" ->
       Quant(q, id, typ, u)
   | f -> Other f
@@ -145,23 +147,23 @@ let bool_kind = fkind true
 let kind = fkind false
 
 let rec gather_associative op f = match kind f with
-  | Binary (op', f, g) when op' = op ->
+  | Binary (op', _, f, g) when op' = op ->
       gather_associative op f @ gather_associative op g
   | _ -> [f]
 
 let gather_and = gather_associative "∧"
 
 let implies f g = match bool_kind f with
-  | Binary ("∧", s, t) -> implies1 s (implies1 t g)
+  | Binary ("∧", _, s, t) -> implies1 s (implies1 t g)
   | _ -> implies1 f g
 
 let rec gather_implies f = match bool_kind f with
-  | Binary ("→", f, g) -> f :: gather_implies g
+  | Binary ("→", _, f, g) -> f :: gather_implies g
   | _ -> [f]
 
 let premises f = split_last (gather_implies f)
 
-let binary_ops = [("·", 6); ("+", 5); ("-", 5); ("∧", 3); ("∨", 2); ("→", 0)]
+let binary_ops = [("·", 6); ("+", 5); ("-", 5); ("∈", 4); ("∧", 3); ("∨", 2); ("→", 0)]
 let not_prec = 7
 let eq_prec = 4
 let quantifier_prec = 1
@@ -182,7 +184,7 @@ let show_formula_multi multi f =
       | Not g -> (match g with
         | Eq (t, u) -> show_eq "≠" t u
         | _ -> parens (not_prec < outer) ("¬" ^ show1 not_prec false g))
-      | Binary (op, t, u) when mem_assoc op binary_ops ->
+      | Binary (op, _, t, u) when mem_assoc op binary_ops ->
           let prec = assoc op binary_ops in
           let p = prec < outer ||
             prec = outer && (op = "·" || op = "+" || op = "→" && not right) in
@@ -212,8 +214,12 @@ let show_formula_multi multi f =
         | App (t, u) ->
             sprintf "%s(%s)" (show1 10 false t) (show1 (-1) false u)
         | Lambda (id, typ, t) ->
-            parens (quantifier_prec < outer)
-              (sprintf "λ%s:%s.%s" id (show_type typ) (show1 quantifier_prec false t))
+            let typ_s, body = show_type typ, show1 quantifier_prec false t in
+            let set_comp = type_of t = Bool in
+            let s = if set_comp
+              then sprintf "{%s : %s | %s}" id typ_s body
+              else sprintf "λ%s:%s.%s" id typ_s body in
+            parens (not set_comp && quantifier_prec < outer) s
         | Eq (t, u) -> show_eq "=" t u in
   show 0 multi (-1) false f
 

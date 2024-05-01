@@ -36,7 +36,7 @@ let rec thf outer right f =
       | Eq(t, u) ->
           parens true (sprintf "%s != %s" (thf "=" false t) (thf "=" true u))
       | _ -> sprintf "~ %s" (thf "¬" false f))
-    | Binary (op, t, u) ->
+    | Binary (op, _, t, u) ->
         let s = sprintf "%s %s %s"
           (thf op false t) (assoc op binary) (thf op true u) in
         parens (op <> "∧" && op <> "∨" || op <> outer) s
