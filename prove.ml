@@ -773,14 +773,14 @@ let expand_proofs stmts =
     | stmt :: stmts ->
         let thms = match stmt with
           | Theorem (name, formula, proof) as thm -> (
-              match proof with
+            (thm, formula, known) :: match proof with
                 | Some (Formulas fs) ->
                     fs |> mapi (fun j (f, orig) ->
                       let step_name = sprintf "%s.%d" name (j + 1) in
                       let t = Theorem (step_name, f, None) in
                       (t, orig, known))
                 | Some _ -> assert false
-                | None -> [(thm, formula, known)])
+                | None -> [])
           | _ -> [] in
         thms @ expand (stmt :: known) stmts
     | [] -> [] in
@@ -797,7 +797,7 @@ let prove_all opts thf prog =
             print_endline "Some theorems were not proved."
     | (thm, _, known) :: rest ->
         let success = match thm with
-          | Theorem _ ->
+          | Theorem (_, _, None) ->
               print_endline (show_statement true thm ^ "\n");
               let result = prove opts.timeout (rev known) thm in
               let b = match result with
@@ -812,6 +812,7 @@ let prove_all opts thf prog =
               if thf then printf "SZS status %s\n" (szs result);
               print_newline ();
               b
+          | Theorem _ -> true
           | _ -> assert false in
         if success || opts.keep_going then
           prove_stmts (all_success && success) rest in
