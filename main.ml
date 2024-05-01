@@ -13,7 +13,9 @@ let write_thf dir name proven stmt problem =
   let f = thf_file dir (str_replace "." "_" name) in
   if not (Sys.file_exists f) then (
     let out = open_out f in
-    fprintf out "%% Problem: %s\n\n" (show_formula (remove_universal problem));
+    let problem =
+      if free_vars problem = [] then remove_universal problem else problem in
+    fprintf out "%% Problem: %s\n\n" (show_formula problem);
     let write is_last stmt = (
       fprintf out "%% %s\n" (show_statement false stmt);
       fprintf out "%s\n\n" (thf_statement is_last stmt)) in
@@ -22,7 +24,7 @@ let write_thf dir name proven stmt problem =
     Out_channel.close out)
 
 let write_files dir prog =
-  Prove.expand_proofs prog |> iter (fun (thm, orig, known) ->
+  Prove.expand_proofs prog true |> iter (fun (thm, orig, known) ->
     write_thf dir (stmt_id thm) (rev known) thm orig)
 
 ;;

@@ -768,7 +768,7 @@ let output_proof pformula =
   List.sort id_compare steps |> iter (print_formula true "");
   print_newline ()
 
-let expand_proofs stmts =
+let expand_proofs stmts for_export =
   let rec expand known = function
     | stmt :: stmts ->
         let thms = match stmt with
@@ -776,7 +776,8 @@ let expand_proofs stmts =
             (thm, formula, known) :: match proof with
                 | Some (Formulas fs) ->
                     fs |> mapi (fun j (f, orig) ->
-                      let step_name = sprintf "%s.%d" name (j + 1) in
+                      let s = if for_export then "s" else "" in
+                      let step_name = sprintf "%s.%s%d" name s (j + 1) in
                       let t = Theorem (step_name, f, None) in
                       (t, orig, known))
                 | Some _ -> assert false
@@ -816,4 +817,4 @@ let prove_all opts thf prog =
           | _ -> assert false in
         if success || opts.keep_going then
           prove_stmts (all_success && success) rest in
-  prove_stmts true (expand_proofs prog)
+  prove_stmts true (expand_proofs prog false)
