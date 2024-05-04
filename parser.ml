@@ -50,6 +50,8 @@ let typ = expression type_operators (id |>> fun id -> mk_base_type id)
 
 let id_type = pair id (of_type >> typ)
 
+let id_opt_type = pair id (opt unknown_type (of_type >> typ))
+
 let ids_type = pair (sep_by1 id (str ",")) (of_type >> typ)
 
 (* operators for small propositions *)
@@ -231,7 +233,7 @@ let let_step = pipe2
   (opt [] (str "with" >> small_prop |>> fun f -> [Assume f]))
   (@)
 
-let let_val_step = pipe2 (_let >>? id_type <<? str "=") term
+let let_val_step = pipe2 (_let >>? id_opt_type <<? str "=") term
   (fun (id, typ) f -> LetVal (id, typ, f))
 
 let assume_step = str "Suppose that" >> proposition |>> fun f -> Assume f

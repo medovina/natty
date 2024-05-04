@@ -4,6 +4,8 @@ of_type = ':' | '∈'
 
 id_type = id of_type typ
 
+id_opt_type = id [of_type typ]
+
 ids_type = id {',' id}+ of_type typ
 
 (* terms *)
@@ -108,7 +110,7 @@ _let = ['First' | 'Now'] 'let'
 
 let_step = _let ids_type ['with' small_prop]
 
-let_val_step = _let id_type '=' term
+let_val_step = _let id_opt_type '=' term
 
 assume_step = 'Suppose that' proposition
 

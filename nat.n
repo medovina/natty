@@ -44,7 +44,7 @@ Proof.
 
   4. Let a, b ∈ ℕ.  Let
 
-    G : ℕ → 𝔹 = { x ∈ ℕ | (a · b) · x = a · (b · x) }.
+        G = { x ∈ ℕ | (a · b) · x = a · (b · x) }.
   
   We have (ab) · 0 = 0 = a(b · 0), so 0 ∈ G.  Now let c ∈ ℕ, and suppose that c ∈ G.  Then
 
@@ -57,7 +57,7 @@ Proof.
 
   5. Let a ∈ ℕ.  Let
 
-    G : ℕ → 𝔹 = { x ∈ ℕ | s(a) · x = ax + x }.
+        G = { x ∈ ℕ | s(a) · x = ax + x }.
     
   We have s(a) · 0 = 0 = a · 0 + 0, so 0 ∈ G.  Now let b ∈ ℕ, and suppose that b ∈ G.  Then
 
@@ -76,7 +76,7 @@ Theorem.  Let a, b, c ∈ ℕ.  If c ≠ 0 and ac = bc then a = b.
 
 Proof. Let
 
-    G : ℕ → 𝔹 = { x ∈ ℕ | for all y, z ∈ ℕ, if z ≠ 0 and xz = yz then x = y }.
+        G = { x ∈ ℕ | for all y, z ∈ ℕ, if z ≠ 0 and xz = yz then x = y }.
 
   Let b, c ∈ ℕ with c ≠ 0 and 0 · c = bc. Then bc = 0.  Since c ≠ 0, we must have b = 0.  So 0 = b, and hence 0 ∈ G.
 
