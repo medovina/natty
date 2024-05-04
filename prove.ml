@@ -750,16 +750,16 @@ let refute timeout pformulas =
 let to_pformula stmt = stmt_formula stmt |> Option.map (fun f ->
   create_pformula (stmt_name stmt) [] (rename_vars f) 0.0)
 
-let prove timeout known_stmts thm =
+let prove timeout known_stmts thm invert =
   formula_counter := 0;
   let known = known_stmts |> filter_map (fun s ->
     match to_pformula s with
       | Some p -> dbg_newline (); Some p
       | None -> None) in
   let pformula = Option.get (to_pformula thm) in
-  let negated =
+  let goal = if invert then pformula else
     create_pformula "negate" [pformula] (_not pformula.formula) (-1.0) in
-  refute timeout (known @ [negated])
+  refute timeout (known @ [goal])
 
 let output_proof pformula =
   let steps =
@@ -789,30 +789,32 @@ let expand_proofs stmts for_export =
 
 let prove_all opts thf prog =
   debug := opts.debug;
+  let dis = if opts.disprove then "dis" else "" in
   let rec prove_stmts all_success = function
     | [] ->
         if (not thf) then
           if all_success then
-            print_endline "All theorems were proved."
+            printf "%s theorems were %sproved."
+              (if opts.disprove then "No" else "All") dis
           else if opts.keep_going then
-            print_endline "Some theorems were not proved."
+            printf "Some theorems were %sproved.\n" dis
     | (thm, _, known) :: rest ->
         let success = match thm with
           | Theorem (_, _, None) ->
               print_endline (show_statement true thm ^ "\n");
-              let result = prove opts.timeout (rev known) thm in
+              let result = prove opts.timeout (rev known) thm opts.disprove in
               let b = match result with
                   | Proof (pformula, elapsed) ->
-                      printf "proved in %.2f s\n" elapsed;
+                      printf "%sproved in %.2f s\n" dis elapsed;
                       if opts.show_proofs then (
                         print_newline ();
                         output_proof pformula);
                       true
-                  | GaveUp -> printf "Not proved.\n"; false
+                  | GaveUp -> printf "Not %sproved.\n" dis; false
                   | Timeout -> printf "Time limit exceeded.\n"; false in
               if thf then printf "SZS status %s\n" (szs result);
               print_newline ();
-              b
+              if opts.disprove then not b else b
           | Theorem _ -> true
           | _ -> assert false in
         if success || opts.keep_going then
