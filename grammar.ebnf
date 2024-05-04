@@ -1,14 +1,16 @@
 (* types *)
 
-id_type = id ':' typ
+of_type = ':' | '∈'
 
-ids_type = id {',' id}+ typ
+id_type = id of_type typ
+
+ids_type = id {',' id}+ of_type typ
 
 (* terms *)
 
 term =
     sym | id '(' expr ')' | var | '(' expr ')'
-  | '{' var ':' typ '|' proposition '}'
+  | '{' var of_type typ '|' proposition '}'
 
 terms = term+
 
@@ -65,7 +67,7 @@ propositions = ['for all' ids_type ','] top_prop_or_items
 (* axioms *)
 
 axiom_decl = 'a type' id |
-    (('an element' | 'a function' | 'a binary operation') id_or_sym ':' typ)
+    (('an element' | 'a function' | 'a binary operation') id_or_sym of_type typ)
 
 axiom_group = 'Axiom.'
     ('There exists' | 'There is') axiom_decl {('and' | 'with') axiom_decl}

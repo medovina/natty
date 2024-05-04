@@ -38,6 +38,8 @@ let word = empty >>? many1_chars letter
 
 (* types *)
 
+let of_type = any_str [":"; "∈"]
+
 let infix sym f assoc = Infix (str sym >>$ f, assoc)
 
 let type_operators = [
@@ -46,9 +48,9 @@ let type_operators = [
 
 let typ = expression type_operators (id |>> fun id -> mk_base_type id)
 
-let id_type = pair id (str ":" >> typ)
+let id_type = pair id (of_type >> typ)
 
-let ids_type = pair (sep_by1 id (str ",")) (str ":" >> typ)
+let ids_type = pair (sep_by1 id (str ",")) (of_type >> typ)
 
 (* operators for small propositions *)
 
@@ -79,7 +81,7 @@ let rec term s = choice [
     (fun i f -> App (Var (i, unknown_type), f)));
   var |>> (fun v -> Var (v, unknown_type));
   str "(" >> expr << str ")";
-  pipe3 (str "{" >> var) (str ":" >> typ) (str "|" >> proposition << str "}")
+  pipe3 (str "{" >> var) (of_type >> typ) (str "|" >> proposition << str "}")
     (fun var typ expr -> Lambda (var, typ, expr))
  ] s
 
@@ -162,7 +164,7 @@ let propositions =
 let axiom_decl =
   str "a type" >> id |>> (fun id -> TypeDecl id) <|>
   pipe2 (any_str ["an element"; "a function"; "a binary operation"] >> id_or_sym)
-    (str ":" >> typ)
+    (of_type >> typ)
     (fun c typ -> ConstDecl (c, typ))
 
 let count_label c label =
