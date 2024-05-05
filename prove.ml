@@ -652,7 +652,7 @@ end) (struct
   let compare = Stdlib.compare
 end)
 
-let queue_cost p = (cost_of p, if p.goal then 0 else 1)
+let queue_cost p = (cost_of p, if p.goal && cost_of p > 0.0 then 0 else 1)
 
 let queue_add queue pformulas =
   let queue_element p = (p, queue_cost p) in
