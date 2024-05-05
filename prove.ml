@@ -667,7 +667,7 @@ let rw_simplify queue ac_ops used found pformula =
     | None -> p
     | Some p -> repeat_rewrite p in
   let p = repeat_rewrite pformula in
-  if p.id > 0 then Some (p, found)
+  if p.id > 0 then Some p
   else let p = simplify p in
     if is_tautology p.formula || is_ac_tautology ac_ops p.formula then None
     else
@@ -679,7 +679,7 @@ let rw_simplify queue ac_ops used found pformula =
             None
         | None ->
             let f = canonical p in
-            match FormulaMap.find_opt f found with
+            match FormulaMap.find_opt f !found with
               | Some pf ->
                   let adjust =
                     if cost_of p < cost_of pf then (
@@ -693,16 +693,17 @@ let rw_simplify queue ac_ops used found pformula =
                     print_line (prefix_show prefix p.formula));
                   None
               | None ->
-                  let p = number_formula p in
-                  Some (p, FormulaMap.add f p found)
+                  let p = number_formula p in (
+                  found := FormulaMap.add f p !found;
+                  Some p)
 
 let rec rw_simplify_all queue ac_ops used found = function
-  | [] -> ([], found)
+  | [] -> []
   | p :: ps ->
-      let (ps', found) = rw_simplify_all queue ac_ops used found ps in
+      let ps' = rw_simplify_all queue ac_ops used found ps in
       match rw_simplify queue ac_ops used found p with
-        | None -> (ps', found)
-        | Some (p', found) -> (p' :: ps', found)
+        | None -> ps'
+        | Some p' -> p' :: ps'
 
 let rec back_simplify from = function
   | [] -> ([], [])
@@ -730,13 +731,12 @@ let refute timeout pformulas =
   let ac_ops = find_ac_ops pformulas in
   if !debug > 0 && ac_ops <> [] then
     printf "AC operators: %s\n\n" (comma_join ac_ops);
-  let found = FormulaMap.of_list (pformulas |> map
-    (fun p -> (canonical p, p))) in
+  let found = ref @@ FormulaMap.of_list (pformulas |> map (fun p -> (canonical p, p))) in
   let queue = ref PFQueue.empty in
   queue_add queue pformulas;
   let start = Sys.time () in
   let elapsed () = Sys.time () -. start in
-  let rec loop found used =
+  let rec loop used =
     if timeout > 0.0 && elapsed () > timeout then Timeout
     else match PFQueue.pop !queue with
       | None -> GaveUp
@@ -744,23 +744,23 @@ let refute timeout pformulas =
           queue := q;
           dbg_print_formula false "given: " p;
           match rw_simplify queue ac_ops used found p with
-            | None -> loop found used
-            | Some (p, found) ->
+            | None -> loop used
+            | Some p ->
                 let (used, rewritten) = back_simplify p used in
                 if p.formula = _false then Proof (p, elapsed ()) else
                   let used = p :: used in
                   let generated =
                     concat_map (all_super p) used @ all_eres p @ all_split p |>
                       filter (fun p -> cost_of p <= max_cost) in
-                  let (new_pformulas, found) =
+                  let new_pformulas =
                     rw_simplify_all queue ac_ops used found (rewritten @ generated) in
                   dbg_newline ();
                   match find_opt (fun p -> p.formula = _false) new_pformulas with
                     | Some p -> Proof (p, elapsed ())
                     | None ->
                         queue_add queue new_pformulas;
-                        loop found used
-  in loop found []
+                        loop used
+  in loop []
 
 let to_pformula stmt = stmt_formula stmt |> Option.map (fun f ->
   create_pformula (stmt_name stmt) [] (rename_vars f) 0.0)
