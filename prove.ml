@@ -237,7 +237,7 @@ let split f = match bool_kind f with
         y̅ are all free variables in ∃x.s
 *)
 
-let clausify_step pformula lits =
+let clausify_step id lits in_use =
   let rec new_lits f = match split f with
     | Some (s, t) -> Some ([s; t], [])
     | None -> match bool_kind f with
@@ -252,7 +252,14 @@ let clausify_step pformula lits =
       | Quant ("∃", x, typ, g) ->
           let vars_types = free_vars_types f in
           let skolem_type = fold_right1 mk_fun_type (typ :: map snd vars_types) in
-          let skolem_const = Const (sprintf "%s%d" x pformula.id, skolem_type) in
+          let c = sprintf "%s%d" x id in
+          let c = match in_use with
+            | Some names ->
+                let c = suffix c !names in
+                names := c :: !names;
+                c
+            | None -> c in
+          let skolem_const = Const (c, skolem_type) in
           let skolem = apply (skolem_const :: map mk_var' vars_types) in
           let g = subst1 g skolem x in
           Some ([g], [g])
@@ -270,26 +277,30 @@ let clausify_step pformula lits =
         match new_lits lit with
           | Some (lits, exposed) -> Some (rev before @ lits @ after, lits, exposed)
           | None -> loop (lit :: before) after in
-  if lits = [] then
-    let f = pformula.formula in
-    Some ([f], [f], [f])  (* initial step *)
-  else loop [] lits
+  loop [] lits
 
-let clausify_steps pformula =
-  let rec run lits =
-    match clausify_step pformula lits with
+let initial_step pformula =
+  let f = pformula.formula in ([f], [f], [f])
+
+let clausify_steps1 id lits in_use =
+  let rec run ((lits, _, _) as step) =
+    step :: match clausify_step id lits in_use with
       | None -> []
-      | Some ((lits, _, _) as step) -> step :: run lits in
-  run []
+      | Some step -> run step in
+  run (lits, lits, lits)
+
+let clausify_steps p = clausify_steps1 p.id [p.formula] None
 
 let run_clausify pformula rule =
   let+ (lits, new_lits, _) = clausify_steps pformula in
   let+ f = new_lits in
   rule pformula (remove1 f lits) f
   
-let clausify pformula =
-  let (lits, _, _) = last (clausify_steps pformula) in
+let clausify1 id lits in_use =
+  let (lits, _, _) = last (clausify_steps1 id lits in_use) in
   lits
+
+let clausify p = clausify1 p.id [p.formula] None
 
 let prefix_vars f =
   let rec prefix outer = function
@@ -450,31 +461,35 @@ let eres cp c' c_lit =
 
 let all_eres cp = run_clausify cp eres
 
-(*     (s ∧ t) ∨ C
- *    ═══════════════   split
- *     s ∨ C, t ∨ C      *)
+(*      s = ⊤ ∨ C                       s = ⊥ ∨ C
+ *    ══════════════  split           ══════════════  split
+ *       sp(s, C)                        sp(¬s, C)
+ *
+ *  sp(s ∧ t, C) = { s = ⊤ ∨ C, t = ⊥ ∨ V }
+ *  sp(¬(s ∨ t), C) = { s ═ ⊥ ∨ C, t = ⊥ ∨ C }
+ *  sp(¬(s → t), C) = { s = ⊤ ∨ C, t = ⊥ ∨ C }     *)
 
 let all_split pformula =
+  let skolem_names = ref [] in
   let rec run lits =
-    match clausify_step pformula lits with
-      | None -> []
-      | Some (lits, new_lits, _) ->
-          let split lit f g = 
-            let new_formulas = [f; g] |> map (fun t ->
-              let u = multi_or (replace1 t lit lits) in
-              mk_pformula "split" [pformula] u 0.0) in
-            Some new_formulas in
-          let split_on lit = match bool_kind lit with
-            | Binary ("∧", _, f, g) -> split lit f g
-            | Not f -> (match bool_kind f with
-                | Binary ("∨", _, f, g) -> split lit (_not f) (_not g)
-                | Binary ("→", _, f, g) -> split lit f (_not g)
-                | _ -> None)
-            | _ -> None in
-          match find_map split_on new_lits with
-            | Some new_formulas -> new_formulas
-            | None -> run lits in
-  if is_inductive pformula then [] else run []
+    let lits1 = clausify1 pformula.id lits (Some skolem_names) in
+    let split lit f g = Some ([f; g] |> concat_map (fun t ->
+        let child = replace1 t lit lits1 in
+        let child_splits = run child in
+        if child_splits = [] then [child] else child_splits)) in
+    let split_on lit = match bool_kind lit with
+      | Binary ("∧", _, f, g) -> split lit f g
+      | Not f -> (match bool_kind f with
+          | Binary ("∨", _, f, g) -> split lit (_not f) (_not g)
+          | Binary ("→", _, f, g) -> split lit f (_not g)
+          | _ -> None)
+      | _ -> None in
+    match find_map split_on lits1 with
+      | Some new_clauses -> new_clauses
+      | None -> [] in
+  if is_inductive pformula then []
+  else rev (run ([pformula.formula])) |> map (fun lits ->
+    mk_pformula "split" [pformula] (multi_or lits) 0.0)
 
 let update p rewriting f =
   let (r, simp) = match rewriting with

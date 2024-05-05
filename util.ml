@@ -12,6 +12,8 @@ let is_letter c = is_lower c || ('A' <= c && c <= 'Z')
 
 (* strings *)
 
+let strlen = String.length
+
 let char_to_string = String.make 1
 
 let string_from s i = String.sub s i (String.length s - i)

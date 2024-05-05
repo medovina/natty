@@ -188,7 +188,8 @@ let show_formula_multi multi f =
             prec = outer && (op = "·" || op = "+" || op = "→" && not right) in
           let layout multi =
             match single_letter t, single_letter u with
-              | Some t, Some u when op = "·" -> t ^ u
+              | Some t, Some u when op = "·" && strlen t = 1 && strlen u = 1
+                  -> t ^ u
               | _ ->
                   sprintf "%s %s %s" (show indent multi prec false t) op
                                      (show indent multi prec true u) in
@@ -247,7 +248,7 @@ let find_vars only_free f =
 
 let all_vars = find_vars false
 let free_vars = find_vars true
-let free_vars_types = find_vars_types true
+let free_vars_types f = unique (find_vars_types true f)
 
 let is_free_in x f = mem x (free_vars f)
 
@@ -285,6 +286,12 @@ let rec remove_universal f = match bool_kind f with
 
 let rec rename id avoid =
   if mem id avoid then rename (id ^ "'") avoid else id
+
+let suffix id avoid =
+  let rec try_suffix n =
+    let id' = sprintf "%s_%d" id n in
+    if mem id' avoid then try_suffix (n + 1) else id' in
+  if mem id avoid then try_suffix 1 else id
 
 (* replace [u/v] in t *)
 let rec replace_in_formula u v t =
