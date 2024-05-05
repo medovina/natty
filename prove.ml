@@ -19,7 +19,8 @@ type pformula = {
   formula: formula;
   goal: bool;
   delta: float;
-  cost: float ref
+  cost: float ref;
+  pinned: bool
 }
 
 let cost_of p = !(p.cost)
@@ -38,9 +39,11 @@ let print_formula with_origin prefix pformula =
       let all = parents @ rule @ rw @ simp in
       sprintf " [%s]" (comma_join all)
     else "" in
-  printf "%s%s {%s%.2f}\n"
+  let annotate =
+    (if pformula.goal then " g" else "") ^ (if pformula.pinned then " p" else "") in
+  printf "%s%s {%.2f%s}\n"
     (indent_with_prefix prefix (show_multi pformula.formula))
-    origin (if pformula.goal then "g " else "") (cost_of pformula)
+    origin (cost_of pformula) annotate
 
 let dbg_print_formula with_origin prefix pformula =
   if !debug > 0 then print_formula with_origin prefix pformula
@@ -69,7 +72,8 @@ let mk_pformula rule parents formula delta =
   { id = 0; rule; rewrites = []; simp = false; parents; formula;
     goal = as_goal || exists (fun p -> p.goal) parents;
     delta = adjust_delta parents delta;
-    cost = ref (total_cost parents delta) }
+    cost = ref (total_cost parents delta);
+    pinned = false }
 
 let rec number_formula pformula =
   if pformula.id > 0 then pformula
@@ -469,10 +473,10 @@ let all_eres cp = run_clausify cp eres
  *  sp(¬(s ∨ t), C) = { s ═ ⊥ ∨ C, t = ⊥ ∨ C }
  *  sp(¬(s → t), C) = { s = ⊤ ∨ C, t = ⊥ ∨ C }     *)
 
-let all_split pformula =
+let all_split p =
   let skolem_names = ref [] in
   let rec run lits =
-    let lits1 = clausify1 pformula.id lits (Some skolem_names) in
+    let lits1 = clausify1 p.id lits (Some skolem_names) in
     let split lit f g = Some ([f; g] |> concat_map (fun t ->
         let child = replace1 t lit lits1 in
         let child_splits = run child in
@@ -487,9 +491,12 @@ let all_split pformula =
     match find_map split_on lits1 with
       | Some new_clauses -> new_clauses
       | None -> [] in
-  if is_inductive pformula then []
-  else rev (run ([pformula.formula])) |> map (fun lits ->
-    mk_pformula "split" [pformula] (multi_or lits) 0.0)
+  if is_inductive p then []
+  else
+    let pin = p.goal && cost_of p = 0.0 in
+    rev (run ([p.formula])) |> map (fun lits ->
+      let ps = mk_pformula "split" [p] (multi_or lits) 0.0 in
+      {ps with pinned = pin})
 
 let update p rewriting f =
   let (r, simp) = match rewriting with
@@ -499,7 +506,7 @@ let update p rewriting f =
     { p with rewrites = union r p.rewrites; simp = p.simp || simp; formula = f }
   else
     { id = 0; rule = ""; rewrites = r; simp; parents = [p];
-      goal = p.goal; delta = 0.0; cost = p.cost; formula = f }
+      goal = p.goal; delta = 0.0; cost = p.cost; formula = f; pinned = false}
 
 (*     t = t'    C⟨tσ⟩
  *   ═══════════════════   rw
@@ -709,9 +716,11 @@ let rec back_simplify from = function
   | [] -> ([], [])
   | p :: ps ->
       let (ps', rewritten) = back_simplify from ps in
-      match rewrite_from [from] p with
-        | Some p' -> (ps', p' :: rewritten)
-        | None -> (p :: ps', rewritten)
+      if p.pinned then (p :: ps', rewritten)
+      else
+        match rewrite_from [from] p with
+          | Some p' -> (ps', p' :: rewritten)
+          | None -> (p :: ps', rewritten)
 
 let find_ac_ops pformulas =
   let formulas = map (fun p -> p.formula) pformulas in
@@ -743,7 +752,11 @@ let refute timeout pformulas =
       | Some ((p, _cost), q) ->
           queue := q;
           dbg_print_formula false "given: " p;
-          match rw_simplify queue ac_ops used found p with
+          let p1 = rw_simplify queue ac_ops used found p in
+          let (p1, gen) =
+            if p.pinned then (Some p, if p1 = Some p then [] else Option.to_list p1)
+            else (p1, []) in
+          match p1 with
             | None -> loop used
             | Some p ->
                 let (used, rewritten) = back_simplify p used in
@@ -752,7 +765,7 @@ let refute timeout pformulas =
                   let generated =
                     concat_map (all_super p) used @ all_eres p @ all_split p |>
                       filter (fun p -> cost_of p <= max_cost) in
-                  let new_pformulas =
+                  let new_pformulas = gen @
                     rw_simplify_all queue ac_ops used found (rewritten @ generated) in
                   dbg_newline ();
                   match find_opt (fun p -> p.formula = _false) new_pformulas with
