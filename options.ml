@@ -42,6 +42,7 @@ let parse_args args =
       -c            try to disprove all theorems
       -d<level>     debug level
       -p            output proofs
+      -r            profile performance
       -t<num>       time limit in seconds
       -x            export theorems to THF files
       |};

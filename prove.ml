@@ -198,6 +198,7 @@ let get_index x map =
   in fn [] t
 
 let term_gt s t =
+  profile "term_gt" @@ fun () ->
   let type_map, fluid_map = ref [], ref [] in
   let s1 = encode_term type_map fluid_map s in
   let t1 = encode_term type_map fluid_map t in
