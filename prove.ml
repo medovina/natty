@@ -609,8 +609,6 @@ let is_tautology f =
   let (pos, neg) = pos_neg (map canonical_lit (map simp (expand f))) in
   mem _true pos || intersect pos neg <> []
 
-(* let is_tautology f = mem _true (expand f) *)
-
 let associative_axiom f =
   let is_assoc (f, g) = match kind f, kind g with
     | Binary (op, _, f1, Var (z, _)), Binary (op3, _, Var (x', _), g1) -> (
@@ -704,7 +702,7 @@ let rw_simplify queue ac_ops used found pformula =
                         queue := PFQueue.adjust pf (Fun.const (queue_cost pf)) !queue;
                       sprintf " (adjusted cost to %.2f)" (cost_of p))
                     else "" in
-                  if !debug > 0 then (
+                  if !debug > 1 then (
                     let prefix = sprintf "duplicate of #%d%s: " pf.id adjust in
                     print_line (prefix_show prefix p.formula));
                   None
@@ -753,23 +751,23 @@ let refute timeout pformulas =
   let queue = ref PFQueue.empty in
   queue_add queue pformulas;
   let start = Sys.time () in
-  let elapsed () = Sys.time () -. start in
-  let rec loop used =
-    if timeout > 0.0 && elapsed () > timeout then Timeout
+  let rec loop used count =
+    let elapsed = Sys.time () -. start in
+    if timeout > 0.0 && elapsed > timeout then Timeout
     else match PFQueue.pop !queue with
       | None -> GaveUp
       | Some ((p, _cost), q) ->
           queue := q;
-          dbg_print_formula false "given: " p;
+          dbg_print_formula false (sprintf "[%.3f s] given #%d: " elapsed count) p;
           let p1 = rw_simplify queue ac_ops used found p in
           let (p1, gen) =
             if p.pinned then (Some p, if p1 = Some p then [] else Option.to_list p1)
             else (p1, []) in
           match p1 with
-            | None -> loop used
+            | None -> loop used (count + 1)
             | Some p ->
                 let (used, rewritten) = back_simplify p used in
-                if p.formula = _false then Proof (p, elapsed ()) else
+                if p.formula = _false then Proof (p, elapsed) else
                   let used = p :: used in
                   let generated =
                     concat_map (all_super p) used @ all_eres p @ all_split p |>
@@ -778,11 +776,11 @@ let refute timeout pformulas =
                     rw_simplify_all queue ac_ops used found (rewritten @ generated) in
                   dbg_newline ();
                   match find_opt (fun p -> p.formula = _false) new_pformulas with
-                    | Some p -> Proof (p, elapsed ())
+                    | Some p -> Proof (p, elapsed)
                     | None ->
                         queue_add queue new_pformulas;
-                        loop used
-  in loop []
+                        loop used (count + 1)
+  in loop [] 1
 
 let to_pformula stmt = stmt_formula stmt |> Option.map (fun f ->
   create_pformula (stmt_name stmt) [] (rename_vars f) 0.0)
