@@ -220,10 +220,18 @@ let lit_gt f g =
 
 let clause_gt = multi_gt lit_gt
 
-let split f = match bool_kind f with
+let or_split f = match bool_kind f with
   | Binary ("∨", _, s, t) -> Some (s, t)
   | Binary ("→", _, s, t) -> Some (_not s, t)
+  | Not g -> (match bool_kind g with
+    | Binary ("∧", _, f, g) -> Some (_not f, _not g)
+    | _ -> None)
   | _ -> None
+
+(* Clausify ignoring quantifiers and conjunctions *)
+let rec mini_clausify f = match or_split f with
+    | Some (f, g) -> mini_clausify f @ mini_clausify g
+    | _ -> [f]
 
 (*      s = ⊤ ∨ C                 s = ⊥ ∨ C
       ═════════════   oc       ══════════════   oc
@@ -242,7 +250,7 @@ let split f = match bool_kind f with
 *)
 
 let clausify_step id lits in_use =
-  let rec new_lits f = match split f with
+  let rec new_lits f = match or_split f with
     | Some (s, t) -> Some ([s; t], [])
     | None -> match bool_kind f with
       | Quant ("∀", x, typ, f) ->
@@ -268,7 +276,6 @@ let clausify_step id lits in_use =
           let g = subst1 g skolem x in
           Some ([g], [g])
       | Not g -> (match bool_kind g with
-        | Binary ("∧", _, f, g) -> Some ([_not f; _not g], [])
         | Quant ("∀", x, typ, g) ->
             new_lits (_exists x typ (_not g))
         | Quant ("∃", x, typ, g) ->
@@ -366,15 +373,6 @@ let is_applied_symbol f = match bool_kind f with
 let is_eligible sub parent_eq =
   parent_eq |> for_all (fun (s, t) ->
     not (term_gt (subst_n sub t) (subst_n sub s)))
-
-(* Clausify ignoring quantifiers and conjunctions *)
-let rec mini_clausify f = match bool_kind f with
-  | Binary ("∨", _, f, g) -> mini_clausify f @ mini_clausify g
-  | Binary ("→", _, f, g) -> mini_clausify (_not f) @ mini_clausify g
-  | Not g -> (match bool_kind g with
-    | Binary ("∧", _, f, g) -> mini_clausify (_not f) @ mini_clausify (_not g)
-    | _ -> [f])
-  | _ -> [f]
 
 let top_positive u c sub inductive =
   let (pos, _, _) = terms u in 
@@ -549,7 +547,7 @@ let subsumes cp dp =
   Option.is_some
     (try_match (remove_universal cp.formula) (remove_universal dp.formula))
 
-let rec expand f = match split f with
+let rec expand f = match or_split f with
   | Some (s, t) -> expand s @ expand t
   | None -> [f]
 
