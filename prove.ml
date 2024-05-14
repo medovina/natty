@@ -233,7 +233,7 @@ let split f = match bool_kind f with
         oc(s → t) = s = ⊥ ∨ t = ⊤
         oc(∀x.s) = s[y/x] = ⊤  (y not in s or C)
         oc(∃x.s) = s[k(y̅)/x] = ⊤
-        oc(¬(s ∧ t)) = s = ⊤ ∨ t = ⊥
+        oc(¬(s ∧ t)) = s = ⊥ ∨ t = ⊥
         oc(¬(∀x.s)) = s[k(y̅)/x] = ⊥
         oc(¬(∃x.s)) = s[y/x] = ⊥  (y not in s or C)
         
@@ -268,7 +268,7 @@ let clausify_step id lits in_use =
           let g = subst1 g skolem x in
           Some ([g], [g])
       | Not g -> (match bool_kind g with
-        | Binary ("→", _, f, g) -> Some ([_and f (_not g)], [])
+        | Binary ("∧", _, f, g) -> Some ([_not f; _not g], [])
         | Quant ("∀", x, typ, g) ->
             new_lits (_exists x typ (_not g))
         | Quant ("∃", x, typ, g) ->
@@ -477,10 +477,10 @@ let all_split p =
   let skolem_names = ref [] in
   let rec run lits =
     let lits1 = clausify1 p.id lits (Some skolem_names) in
-    let split lit f g = Some ([f; g] |> concat_map (fun t ->
-        let child = replace1 t lit lits1 in
-        let child_splits = run child in
-        if child_splits = [] then [child] else child_splits)) in
+    let split lit f g =
+      let top = if lits1 = lits then [] else [lits] in
+      let children = [f; g] |> concat_map (fun t -> run (replace1 t lit lits1)) in
+      Some (top @ children) in
     let split_on lit = match bool_kind lit with
       | Binary ("∧", _, f, g) -> split lit f g
       | Not f -> (match bool_kind f with
@@ -490,11 +490,12 @@ let all_split p =
       | _ -> None in
     match find_map split_on lits1 with
       | Some new_clauses -> new_clauses
-      | None -> [] in
+      | None -> [lits] in
   if is_inductive p then []
   else
     let pin = p.goal && cost_of p = 0.0 in
-    rev (run ([p.formula])) |> map (fun lits ->
+    let splits = remove [p.formula] (run [p.formula]) in
+    rev splits |> map (fun lits ->
       let ps = mk_pformula "split" [p] (multi_or lits) 0.0 in
       {ps with pinned = pin})
 
