@@ -431,8 +431,7 @@ let super dp d' t_t' cp c c1 =
           let u_show = show_formula u in
           let rule = sprintf "sup: %s / %s" tt'_show u_show in
           let w, cw = basic_weight e, basic_weight cp.formula in
-          let cost =
-            if w < cw then 0.01 else if w = cw then 0.02 else 1.0 in
+          let cost = if w <= cw then 0.01 else 1.0 in
           [mk_pformula rule [dp; cp] (unprefix_vars e) cost]
 
 let all_super dp cp =
