@@ -433,6 +433,7 @@ let super dp d' t_t' cp c c1 =
           [mk_pformula rule [dp; cp] (unprefix_vars e) cost]
 
 let all_super dp cp =
+  profile "all_super" @@ fun () ->
   if total_cost [dp; cp] 0.0 > max_cost ||
     dp = cp && is_inductive dp then []
   else (
@@ -677,6 +678,7 @@ let dbg_newline () =
   if !debug > 0 then print_newline ()
 
 let rw_simplify queue ac_ops used found pformula =
+  profile "rw_simplify" @@ fun () ->
   let rec repeat_rewrite p = match rewrite_from used p with
     | None -> p
     | Some p -> repeat_rewrite p in
@@ -824,6 +826,8 @@ let expand_proofs stmts for_export =
 
 let prove_all opts thf prog =
   debug := opts.debug;
+  profiling := opts.profile;
+  profile "prove_all" @@ fun () ->
   let dis = if opts.disprove then "dis" else "" in
   let rec prove_stmts all_success = function
     | [] ->

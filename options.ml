@@ -2,6 +2,7 @@ open Util
 
 type options = {
   debug: int;
+  profile: bool;
   timeout: float;
   show_proofs: bool;
   keep_going: bool;
@@ -13,7 +14,7 @@ let parse_args args =
   let (args, file) = split_last args in
   let rec parse = function
     | [] ->
-        { debug = 0; timeout = 0.0; show_proofs = false;
+        { debug = 0; profile = false; timeout = 0.0; show_proofs = false;
           keep_going = false; disprove = false; export = false }
     | arg :: rest ->
         let args = parse rest in
@@ -26,6 +27,7 @@ let parse_args args =
               let level = if arg = "-d" then 1 else value () in
               { args with debug = level }
             | 'p' -> { args with show_proofs = true }
+            | 'r' -> { args with profile = true }
             | 't' -> { args with timeout = float_of_int (value ()) }
             | 'x' -> { args with export = true }
             | _ -> failwith "unknown option"

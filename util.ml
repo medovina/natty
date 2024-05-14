@@ -258,3 +258,41 @@ let multi_sub xs ys = fold_left (Fun.flip remove_once) xs ys
 let multi_gt gt xs ys =
   let xy, yx = multi_sub xs ys, multi_sub ys xs in
   xy <> [] && yx |> for_all (fun y -> xy |> exists (fun x -> gt x y))
+
+(* profiling *)
+
+let profiling = ref false
+
+type prof_node = {
+  name: string;
+  time: float ref;
+  children: prof_node list ref
+}
+
+let cur_prof = ref { name = ""; time = ref 0.0; children = ref [] }
+
+let profile name f =
+  if !profiling then
+    let parent = !cur_prof in
+    let cur = match find_opt (fun n -> n.name = name) !(parent.children) with
+      | Some child -> child
+      | None ->
+          let node = { name; time = ref 0.0; children = ref [] } in
+          parent.children := node :: !(parent.children);
+          node in
+    cur_prof := cur;
+    let start = Sys.time () in
+    let ret = f () in
+    cur.time := !(cur.time) +. Sys.time () -. start;
+    cur_prof := parent;
+    ret
+  else f ()
+
+let profile_report () =
+  let rec print_node indent node =
+    if node.name <> "" then
+      printf "%s%s: %.2f\n" indent node.name !(node.time);
+    let children = sort_by (fun n -> -. !(n.time)) !(node.children) in
+    let indent = if node.name = "" then "" else indent ^ "  " in
+    iter (print_node indent) children in
+  print_node "" !cur_prof

@@ -45,6 +45,7 @@ let (opts, source) = parse_args (tl (Array.to_list Sys.argv)) in
           clean_dir dir;
           write_files dir prog
         else
-          Prove.prove_all opts (ext = ".thf") prog
+          Prove.prove_all opts (ext = ".thf") prog;
+          profile_report ()
     | Failed (msg, _) ->
         print_endline msg
