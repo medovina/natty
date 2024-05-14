@@ -592,7 +592,24 @@ let simplify pformula =
   if f = pformula.formula then pformula
   else update pformula None f
 
-let is_tautology f = mem _true (expand f)
+let rec canonical_lit = function
+  | Eq (f, g) ->
+      let f, g = canonical_lit f, canonical_lit g in
+      if f < g then Eq (f, g) else Eq (g, f)
+  | f -> map_formula canonical_lit f
+
+let is_tautology f =
+  let rec pos_neg = function
+    | [] -> ([], [])
+    | f :: fs ->
+        let (pos, neg) = pos_neg fs in
+        match bool_kind f with
+          | Not g -> (pos, g :: neg)
+          | _ -> (f :: pos, neg) in
+  let (pos, neg) = pos_neg (map canonical_lit (map simp (expand f))) in
+  mem _true pos || intersect pos neg <> []
+
+(* let is_tautology f = mem _true (expand f) *)
 
 let associative_axiom f =
   let is_assoc (f, g) = match kind f, kind g with
@@ -632,12 +649,6 @@ let is_ac_tautology ac_ops = function
             b
         | _ -> false)
   | _ -> false
-
-let rec canonical_lit = function
-  | Eq (f, g) ->
-      let f, g = canonical_lit f, canonical_lit g in
-      if f < g then Eq (f, g) else Eq (g, f)
-  | f -> map_formula canonical_lit f
 
 (* approximate: equivalent formulas could possibly have different canonical forms *)
 let canonical pformula =
