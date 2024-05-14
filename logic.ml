@@ -86,7 +86,9 @@ let rec count_binders = function
 let _false = Const ("⊥", Bool)
 let _true = Const ("⊤", Bool)
 
-let _not f = App (Const ("¬", Fun (Bool, Bool)), f)
+let _not f = match f with
+  | App (Const ("¬", _), f) -> f
+  | _ -> App (Const ("¬", Fun (Bool, Bool)), f)
 
 let logical_binary = ["∧"; "∨"; "→"]
 
