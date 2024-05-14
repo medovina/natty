@@ -4,19 +4,28 @@ from os import path
 
 timeout = 5
 
-provers = [
+all_provers = [
     ('Natty', f'./natty -t{timeout}'),
     ('E', f'eprover-ho --auto -s --cpu-limit={timeout}'),
     ('Vampire', f'vampire -t {timeout}'),
     ('Zipperposition', f'zipperposition --mode best --input tptp --timeout {timeout}'),
 ]
+
+provers = [all_provers[0]]
+
+i = 1
+if sys.argv[i] == '-a':
+    provers = all_provers
+    i += 1
+
+if i != len(sys.argv) - 1:
+    print(f'usage: {sys.argv[0]} [-a] <dir>')
+    print('    -a: evaluate all provers')
+    sys.exit(1)
+dir = sys.argv[i]
+
 prover_names = [p[0] for p in provers]
 
-if len(sys.argv) != 2:
-    print(f'usage: {sys.argv[0]} <dir>')
-    sys.exit(1)
-
-dir = sys.argv[1]
 files = [name.removesuffix('.thf') for name in os.listdir(dir) if name.endswith('.thf')]
 files.sort(key = lambda s: [int(n) for n in s.replace('s', '').split('_')])
 
