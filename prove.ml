@@ -491,7 +491,7 @@ let all_split p =
     match find_map split_on lits1 with
       | Some new_clauses -> new_clauses
       | None -> [lits] in
-  if is_inductive p then []
+  if p.rule = "split" || is_inductive p then []
   else
     let pin = p.goal && cost_of p = 0.0 in
     let splits = remove [p.formula] (run [p.formula]) in
