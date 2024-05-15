@@ -18,6 +18,8 @@ let empty = skip_many (space <|> comment)
 
 let number = empty >>? many1_chars digit
 
+let int = number |>> int_of_string
+
 let str s =
   let match_first c =
     Char.lowercase_ascii c = Char.lowercase_ascii (s.[0]) in
@@ -144,10 +146,8 @@ and precisely_prop s = (
   str "Precisely one of" >> small_prop << str "holds" |>> fun f ->
     let gs = gather_or f in
     assert (length gs > 1);
-    fold_left1 _and (f ::
-      let+ x = gs in
-      let+ y = gs in
-      if x = y then [] else [_not (_and x y)])
+    let ns = all_pairs gs |> map (fun (f, g) -> _not (_and f g)) in
+    fold_left1 _and (f :: ns)
   ) s
 
 and cannot_prop s = (
@@ -195,18 +195,17 @@ let axiom_decl =
     (of_type >> typ)
     (fun c typ -> ConstDecl (c, typ))
 
-let count_label c label =
-  if label = "" then sprintf "%d" !c
-  else sprintf "%d.%s" !c label
+let count_label n label =
+  if label = "" then sprintf "%d" n
+  else sprintf "%d.%s" n label
 
-let axiom_propositions = pipe2 propositions get_user_state
-  (fun props (ax, _) -> incr ax;
-    props |> map (fun (label, f, name) ->
-      Axiom (count_label ax label, f, name)))
+let axiom_propositions n = propositions |>>
+  map (fun (label, f, name) -> Axiom (count_label n label, f, name))
 
-let axiom_group = str "Axiom." >> any_str ["There exists"; "There is"] >> pipe2
+let axiom_group = (str "Axiom" >> int << str ".") >>= fun n ->
+  any_str ["There exists"; "There is"] >> pipe2
   (sep_by1 axiom_decl (any_str ["and"; "with"]))
-  ((str "such that" >> axiom_propositions) <|> (str "." >>$ []))
+  ((str "such that" >> axiom_propositions n) <|> (str "." >>$ []))
   (@)
 
 (* definitions *)
@@ -287,23 +286,24 @@ let proof_steps =
   many1 proof_sentence |>> (fun steps -> Steps (concat steps))
 
 let proof_item = pair label proof_steps
-  
+
 let proofs = str "Proof." >> choice [
   many1 proof_item;
   proof_steps |>> (fun steps -> [("", steps)])]
 
 (* theorems *)
 
-let theorem_group = (str "Lemma." <|> str "Theorem.") >>
+let theorem_group =
+  ((str "Lemma" <|> str "Theorem") >> int << str ".") >>= fun n -> 
   str "Let" >> ids_type << str "." >>=
-  fun ids_typ -> pipe3 (top_prop_or_items ids_typ) (opt [] proofs) get_user_state
-    (fun props proofs (_, th) -> incr th;
+  fun ids_typ -> pipe2 (top_prop_or_items ids_typ) (opt [] proofs)
+    (fun props proofs ->
       props |> map (fun (label, f, _name) ->
-        Theorem (count_label th label, f, assoc_opt label proofs)))
+        Theorem (count_label n label, f, assoc_opt label proofs)))
 
 (* program *)
 
 let program =
   many (axiom_group <|> definition <|> theorem_group) << empty << eof |>> concat
 
-let parse in_channel = MParser.parse_channel program in_channel (ref 0, ref 0)
+let parse in_channel = MParser.parse_channel program in_channel ()

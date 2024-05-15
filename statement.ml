@@ -42,7 +42,7 @@ type proof =
 type statement =
   | TypeDecl of id
   | ConstDecl of id * typ
-  | Axiom of id * formula * id option (* id, formula, name *)
+  | Axiom of id * formula * id option (* id, formula, descriptive name *)
   | Definition of id * typ * formula
   | Theorem of id * formula * proof option
 

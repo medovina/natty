@@ -1,3 +1,4 @@
+open List
 open MParser
 
 open Logic
@@ -69,7 +70,7 @@ let build_quant quant args formula =
     | [] -> formula
   in f args
 
-let map_id id = if id = "*" then "·" else id
+let map_id id = opt_default (assoc_opt id (map swap ascii_map)) id
 
 let rec term s = choice [
   parens formula;

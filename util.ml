@@ -4,6 +4,10 @@ open Printf
 
 open MParser
 
+(* functions *)
+
+let uncurry f (x, y) = f x y
+
 (* chars *)
 
 let is_lower c = 'a' <= c && c <= 'z'
@@ -69,6 +73,8 @@ let utf8_len s =
     if k >= String.length s then 0
     else let n = ulen (Char.code s.[k]) in 1 + len (k + n)
   in len 0 
+
+let ascii_map = [("·", "*"); ("≤", "<="); ("≥", ">=")]
 
 module StringSet = Set.Make (String)
 module StringMap = Map.Make (String)
@@ -139,7 +145,11 @@ let fold_lefti (f: 'a -> int -> 'b -> 'a) (acc: 'a) (xs: 'b list): 'a =
     | [] -> acc
     | (x :: xs) -> fn (i + 1) (f acc i x) xs
   in fn 0 acc xs
-      
+
+let rec all_pairs = function
+  | [] -> []
+  | x :: xs -> map (fun y -> (x, y)) xs @ all_pairs xs
+
 let intersect xs ys = filter (fun x -> mem x ys) xs
 
 let overlap xs ys = intersect xs ys <> []
@@ -168,21 +178,6 @@ let std_sort xs = sort Stdlib.compare xs
 let sort_by f = sort (fun x y -> Stdlib.compare (f x) (f y))
 
 let unique l = sort_uniq Stdlib.compare l
-
-let group_by key_fun fold init xs =
-  let rec gather = function
-    | [] -> []
-    | x :: xs ->
-        let key = key_fun x in
-        match gather xs with
-          | [] -> [(key, fold x init)]
-          | (key', acc) :: pairs as rest ->
-              if key = key' then (key, fold x acc) :: pairs
-              else (key, fold x init) :: rest in
-  gather (sort_by key_fun xs)
-
-let gather_pairs xs =
-  group_by fst (fun (_, x) acc -> cons x acc) [] xs
 
 let is_maximal gt x ys =
   not (exists (fun y -> y <> x && gt y x) ys)

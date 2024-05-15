@@ -1,4 +1,4 @@
-Axiom.  There exists a type ℕ with an element 0 ∈ ℕ and a function s : ℕ → ℕ such that
+Axiom 1.  There exists a type ℕ with an element 0 ∈ ℕ and a function s : ℕ → ℕ such that
 
   a. There is no n ∈ ℕ such that s(n) = 0.
   b. For all n, m ∈ ℕ, if s(n) = s(m) then n = m.
@@ -6,14 +6,14 @@ Axiom.  There exists a type ℕ with an element 0 ∈ ℕ and a function s : ℕ
 
 Definition.  Let 1 : ℕ = s(0).
 
-Lemma.  Let a ∈ ℕ.  Suppose that a ≠ 0.  Then there is some b ∈ ℕ such that a = s(b).
+Lemma 1.  Let a ∈ ℕ.  Suppose that a ≠ 0.  Then there is some b ∈ ℕ such that a = s(b).
 
-Axiom.  There is a binary operation + : ℕ → ℕ → ℕ such that for all n, m ∈ ℕ,
+Axiom 2.  There is a binary operation + : ℕ → ℕ → ℕ such that for all n, m ∈ ℕ,
 
   a. n + 0 = n.
   b. n + s(m) = s(n + m).
 
-Theorem.  Let a, b, c ∈ ℕ.
+Theorem 2.  Let a, b, c ∈ ℕ.
 
   1. If a + c = b + c, then a = b.
   2. (a + b) + c = a + (b + c).
@@ -24,12 +24,12 @@ Theorem.  Let a, b, c ∈ ℕ.
   7. a + s(b) ≠ a.
   8. If a + b = 0, then a = 0 and b = 0.
 
-Axiom.  There is a binary operation · : ℕ → ℕ → ℕ such that for all n, m ∈ ℕ,
+Axiom 3.  There is a binary operation · : ℕ → ℕ → ℕ such that for all n, m ∈ ℕ,
 
   a. n · 0 = 0.
   b. n · s(m) = (n · m) + n.
 
-Theorem.  Let a, b, c ∈ ℕ.
+Theorem 3.  Let a, b, c ∈ ℕ.
 
   1. a · 0 = 0 = 0 · a.
   2. a · 1 = a = 1 · a.
@@ -72,7 +72,7 @@ Proof.
 
   So s(b) ∈ G.  Hence x ∈ G for all x ∈ ℕ.
 
-Theorem.  Let a, b, c ∈ ℕ.  If c ≠ 0 and ac = bc then a = b.
+Theorem 4.  Let a, b, c ∈ ℕ.  If c ≠ 0 and ac = bc then a = b.
 
 Proof. Let
 
@@ -86,7 +86,7 @@ Definition.  For all a, b ∈ ℕ, a ≤ b iff there is some c ∈ ℕ such that
 
 Definition.  For all a, b ∈ ℕ, we write a ≥ b iff b ≤ a.  We write a > b iff b < a.
 
-Theorem.  Let a, b, c ∈ ℕ.
+Theorem 5.  Let a, b, c ∈ ℕ.
 
   1. a ≤ a, and a ≮ a, and a < a + 1.
   2. 0 ≤ a.
@@ -98,7 +98,7 @@ Theorem.  Let a, b, c ∈ ℕ.
   8. If ac < bc, then a < b.
   9. If c ≠ 0 and a < b, then ac < bc.
 
-Theorem.  Let a, b ∈ ℕ.
+Theorem 6.  Let a, b ∈ ℕ.
 
   1. Precisely one of a < b or a = b or a > b holds.
   2. a ≤ b or b ≤ a.
