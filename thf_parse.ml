@@ -59,7 +59,7 @@ let operators = [
   [ infix "&" _and Assoc_left ];
   [ infix "|" _or Assoc_left ];
   [ infix "=>" implies1 Assoc_left ];
-  (* [ infix "<=>" (fun f g -> Iff (f, g)) Assoc_left ] *)
+  [ infix "<=>" _iff Assoc_left ]
 ]
 
 let arg = pair (var << str ":") typ
