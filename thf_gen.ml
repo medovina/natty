@@ -23,7 +23,7 @@ let thf_type =
       if left then sprintf "(%s)" s else s
   in f false
 
-let binary = [("∧", "&"); ("∨", "|"); ("→", "=>")]
+let binary = [("∧", "&"); ("∨", "|"); ("→", "=>"); ("↔", "<=>")]
 
 let to_var id = capitalize (str_replace "'" "_" id)
 

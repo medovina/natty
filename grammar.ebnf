@@ -18,7 +18,7 @@ terms = term+
 
 (* expressions *)
 
-op = '·' | '+' | '∈' | '=' | '≠'
+op = '·' | '+' | '∈' | '=' | '≠' | '<' | '≤' | '>' | '≥' | '≮'
 
 expr = terms | expr op expr
 
@@ -26,7 +26,7 @@ atomic = expr ['is true']
 
 (* small propositions *)
 
-prop_op = 'and' | 'or' | 'implies' | ', and' | ', or'
+prop_op = 'and' | 'or' | 'implies' | 'if and only if' | ', and' | ', or'
 
 small_prop = atomic | small_prop prop_op small_prop | small_prop 'for all' id_type
 
@@ -36,13 +36,19 @@ if_then_prop = 'if' small_prop 'then' small_prop
 
 either_or_prop = 'either' small_prop
 
-for_all_prop = 'For all' ids_type ',' proposition
+for_all_ids = 'For all' ids_type ','
 
-exists_prop =
-    'There is' ('some' | 'none') id_type 'such that' proposition
+for_all_prop = for_all_ids proposition
+
+exists_prop = 'There is' ('some' | 'none') id_type 'such that' proposition
+
+precisely_prop = 'Precisely one of' small_prop 'holds'
+
+cannot_prop = 'It cannot be that' proposition
 
 proposition =
-    for_all_prop | exists_prop | if_then_prop | either_or_prop |
+    for_all_prop | exists_prop | if_then_prop |
+    either_or_prop | precisely_prop | cannot_prop |
     small_prop
 
 (* top propositions *)
@@ -64,7 +70,7 @@ prop_items = proposition_item+
 
 top_prop_or_items = prop_items | top_prop '.'
 
-propositions = ['for all' ids_type ','] top_prop_or_items
+propositions = [for_all_ids] top_prop_or_items
 
 (* axioms *)
 
@@ -77,7 +83,11 @@ axiom_group = 'Axiom.'
 
 (* definitions *)
 
-definition = 'Definition. Let' sym ':' typ '=' term '.'
+eq_definition = 'Let' sym ':' typ '=' term '.'
+
+relation_definition = ['we write'] id sym id 'iff' proposition '.'
+
+definition = 'Definition.' (eq_definition | for_all_ids {relation_definition})
 
 (* proofs *)
 

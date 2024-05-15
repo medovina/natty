@@ -8,6 +8,7 @@ open Statement
 open Util
 
 let (<<?) p q = attempt (p << q)
+let (>>=?) p q = attempt (p >>= q)
 
 let opt_fold p q f = p >>= fun x -> opt x (q |>> f x)
 
@@ -30,7 +31,9 @@ let var = empty >>? (letter |>> char_to_string)
 
 let id = var <|> any_str ["𝔹"; "ℕ"]
 
-let sym = (empty >>? (digit <|> char '+' <|> char '-') |>> char_to_string) <|> str "·"
+let sym =
+  (empty >>? (digit <|> any_of "+-<>") |>> char_to_string) <|>
+    any_str ["·"; "≤"; "≥"; "≮"]
 
 let id_or_sym = id <|> sym
 
@@ -71,11 +74,16 @@ let prop_operators = [
   [ infix "or" _or Assoc_left ];
   [ infix "implies" implies Assoc_right ];
   [ Postfix (str "for all" >> id_type |>> _for_all') ];
+  [ infix "if and only if" _iff Assoc_right ];
   [ Infix (comma_and >>$ _and, Assoc_left) ];
   [ Infix (str "," >>? str "or" >>$ _or, Assoc_left) ];
 ]
 
 (* terms *)
+
+let compare_op op = infix op (binop_unknown op) Assoc_right
+
+let mk_not_less f g = _not (binop_unknown "<" f g)
 
 let rec term s = choice [
   (sym |>> fun c -> Const (c, unknown_type));
@@ -97,10 +105,12 @@ and operators = [
   [ infix "·" (binop_unknown "·") Assoc_left ];
   [ infix "+" (binop_unknown "+") Assoc_left;  infix "-" (binop_unknown "-") Assoc_left ];
   [ infix "∈" (binop_unknown "∈") Assoc_none ];
-  [ infix "=" mk_eq Assoc_right ; infix "≠" mk_neq Assoc_right ]
+  [ infix "=" mk_eq Assoc_right ; infix "≠" mk_neq Assoc_right ] @
+      map compare_op ["<"; "≤"; ">"; "≥"] @
+      [ infix "≮" mk_not_less Assoc_right ]
 ]
 
-and expr s = (expression operators terms |>> multi_eq) s
+and expr s = (expression operators terms |>> chain_ops) s
 
 and atomic s = (expr << opt_str "is true") s
 
@@ -119,8 +129,10 @@ and either_or_prop s =
     | Binary ("∨", _, _, _) -> f
     | _ -> failwith "either: expected or") s
 
+and for_all_ids s = (str "For all" >> ids_type << str ",") s
+
 and for_all_prop s = pipe2
-  (str "For all" >> ids_type) (str "," >> proposition) for_all_vars_typ s
+  for_all_ids proposition for_all_vars_typ s
 
 and exists_prop s = pipe3
   (str "There is" >> ((str "some" >>$ true) <|> (str "no" >>$ false)))
@@ -128,8 +140,23 @@ and exists_prop s = pipe3
   (fun some (id, typ) p ->
     (if some then Fun.id else _not) (_exists id typ p)) s
 
+and precisely_prop s = (
+  str "Precisely one of" >> small_prop << str "holds" |>> fun f ->
+    let gs = gather_or f in
+    assert (length gs > 1);
+    fold_left1 _and (f ::
+      let+ x = gs in
+      let+ y = gs in
+      if x = y then [] else [_not (_and x y)])
+  ) s
+
+and cannot_prop s = (
+  str "It cannot be that" >> proposition |>> _not) s
+
 and proposition s = choice [
-  for_all_prop; exists_prop; if_then_prop; either_or_prop; small_prop
+  for_all_prop; exists_prop; if_then_prop;
+  either_or_prop; precisely_prop; cannot_prop;
+  small_prop
 ] s
 
 (* top propositions *)
@@ -158,8 +185,7 @@ let top_prop_or_items ids_typ =
     map (fun (label, f, name) -> (label, for_all_vars_typ_if_free ids_typ f, name))
 
 let propositions =
-  (opt ([], unknown_type) (str "for all" >> ids_type << str ",")) >>=
-    top_prop_or_items
+  (opt ([], unknown_type) for_all_ids) >>= top_prop_or_items
 
 (* axioms *)
 
@@ -185,10 +211,22 @@ let axiom_group = str "Axiom." >> any_str ["There exists"; "There is"] >> pipe2
 
 (* definitions *)
 
-let definition = pipe3
-  (str "Definition." >> str "Let" >> sym) (str ":" >> typ)
-  (str "=" >> term << str ".")
-  (fun sym typ f -> [Definition (sym, typ, Eq (Const (sym, typ), f))])
+let eq_definition = pipe3
+  (str "Let" >> sym) (str ":" >> typ) (str "=" >> term << str ".")
+  mk_eq_def
+
+let relation_definition (ids, typ) = optional (str "we write") >>?
+  id >>=? fun x ->
+    pipe3 sym id (str "iff" >> proposition) (fun op y prop ->
+    assert (ids = [x; y]);
+    mk_eq_def op (Fun (typ, Fun (typ, Bool)))
+      (Lambda (x, typ, Lambda (y, typ, prop)))) << str "."
+
+let definition = str "Definition." >>
+  choice [
+    single eq_definition;
+    for_all_ids >>= fun ids_typ -> many1 (relation_definition ids_typ)
+  ]
 
 (* proofs *)
 

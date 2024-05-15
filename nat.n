@@ -81,3 +81,28 @@ Proof. Let
   Let b, c ∈ ℕ with c ≠ 0 and 0 · c = bc. Then bc = 0.  Since c ≠ 0, we must have b = 0.  So 0 = b, and hence 0 ∈ G.
 
   Now let a ∈ ℕ, and suppose that a ∈ G.  Let b, c ∈ ℕ, and suppose that c ≠ 0 and s(a) · c = bc.  Then ca + c = bc.  If b = 0, then either s(a) = 0 or c = 0, which is a contradiction.  Hence b ≠ 0.  By Lemma 1 there is some p ∈ ℕ such that b = s(p).  Therefore ca + c = s(p) · c, and we see that ca + c = cp + c.  It follows that ca = cp, so ac = pc.  By hypothesis it follows that a = p.  Therefore s(a) = s(p) = b.  Hence s(a) ∈ G, and we deduce that x ∈ G for all x ∈ ℕ.
+
+Definition.  For all a, b ∈ ℕ, a ≤ b iff there is some c ∈ ℕ such that a + c = b.  a < b iff a ≤ b and a ≠ b.
+
+Definition.  For all a, b ∈ ℕ, we write a ≥ b iff b ≤ a.  We write a > b iff b < a.
+
+Theorem.  Let a, b, c ∈ ℕ.
+
+  1. a ≤ a, and a ≮ a, and a < a + 1.
+  2. 0 ≤ a.
+  3. If a ≤ b and b ≤ c, then a ≤ c.
+  4. If a ≤ b and b < c, then a < c.
+  5. If a < b and b ≤ c, then a < c.
+  6. If a < b and b < c, then a < c.
+  7. a < b if and only if a + c < b + c.
+  8. If ac < bc, then a < b.
+  9. If c ≠ 0 and a < b, then ac < bc.
+
+Theorem.  Let a, b ∈ ℕ.
+
+  1. Precisely one of a < b or a = b or a > b holds.
+  2. a ≤ b or b ≤ a.
+  3. If a ≤ b and b ≤ a, then a = b.
+  4. It cannot be that b < a < b + 1.
+  5. a ≤ b if and only if a < b + 1.
+  6. a < b if and only if a + 1 ≤ b.

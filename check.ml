@@ -59,7 +59,9 @@ let rec map_set_mem f = match kind f with
        
 let top_check env f =
   let (f, typ) = check_formula env [] (reduce (map_set_mem f)) in
-  if typ = Bool then f else failwith ("bool expected: " ^ show_formula f)
+  if typ = Bool then f else (
+    print_line ("bool expected: " ^ show_formula f);
+    failwith "top_check")
 
 type block = Block of proof_step * block list
 

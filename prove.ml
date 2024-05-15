@@ -632,17 +632,12 @@ let commutative_axiom f = remove_universal f |> function
         | _ -> None)
     | _ -> None
 
-let rec gather_op op f = match kind f with
-  | Binary (op', _, f, g) when op = op' ->
-      gather_op op f @ gather_op op g
-  | _ -> [f]
-
 let is_ac_tautology ac_ops = function
   | Eq (f, g) as eq -> (
       match kind f with
         | Binary (op, _, _, _) when mem op ac_ops ->
             let b =
-              std_sort (gather_op op f) = std_sort (gather_op op g) &&
+              std_sort (gather_associative op f) = std_sort (gather_associative op g) &&
               not (associative_axiom eq = Some op || commutative_axiom eq = Some op) in
             if b && !debug > 0 then
               printf "AC tautology: %s\n" (show_formula eq);

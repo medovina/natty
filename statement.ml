@@ -71,6 +71,9 @@ let stmt_const = function
   | Definition (id, _, _) -> Some id
   | _ -> None
 
+let mk_eq_def sym typ f =
+  Definition (sym, typ, Eq (Const (sym, typ), f))
+
 let axiom_named name = function
   | Axiom (_id, f, Some n) when eq_icase n name -> Some f
   | _ -> None

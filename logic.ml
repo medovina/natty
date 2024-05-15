@@ -88,7 +88,7 @@ let _true = Const ("⊤", Bool)
 
 let _not f = App (Const ("¬", Fun (Bool, Bool)), f)
 
-let logical_binary = ["∧"; "∨"; "→"]
+let logical_binary = ["∧"; "∨"; "→"; "↔"]
 
 let binop op typ f g = App (App (Const (op, typ), f), g) 
 let binop_unknown op = binop op unknown_type
@@ -98,6 +98,7 @@ let logical_op op = binop op (Fun (Bool, Fun (Bool, Bool)))
 let _and = logical_op "∧"
 let _or = logical_op "∨"
 let implies1 = logical_op "→"
+let _iff = logical_op "↔"
 
 let multi_or = function
   | [] -> _false
@@ -150,6 +151,7 @@ let rec gather_associative op f = match kind f with
   | _ -> [f]
 
 let gather_and = gather_associative "∧"
+let gather_or = gather_associative "∨"
 
 let implies f g = match bool_kind f with
   | Binary ("∧", _, s, t) -> implies1 s (implies1 t g)
@@ -161,10 +163,17 @@ let rec gather_implies f = match bool_kind f with
 
 let premises f = split_last (gather_implies f)
 
-let binary_ops = [("·", 6); ("+", 5); ("-", 5); ("∈", 4); ("∧", 3); ("∨", 2); ("→", 0)]
-let not_prec = 7
-let eq_prec = 4
-let quantifier_prec = 1
+let binary_ops = [
+  ("·", 8);
+  ("+", 7); ("-", 7);
+  ("∈", 6);
+  ("<", 5); ("≤", 5); (">", 5); ("≥", 5);
+  ("∧", 4); ("∨", 3); ("→", 1); ("↔", 0)
+]
+
+let not_prec = 9
+let eq_prec = 5
+let quantifier_prec = 2
 
 let single_letter = function
   | (Const (id, _) | Var (id, _)) when is_letter id.[0] -> Some id
@@ -371,18 +380,23 @@ let unify_or_match is_unify =
 let unify = unify_or_match true
 let try_match = unify_or_match false
 
-let multi_eq f =
+let chainable = ["<"; "≤"; ">"; "≥"]
+
+let chain_ops f =
   let rec collect = function
-    | Eq (f, g) -> f :: collect g
-    | f -> [f] in
-  let rec join = function
-    | [x; y] -> mk_eq x y
-    | x :: y :: xs -> _and (mk_eq x y) (join (y :: xs))
-    | _ -> assert false in
-  match collect f with
-    | [] -> assert false
-    | [f] -> f
-    | fs -> join fs
+    | Eq (f, g) -> prepend f mk_eq g
+    | App (App (Const (op, _), f), g) when mem op chainable ->
+        prepend f (binop_unknown op) g
+    | g -> ([g], [])
+  and prepend f op g =
+    let (terms, ops) = collect g in (f :: terms, op :: ops) in
+  let rec pairs = function
+    | (f :: g :: terms, op :: ops) ->
+        op f g :: pairs (g :: terms, ops)
+    | ([_f], []) -> []
+    | _ -> failwith "pairs" in
+  let (terms, ops) = collect f in
+  if ops = [] then f else fold_right1 _and (pairs (terms, ops))
 
 let expand_multi_eq f =
   let rec expand = function
