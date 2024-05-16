@@ -258,6 +258,18 @@ let multi_gt gt xs ys =
 
 let profiling = ref false
 
+let sys_time_cost = ref 0.0
+let profiling_cost = ref 0.0
+
+let measure_cost () =
+  let start = Sys.time () in
+  let count = ref 1 in
+  let interval = 0.05 in
+  while Sys.time () -. start < interval do
+    incr count
+  done;
+  sys_time_cost := interval /. float_of_int !count
+
 type prof_node = {
   name: string;
   time: float ref;
@@ -267,7 +279,9 @@ type prof_node = {
 let cur_prof = ref { name = ""; time = ref 0.0; children = ref [] }
 
 let profile name f =
-  if !profiling then
+  if !profiling then (
+    if !sys_time_cost = 0.0 then
+      measure_cost ();
     let parent = !cur_prof in
     let cur = match find_opt (fun n -> n.name = name) !(parent.children) with
       | Some child -> child
@@ -276,18 +290,22 @@ let profile name f =
           parent.children := node :: !(parent.children);
           node in
     cur_prof := cur;
-    let start = Sys.time () in
+    let start = Sys.time () -. !profiling_cost in
+    profiling_cost := !profiling_cost +. !sys_time_cost;
     let ret = f () in
-    cur.time := !(cur.time) +. Sys.time () -. start;
+    cur.time := !(cur.time) +. (Sys.time () -. !profiling_cost) -. start;
+    profiling_cost := !profiling_cost +. !sys_time_cost;
     cur_prof := parent;
-    ret
+    ret)
   else f ()
 
 let profile_report () =
-  let rec print_node indent node =
-    if node.name <> "" then
-      printf "%s%s: %.2f\n" indent node.name !(node.time);
-    let children = sort_by (fun n -> -. !(n.time)) !(node.children) in
-    let indent = if node.name = "" then "" else indent ^ "  " in
-    iter (print_node indent) children in
-  print_node "" !cur_prof
+  if !profiling then (
+    let rec print_node indent node =
+      if node.name <> "" then
+        printf "%s%s: %.2f\n" indent node.name !(node.time);
+      let children = sort_by (fun n -> -. !(n.time)) !(node.children) in
+      let indent = if node.name = "" then "" else indent ^ "  " in
+      iter (print_node indent) children in
+    print_node "" !cur_prof;
+    printf "\nprofiling cost = %.2f\n" !profiling_cost)
