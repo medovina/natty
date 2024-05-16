@@ -571,15 +571,22 @@ let rec simp f = match bool_kind f with
         | "∧", _, True -> p
         | "∧", False, _ -> _false
         | "∧", _, False -> _false
+        | "∧", t, u when t = u -> p
         | "∨", True, _ -> _true
         | "∨", _, True -> _true
         | "∨", False, _ -> q
         | "∨", _, False -> p
+        | "∨", t, u when t = u -> p
         | "→", True, _ -> q
         | "→", _, True -> _true
         | "→", False, _ -> _true
         | "→", _, False -> simp (_not p)
         | "→", t, u when t = u -> _true
+        | "↔", True, _ -> q
+        | "↔", _, True -> p
+        | "↔", False, _ -> _not q
+        | "↔", _, False -> _not p
+        | "↔", t, u when t = u -> _true
         | _ -> logical_op op p q)
   | Quant (q, x, typ, f) ->
       let f = simp f in (
@@ -603,6 +610,12 @@ let rec canonical_lit = function
       if f < g then Eq (f, g) else Eq (g, f)
   | f -> map_formula canonical_lit f
 
+let taut_lit f = match bool_kind f with
+  | True -> true
+  | Quant ("∃", x, _typ, Eq (Var (x', _), _)) when x = x' -> true
+  | Quant ("∃", x, _typ, Eq (_, Var (x', _))) when x = x' -> true
+  | _ -> false
+
 let is_tautology f =
   let rec pos_neg = function
     | [] -> ([], [])
@@ -612,7 +625,7 @@ let is_tautology f =
           | Not g -> (pos, g :: neg)
           | _ -> (f :: pos, neg) in
   let (pos, neg) = pos_neg (map canonical_lit (map simp (expand f))) in
-  mem _true pos || intersect pos neg <> []
+  exists taut_lit pos || intersect pos neg <> []
 
 let associative_axiom f =
   let is_assoc (f, g) = match kind f, kind g with
