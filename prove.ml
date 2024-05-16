@@ -469,8 +469,10 @@ let all_eres cp = run_clausify cp eres
  *       sp(s, C)                        sp(¬s, C)
  *
  *  sp(s ∧ t, C) = { s = ⊤ ∨ C, t = ⊥ ∨ V }
+ *  sp(s ↔ t, C) = { s → t ∨ C, t → s ∨ C }
  *  sp(¬(s ∨ t), C) = { s ═ ⊥ ∨ C, t = ⊥ ∨ C }
- *  sp(¬(s → t), C) = { s = ⊤ ∨ C, t = ⊥ ∨ C }     *)
+ *  sp(¬(s → t), C) = { s = ⊤ ∨ C, t = ⊥ ∨ C }
+ *)
 
 let all_split p =
   let skolem_names = ref [] in
@@ -482,6 +484,7 @@ let all_split p =
       Some (top @ children) in
     let split_on lit = match bool_kind lit with
       | Binary ("∧", _, f, g) -> split lit f g
+      | Binary ("↔", _, f, g) -> split lit (implies f g) (implies g f)
       | Not f -> (match bool_kind f with
           | Binary ("∨", _, f, g) -> split lit (_not f) (_not g)
           | Binary ("→", _, f, g) -> split lit f (_not g)
