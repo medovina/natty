@@ -17,6 +17,10 @@ let rec show_type = function
 
 let mk_fun_type t u = Fun (t, u)
 
+let rec target_type = function
+  | Fun (_, u) -> target_type u
+  | t -> t
+
 let mk_base_type = function
   | "𝔹" -> Bool
   | id -> Base id
@@ -285,6 +289,12 @@ let rec gather_quant q f = match kind f with
   | _ -> ([], f)
 
 let for_alls = gather_quant "∀"
+
+let rec gather_lambdas = function
+  | Lambda (x, typ, f) ->
+      let (vars, g) = gather_lambdas f in
+      ((x, typ) :: vars, g)
+  | f -> ([], f)
 
 let rec remove_universal f = match bool_kind f with
   | Quant ("∀", _x, _typ, g) -> remove_universal g

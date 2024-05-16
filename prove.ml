@@ -780,8 +780,15 @@ let refute timeout pformulas =
                         loop used (count + 1)
   in loop [] 1
 
+let lower = function
+  | Eq ((Const (_, typ) as c), (Lambda _ as l)) when target_type typ = Bool ->
+      let (vars_typs, g) = gather_lambdas l in
+      for_all_vars_typs vars_typs (
+        _iff (apply (c :: map mk_var' vars_typs)) g)
+  | f -> f
+
 let to_pformula stmt = stmt_formula stmt |> Option.map (fun f ->
-  create_pformula (stmt_name stmt) [] (rename_vars f) 0.0)
+  create_pformula (stmt_name stmt) [] (rename_vars (lower f)) 0.0)
 
 let prove timeout known_stmts thm invert =
   formula_counter := 0;
