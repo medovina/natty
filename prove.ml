@@ -694,9 +694,7 @@ let rw_simplify queue ac_ops used found pformula =
   let rec repeat_rewrite p = match rewrite_from used p with
     | None -> p
     | Some p -> repeat_rewrite p in
-  let p = repeat_rewrite pformula in
-  if p.id > 0 then Some p
-  else let p = simplify p in
+  let p = simplify (repeat_rewrite pformula) in
     if is_tautology p.formula || is_ac_tautology ac_ops p.formula then None
     else
       match used |> find_opt (fun c -> subsumes c p) with
@@ -706,24 +704,25 @@ let rw_simplify queue ac_ops used found pformula =
               print_line (prefix_show prefix p.formula));
             None
         | None ->
-            let f = canonical p in
-            match FormulaMap.find_opt f !found with
-              | Some pf ->
-                  let adjust =
-                    if cost_of p < cost_of pf then (
-                      pf.cost := cost_of p;
-                      if PFQueue.mem pf !queue then
-                        queue := PFQueue.adjust pf (Fun.const (queue_cost pf)) !queue;
-                      sprintf " (adjusted cost to %.2f)" (cost_of p))
-                    else "" in
-                  if !debug > 1 then (
-                    let prefix = sprintf "duplicate of #%d%s: " pf.id adjust in
-                    print_line (prefix_show prefix p.formula));
-                  None
-              | None ->
-                  let p = number_formula p in (
-                  found := FormulaMap.add f p !found;
-                  Some p)
+            if p.id > 0 then Some p else
+              let f = canonical p in
+              match FormulaMap.find_opt f !found with
+                | Some pf ->
+                    let adjust =
+                      if cost_of p < cost_of pf then (
+                        pf.cost := cost_of p;
+                        if PFQueue.mem pf !queue then
+                          queue := PFQueue.adjust pf (Fun.const (queue_cost pf)) !queue;
+                        sprintf " (adjusted cost to %.2f)" (cost_of p))
+                      else "" in
+                    if !debug > 1 then (
+                      let prefix = sprintf "duplicate of #%d%s: " pf.id adjust in
+                      print_line (prefix_show prefix p.formula));
+                    None
+                | None ->
+                    let p = number_formula p in (
+                    found := FormulaMap.add f p !found;
+                    Some p)
 
 let rec rw_simplify_all queue ac_ops used found = function
   | [] -> []
@@ -778,7 +777,9 @@ let refute timeout pformulas =
             if p.pinned then (Some p, if p1 = Some p then [] else Option.to_list p1)
             else (p1, []) in
           match p1 with
-            | None -> loop used (count + 1)
+            | None ->
+                print_newline ();
+                loop used (count + 1)
             | Some p ->
                 let (used, rewritten) = back_simplify p used in
                 if p.formula = _false then Proof (p, elapsed) else
