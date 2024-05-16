@@ -548,9 +548,11 @@ let rewrite_from ps q =
  *   ═══════════════   subsume
  *         C                 *)
 
-let subsumes cp dp =
-  Option.is_some
-    (try_match (remove_universal cp.formula) (remove_universal dp.formula))
+let any_subsumes cs dp =
+  let d = prefix_vars (remove_universal dp.formula) in
+  let subsumes cp =
+    Option.is_some (try_match (remove_universal cp.formula) d) in
+  find_opt subsumes cs 
 
 let rec expand f = match or_split f with
   | Some (s, t) -> expand s @ expand t
@@ -697,7 +699,7 @@ let rw_simplify queue ac_ops used found pformula =
   let p = simplify (repeat_rewrite pformula) in
     if is_tautology p.formula || is_ac_tautology ac_ops p.formula then None
     else
-      match used |> find_opt (fun c -> subsumes c p) with
+      match any_subsumes used p with
         | Some pf ->
             if !debug > 0 then (
               let prefix = sprintf "subsumed by #%d: " pf.id in
@@ -778,7 +780,7 @@ let refute timeout pformulas =
             else (p1, []) in
           match p1 with
             | None ->
-                print_newline ();
+                if !debug > 0 then print_newline ();
                 loop used (count + 1)
             | Some p ->
                 let (used, rewritten) = back_simplify p used in
