@@ -116,17 +116,17 @@ assert_step =
 
 assert_steps = assert_step {',' ('and' so_or_have | so) proof_prop}
 
-_let = ['First' | 'Now'] 'let'
+now = 'First' | 'Now'
 
-let_step = _let ids_type ['with' small_prop]
+let_step = 'let' ids_type ['with' small_prop]
 
-let_val_step = _let id_opt_type '=' term
+let_val_step = 'let' id_opt_type '=' term
 
 assume_step = 'Suppose that' proposition
 
 let_or_assume = let_val_step | let_step | assume_step
 
-let_or_assumes = let_or_assume {", and" let_or_assume}
+let_or_assumes = [now] let_or_assume {", and" let_or_assume}
 
 proof_sentence = (let_or_assumes | assert_steps) '.'
 
