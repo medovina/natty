@@ -2,7 +2,29 @@ import csv, os, re, subprocess, sys, time
 from collections import defaultdict
 from os import path
 
-timeout = 5
+timeout = default_timeout = 5
+timeout_suffix = ''
+eval_all = False
+
+i = 1
+while i < len(sys.argv):
+    arg = sys.argv[i]
+    if arg == '-a':
+        eval_all = True
+        i += 1
+    elif arg.startswith('-t'):
+        timeout = int(arg[2:])
+        timeout_suffix = f'_{timeout}'
+        i += 1
+    else:
+        break
+
+if i != len(sys.argv) - 1:
+    print(f'usage: {sys.argv[0]} [-a] [-t<num>] <dir>')
+    print( '    -a: evaluate all provers')
+    print(f'    -t<num>: timeout (default is {default_timeout} seconds)')
+    sys.exit(1)
+dir = sys.argv[i]
 
 all_provers = [
     ('Natty', f'./natty -t{timeout}'),
@@ -11,19 +33,7 @@ all_provers = [
     ('Zipperposition', f'zipperposition --mode best --input tptp --timeout {timeout}'),
 ]
 
-provers = [all_provers[0]]
-
-i = 1
-if sys.argv[i] == '-a':
-    provers = all_provers
-    i += 1
-
-if i != len(sys.argv) - 1:
-    print(f'usage: {sys.argv[0]} [-a] <dir>')
-    print('    -a: evaluate all provers')
-    sys.exit(1)
-dir = sys.argv[i]
-
+provers = all_provers if eval_all else [all_provers[0]]
 prover_names = [p[0] for p in provers]
 
 files = [name.removesuffix('.thf') for name in os.listdir(dir) if name.endswith('.thf')]
@@ -32,7 +42,7 @@ files.sort(key = lambda s: [int(n) for n in s.replace('s', '').split('_')])
 class Group:
     def __init__(self, name):
         self.results = {}
-        self.results_file = f'{dir}_{name}.csv'
+        self.results_file = f'{dir}_{name}{timeout_suffix}.csv'
 
     def read(self):
         if path.exists(self.results_file):
