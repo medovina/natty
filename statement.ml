@@ -8,7 +8,7 @@ type proof_step =
   | Assert of formula
   | Let of id list * typ
   | LetVal of id * typ * formula
-  | Assume of formula
+  | Assume of formula * bool    (* true if a fresh assumption *)
   | IsSome of id * typ * formula
 
 let mk_assert f = Assert f
@@ -22,7 +22,7 @@ let step_decl_vars = function
 let step_free_vars = function
   | Assert f -> free_vars f
   | LetVal (_, _, f) -> free_vars f
-  | Assume f -> free_vars f
+  | Assume (f, _) -> free_vars f
   | IsSome (id, _, f) -> remove id (free_vars f)
   | _ -> []
 
@@ -31,7 +31,8 @@ let show_proof_step = function
   | Let (ids, typ) -> sprintf "let %s : %s" (comma_join ids) (show_type typ)
   | LetVal (id, typ, f) -> sprintf "let_val %s : %s = %s"
       id (show_type typ) (show_formula f)
-  | Assume f -> sprintf "assume %s" (show_formula f)
+  | Assume (f, fresh) ->
+      sprintf "%sassume %s" (if fresh then "now " else "") (show_formula f)
   | IsSome (id, typ, f) -> sprintf "is_some %s : %s : %s"
       id (show_type typ) (show_formula f)
 

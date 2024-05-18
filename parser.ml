@@ -263,22 +263,26 @@ let assert_steps =
   pipe2 assert_step (many (join >> proof_prop))
   (fun p ps -> map mk_step (p @ ps))
 
-let now = any_str ["First"; "Now"]
+let now = (str "First" >>$ false) <|> (str "Now" >>$ true)
 
 let let_step = pipe2 
   (str "let" >> ids_type |>> fun (ids, typ) -> [Let (ids, typ)])
-  (opt [] (str "with" >> small_prop |>> fun f -> [Assume f]))
+  (opt [] (str "with" >> small_prop |>> fun f -> [Assume (f, false)]))
   (@)
 
 let let_val_step = pipe2 (str "let" >>? id_opt_type <<? str "=") term
   (fun (id, typ) f -> LetVal (id, typ, f))
 
-let assume_step = str "Suppose that" >> proposition |>> fun f -> Assume f
+let assume_step fresh =
+  str "Suppose that" >> proposition |>> fun f -> Assume (f, fresh) 
 
-let let_or_assume = single let_val_step <|> let_step <|> single assume_step
+let let_or_assume fresh =
+  single let_val_step <|> let_step <|> single (assume_step fresh)
 
-let let_or_assumes = optional now >>
-  (sep_by1 let_or_assume (str "," >> str "and")) |>> concat
+let let_or_assumes = opt false now >>= fun fresh ->
+  pipe2 (let_or_assume fresh)
+    (many (str "," >> str "and" >> (let_or_assume false)))
+    (fun la las -> la @ concat las)
 
 let proof_sentence =
   (let_or_assumes <|> assert_steps) << str "."

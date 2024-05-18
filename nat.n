@@ -99,6 +99,12 @@ Theorem 5.  Let a, b, c ∈ ℕ.
   9. If ac < bc, then a < b.
   10. If c ≠ 0 and a < b, then ac < bc.
 
+Proof.
+
+  7. Let a, b ∈ ℕ.  Suppose that a < b.  Then there is some c ∈ ℕ such that a + c = b.  So a + 1 + c = b + 1.  Then s(a) + c = s(b), so s(a) < s(b).
+
+  Now suppose that s(a) < s(b).  Then there is some c ∈ ℕ such that s(a) + c = s(b).  So a + 1 + c = b + 1.  Then a + c = b, so a < b.
+
 Theorem 6.  Let a, b ∈ ℕ.
 
   1. Precisely one of a < b or a = b or a > b holds.

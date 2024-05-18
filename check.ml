@@ -80,7 +80,7 @@ let infer_blocks steps =
     | [] -> []
     | step :: steps ->
         subtract (step_free_vars step @ all_vars steps) (step_decl_vars step) in
-  let rec infer vars steps = match steps with
+  let rec infer vars in_assume steps = match steps with
     | [] -> ([], steps)
     | step :: rest ->
         if overlap (step_decl_vars step) (concat vars) then ([], steps)
@@ -88,29 +88,36 @@ let infer_blocks steps =
           | [] -> true
           | top_vars :: _ -> overlap top_vars (all_vars steps) in
         if not in_use then ([], steps)
-        else
-          let (children, rest1) =
-            match step with
-              | Assume _ -> infer vars rest
-              | _ -> match step_decl_vars step with
-                | [] -> ([], rest)
-                | step_vars -> infer (step_vars :: vars) rest in
-          let (blocks, rest2) = infer vars rest1 in
-          (Block (step, children) :: blocks, rest2) in
-  let (blocks, rest) = infer [] steps in
+        else match step with
+          | Assume (_, true) when in_assume -> ([], steps)
+          | _ ->
+            let (children, rest1) =
+              match step with
+                | Assume _ -> infer vars true rest
+                | _ -> match step_decl_vars step with
+                  | [] -> ([], rest)
+                  | step_vars -> infer (step_vars :: vars) in_assume rest in
+            let (blocks, rest2) = infer vars in_assume rest1 in
+            (Block (step, children) :: blocks, rest2) in
+  let (blocks, rest) = infer [] false steps in
   assert (rest = []);
   blocks
 
 let rec blocks_formulas = function
-  | [] -> ([], _true)
+  | [] -> ([], (_true, true))
   | block :: rest ->
+      let is_assume = match block with
+        | Block (Assume _, _) -> true
+        | _ -> false in
       let (fs, concl) = block_formulas block in
-      let (gs, final_concl) = blocks_formulas rest in
+      let (gs, (final_concl, all_assume)) = blocks_formulas rest in
       (fs @ map_fst (fun f -> implies concl f) gs,
-      if rest = [] then concl else final_concl)
+       if rest = [] then (concl, is_assume)
+       else if is_assume && all_assume then (_and concl final_concl, true)
+       else (final_concl, false))
 
 and block_formulas (Block (step, children)) =
-  let (fs, concl) = blocks_formulas children in
+  let (fs, (concl, _)) = blocks_formulas children in
   let apply fn = (map_fst fn fs, fn concl) in
   match step with
     | Assert f -> (
@@ -120,11 +127,11 @@ and block_formulas (Block (step, children)) =
           | None -> ([(f, f)], f))
     | Let (ids, typ) -> apply (for_all_vars_typ (ids, typ))
     | LetVal (id, _typ, value) -> apply (fun f -> rsubst1 f value id)
-    | Assume a -> apply (implies a)
+    | Assume (a, _) -> apply (implies a)
     | IsSome (id, typ, g) ->
         let ex = _exists id typ g in
         ((ex, ex) :: map_fst (fun f -> _for_all id typ (implies g f)) fs,
-         concl)
+         if is_free_in id concl then _exists id typ concl else concl)
 
 let expand_proof env f = function
   | Steps steps ->
