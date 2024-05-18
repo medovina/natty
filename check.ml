@@ -89,7 +89,8 @@ let infer_blocks steps =
           | top_vars :: _ -> overlap top_vars (all_vars steps) in
         if not in_use then ([], steps)
         else match step with
-          | Assume (_, true) when in_assume -> ([], steps)
+          | Escape ->
+              if in_assume then ([], steps) else infer vars false rest
           | _ ->
             let (children, rest1) =
               match step with
@@ -103,21 +104,21 @@ let infer_blocks steps =
   assert (rest = []);
   blocks
 
-let rec blocks_formulas = function
-  | [] -> ([], (_true, true))
+let rec blocks_formulas all_conclusions = function
+  | [] -> ([], _true)
   | block :: rest ->
-      let is_assume = match block with
-        | Block (Assume _, _) -> true
-        | _ -> false in
       let (fs, concl) = block_formulas block in
-      let (gs, (final_concl, all_assume)) = blocks_formulas rest in
+      let (gs, final_concl) = blocks_formulas all_conclusions rest in
       (fs @ map_fst (fun f -> implies concl f) gs,
-       if rest = [] then (concl, is_assume)
-       else if is_assume && all_assume then (_and concl final_concl, true)
-       else (final_concl, false))
+      if rest = [] then concl
+      else if all_conclusions then _and concl final_concl
+      else final_concl)
 
 and block_formulas (Block (step, children)) =
-  let (fs, (concl, _)) = blocks_formulas children in
+  let is_let = match step with
+    | Let _ -> true
+    | _ -> false in
+  let (fs, concl) = blocks_formulas is_let children in
   let apply fn = (map_fst fn fs, fn concl) in
   match step with
     | Assert f -> (
@@ -127,17 +128,18 @@ and block_formulas (Block (step, children)) =
           | None -> ([(f, f)], f))
     | Let (ids, typ) -> apply (for_all_vars_typ (ids, typ))
     | LetVal (id, _typ, value) -> apply (fun f -> rsubst1 f value id)
-    | Assume (a, _) -> apply (implies a)
+    | Assume a -> apply (implies a)
     | IsSome (id, typ, g) ->
         let ex = _exists id typ g in
         ((ex, ex) :: map_fst (fun f -> _for_all id typ (implies g f)) fs,
          if is_free_in id concl then _exists id typ concl else concl)
+    | Escape -> failwith "block_formulas"
 
 let expand_proof env f = function
   | Steps steps ->
       let blocks = infer_blocks steps @ [mk_assert f] in
       if !debug > 0 then print_blocks blocks;
-      let fs = fst (blocks_formulas blocks) in
+      let fs = fst (blocks_formulas false blocks) in
       Formulas (map_fst (top_check env) fs)
   | _ -> assert false
 

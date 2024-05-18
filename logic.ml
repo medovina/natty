@@ -252,7 +252,8 @@ let find_vars_types only_free f =
     | Var (id, typ) -> [(id, typ)]
     | App (t, u) | Eq (t, u) -> find t @ find u
     | Lambda (id, typ, t) ->
-        if only_free then remove (id, typ) (find t)
+        if only_free then
+          filter (fun (x, _typ) -> x <> id) (find t)
         else (id, typ) :: find t in
   find f
 
