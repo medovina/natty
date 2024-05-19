@@ -90,7 +90,7 @@ let infer_blocks steps =
         if not in_use then ([], steps)
         else match step with
           | Escape ->
-              if in_assume then ([], steps) else infer vars false rest
+              if in_assume then ([], rest) else infer vars false rest
           | _ ->
             let (children, rest1) =
               match step with

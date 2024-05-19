@@ -112,13 +112,13 @@ Proof.
 
       G = { c ∈ ℕ | a + c < b + c }.
 
-  Clearly 0 ∈ G.  Let c ∈ ℕ, and suppose that c ∈ G.  Then a + c < b + c, so s(a + c) < s(b + c) by part (7) of this theorem.  Then a + s(c) < b + s(c), so s(c) ∈ G.  Hence c ∈ G for all c ∈ ℕ.
+  Clearly 0 ∈ G.  Let c ∈ ℕ, and suppose that c ∈ G.  Then a + c < b + c, so s(a + c) < s(b + c) by part (1) of this theorem.  Then a + s(c) < b + s(c), so s(c) ∈ G.  Hence c ∈ G for all c ∈ ℕ.
 
   Conversely, let
 
     H = { c ∈ ℕ | a + c < b + c implies a < b }.
 
- Clearly 0 ∈ H.  Let c ∈ ℕ, and suppose that c ∈ H.  If a + s(c) < b + s(c), then s(a + c) < s(b + c), so a + c < b + c by part (7) of this theorem, so a < b by hypothesis.  It follows that s(c) ∈ H.  Hence c ∈ H for all c ∈ ℕ.
+  Clearly 0 ∈ H.  Let c ∈ ℕ, and suppose that c ∈ H.  If a + s(c) < b + s(c), then s(a + c) < s(b + c), so a + c < b + c by part (1) of this theorem, so a < b by hypothesis.  It follows that s(c) ∈ H.  Hence c ∈ H for all c ∈ ℕ.
 
 Theorem 7.  Let a, b ∈ ℕ.
 

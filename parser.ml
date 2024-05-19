@@ -235,33 +235,36 @@ let reason = str "by" >>? choice [
   str "hypothesis"
 ]
 
-let opt_contra f = opt f
-  (str "," >>? str "which is a contradiction" >>$ _and f (implies f _false))
-
-let rec proof_intro_prop s = choice [
-  pipe2 (str "if" >> small_prop) (opt_str "," >> str "then" >> proof_prop) implies;
-  (reason >> opt_str "," >> optional have >> proposition) >>= opt_contra
-  ] s
-
-and proof_prop s = (proof_intro_prop <|>
-  (proposition << optional reason) >>= opt_contra) s
-
-let assert_step = choice [
-  single proof_intro_prop;
-  optional (str "and") >> so_or_have >> single proof_prop;
-  pipe2 (str "Since" >> proof_prop) (str "," >> have >> proof_prop)
-    (fun f g -> [f; g])
-  ]
-
 let mk_step f =
   match kind f with
     | Quant ("∃", x, typ, f) -> IsSome (x, typ, f)
     | _ -> mk_assert f
 
+let opt_contra = opt []
+  (str "," >>? str "which is a contradiction" >>$ [_false])
+
+let rec proof_intro_prop = pipe2
+  (reason >> opt_str "," >> optional have >> proposition) opt_contra cons
+
+and proof_prop s = choice [
+  proof_intro_prop;
+  pipe2 (proposition << optional reason) opt_contra cons] s
+
+let proof_if_prop = pipe3
+  (str "if" >> small_prop)
+  (opt_str "," >> str "then" >> proof_prop)
+  (many (str "," >> str "so" >> proof_prop) |>> concat)
+  (fun f gs hs -> Assume f :: (map mk_step (gs @ hs) @ [Escape]))
+
+let assert_step = proof_if_prop <|> (choice [
+  proof_intro_prop;
+  optional (str "and") >> so_or_have >> proof_prop;
+  pipe2 (str "Since" >> proof_prop) (str "," >> have >> proof_prop) (@)
+  ] |>> map mk_step)
+
 let assert_steps =
   let join = str "," >> ((str "and" >> so_or_have) <|> so) in
-  pipe2 assert_step (many (join >> proof_prop))
-  (fun p ps -> map mk_step (p @ ps))
+  pipe2 assert_step (many (join >> proof_prop |>> map mk_step) |>> concat) (@)
 
 let now = choice [
   str "Conversely" >>$ true;
