@@ -78,9 +78,9 @@ Proof. Let
 
         G = { x ∈ ℕ | for all y, z ∈ ℕ, if z ≠ 0 and xz = yz then x = y }.
 
-  Let b, c ∈ ℕ with c ≠ 0 and 0 · c = bc. Then bc = 0.  Since c ≠ 0, we must have b = 0.  So 0 = b, and hence 0 ∈ G.
+  Let b, c ∈ ℕ with c ≠ 0 and 0 · c = bc. Then bc = 0.  Since c ≠ 0, we must have b = 0 by Theorem 3.8.  So 0 = b, and hence 0 ∈ G.
 
-  Now let a ∈ ℕ, and suppose that a ∈ G.  Let b, c ∈ ℕ, and suppose that c ≠ 0 and s(a) · c = bc.  Then ca + c = bc.  If b = 0, then either s(a) = 0 or c = 0, which is a contradiction.  Hence b ≠ 0.  By Lemma 1 there is some p ∈ ℕ such that b = s(p).  Therefore ca + c = s(p) · c, and we see that ca + c = cp + c.  It follows that ca = cp, so ac = pc.  By hypothesis it follows that a = p.  Therefore s(a) = s(p) = b.  Hence s(a) ∈ G, and we deduce that x ∈ G for all x ∈ ℕ.
+  Now let a ∈ ℕ, and suppose that a ∈ G.  Let b, c ∈ ℕ, and suppose that c ≠ 0 and s(a) · c = bc.  Then by Theorem 3.5 we deduce that ca + c = bc.  If b = 0, then either s(a) = 0 or c = 0, which is a contradiction.  Hence b ≠ 0.  By Lemma 1 there is some p ∈ ℕ such that b = s(p).  Therefore ca + c = s(p) · c, and we see that ca + c = cp + c.  It follows by Theorem 2.1 that ca = cp, so ac = pc.  By hypothesis it follows that a = p.  Therefore s(a) = s(p) = b.  Hence s(a) ∈ G, and we deduce that x ∈ G for all x ∈ ℕ.
 
 Definition.  For all a, b ∈ ℕ, a ≤ b iff there is some c ∈ ℕ such that a + c = b.  a < b iff a ≤ b and a ≠ b.
 
@@ -88,20 +88,48 @@ Definition.  For all a, b ∈ ℕ, we write a ≥ b iff b ≤ a.  We write a > b
 
 Theorem 5.  Let a, b, c ∈ ℕ.
 
-  1. a ≤ a, and a ≮ a, and a < a + 1.
+  1. a ≤ a, and a ≮ a, and a < s(a).
   2. 0 ≤ a.
   3. If a ≤ b and b ≤ c, then a ≤ c.
   4. If a ≤ b and b < c, then a < c.
   5. If a < b and b ≤ c, then a < c.
   6. If a < b and b < c, then a < c.
 
-Theorem 6.  Let a, b, c ∈ ℕ.
+Theorem 6.  Let a, b ∈ ℕ.
+
+  1. Precisely one of a < b or a = b or a > b holds.
+  2. a ≤ b or b ≤ a.
+  3. If a ≤ b and b ≤ a, then a = b.
+  4. It cannot be that b < a < b + 1.
+  5. a ≤ b if and only if a < b + 1.
+  6. a < b if and only if a + 1 ≤ b.
+
+Proof.
+
+  1. Let a, b ∈ ℕ.  Suppose that a < b and a = b.  It then follows that a < a, which is a contradiction to Theorem 5.1.  Now suppose that a = b and a > b.  It follows that a > a, which is similarly a contradiction.  Now suppose that a < b and b < a.  By Theorem 5.6 we deduce that a < a, again a contradiction.
+
+  Now let
+
+      G = { x ∈ ℕ | for all y ∈ ℕ, x < y or x = y or x > y }.
+
+  We will show that x ∈ G for all x ∈ ℕ.  We start by showing that 0 ∈ G.  Let y ∈ ℕ.  By Theorem 5.2 we know that 0 ≤ y.  It follows that y = 0 or y > 0.  Hence 0 ∈ G.
+
+  Now let x ∈ ℕ, and suppose that x ∈ G.  We will show that s(x) ∈ G.  Let y ∈ ℕ.  By hypothesis we know that x < y or x = y or x > y.
+  
+  First suppose that x < y.  Then there is some p ∈ ℕ such that x + p = y.  If p = 0, then x = y, so s(x) > y by Theorem 5.1.  If p ≠ 0, then by Lemma 1 there is some r ∈ ℕ such that p = s(r), which implies that x + s(r) = y, which implies s(x) + r = y, so s(x) ≤ y, so either s(x) < y or s(x) = y.
+
+  Suppose that x = y.  Then by Theorem 5.1 it follows that s(x) > x = y.  Finally, suppose that x > y.  We know that s(x) > x, and by Theorem 5.6 it follows that s(x) > y.
+
+  Putting the cases together, we see that s(x) < y or s(x) = y or s(x) > y always holds.  Hence s(x) ∈ G, and we conclude that x ∈ G for all x ∈ ℕ.
+
+Theorem 7.  Let a, b, c ∈ ℕ.
 
   1. a < b if and only if s(a) < s(b).
-  2. a < b if and only if a + c < b + c.
-  3. If ac < bc, then a < b.
+  2. If a < b then a + c < b + c.
+  3. If a + c < b + c then a < b.
   4. If c ≠ 0 and a < b, then ac < bc.
-
+  5. If ac < bc, then a < b.
+  
 Proof.
 
   1. Let a, b ∈ ℕ.  Suppose that a < b.  Then there is some c ∈ ℕ such that a + c = b.  So a + 1 + c = b + 1.  Then s(a) + c = s(b), so s(a) < s(b).
@@ -114,17 +142,6 @@ Proof.
 
   Clearly 0 ∈ G.  Let c ∈ ℕ, and suppose that c ∈ G.  Then a + c < b + c, so s(a + c) < s(b + c) by part (1) of this theorem.  Then a + s(c) < b + s(c), so s(c) ∈ G.  Hence c ∈ G for all c ∈ ℕ.
 
-  Conversely, let
+  3. Let a, b, c ∈ ℕ, and suppose that a + c < b + c.  If a = b then b + c < b + c, a contradiction. If b < a then b + c < a + c by part (2) of this theorem, so b + c < a + c < b + c, also a contradiction.  By Theorem 6.1, the only alternative is a < b.
 
-    H = { c ∈ ℕ | a + c < b + c implies a < b }.
-
-  Clearly 0 ∈ H.  Let c ∈ ℕ, and suppose that c ∈ H.  If a + s(c) < b + s(c), then s(a + c) < s(b + c), so a + c < b + c by part (1) of this theorem, so a < b by hypothesis.  It follows that s(c) ∈ H.  Hence c ∈ H for all c ∈ ℕ.
-
-Theorem 7.  Let a, b ∈ ℕ.
-
-  1. Precisely one of a < b or a = b or a > b holds.
-  2. a ≤ b or b ≤ a.
-  3. If a ≤ b and b ≤ a, then a = b.
-  4. It cannot be that b < a < b + 1.
-  5. a ≤ b if and only if a < b + 1.
-  6. a < b if and only if a + 1 ≤ b.
+  5. Let a, b, c ∈ ℕ, and suppose that ac < bc.  If c = 0 then 0 < 0, which is a contradiction.  So c ≠ 0.  If a = b then bc < bc, a contradiction.  If b < a then bc < ac by part (4) of this theorem, so bc < ac < bc, also a contradiction.  By Theorem 6.1, the only alternative is a < b.

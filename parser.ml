@@ -61,13 +61,26 @@ let ids_type = pair (sep_by1 id (str ",")) (of_type >> typ)
 
 (* operators for small propositions *)
 
-let so = any_str ["hence"; "so"; "then"; "therefore"]
+let theorem_num =
+  number >> (many (char '.' >>? number)) >>$ "" 
+
+let theorem_ref = choice [
+  any_str ["lemma"; "theorem"] >> theorem_num;
+  str "part" >> str "(" >> number << str ")" << opt_str "of this theorem" ]
+
+let reason = str "by" >>? (theorem_ref <|> str "hypothesis")
+
+let so = any_str ["hence"; "so"; "then"; "therefore"] <|>
+  (str "which implies" << opt_str "that")
 
 let have = any_str 
-  ["clearly"; "it follows that";
-   "we deduce that"; "we have"; "we must have"; "we see that"]
+  ["clearly"; "the only alternative is";
+   "we conclude that"; "we deduce that"; "we have";
+   "we know that"; "we must have"; "we see that"] <|>
+   (any_str ["it follows"; "it then follows"] >>
+      optional reason >> str "that")
 
-let so_or_have = so <|> have
+let so_or_have = so <|> (optional reason >> have)
 
 let comma_and = str "," >>? str "and" <<? not_followed_by so_or_have ""
 
@@ -114,7 +127,8 @@ and operators = [
 
 and expr s = (expression operators terms |>> chain_ops) s
 
-and atomic s = (expr << opt_str "is true") s
+and atomic s =
+  (expr << optional (any_str ["is true"; "always holds"])) s
 
 (* small propositions *)
 
@@ -214,7 +228,7 @@ let eq_definition = pipe3
   (str "Let" >> sym) (str ":" >> typ) (str "=" >> term << str ".")
   mk_eq_def
 
-let relation_definition (ids, typ) = optional (str "we write") >>?
+let relation_definition (ids, typ) = opt_str "we write" >>?
   id >>=? fun x ->
     pipe3 sym id (str "iff" >> proposition) (fun op y prop ->
     assert (ids = [x; y]);
@@ -229,19 +243,16 @@ let definition = str "Definition." >>
 
 (* proofs *)
 
-let reason = str "by" >>? choice [
-  str "lemma" >> number;
-  str "part" >> str "(" >> number << str ")" << opt_str "of this theorem";
-  str "hypothesis"
-]
-
 let mk_step f =
   match kind f with
     | Quant ("∃", x, typ, f) -> IsSome (x, typ, f)
     | _ -> mk_assert f
 
 let opt_contra = opt []
-  (str "," >>? str "which is a contradiction" >>$ [_false])
+  (str "," >>? opt_str "which is " >>?
+    optional (any_str ["again"; "also"; "similarly"]) >>?
+    str "a contradiction" >>
+    (optional (str "to" >> theorem_ref)) >>$ [_false])
 
 let rec proof_intro_prop = pipe2
   (reason >> opt_str "," >> optional have >> proposition) opt_contra cons
@@ -253,24 +264,23 @@ and proof_prop s = choice [
 let proof_if_prop = pipe3
   (str "if" >> small_prop)
   (opt_str "," >> str "then" >> proof_prop)
-  (many (str "," >> str "so" >> proof_prop) |>> concat)
+  (many (str "," >> so >> proof_prop) |>> concat)
   (fun f gs hs -> Assume f :: (map mk_step (gs @ hs) @ [Escape]))
 
 let assert_step = proof_if_prop <|> (choice [
   proof_intro_prop;
-  optional (str "and") >> so_or_have >> proof_prop;
-  pipe2 (str "Since" >> proof_prop) (str "," >> have >> proof_prop) (@)
+  opt_str "and" >> so_or_have >> proof_prop;
+  pipe2 (str "Since" >> proof_prop) (str "," >> have >> proof_prop) (@);
+  any_str ["We will show that"; "We start by showing that"] >> proposition >>$ []
   ] |>> map mk_step)
 
 let assert_steps =
   let join = str "," >> ((str "and" >> so_or_have) <|> so) in
   pipe2 assert_step (many (join >> proof_prop |>> map mk_step) |>> concat) (@)
 
-let now = choice [
-  str "Conversely" >>$ true;
-  str "First" >>$ false;
-  str "Now" >>$ true
-]
+let now = (str "First" >>$ false) <|>
+  (any_str ["Conversely"; "Finally"; "Next"; "Now";
+            "Putting the cases together"] >>$ true)
 
 let let_step = pipe2 
   (str "let" >> ids_type |>> fun (ids, typ) -> [Let (ids, typ)])
@@ -286,14 +296,16 @@ let assume_step =
 let let_or_assume =
   single let_val_step <|> let_step <|> single assume_step
 
-let let_or_assumes = pipe2
-    (opt false (now << optional (str ",")))
-    (sep_by1 let_or_assume (str "," >> str "and"))
-    (fun escape las ->
-      (if escape then [Escape] else []) @ concat las)
+let let_or_assumes =
+  sep_by1 let_or_assume (str "," >> str "and") |>> concat
+
+let proof_clause = pipe2
+  (opt false (now << opt_str ","))
+  (let_or_assumes <|> assert_steps)
+  (fun escape steps -> (if escape then [Escape] else []) @ steps)
 
 let proof_sentence =
-  (let_or_assumes <|> assert_steps) << str "."
+  (sep_by1 proof_clause (str ";") |>> concat) << str "."
 
 let proof_steps =
   many1 proof_sentence |>> (fun steps -> Steps (concat steps))
