@@ -118,7 +118,7 @@ Proof.
   
   First suppose that x < y.  Then there is some p ∈ ℕ such that x + p = y.  If p = 0, then x = y, so s(x) > y by Theorem 5.1.  If p ≠ 0, then by Lemma 1 there is some r ∈ ℕ such that p = s(r), which implies that x + s(r) = y, which implies s(x) + r = y, so s(x) ≤ y, so either s(x) < y or s(x) = y.
 
-  Suppose that x = y.  Then by Theorem 5.1 it follows that s(x) > x = y.  Finally, suppose that x > y.  We know that s(x) > x, and by Theorem 5.6 it follows that s(x) > y.
+  Next suppose that x = y.  Then by Theorem 5.1 it follows that s(x) > x = y.  Finally, suppose that x > y.  We know that s(x) > x, and by Theorem 5.6 it follows that s(x) > y.
 
   Putting the cases together, we see that s(x) < y or s(x) = y or s(x) > y always holds.  Hence s(x) ∈ G, and we conclude that x ∈ G for all x ∈ ℕ.
 

@@ -11,23 +11,26 @@ type proof_step =
   | Assume of formula
   | IsSome of id * typ * formula
   | Escape
+  | Group of proof_step list
 
 let mk_assert f = Assert f
 
-let step_decl_vars = function
+let rec step_decl_vars = function
   | Let (ids, _) -> ids
   | LetVal (id, _, _) -> [id]
   | IsSome (id, _, _) -> [id]
+  | Group steps -> unique (concat_map step_decl_vars steps)
   | _ -> []
 
-let step_free_vars = function
+let rec step_free_vars = function
   | Assert f -> free_vars f
   | LetVal (_, _, f) -> free_vars f
   | Assume f -> free_vars f
   | IsSome (id, _, f) -> remove id (free_vars f)
+  | Group steps -> unique (concat_map step_free_vars steps)
   | _ -> []
 
-let show_proof_step = function
+let rec show_proof_step = function
   | Assert f -> sprintf "assert %s" (show_formula f)
   | Let (ids, typ) -> sprintf "let %s : %s" (comma_join ids) (show_type typ)
   | LetVal (id, typ, f) -> sprintf "let_val %s : %s = %s"
@@ -36,6 +39,7 @@ let show_proof_step = function
   | IsSome (id, typ, f) -> sprintf "is_some %s : %s : %s"
       id (show_type typ) (show_formula f)
   | Escape -> "escape"
+  | Group steps -> sprintf "[%s]" (comma_join (map show_proof_step steps))
 
 type proof =
   | Steps of proof_step list

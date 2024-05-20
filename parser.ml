@@ -265,7 +265,7 @@ let proof_if_prop = pipe3
   (str "if" >> small_prop)
   (opt_str "," >> str "then" >> proof_prop)
   (many (str "," >> so >> proof_prop) |>> concat)
-  (fun f gs hs -> Assume f :: (map mk_step (gs @ hs) @ [Escape]))
+  (fun f gs hs -> [Group (Assume f :: map mk_step (gs @ hs))])
 
 let assert_step = proof_if_prop <|> (choice [
   proof_intro_prop;
