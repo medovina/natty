@@ -8,6 +8,14 @@ open MParser
 
 let uncurry f (x, y) = f x y
 
+(* options *)
+
+let (let*) = Option.bind
+
+let opt_default opt def = Option.value opt ~default:def
+
+let opt_fold f acc opt = fold_left f acc (Option.to_list opt)
+
 (* chars *)
 
 let is_lower c = 'a' <= c && c <= 'z'
@@ -47,8 +55,11 @@ let contains s1 s2 =
 (* 'str_replace s t u' replaces s with t in u *)
 let str_replace s = Str.global_replace (Str.regexp_string s)
 
-let remove_prefix p s =
-  if starts_with p s then string_from s (String.length p) else s
+let opt_remove_prefix p s =
+  if starts_with p s then Some (string_from s (String.length p))
+  else None
+
+let remove_prefix p s = opt_default (opt_remove_prefix p s) s
 
 let comma_join = String.concat ", "
 
@@ -78,14 +89,6 @@ let ascii_map = [("·", "*"); ("≤", "<="); ("≥", ">=")]
 
 module StringSet = Set.Make (String)
 module StringMap = Map.Make (String)
-
-(* options *)
-
-let (let*) = Option.bind
-
-let opt_default opt def = Option.value opt ~default:def
-
-let opt_fold f acc opt = fold_left f acc (Option.to_list opt)
 
 (* either *)
 
