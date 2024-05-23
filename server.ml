@@ -20,6 +20,11 @@ let read_message input =
           really_input input bytes 0 n;
           Basic.from_string (String.of_bytes bytes)
 
+let read_expect input method_name =
+  let m = read_message input in
+  assert (m |> member "method" |> to_string = method_name);
+  m
+
 let run opts =
   if opts.pipe = "" then failwith "--pipe expected"
   else
@@ -27,9 +32,8 @@ let run opts =
     let (input, output) = open_connection (ADDR_UNIX opts.pipe) in
     printf "connected%!\n";
     
-    let init = read_message input in
+    let init = read_expect input "initialize" in
     let id = init |> member "id" in
-    assert (init |> member "method" |> to_string = "initialize");
 
     let result = `Assoc [("capabilities", `Assoc [("textDocumentSync", `Int 1)])] in
     let response = `Assoc [("jsonrpc", `String "2.0"); ("id", id); ("result", result)] in
@@ -37,6 +41,8 @@ let run opts =
     fprintf output "Content-Length: %d\r\n\r\n" (strlen s);
     printf "sending %s\n%!" s;
     fprintf output "%s%!" s;
+
+    ignore (read_expect input "initialized");
 
     while (true) do
       let m = read_message input in
