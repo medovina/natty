@@ -12,8 +12,11 @@ open Util
 let check text =
   match Parser.parse text with
     | Success _ -> None
-    | Failed (msg, Parse_error ((_index, line, col), _)) ->
-        Some ((line - 1, col - 1), last (str_lines (String.trim msg)))
+    | Failed (msg, Parse_error ((_index, line_num, col_num), _)) ->
+        let lines = str_lines text in
+        let line = nth lines (line_num - 1) in
+        let col_num = utf16_encode_len (String.sub line 0 (col_num - 1)) in
+        Some ((line_num - 1, col_num), last (str_lines (String.trim msg)))
     | _ -> failwith "check"
 
 (* Yojson *)

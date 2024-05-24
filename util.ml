@@ -75,15 +75,25 @@ let indent_with_prefix prefix s =
   let lines = str_lines s in
   unlines ((prefix ^ hd lines) :: indent_by (String.length prefix) (tl lines))
 
-let utf8_len s =
-  let ulen c =
-    if c < 0x80 then 1
-    else if c < 0xe0 then 2
-    else if c < 0xf0 then 3 else 4 in
+let ulen c =
+  if c < 0x80 then 1
+  else if c < 0xe0 then 2
+  else if c < 0xf0 then 3 else 4
+
+let utf8_count f s =
   let rec len k =
     if k >= String.length s then 0
-    else let n = ulen (Char.code s.[k]) in 1 + len (k + n)
+    else
+      let n = ulen (Char.code s.[k]) in
+      f n + len (k + n)
   in len 0 
+
+(* Return the number of characters in a UTF-8 string. *)
+let utf8_len = utf8_count (Fun.const 1)
+
+(* Given a UTF-8 string, return the number of code units it would
+ * occupy in UTF-16. *)
+let utf16_encode_len = utf8_count (fun n -> if n > 3 then 2 else 1)
 
 let ascii_map = [("·", "*"); ("≤", "<="); ("≥", ">=")]
 
