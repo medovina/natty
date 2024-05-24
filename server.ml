@@ -9,16 +9,24 @@ open Options
 open Printf
 open Util
 
+let adjust_pos text (line_num, col_num) =
+  let lines = str_lines text in
+  let line = nth lines (line_num - 1) in
+  let col_num = utf16_encode_len (String.sub line 0 (col_num - 1)) in
+  (line_num - 1, col_num)
+
 let check text =
   match Parser.parse text with
-    | Failed (msg, Parse_error ((_index, line_num, col_num), _)) ->
-        let lines = str_lines text in
-        let line = nth lines (line_num - 1) in
-        let col_num = utf16_encode_len (String.sub line 0 (col_num - 1)) in
-        Some ((line_num - 1, col_num), last (str_lines (String.trim msg)))
-    | Success prog -> (
+    | Failed (msg, Parse_error ((_index, line, col), _)) ->
+        let (line, col) = adjust_pos text (line, col) in
+        Some ((line, col), (line, col + 1), last (str_lines (String.trim msg)))
+    | Success (prog, origin_map) -> (
         match Check.check_program 0 prog with
-          | Error err -> Some ((0, 0), err)
+          | Error (err, formula) ->
+              let (pos1, pos2) = match assq_opt formula origin_map with
+                | Some (pos1, pos2) -> (adjust_pos text pos1, adjust_pos text pos2)
+                | None -> ((0, 0), (0, 0)) in
+              Some (pos1, pos2, err)
           | Ok _ -> None)
     | _ -> failwith "check"
 
@@ -97,8 +105,8 @@ let publish_diagnostics uri diagnostics =
 (* main loop *)
 
 let report output (uri, text) = 
-  let diags = Option.to_list (check text) |> map (fun ((line, col), err) ->
-    diagnostic (line, col) (line, col + 1) err) in
+  let diags = Option.to_list (check text) |> map (fun (pos1, pos2, err) ->
+    diagnostic pos1 pos2 err) in
   write_message output (publish_diagnostics uri diags)
 
 let clear_diags output uri =

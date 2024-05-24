@@ -44,9 +44,9 @@ let (opts, source) = parse_args (tl (Array.to_list Sys.argv)) in
         match parser (read_file source) with
           | Failed (msg, _) ->
               print_endline msg
-          | Success prog ->
+          | Success (prog, _map) ->
               match Check.check_program opts.debug prog  with
-                | Error err -> print_endline err
+                | Error (err, _formula) -> print_endline err
                 | Ok prog ->
                     if opts.export then
                       let dir = Filename.remove_extension source in

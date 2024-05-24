@@ -96,19 +96,26 @@ let prop_operators = [
 
 (* terms *)
 
+let record_pos p =
+  get_pos >>= fun (_index, line1, col1) ->
+  p >>= fun f ->
+  get_pos >>= fun (_index, line2, col2) ->
+  update_user_state (cons (f, ((line1, col1), (line2, col2)))) >>$ f
+
 let compare_op op = infix op (binop_unknown op) Assoc_right
 
 let mk_not_less f g = _not (binop_unknown "<" f g)
 
-let rec term s = choice [
+let var_term = var |>> (fun v -> Var (v, unknown_type))
+
+let rec term s = (record_pos @@ choice [
   (sym |>> fun c -> Const (c, unknown_type));
-  (pipe2 (id <<? str "(") (expr << str ")")
-    (fun i f -> App (Var (i, unknown_type), f)));
-  var |>> (fun v -> Var (v, unknown_type));
+  pipe2 (record_pos var_term <<? str "(") (expr << str ")") mk_app;
+  var_term;
   str "(" >> expr << str ")";
   pipe3 (str "{" >> var) (of_type >> typ) (str "|" >> proposition << str "}")
     (fun var typ expr -> Lambda (var, typ, expr))
- ] s
+ ]) s
 
 and next_term s = (not_followed_by space "" >>? term) s
 
@@ -125,7 +132,7 @@ and operators = [
       [ infix "≮" mk_not_less Assoc_right ]
 ]
 
-and expr s = (expression operators terms |>> chain_ops) s
+and expr s = (record_pos (expression operators terms |>> chain_ops)) s
 
 and atomic s =
   (expr << optional (any_str ["is true"; "always holds"])) s
@@ -331,4 +338,4 @@ let theorem_group =
 let program =
   many (axiom_group <|> definition <|> theorem_group) << empty << eof |>> concat
 
-let parse text = MParser.parse_string program text ()
+let parse text = MParser.parse_string (pair program get_user_state) text []

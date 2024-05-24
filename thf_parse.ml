@@ -104,4 +104,4 @@ let thf_formula = empty >>?
         | _ -> failwith "unknown role")
   << str "."
 
-let parse text = MParser.parse_string (many thf_formula) text ()
+let parse text = MParser.parse_string (many thf_formula |>> fun f -> (f, [])) text ()

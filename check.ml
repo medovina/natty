@@ -7,19 +7,19 @@ open Util
 
 let debug = ref 0
 
-exception Check_error of string
+exception Check_error of string * formula
 
-let error s = raise (Check_error s)
+let error s f = raise (Check_error (s, f))
 
 let is_const id = function
   | ConstDecl (i, typ) when i = id -> Some typ
   | Definition (i, typ, _f) when i = id -> Some typ
   | _ -> None
 
-let check_const env id =
+let check_const formula env id =
   match find_map (is_const id) env with
     | Some typ -> (Const (id, typ), typ)
-    | None -> error (sprintf "undefined: %s\n" id)
+    | None -> error (sprintf "undefined: %s\n" id) formula
 
 let rec subtype t u = match t, u with
   | Bool, Bool -> true
@@ -31,19 +31,19 @@ let rec subtype t u = match t, u with
 let rec check_formula env vars =
   let rec check formula = match formula with
     | Const (id, typ) ->
-        if typ = unknown_type then check_const env id else (formula, typ)
+        if typ = unknown_type then check_const formula env id else (formula, typ)
     | Var (id, _) -> (
         match assoc_opt id vars with
           | Some typ -> (Var (id, typ), typ)
-          | None -> check_const env id)
+          | None -> check_const formula env id)
     | App (f, g) ->
         let (f, typ_f), (g, typ_g) = check f, check g in (
         match typ_f with
           | Fun (tg, u) ->
               if subtype typ_g tg then (App (f, g), u)
-              else error @@
-                sprintf "type mismatch: can't apply %s : %s to %s : %s\n"
-                  (show_formula f) (show_type typ_f) (show_formula g) (show_type typ_g)
+              else error
+                (sprintf "type mismatch: can't apply %s to %s\n"
+                  (show_type typ_f) (show_type typ_g)) formula
           | _ -> check (binop "·" unknown_type f g))
     | Lambda (id, typ, f) ->
         let (f, typ_f) = check_formula env ((id, typ) :: vars) f in
@@ -51,7 +51,7 @@ let rec check_formula env vars =
     | Eq (f, g) ->
         let (f, typ_f), (g, typ_g) = check f, check g in
         if typ_f = typ_g then (Eq (f, g), Bool)
-        else error ("type mismatch: " ^ show_formula formula) in
+        else error ("type mismatch: " ^ show_formula formula) formula in
   check
 
 let rec map_set_mem f = match kind f with
@@ -61,8 +61,8 @@ let rec map_set_mem f = match kind f with
   | _ -> map_formula map_set_mem f
        
 let top_check env f =
-  let (f, typ) = check_formula env [] (reduce (map_set_mem f)) in
-  if typ = Bool then f else error ("bool expected: " ^ show_formula f)
+  let (f1, typ) = check_formula env [] (reduce (map_set_mem f)) in
+  if typ = Bool then f1 else error ("bool expected: " ^ show_formula f) f
 
 type block = Block of proof_step * block list
 
@@ -174,4 +174,4 @@ let check_program _debug stmts =
     let stmt = check_stmt env stmt in
     (stmt :: env, stmt) in
   try (Ok (snd (fold_left_map check [] stmts))) with
-    | Check_error err -> Error err
+    | Check_error (err, formula) -> Error (err, formula)
