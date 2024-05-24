@@ -1,4 +1,6 @@
 open Unix
+
+open MParser
 open Yojson
 open Yojson.Basic.Util
 
@@ -10,7 +12,9 @@ open Util
 let check text =
   match Parser.parse text with
     | Success _ -> None
-    | Failed (msg, _) -> Some msg
+    | Failed (msg, Parse_error ((_index, line, col), _)) ->
+        Some ((line - 1, col - 1), last (str_lines (String.trim msg)))
+    | _ -> failwith "check"
 
 (* Yojson *)
 
@@ -87,7 +91,8 @@ let publish_diagnostics uri diagnostics =
 (* main loop *)
 
 let report output (uri, text) = 
-  let diags = Option.to_list (check text) |> map (fun err -> diagnostic (0, 0) (0, 0) err) in
+  let diags = Option.to_list (check text) |> map (fun ((line, col), err) ->
+    diagnostic (line, col) (line, col + 1) err) in
   write_message output (publish_diagnostics uri diags)
 
 let clear_diags output uri =
