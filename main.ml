@@ -42,14 +42,16 @@ let (opts, source) = parse_args (tl (Array.to_list Sys.argv)) in
           | ".thf" -> Thf_parse.parse
           | _ -> failwith "unknown extension" in
         match parser (read_file source) with
-          | Success prog ->
-              let prog = Check.check_program opts.debug prog in
-              if opts.export then
-                let dir = Filename.remove_extension source in
-                clean_dir dir;
-                write_files dir prog
-              else
-                Prove.prove_all opts (ext = ".thf") prog;
-                profile_report ()
           | Failed (msg, _) ->
               print_endline msg
+          | Success prog ->
+              match Check.check_program opts.debug prog  with
+                | Error err -> print_endline err
+                | Ok prog ->
+                    if opts.export then
+                      let dir = Filename.remove_extension source in
+                      clean_dir dir;
+                      write_files dir prog
+                    else
+                      Prove.prove_all opts (ext = ".thf") prog;
+                      profile_report ()

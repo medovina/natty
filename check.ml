@@ -7,6 +7,10 @@ open Util
 
 let debug = ref 0
 
+exception Check_error of string
+
+let error s = raise (Check_error s)
+
 let is_const id = function
   | ConstDecl (i, typ) when i = id -> Some typ
   | Definition (i, typ, _f) when i = id -> Some typ
@@ -15,7 +19,7 @@ let is_const id = function
 let check_const env id =
   match find_map (is_const id) env with
     | Some typ -> (Const (id, typ), typ)
-    | None -> printf "undefined: %s\n" id; assert false
+    | None -> error (sprintf "undefined: %s\n" id)
 
 let rec subtype t u = match t, u with
   | Bool, Bool -> true
@@ -37,10 +41,9 @@ let rec check_formula env vars =
         match typ_f with
           | Fun (tg, u) ->
               if subtype typ_g tg then (App (f, g), u)
-              else (
-                printf "type mismatch: can't apply %s : %s to %s : %s\n"
-                  (show_formula f) (show_type typ_f) (show_formula g) (show_type typ_g);
-                failwith "check_formula")
+              else error @@
+                sprintf "type mismatch: can't apply %s : %s to %s : %s\n"
+                  (show_formula f) (show_type typ_f) (show_formula g) (show_type typ_g)
           | _ -> check (binop "·" unknown_type f g))
     | Lambda (id, typ, f) ->
         let (f, typ_f) = check_formula env ((id, typ) :: vars) f in
@@ -48,7 +51,7 @@ let rec check_formula env vars =
     | Eq (f, g) ->
         let (f, typ_f), (g, typ_g) = check f, check g in
         if typ_f = typ_g then (Eq (f, g), Bool)
-        else failwith ("type mismatch: " ^ show_formula formula) in
+        else error ("type mismatch: " ^ show_formula formula) in
   check
 
 let rec map_set_mem f = match kind f with
@@ -59,9 +62,7 @@ let rec map_set_mem f = match kind f with
        
 let top_check env f =
   let (f, typ) = check_formula env [] (reduce (map_set_mem f)) in
-  if typ = Bool then f else (
-    print_line ("bool expected: " ^ show_formula f);
-    failwith "top_check")
+  if typ = Bool then f else error ("bool expected: " ^ show_formula f)
 
 type block = Block of proof_step * block list
 
@@ -172,4 +173,5 @@ let check_program _debug stmts =
   let check env stmt =
     let stmt = check_stmt env stmt in
     (stmt :: env, stmt) in
-  snd (fold_left_map check [] stmts)
+  try (Ok (snd (fold_left_map check [] stmts))) with
+    | Check_error err -> Error err
