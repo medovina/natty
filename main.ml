@@ -41,7 +41,7 @@ let (opts, source) = parse_args (tl (Array.to_list Sys.argv)) in
           | ".n" -> Parser.parse
           | ".thf" -> Thf_parse.parse
           | _ -> failwith "unknown extension" in
-        match parser (open_in source) with
+        match parser (read_file source) with
           | Success prog ->
               let prog = Check.check_program opts.debug prog in
               if opts.export then

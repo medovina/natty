@@ -331,4 +331,4 @@ let theorem_group =
 let program =
   many (axiom_group <|> definition <|> theorem_group) << empty << eof |>> concat
 
-let parse in_channel = MParser.parse_channel program in_channel ()
+let parse text = MParser.parse_string program text ()
