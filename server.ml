@@ -18,6 +18,8 @@ let adjust_pos text (line_num, col_num) =
   (line_num - 1, col_num)
 
 type prover_data = {
+  opts: options;
+
   mutex: Mutex.t;
   semaphore: Semaphore.Binary.t;
   notify_out: out_channel;
@@ -32,23 +34,29 @@ type prover_data = {
 let cancel_check data stmts () =
   Mutex.protect data.mutex (fun () -> !(data.statements) != stmts)
 
-let rec prove_stmts data stmts = match stmts with
-  | [] -> ()
-  | (uri, thm, known) :: ss ->
-      let success =
-        match prove 0.0 (rev known) thm false (cancel_check data stmts) with
-          | Proof _ -> true
-          | _ -> false in
-      let abort = Mutex.protect data.mutex (fun () ->
-        if !(data.statements) != stmts then true
+let prove_stmts data stmts =
+  let rec loop = function
+    | [] -> ()
+    | (uri, thm, known) :: ss ->
+        let success =
+          printf "proving %s\n%!" (stmt_name thm);
+          match prove data.opts.timeout (rev known) thm false (cancel_check data stmts) with
+            | Proof _ -> true
+            | _ -> false in
+        let abort = Mutex.protect data.mutex (fun () ->
+          if !(data.statements) != stmts then true
+          else (
+            incr data.progress;
+            if not success then
+              data.not_proven := (uri, thm) :: !(data.not_proven);
+            false
+          )) in
+        if abort then
+          printf "worker thread: aborting\n%!"
         else (
-          incr data.progress;
-          if not success then
-            data.not_proven := (uri, thm) :: !(data.not_proven);
           fprintf data.notify_out "notify\n%!";
-          false
-        )) in
-      if abort then () else prove_stmts data ss
+          loop ss) in
+  loop stmts
 
 let prover_thread data =
   let stmts = ref [] in
@@ -103,8 +111,15 @@ let range start_pos end_pos =
   let line_char (line, char) = `Assoc [("line", `Int line); ("character", `Int char)] in
   `Assoc [("start", line_char start_pos); ("end", line_char end_pos)]
 
-let diagnostic start_pos end_pos message =
-  `Assoc [("range", range start_pos end_pos); ("message", `String message)]
+type severity = DiagError | Warning | Information | Hint
+
+let severity_code = function
+  | DiagError -> 1 | Warning -> 2 | Information -> 3 | Hint -> 4
+
+let diagnostic start_pos end_pos severity message =
+  `Assoc [("range", range start_pos end_pos);
+          ("severity", `Int (severity_code severity));
+          ("message", `String message)]
 
 (* lifecycle messages *)
 
@@ -180,7 +195,7 @@ let init opts =
     checked |> iter (fun (uri, r) ->
       let diags = match r with
         | Ok _ -> []
-        | Error (pos1, pos2, err) -> [diagnostic pos1 pos2 err] in
+        | Error (pos1, pos2, err) -> [diagnostic pos1 pos2 DiagError err] in
       write_message output (publish_diagnostics uri diags));
 
     let rec to_prove = function
@@ -209,12 +224,13 @@ let run opts =
   else
     let (input, output) = init opts in
     let input_descr = descr_of_in_channel input in
-    let (pipe_out, pipe_in) = Unix.pipe () in
-    let notify_in = in_channel_of_descr pipe_in in
+    let (pipe_read, pipe_write) = Unix.pipe () in
+    let notify_in = in_channel_of_descr pipe_read in
     let data = {
+      opts;
       mutex = Mutex.create ();
       semaphore = Semaphore.Binary.make false;
-      notify_out = out_channel_of_descr pipe_out;
+      notify_out = out_channel_of_descr pipe_write;
       statements = ref []; progress = ref 0; not_proven = ref []
       } in
     let _thread = Thread.create prover_thread data in
@@ -224,7 +240,7 @@ let run opts =
     let reprove1 f = reprove sources data output !proving f in
 
     while (true) do
-      let (ready_in, _, _) = select [input_descr; pipe_out] [] [] (-1.0) in
+      let (ready_in, _, _) = select [input_descr; pipe_read] [] [] (-1.0) in
       if memq input_descr ready_in then
         let msg = read_message input in
         match msg_method msg with
@@ -248,8 +264,10 @@ let run opts =
           notify_progress output n total;
           gather_pairs not_proven |> iter (fun (uri, stmts) ->
             let diags = stmts |> map (function
-              | Theorem (id, _, _, Range (pos1, pos2)) ->
-                  diagnostic pos1 pos2 ("could not prove " ^ id)
+              | Theorem (_, _, _, Range (pos1, pos2)) as thm ->
+                  let text = assoc uri !sources in
+                  diagnostic (adjust_pos text pos1) (adjust_pos text pos2) Warning
+                    ("could not prove " ^ (stmt_name thm))
               | _ -> assert false) in
             write_message output (publish_diagnostics uri diags))
         )

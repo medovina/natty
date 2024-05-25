@@ -7,7 +7,7 @@ type options = {
 }
 
 let default_options = {
-  debug = 0; profile = false; timeout = 0.0; show_proofs = false;
+  debug = 0; profile = false; timeout = 5.0; show_proofs = false;
   keep_going = false; disprove = false; export = false;
   server = false; pipe = ""
 }
