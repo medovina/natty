@@ -64,11 +64,13 @@ top_prop = let_prop | suppose | proposition
 
 label = (letter | number) '.'
 
-proposition_item = label top_prop '.' ['(' word ')']
+top_sentence = top_prop '.'
+
+proposition_item = label top_sentence ['(' word ')']
 
 prop_items = proposition_item+
 
-top_prop_or_items = prop_items | top_prop '.'
+top_prop_or_items = prop_items | top_sentence
 
 propositions = [for_all_ids] top_prop_or_items
 

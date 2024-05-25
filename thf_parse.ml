@@ -100,7 +100,7 @@ let thf_formula = empty >>?
         | "axiom" | "theorem" ->
             formula |>> fun f -> Axiom (name, f, None)
         | "conjecture" ->
-            formula |>> fun f -> Theorem (name, f, None)
+            formula |>> fun f -> Theorem (name, f, None, empty_range)
         | _ -> failwith "unknown role")
   << str "."
 

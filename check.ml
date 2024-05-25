@@ -64,13 +64,11 @@ let top_check env f =
   let (f1, typ) = check_formula env [] (reduce (map_set_mem f)) in
   if typ = Bool then f1 else error ("bool expected: " ^ show_formula f) f
 
-type block = Block of proof_step * block list
-
-let mk_assert f = Block (Assert f, [])
+type block = Block of proof_step * range * block list
 
 let print_blocks blocks =
   let rec print indent blocks =
-    blocks |> iter (fun (Block (step, children)) ->
+    blocks |> iter (fun (Block (step, _range, children)) ->
       printf "%s%s\n" indent (show_proof_step step);
       print (indent ^ "  ") children) in
   print "" blocks;
@@ -83,11 +81,11 @@ let infer_blocks steps =
         subtract (step_free_vars step @ all_vars steps) (step_decl_vars step) in
   let rec infer vars in_assume steps = match steps with
     | [] -> ([], steps)
-    | step :: rest ->
+    | (step, range) :: rest ->
         if overlap (step_decl_vars step) (concat vars) then ([], steps)
         else let in_use = match vars with
           | [] -> true
-          | top_vars :: _ -> overlap top_vars (all_vars steps) in
+          | top_vars :: _ -> overlap top_vars (all_vars (map fst steps)) in
         if step <> Assert _false && not in_use then ([], steps)
         else match step with
           | Escape ->
@@ -109,7 +107,7 @@ let infer_blocks steps =
                   | [] -> ([], rest)
                   | step_vars -> infer (step_vars :: vars) in_assume rest in
             let (blocks, rest2) = infer vars in_assume rest1 in
-            (Block (step, children) :: blocks, rest2) in
+            (Block (step, range, children) :: blocks, rest2) in
   let (blocks, rest) = infer [] false steps in
   assert (rest = []);
   blocks
@@ -119,43 +117,43 @@ let rec blocks_formulas blocks = match blocks with
   | block :: rest ->
       let (fs, concl) = block_formulas block in
       let (gs, final_concl) = blocks_formulas rest in
-      (fs @ map_fst (fun f -> implies concl f) gs,
+      (fs @ map_triple_fst (fun f -> implies concl f) gs,
       if rest = [] then concl
       else match last blocks with
-        | Block (Assume _, _) -> _and concl final_concl
+        | Block (Assume _, _, _) -> _and concl final_concl
         | _ -> final_concl)
 
-and block_formulas (Block (step, children)) =
+and block_formulas (Block (step, range, children)) =
   let (fs, concl) = blocks_formulas children in
-  let apply fn = (map_fst fn fs, fn concl) in
+  let apply fn = (map_triple_fst fn fs, fn concl) in
   match step with
     | Assert f -> (
         match expand_multi_eq f with
           | Some (eqs, concl) ->
-              (map (fun eq -> (eq, eq)) eqs, concl)
-          | None -> ([(f, f)], f))
+              (map (fun eq -> (eq, eq, range)) eqs, concl)
+          | None -> ([(f, f, range)], f))
     | Let (ids, typ) -> apply (for_all_vars_typ (ids, typ))
     | LetVal (id, _typ, value) -> apply (fun f -> rsubst1 f value id)
     | Assume a -> apply (implies a)
     | IsSome (id, typ, g) ->
         let ex = _exists id typ g in
-        ((ex, ex) :: map_fst (fun f -> _for_all id typ (implies g f)) fs,
+        ((ex, ex, range) :: map_triple_fst (fun f -> _for_all id typ (implies g f)) fs,
          if is_free_in id concl then _exists id typ concl else concl)
     | Escape | Group _ -> failwith "block_formulas"
 
-let expand_proof stmt env f = function
+let expand_proof stmt env f range = function
   | Steps steps ->
       if !debug > 0 then (
         printf "%s:\n\n" (stmt_name stmt);
         if !debug > 1 then (
-          steps |> iter (fun s -> print_endline (show_proof_step s));
+          steps |> iter (fun (s, _range) -> print_endline (show_proof_step s));
           print_newline ()
         );
       );
-      let blocks = infer_blocks steps @ [mk_assert f] in
+      let blocks = infer_blocks steps @ [Block (Assert f, range, [])] in
       if !debug > 0 then print_blocks blocks;
       let fs = fst (blocks_formulas blocks) in
-      Formulas (map_fst (top_check env) fs)
+      Formulas (map_triple_fst (top_check env) fs)
   | _ -> assert false
 
 let check_stmt env stmt =
@@ -163,9 +161,9 @@ let check_stmt env stmt =
     | Axiom (id, f, name) -> Axiom (id, top_check env f, name)
     | Definition (id, typ, f) ->
         Definition (id, typ, top_check (stmt :: env) f)
-    | Theorem (name, f, proof) ->
+    | Theorem (name, f, proof, range) ->
         let f = top_check env f in
-        Theorem (name, f, Option.map (expand_proof stmt env f) proof)
+        Theorem (name, f, Option.map (expand_proof stmt env f range) proof, range)
     | stmt -> stmt
 
 let check_program _debug stmts =

@@ -7,6 +7,7 @@ open Yojson.Basic.Util
 open List
 open Options
 open Printf
+open Statement
 open Util
 
 let adjust_pos text (line_num, col_num) =
@@ -24,7 +25,7 @@ let check text =
         match Check.check_program 0 prog with
           | Error (err, formula) ->
               let (pos1, pos2) = match assq_opt formula origin_map with
-                | Some (pos1, pos2) -> (adjust_pos text pos1, adjust_pos text pos2)
+                | Some (Range (pos1, pos2)) -> (adjust_pos text pos1, adjust_pos text pos2)
                 | None -> ((0, 0), (0, 0)) in
               Some (pos1, pos2, err)
           | Ok _ -> None)

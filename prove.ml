@@ -831,13 +831,13 @@ let expand_proofs stmts for_export =
   let rec expand known = function
     | stmt :: stmts ->
         let thms = match stmt with
-          | Theorem (name, formula, proof) as thm -> (
+          | Theorem (name, formula, proof, _) as thm -> (
             (thm, formula, known) :: match proof with
                 | Some (Formulas fs) ->
-                    fs |> mapi (fun j (f, orig) ->
+                    fs |> mapi (fun j (f, orig, range) ->
                       let s = if for_export then "s" else "" in
                       let step_name = sprintf "%s.%s%d" name s (j + 1) in
-                      let t = Theorem (step_name, f, None) in
+                      let t = Theorem (step_name, f, None, range) in
                       (t, orig, known))
                 | Some _ -> assert false
                 | None -> [])
@@ -861,7 +861,7 @@ let prove_all opts thf prog =
             printf "Some theorems were %sproved.\n" dis
     | (thm, _, known) :: rest ->
         let success = match thm with
-          | Theorem (_, _, None) ->
+          | Theorem (_, _, None, _) ->
               print_endline (show_statement true thm ^ "\n");
               let result = prove opts.timeout (rev known) thm opts.disprove in
               let b = match result with

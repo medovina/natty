@@ -96,11 +96,14 @@ let prop_operators = [
 
 (* terms *)
 
-let record_pos p =
+let with_range p =
   get_pos >>= fun (_index, line1, col1) ->
-  p >>= fun f ->
-  get_pos >>= fun (_index, line2, col2) ->
-  update_user_state (cons (f, ((line1, col1), (line2, col2)))) >>$ f
+  p >>= fun x ->
+  get_pos |>> fun (_index, line2, col2) ->
+    (x, Range ((line1, col1), (line2, col2)))
+
+let record_pos p = with_range p >>=
+  fun (f, range) -> update_user_state (cons (f, range)) >>$ f
 
 let compare_op op = infix op (binop_unknown op) Assoc_right
 
@@ -196,14 +199,17 @@ and top_prop s = (let_prop <|> suppose <|> proposition) s
 let label = 
   ((empty >>? letter |>> char_to_string) <|> number) <<? string "."
 
+let top_sentence = with_range (top_prop << str ".")
+
 let proposition_item = triple
-  label (top_prop << str ".") (option (str "(" >> word << str ")"))
+  label top_sentence (option (str "(" >> word << str ")"))
 
 let prop_items = many1 proposition_item
 
 let top_prop_or_items ids_typ =
-  (prop_items <|> (top_prop << str "." |>> fun f -> [("", f, None)])) |>>
-    map (fun (label, f, name) -> (label, for_all_vars_typ_if_free ids_typ f, name))
+  (prop_items <|> (top_sentence |>> fun fr -> [("", fr, None)])) |>>
+    map (fun (label, (f, range), name) ->
+      (label, for_all_vars_typ_if_free ids_typ f, name, range))
 
 let propositions =
   (opt ([], unknown_type) for_all_ids) >>= top_prop_or_items
@@ -221,7 +227,7 @@ let count_label n label =
   else sprintf "%d.%s" n label
 
 let axiom_propositions n = propositions |>>
-  map (fun (label, f, name) -> Axiom (count_label n label, f, name))
+  map (fun (label, f, name, _range) -> Axiom (count_label n label, f, name))
 
 let axiom_group = (str "Axiom" >> int << str ".") >>= fun n ->
   any_str ["There exists"; "There is"] >> pipe2
@@ -256,49 +262,55 @@ let mk_step f =
     | _ -> mk_assert f
 
 let opt_contra = opt []
-  (str "," >>? opt_str "which is " >>?
+  (str "," >>? with_range (opt_str "which is " >>?
     optional (any_str ["again"; "also"; "similarly"]) >>?
     str "a contradiction" >>
-    (optional (str "to" >> theorem_ref)) >>$ [_false])
+    (optional (str "to" >> theorem_ref))) |>>
+      fun (_, range) -> [(_false, range)])
 
 let rec proof_intro_prop = pipe2
-  (reason >> opt_str "," >> optional have >> proposition) opt_contra cons
+  (reason >> opt_str "," >> optional have >> with_range proposition) opt_contra cons
 
 and proof_prop s = choice [
   proof_intro_prop;
-  pipe2 (proposition << optional reason) opt_contra cons] s
+  pipe2 (with_range proposition << optional reason) opt_contra cons] s
 
-let proof_if_prop = pipe3
-  (str "if" >> small_prop)
+let proof_if_prop = with_range (triple
+  (with_range (str "if" >> small_prop))
   (opt_str "," >> str "then" >> proof_prop)
-  (many (str "," >> so >> proof_prop) |>> concat)
-  (fun f gs hs -> [Group (Assume f :: map mk_step (gs @ hs))])
+  (many (str "," >> so >> proof_prop) |>> concat)) |>>
+  (fun (((f, range), gs, hs), outer_range) ->
+    [(Group ((Assume f, range) :: map_fst mk_step (gs @ hs)), outer_range)])
 
 let assert_step = proof_if_prop <|> (choice [
   proof_intro_prop;
   opt_str "and" >> so_or_have >> proof_prop;
   pipe2 (str "Since" >> proof_prop) (str "," >> have >> proof_prop) (@);
   any_str ["We will show that"; "We start by showing that"] >> proposition >>$ []
-  ] |>> map mk_step)
+  ] |>> map_fst mk_step)
 
 let assert_steps =
   let join = str "," >> ((str "and" >> so_or_have) <|> so) in
-  pipe2 assert_step (many (join >> proof_prop |>> map mk_step) |>> concat) (@)
+  pipe2 assert_step (many (join >> proof_prop |>> map_fst mk_step) |>> concat) (@)
 
 let now = (str "First" >>$ false) <|>
   (any_str ["Conversely"; "Finally"; "Next"; "Now";
             "Putting the cases together"] >>$ true)
 
 let let_step = pipe2 
-  (str "let" >> ids_type |>> fun (ids, typ) -> [Let (ids, typ)])
-  (opt [] (str "with" >> small_prop |>> fun f -> [Assume f]))
+  (with_range (str "let" >> ids_type) |>>
+    fun ((ids, typ), range) -> [(Let (ids, typ), range)])
+  (opt [] (str "with" >> with_range small_prop |>>
+              fun (f, range) -> [(Assume f, range)]))
   (@)
 
-let let_val_step = pipe2 (str "let" >>? id_opt_type <<? str "=") term
-  (fun (id, typ) f -> LetVal (id, typ, f))
+let let_val_step = 
+  with_range (pair (str "let" >>? id_opt_type <<? str "=") term) |>>
+    fun (((id, typ), f), range) -> (LetVal (id, typ, f), range)
 
 let assume_step =
-  str "Suppose that" >> proposition |>> fun f -> Assume f
+  with_range (str "Suppose that" >> proposition) |>>
+    fun (f, range) -> (Assume f, range)
 
 let let_or_assume =
   single let_val_step <|> let_step <|> single assume_step
@@ -309,7 +321,7 @@ let let_or_assumes =
 let proof_clause = pipe2
   (opt false (now << opt_str ","))
   (let_or_assumes <|> assert_steps)
-  (fun escape steps -> (if escape then [Escape] else []) @ steps)
+  (fun escape steps -> (if escape then [(Escape, empty_range)] else []) @ steps)
 
 let proof_sentence =
   (sep_by1 proof_clause (str ";") |>> concat) << str "."
@@ -330,8 +342,8 @@ let theorem_group =
   str "Let" >> ids_type << str "." >>=
   fun ids_typ -> pipe2 (top_prop_or_items ids_typ) (opt [] proofs)
     (fun props proofs ->
-      props |> map (fun (label, f, _name) ->
-        Theorem (count_label n label, f, assoc_opt label proofs)))
+      props |> map (fun (label, f, _name, range) ->
+        Theorem (count_label n label, f, assoc_opt label proofs, range)))
 
 (* program *)
 

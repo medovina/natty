@@ -71,7 +71,7 @@ let thf_statement is_conjecture f =
     | ConstDecl (id, typ) -> [const id typ]
     | Axiom (name, f, _) -> [axiom ("ax_" ^ name) f]
     | Definition (id, typ, f) -> [const id typ; axiom (id ^ "_def") f]
-    | Theorem (name, f, _) ->
+    | Theorem (name, f, _, _) ->
         let t = if is_conjecture then "conjecture" else "theorem" in
         [sprintf "%s, %s, %s" (quote ("thm_" ^ name)) t (thf_formula f)] in
   unlines (map (sprintf "thf(%s).") (conv f))
