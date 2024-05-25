@@ -4,5 +4,5 @@
 
 (executable
     (name main)
-    (libraries mparser mparser-re psq str unix yojson)
+    (libraries mparser mparser-re psq str threads unix yojson)
 )

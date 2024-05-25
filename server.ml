@@ -7,6 +7,7 @@ open Yojson.Basic.Util
 open List
 open Options
 open Printf
+open Prove
 open Statement
 open Util
 
@@ -16,20 +17,23 @@ let adjust_pos text (line_num, col_num) =
   let col_num = utf16_encode_len (String.sub line 0 (col_num - 1)) in
   (line_num - 1, col_num)
 
-let check text =
-  match Parser.parse text with
-    | Failed (msg, Parse_error ((_index, line, col), _)) ->
-        let (line, col) = adjust_pos text (line, col) in
-        Some ((line, col), (line, col + 1), last (str_lines (String.trim msg)))
-    | Success (prog, origin_map) -> (
-        match Check.check_program 0 prog with
-          | Error (err, formula) ->
-              let (pos1, pos2) = match assq_opt formula origin_map with
-                | Some (Range (pos1, pos2)) -> (adjust_pos text pos1, adjust_pos text pos2)
-                | None -> ((0, 0), (0, 0)) in
-              Some (pos1, pos2, err)
-          | Ok _ -> None)
-    | _ -> failwith "check"
+type prover_data = {
+  mutex: Mutex.t;
+  semaphore: Semaphore.Binary.t;
+  pipe_in: file_descr;
+  pipe_out: file_descr;
+
+  (* uri, stmt to prove, known stmts *)
+  statements: (string * statement * statement list) list ref;
+
+  progress: int ref;
+  not_proven: statement list ref
+}
+
+let prover_thread data =
+  while true do
+    Semaphore.Binary.acquire data.semaphore
+  done
 
 (* Yojson *)
 
@@ -103,38 +107,96 @@ let publish_diagnostics uri diagnostics =
   notification "textDocument/publishDiagnostics" @@
   `Assoc [("uri", `String uri); ("diagnostics", `List diagnostics)]
 
-(* main loop *)
+(* server *)
 
-let report output (uri, text) = 
-  let diags = Option.to_list (check text) |> map (fun (pos1, pos2, err) ->
-    diagnostic pos1 pos2 err) in
-  write_message output (publish_diagnostics uri diags)
+let check text =
+  match Parser.parse text with
+    | Failed (msg, Parse_error ((_index, line, col), _)) ->
+        let (line, col) = adjust_pos text (line, col) in
+        Error ((line, col), (line, col + 1), last (str_lines (String.trim msg)))
+    | Success (prog, origin_map) -> (
+        match Check.check_program 0 prog with
+          | Error (err, formula) ->
+              let (pos1, pos2) = match assq_opt formula origin_map with
+                | Some (Range (pos1, pos2)) -> (adjust_pos text pos1, adjust_pos text pos2)
+                | None -> ((0, 0), (0, 0)) in
+              Error (pos1, pos2, err)
+          | Ok prog -> Ok prog)
+    | _ -> failwith "check"
 
 let clear_diags output uri =
   write_message output (publish_diagnostics uri [])
 
+let init opts =
+  printf "language server running: pipe = %s\n%!" opts.pipe;
+  let (input, output) = open_connection (ADDR_UNIX opts.pipe) in
+  printf "connected%!\n";
+  
+  let (id, uri) = parse_initialize (read_message input) in
+  let folder = Option.get (opt_remove_prefix "file://" uri) in
+  printf "folder = %s\n%!" folder;
+
+  let result = `Assoc [("capabilities", `Assoc [("textDocumentSync", `Int 1)])] in
+  write_message output (response id result);
+
+  let inited = read_message input in
+  assert (msg_method inited = "initialized");
+  (input, output)
+
+  let reprove sources data output f =
+    sources := f !sources;
+    let checked = map_snd check !sources in
+    checked |> iter (fun (uri, r) ->
+      let diags = match r with
+        | Ok _ -> []
+        | Error (pos1, pos2, err) -> [diagnostic pos1 pos2 err] in
+      write_message output (publish_diagnostics uri diags));
+
+    let rec to_prove = function
+      | [] -> Some []
+      | (_uri, Error _) :: _ -> None
+      | (uri, Ok prog) :: rs ->
+          let* ss = to_prove rs in
+          Some ((expand_proofs prog false |> filter_map (
+            fun (thm, _, known) ->
+              match thm with
+                | Theorem (_, _, None, _) -> Some (uri, thm, known)
+                | _ -> None)) @ ss) in
+
+    let stmts = opt_default (to_prove checked) [] in
+    Mutex.protect data.mutex (fun () ->
+      data.statements := stmts;
+      data.progress := 0;
+      data.not_proven := []
+      );
+    Semaphore.Binary.release data.semaphore
+
 let run opts =
   if opts.pipe = "" then failwith "--pipe expected"
   else
-    printf "language server running: pipe = %s\n%!" opts.pipe;
-    let (input, output) = open_connection (ADDR_UNIX opts.pipe) in
-    printf "connected%!\n";
-    
-    let (id, uri) = parse_initialize (read_message input) in
-    let folder = Option.get (opt_remove_prefix "file://" uri) in
-    printf "folder = %s\n%!" folder;
+    let (input, output) = init opts in
+    let (pipe_out, pipe_in) = Unix.pipe () in
+    let data = {
+      mutex = Mutex.create ();
+      semaphore = Semaphore.Binary.make false;
+      pipe_in; pipe_out;
+      statements = ref []; progress = ref 0; not_proven = ref []
+      } in
+    let _thread = Thread.create prover_thread data in
 
-    let result = `Assoc [("capabilities", `Assoc [("textDocumentSync", `Int 1)])] in
-    write_message output (response id result);
-
-    let inited = read_message input in
-    assert (msg_method inited = "initialized");
+    let sources = ref [] in
+    let reprove1 = reprove sources data output in
 
     while (true) do
       let msg = read_message input in
       match msg_method msg with
-        | "textDocument/didOpen" -> report output (parse_did_open msg)
-        | "textDocument/didChange" -> report output (parse_did_change msg)
-        | "textDocument/didClose" -> clear_diags output (parse_did_close msg)
+        | "textDocument/didOpen" ->
+            reprove1 (update_assoc (parse_did_open msg))
+        | "textDocument/didChange" ->
+            reprove1 (update_assoc (parse_did_change msg))
+        | "textDocument/didClose" ->
+            let uri = parse_did_close msg in
+            clear_diags output uri;
+            reprove1 (remove_assoc uri)
         | _ -> printf "%s\n%!" (Basic.to_string msg)
     done
