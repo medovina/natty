@@ -96,11 +96,11 @@ let prop_operators = [
 
 (* terms *)
 
-let with_range p =
-  get_pos >>= fun (_index, line1, col1) ->
+let with_range p = empty >>?
+  (get_pos >>= fun (_index, line1, col1) ->
   p >>= fun x ->
   get_pos |>> fun (_index, line2, col2) ->
-    (x, Range ((line1, col1), (line2, col2)))
+    (x, Range ((line1, col1), (line2, col2))))
 
 let record_pos p = with_range p >>=
   fun (f, range) -> update_user_state (cons (f, range)) >>$ f
