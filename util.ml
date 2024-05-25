@@ -200,6 +200,21 @@ let is_maximal gt x ys =
 
 let sum xs = fold_left (+.) 0.0 xs
 
+let group_by key_fun fold init xs =
+  let rec gather = function
+    | [] -> []
+    | x :: xs ->
+        let key = key_fun x in
+        match gather xs with
+          | [] -> [(key, fold x init)]
+          | (key', acc) :: pairs as rest ->
+              if key = key' then (key, fold x acc) :: pairs
+              else (key, fold x init) :: rest in
+  gather (sort_by key_fun xs)
+  
+let gather_pairs xs =
+  group_by fst (fun (_, x) acc -> cons x acc) [] xs
+
 (* association lists *)
 
 let update_assoc (k, v) assoc = (k, v) :: remove_assoc k assoc

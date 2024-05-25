@@ -20,19 +20,45 @@ let adjust_pos text (line_num, col_num) =
 type prover_data = {
   mutex: Mutex.t;
   semaphore: Semaphore.Binary.t;
-  pipe_in: file_descr;
-  pipe_out: file_descr;
+  notify_out: out_channel;
 
-  (* uri, stmt to prove, known stmts *)
+  (* uri, theorem to prove, known stmts *)
   statements: (string * statement * statement list) list ref;
 
   progress: int ref;
-  not_proven: statement list ref
+  not_proven: (string * statement) list ref    (* uri, theorem *)
 }
 
+let cancel_check data stmts () =
+  Mutex.protect data.mutex (fun () -> !(data.statements) != stmts)
+
+let rec prove_stmts data stmts = match stmts with
+  | [] -> ()
+  | (uri, thm, known) :: ss ->
+      let success =
+        match prove 0.0 (rev known) thm false (cancel_check data stmts) with
+          | Proof _ -> true
+          | _ -> false in
+      let abort = Mutex.protect data.mutex (fun () ->
+        if !(data.statements) != stmts then true
+        else (
+          incr data.progress;
+          if not success then
+            data.not_proven := (uri, thm) :: !(data.not_proven);
+          fprintf data.notify_out "notify\n%!";
+          false
+        )) in
+      if abort then () else prove_stmts data ss
+
 let prover_thread data =
+  let stmts = ref [] in
   while true do
-    Semaphore.Binary.acquire data.semaphore
+    Semaphore.Binary.acquire data.semaphore;
+    let ss = Mutex.protect data.mutex (fun () -> !(data.statements)) in
+    if ss != !stmts then (
+      stmts := ss;
+      prove_stmts data !stmts
+    )
   done
 
 (* Yojson *)
@@ -143,8 +169,13 @@ let init opts =
   assert (msg_method inited = "initialized");
   (input, output)
 
-  let reprove sources data output f =
+  let notify_progress output n total =
+    write_message output (notification "natty/progress" (
+      `List [`Int n; `Int total]))
+
+  let reprove sources data output proving f =
     sources := f !sources;
+
     let checked = map_snd check !sources in
     checked |> iter (fun (uri, r) ->
       let diags = match r with
@@ -163,40 +194,63 @@ let init opts =
                 | Theorem (_, _, None, _) -> Some (uri, thm, known)
                 | _ -> None)) @ ss) in
 
-    let stmts = opt_default (to_prove checked) [] in
+    let stmts =
+      if proving then opt_default (to_prove checked) [] else [] in
     Mutex.protect data.mutex (fun () ->
       data.statements := stmts;
       data.progress := 0;
       data.not_proven := []
       );
-    Semaphore.Binary.release data.semaphore
+    Semaphore.Binary.release data.semaphore;
+    notify_progress output 0 (length stmts)
 
 let run opts =
   if opts.pipe = "" then failwith "--pipe expected"
   else
     let (input, output) = init opts in
+    let input_descr = descr_of_in_channel input in
     let (pipe_out, pipe_in) = Unix.pipe () in
+    let notify_in = in_channel_of_descr pipe_in in
     let data = {
       mutex = Mutex.create ();
       semaphore = Semaphore.Binary.make false;
-      pipe_in; pipe_out;
+      notify_out = out_channel_of_descr pipe_out;
       statements = ref []; progress = ref 0; not_proven = ref []
       } in
     let _thread = Thread.create prover_thread data in
 
     let sources = ref [] in
-    let reprove1 = reprove sources data output in
+    let proving = ref false in
+    let reprove1 f = reprove sources data output !proving f in
 
     while (true) do
-      let msg = read_message input in
-      match msg_method msg with
-        | "textDocument/didOpen" ->
-            reprove1 (update_assoc (parse_did_open msg))
-        | "textDocument/didChange" ->
-            reprove1 (update_assoc (parse_did_change msg))
-        | "textDocument/didClose" ->
-            let uri = parse_did_close msg in
-            clear_diags output uri;
-            reprove1 (remove_assoc uri)
-        | _ -> printf "%s\n%!" (Basic.to_string msg)
+      let (ready_in, _, _) = select [input_descr; pipe_out] [] [] (-1.0) in
+      if memq input_descr ready_in then
+        let msg = read_message input in
+        match msg_method msg with
+          | "textDocument/didOpen" ->
+              reprove1 (update_assoc (parse_did_open msg))
+          | "textDocument/didChange" ->
+              reprove1 (update_assoc (parse_did_change msg))
+          | "textDocument/didClose" ->
+              let uri = parse_did_close msg in
+              clear_diags output uri;
+              reprove1 (remove_assoc uri)
+          | "natty/setProving" ->
+              proving := params msg |> index 0 |> to_bool;
+              reprove1 Fun.id
+          | _ -> printf "%s\n%!" (Basic.to_string msg)
+      else
+        ignore (input_line notify_in);
+        if !proving then (
+          let (n, not_proven, total) = Mutex.protect data.mutex (fun () ->
+            (!(data.progress), !(data.not_proven), length (!(data.statements)))) in
+          notify_progress output n total;
+          gather_pairs not_proven |> iter (fun (uri, stmts) ->
+            let diags = stmts |> map (function
+              | Theorem (id, _, _, Range (pos1, pos2)) ->
+                  diagnostic pos1 pos2 ("could not prove " ^ id)
+              | _ -> assert false) in
+            write_message output (publish_diagnostics uri diags))
+        )
     done

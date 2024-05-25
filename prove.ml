@@ -750,14 +750,15 @@ let find_ac_ops pformulas =
   let commutative = filter_map commutative_axiom formulas in
   intersect associative commutative
 
-type result = Proof of pformula * float | Timeout | GaveUp
+type result = Proof of pformula * float | Timeout | GaveUp | Stopped
 
 let szs = function
   | Proof _ -> "Theorem"
   | Timeout -> "Timeout"
   | GaveUp -> "GaveUp"
+  | Stopped -> "Stopped"
 
-let refute timeout pformulas =
+let refute timeout pformulas cancel_check =
   dbg_newline ();
   let ac_ops = find_ac_ops pformulas in
   if !debug > 0 && ac_ops <> [] then
@@ -769,6 +770,7 @@ let refute timeout pformulas =
   let rec loop used count =
     let elapsed = Sys.time () -. start in
     if timeout > 0.0 && elapsed > timeout then Timeout
+    else if cancel_check () then Stopped
     else match PFQueue.pop !queue with
       | None -> GaveUp
       | Some ((p, _cost), q) ->
@@ -809,7 +811,7 @@ let lower = function
 let to_pformula stmt = stmt_formula stmt |> Option.map (fun f ->
   create_pformula (stmt_name stmt) [] (rename_vars (lower f)) 0.0)
 
-let prove timeout known_stmts thm invert =
+let prove timeout known_stmts thm invert cancel_check =
   formula_counter := 0;
   let known = known_stmts |> filter_map (fun s ->
     match to_pformula s with
@@ -818,7 +820,7 @@ let prove timeout known_stmts thm invert =
   let pformula = Option.get (to_pformula thm) in
   let goal = if invert then pformula else
     create_pformula "negate" [pformula] (_not pformula.formula) (-1.0) in
-  refute timeout (known @ [goal])
+  refute timeout (known @ [goal]) cancel_check
 
 let output_proof pformula =
   let steps =
@@ -863,7 +865,8 @@ let prove_all opts thf prog =
         let success = match thm with
           | Theorem (_, _, None, _) ->
               print_endline (show_statement true thm ^ "\n");
-              let result = prove opts.timeout (rev known) thm opts.disprove in
+              let result =
+                prove opts.timeout (rev known) thm opts.disprove (Fun.const false) in
               let b = match result with
                   | Proof (pformula, elapsed) ->
                       printf "%sproved in %.2f s\n" dis elapsed;
@@ -872,7 +875,8 @@ let prove_all opts thf prog =
                         output_proof pformula);
                       true
                   | GaveUp -> printf "Not %sproved.\n" dis; false
-                  | Timeout -> printf "Time limit exceeded.\n"; false in
+                  | Timeout -> printf "Time limit exceeded.\n"; false
+                  | Stopped -> assert false in
               if thf then printf "SZS status %s\n" (szs result);
               print_newline ();
               if opts.disprove then not b else b
