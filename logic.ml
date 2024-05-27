@@ -9,11 +9,13 @@ type typ =
   | Bool
   | Fun of typ * typ
   | Base of id
+  | Product of typ * typ
 
 let rec show_type = function
   | Bool -> "𝔹"
   | Fun (t, u) -> sprintf "(%s → %s)" (show_type t) (show_type u)
   | Base id -> id
+  | Product (t, u) -> sprintf "(%s ⨯ %s)" (show_type t) (show_type u)
 
 let mk_fun_type t u = Fun (t, u)
 
@@ -45,6 +47,15 @@ let mk_app f g = App (f, g)
 let mk_eq f g = Eq (f, g)
 
 let apply = fold_left1 mk_app
+
+let _tuple2 = Const ("(,)", unknown_type)
+
+let tuple2 f g = App (App (_tuple2, f), g)
+
+let tuple_apply f = function
+  | [g] -> App (f, g)
+  | [g; h] ->  App (f, tuple2 g h)
+  | _ -> failwith "tuple_apply"
 
 let is_var = function
   | Var _ -> true

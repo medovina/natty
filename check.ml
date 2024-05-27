@@ -21,48 +21,50 @@ let check_const formula env id =
     | Some typ -> (Const (id, typ), typ)
     | None -> error (sprintf "undefined: %s\n" id) formula
 
-let rec subtype t u = match t, u with
-  | Bool, Bool -> true
+let rec subtype t u = t = u || match t, u with
   | Fun (t, u), Fun (t', u') -> subtype t t' && subtype u u'
-  | Base id, Base id' when id = id' -> true
   | _, Base "_" -> true
   | _ -> false
 
 let rec check_formula env vars =
-  let rec check formula = match formula with
-    | Const (id, typ) ->
-        if typ = unknown_type then check_const formula env id else (formula, typ)
-    | Var (id, _) -> (
-        match assoc_opt id vars with
-          | Some typ -> (Var (id, typ), typ)
-          | None -> check_const formula env id)
-    | App (f, g) ->
-        let (f, typ_f), (g, typ_g) = check f, check g in (
+  let rec check formula =
+    let check_app f g can_be_product =
+      let (f, typ_f), (g, typ_g) = check f, check g in
         match typ_f with
           | Fun (tg, u) ->
               if subtype typ_g tg then (App (f, g), u)
-              else error
+              else (
+                printf "%s\n" (show_formula formula);
+                error
                 (sprintf "type mismatch: can't apply %s to %s\n"
-                  (show_type typ_f) (show_type typ_g)) formula
-          | _ -> check (binop "·" unknown_type f g))
-    | Lambda (id, typ, f) ->
-        let (f, typ_f) = check_formula env ((id, typ) :: vars) f in
-        (Lambda (id, typ, f), Fun (typ, typ_f))
-    | Eq (f, g) ->
-        let (f, typ_f), (g, typ_g) = check f, check g in
-        if typ_f = typ_g then (Eq (f, g), Bool)
-        else error ("type mismatch: " ^ show_formula formula) formula in
+                  (show_type typ_f) (show_type typ_g)) formula)
+          | _ ->
+              if can_be_product then check (binop "·" unknown_type f g)
+              else error "set expected" f in
+    match formula with
+      | Const (id, typ) ->
+          if typ = unknown_type then check_const formula env id else (formula, typ)
+      | Var (id, _) -> (
+          match assoc_opt id vars with
+            | Some typ -> (Var (id, typ), typ)
+            | None -> check_const formula env id)
+      | App (App (Const ("(,)", _), f), g) ->
+          let (f, typ_f), (g, typ_g) = check f, check g in
+          (tuple2 f g, Product (typ_f, typ_g))
+      | App (App (Const ("∈", _), f), g) -> check_app g f false
+      | App (f, g) -> check_app f g true
+      | Lambda (id, typ, f) ->
+          let (f, typ_f) = check_formula env ((id, typ) :: vars) f in
+          (Lambda (id, typ, f), Fun (typ, typ_f))
+      | Eq (f, g) ->
+          let (f, typ_f), (g, typ_g) = check f, check g in
+          if typ_f = typ_g then (Eq (f, g), Bool)
+          else error ("type mismatch: " ^ show_formula formula) formula in
   check
 
-let rec map_set_mem f = match kind f with
-  | Binary ("∈", _, f, g) ->
-      let f, g = map_set_mem f, map_set_mem g in
-      App (g, f)
-  | _ -> map_formula map_set_mem f
-       
 let top_check env f =
-  let (f1, typ) = check_formula env [] (reduce (map_set_mem f)) in
-  if typ = Bool then f1 else error ("bool expected: " ^ show_formula f) f
+  let (f1, typ) = check_formula env [] f in
+  if typ = Bool then reduce f1 else error ("bool expected: " ^ show_formula f) f
 
 type block = Block of proof_step * range * block list
 
@@ -160,7 +162,7 @@ let check_stmt env stmt =
   match stmt with
     | Axiom (id, f, name) -> Axiom (id, top_check env f, name)
     | Definition (id, typ, f) ->
-        Definition (id, typ, top_check (stmt :: env) f)
+        Definition (id, typ, top_check env f)
     | Theorem (name, f, proof, range) ->
         let f = top_check env f in
         Theorem (name, f, Option.map (expand_proof stmt env f range) proof, range)

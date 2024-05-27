@@ -31,11 +31,11 @@ let any_str ss = choice (map str ss)
 
 let var = empty >>? (letter |>> char_to_string)
 
-let id = var <|> any_str ["𝔹"; "ℕ"]
+let id = var <|> any_str ["𝔹"; "ℕ"; "ℤ"]
 
 let sym =
   (empty >>? (digit <|> any_of "+-<>") |>> char_to_string) <|>
-    any_str ["·"; "≤"; "≥"; "≮"]
+    any_str ["−"; "·"; "≤"; "≥"; "≮"]
 
 let id_or_sym = id <|> sym
 
@@ -43,15 +43,16 @@ let word = empty >>? many1_chars letter
 
 (* types *)
 
-let of_type = any_str [":"; "∈"]
-
 let infix sym f assoc = Infix (str sym >>$ f, assoc)
 
 let type_operators = [
-  [ infix "→" (fun t u -> Fun (t, u)) Assoc_right ]
+  [ infix "⨯" (fun t u -> Product (t, u)) Assoc_right ];
+  [ infix "→" mk_fun_type Assoc_right ]
 ]
 
 let typ = expression type_operators (id |>> fun id -> mk_base_type id)
+
+let of_type = any_str [":"; "∈"]
 
 let id_type = pair id (of_type >> typ)
 
@@ -111,9 +112,12 @@ let mk_not_less f g = _not (binop_unknown "<" f g)
 
 let var_term = var |>> (fun v -> Var (v, unknown_type))
 
+let unary_minus f = App (Const ("-", unknown_type), f)
+
 let rec term s = (record_pos @@ choice [
   (sym |>> fun c -> Const (c, unknown_type));
-  pipe2 (record_pos var_term <<? str "(") (expr << str ")") mk_app;
+  pipe2 (record_pos var_term <<? str "(")
+    (sep_by1 expr (str ",") << str ")") tuple_apply;
   var_term;
   str "(" >> expr << str ")";
   pipe3 (str "{" >> var) (of_type >> typ) (str "|" >> proposition << str "}")
@@ -127,6 +131,7 @@ and terms s = (term >>= fun t -> many_fold_left (binop_unknown "·") t next_term
 (* expressions *)
 
 and operators = [
+  [ Prefix (any_str ["-"; "−"] >>$ unary_minus) ];
   [ infix "·" (binop_unknown "·") Assoc_left ];
   [ infix "+" (binop_unknown "+") Assoc_left;  infix "-" (binop_unknown "-") Assoc_left ];
   [ infix "∈" (binop_unknown "∈") Assoc_none ];
@@ -216,9 +221,11 @@ let propositions =
 
 (* axioms *)
 
+let operation = str "a" >>? any_str ["binary"; "unary"] << str "operation"
+
 let axiom_decl =
   str "a type" >> id |>> (fun id -> TypeDecl id) <|>
-  pipe2 (any_str ["an element"; "a function"; "a binary operation"] >> id_or_sym)
+  pipe2 ((any_str ["an element"; "a function"] <|> operation) >> id_or_sym)
     (of_type >> typ)
     (fun c typ -> ConstDecl (c, typ))
 
@@ -250,7 +257,7 @@ let relation_definition (ids, typ) = opt_str "we write" >>?
 
 let definition = str "Definition." >>
   choice [
-    single eq_definition;
+    many1 eq_definition;
     for_all_ids >>= fun ids_typ -> many1 (relation_definition ids_typ)
   ]
 

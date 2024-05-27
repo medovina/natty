@@ -1,0 +1,21 @@
+Axiom 4.  There exists a type ℤ with a function z : ℕ ⨯ ℕ → ℤ and a function n : ℤ → ℕ ⨯ ℕ such that
+
+  a. For all a, b, c, d ∈ ℕ, z(a, b) = z(c, d) if and only if a + d = b + c.
+  b. For all x ∈ ℤ, z(n(x)) = x.
+
+Definition.  Let 0 : ℤ = z(0, 0).  Let 1 : ℤ = z(1, 0).
+
+Axiom 5.  There is a binary operation + : ℤ → ℤ → ℤ such that for all a, b, c, d ∈ ℕ,
+
+    z(a, b) + z(c, d) = z(a + c, b + d).
+
+Axiom 6.  There is a unary operation − : ℤ → ℤ such that for all a, b ∈ ℕ,
+
+  −z(a, b) = z(b, a).
+
+Theorem 8.  Let x, y, z ∈ ℤ.
+
+  1. (x + y) + z = x + (y + z).
+  2. x + y = y + x.
+  3. x + 0 = x.
+  4. x + (−x) = 0.

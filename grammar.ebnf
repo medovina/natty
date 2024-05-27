@@ -1,5 +1,9 @@
 (* types *)
 
+type_op = '⨯' | '→'
+
+typ = id | (typ) | typ type_op typ
+
 of_type = ':' | '∈'
 
 id_type = id of_type typ
@@ -11,7 +15,7 @@ ids_type = id {',' id}+ of_type typ
 (* terms *)
 
 term =
-    sym | id '(' expr ')' | var | '(' expr ')'
+    sym | id '(' expr {, expr} ')' | var | '(' expr ')'
   | '{' var of_type typ '|' proposition '}'
 
 terms = term+
@@ -76,8 +80,10 @@ propositions = [for_all_ids] top_prop_or_items
 
 (* axioms *)
 
+operation = 'a' ['binary' | 'unary'] 'operation'
+
 axiom_decl = 'a type' id |
-    (('an element' | 'a function' | 'a binary operation') id_or_sym of_type typ)
+    (('an element' | 'a function' | operation) id_or_sym of_type typ)
 
 axiom_group = 'Axiom' int '.'
     ('There exists' | 'There is') axiom_decl {('and' | 'with') axiom_decl}
@@ -89,7 +95,8 @@ eq_definition = 'Let' sym ':' typ '=' term '.'
 
 relation_definition = ['we write'] id sym id 'iff' proposition '.'
 
-definition = 'Definition.' (eq_definition | for_all_ids {relation_definition})
+definition = 'Definition.'
+    ({eq_definition}+ | for_all_ids {relation_definition})
 
 (* proofs *)
 

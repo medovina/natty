@@ -16,11 +16,12 @@ let base_type = function
 
 let thf_type =
   let rec f left = function
-  | Bool -> "$o"
-  | Base id -> base_type id
-  | Fun (t, u) ->
-      let s = sprintf "%s > %s" (f true t) (f false u) in
-      if left then sprintf "(%s)" s else s
+    | Bool -> "$o"
+    | Base id -> base_type id
+    | Fun (t, u) ->
+        let s = sprintf "%s > %s" (f true t) (f false u) in
+        if left then sprintf "(%s)" s else s
+    | Product _ -> assert false
   in f false
 
 let binary = [("∧", "&"); ("∨", "|"); ("→", "=>"); ("↔", "<=>")]
