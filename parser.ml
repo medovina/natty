@@ -33,9 +33,12 @@ let var = empty >>? (letter |>> char_to_string)
 
 let id = var <|> any_str ["𝔹"; "ℕ"; "ℤ"]
 
-let sym =
-  (empty >>? (digit <|> any_of "+-<>") |>> char_to_string) <|>
-    any_str ["−"; "·"; "≤"; "≥"; "≮"]
+let sym = choice [
+  empty >>? (digit <|> any_of "+-<>") |>> char_to_string;
+  any_str ["·"; "≤"; "≥"; "≮"];
+  str "−" >>$ "-"]
+
+let minus = any_str ["-"; "−"]
 
 let id_or_sym = id <|> sym
 
@@ -131,9 +134,10 @@ and terms s = (term >>= fun t -> many_fold_left (binop_unknown "·") t next_term
 (* expressions *)
 
 and operators = [
-  [ Prefix (any_str ["-"; "−"] >>$ unary_minus) ];
+  [ Prefix (minus >>$ unary_minus) ];
   [ infix "·" (binop_unknown "·") Assoc_left ];
-  [ infix "+" (binop_unknown "+") Assoc_left;  infix "-" (binop_unknown "-") Assoc_left ];
+  [ infix "+" (binop_unknown "+") Assoc_left;
+    Infix (minus >>$ binop_unknown "-", Assoc_left) ];
   [ infix "∈" (binop_unknown "∈") Assoc_none ];
   [ infix "=" mk_eq Assoc_right ; infix "≠" mk_neq Assoc_right ] @
       map compare_op ["<"; "≤"; ">"; "≥"] @

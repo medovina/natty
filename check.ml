@@ -53,19 +53,21 @@ let rec possible_types env dot_types vars =
 
 and possible_app env dot_types vars formula f g with_dot =
   let possible = possible_types env dot_types vars in
-  let+ t = possible f in
-  let+ u = possible g in
-  let app = match t with
-    | Fun (v, w) -> if subtype u v then [(t, u, w, false)] else []
-    | _ -> [] in
-  let prod =
-    if with_dot then
-      let+ dot = dot_types in
-      match dot with
-        | Fun (w, Fun (x, y)) when w = t && x = u -> [(t, u, y, true)]
-        | _ -> []
-    else [] in
-  match app @ prod with
+  let all =
+    let+ t = possible f in
+    let+ u = possible g in
+    let app = match t with
+      | Fun (v, w) -> if subtype u v then [(t, u, w, false)] else []
+      | _ -> [] in
+    let prod =
+      if with_dot then
+        let+ dot = dot_types in
+        match dot with
+          | Fun (w, Fun (x, y)) when w = t && x = u -> [(t, u, y, true)]
+          | _ -> []
+      else [] in
+    app @ prod in
+  match all with
     | [] -> error "can't apply" formula
     | all -> all
 
