@@ -97,7 +97,7 @@ let write_message output msg =
 
 let message data = `Assoc (("jsonrpc", `String "2.0") :: data)
 
-let response id result = message [("id", id); ("result", result)]
+let response msg result = message [("id", member "id" msg); ("result", result)]
 
 let notification mth params = message [("method", `String mth); ("params", params)]
 
@@ -125,8 +125,7 @@ let diagnostic start_pos end_pos severity message =
 
 let parse_initialize init =
   assert (msg_method init = "initialize");
-  (init |> member "id",
-   params init |> member "workspaceFolders" |> index 0 |> mem_str "uri")
+  params init |> member "workspaceFolders" |> index 0 |> mem_str "uri"
 
 (* document synchronization *)
 
@@ -173,12 +172,13 @@ let init opts =
   let (input, output) = open_connection (ADDR_UNIX opts.pipe) in
   printf "connected%!\n";
   
-  let (id, uri) = parse_initialize (read_message input) in
+  let msg = read_message input in
+  let uri = parse_initialize msg in
   let folder = Option.get (opt_remove_prefix "file://" uri) in
   printf "folder = %s\n%!" folder;
 
   let result = `Assoc [("capabilities", `Assoc [("textDocumentSync", `Int 1)])] in
-  write_message output (response id result);
+  write_message output (response msg result);
 
   let inited = read_message input in
   assert (msg_method inited = "initialized");
@@ -239,7 +239,8 @@ let run opts =
     let proving = ref false in
     let reprove1 f = reprove sources data output !proving f in
 
-    while (true) do
+    let exit = ref false in
+    while (not !exit) do
       let (ready_in, _, _) = select [input_descr; pipe_read] [] [] (-1.0) in
       if memq input_descr ready_in then
         let msg = read_message input in
@@ -255,6 +256,10 @@ let run opts =
           | "natty/setProving" ->
               proving := params msg |> index 0 |> to_bool;
               reprove1 Fun.id
+          | "shutdown" ->
+              write_message output (response msg `Null)
+          | "exit" ->
+              exit := true
           | _ -> printf "%s\n%!" (Basic.to_string msg)
       else
         ignore (input_line notify_in);
