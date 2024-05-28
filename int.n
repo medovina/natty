@@ -1,7 +1,7 @@
-Axiom 4.  There exists a type ℤ with a function z : ℕ ⨯ ℕ → ℤ and a function n : ℤ → ℕ ⨯ ℕ such that
+Axiom 4.  There exists a type ℤ with a function z : ℕ ⨯ ℕ → ℤ such that
 
   a. For all a, b, c, d ∈ ℕ, z(a, b) = z(c, d) if and only if a + d = b + c.
-  b. For all x ∈ ℤ, z(n(x)) = x.
+  b. For all x ∈ ℤ, there exist some a, b ∈ ℕ such that x = z(a, b).
 
 Definition.  Let 0 : ℤ = z(0, 0).  Let 1 : ℤ = z(1, 0).
 

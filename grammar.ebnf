@@ -44,7 +44,9 @@ for_all_ids = 'For all' ids_type ','
 
 for_all_prop = for_all_ids proposition
 
-exists_prop = 'There is' ('some' | 'none') id_type 'such that' proposition
+there_exists = 'There' ('is' | 'are' | 'exists' | 'exist')
+
+exists_prop = there_exists ('some' | 'no') ids_type 'such that' proposition
 
 precisely_prop = 'Precisely one of' small_prop 'holds'
 
@@ -86,7 +88,7 @@ axiom_decl = 'a type' id |
     (('an element' | 'a function' | operation) id_or_sym of_type typ)
 
 axiom_group = 'Axiom' int '.'
-    ('There exists' | 'There is') axiom_decl {('and' | 'with') axiom_decl}
+    there_exists axiom_decl {('and' | 'with') axiom_decl}
     ('such that' propositions | '.')
 
 (* definitions *)

@@ -287,8 +287,11 @@ let consts f =
     | Lambda (_, _, f) -> collect f in
   unique (collect f)
 
-let for_all_vars_typ (ids, typ) f =
-  fold_right (fun id f -> _for_all id typ f) ids f
+let quant_vars_typ quant (ids, typ) f =
+  fold_right (fun id f -> quant id typ f) ids f
+
+let for_all_vars_typ = quant_vars_typ _for_all
+let exists_vars_typ = quant_vars_typ _exists
 
 let for_all_vars_typ_if_free (ids, typ) f =
   for_all_vars_typ (intersect ids (free_vars f), typ) f

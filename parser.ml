@@ -169,11 +169,14 @@ and for_all_ids s = (str "For all" >> ids_type << str ",") s
 and for_all_prop s = pipe2
   for_all_ids proposition for_all_vars_typ s
 
+and there_exists =
+  str "There" >> any_str ["is"; "are"; "exists"; "exist"]
+
 and exists_prop s = pipe3
-  (str "There is" >> ((str "some" >>$ true) <|> (str "no" >>$ false)))
-  id_type (str "such that" >> proposition)
-  (fun some (id, typ) p ->
-    (if some then Fun.id else _not) (_exists id typ p)) s
+  (there_exists >> ((str "some" >>$ true) <|> (str "no" >>$ false)))
+  ids_type (str "such that" >> proposition)
+  (fun some (ids, typ) p ->
+    (if some then Fun.id else _not) (exists_vars_typ (ids, typ) p)) s
 
 and precisely_prop s = (
   str "Precisely one of" >> small_prop << str "holds" |>> fun f ->
@@ -241,7 +244,7 @@ let axiom_propositions n = propositions |>>
   map (fun (label, f, name, _range) -> Axiom (count_label n label, f, name))
 
 let axiom_group = (str "Axiom" >> int << str ".") >>= fun n ->
-  any_str ["There exists"; "There is"] >> pipe2
+  there_exists >> pipe2
   (sep_by1 axiom_decl (any_str ["and"; "with"]))
   ((str "such that" >> axiom_propositions n) <|> (str "." >>$ []))
   (@)
