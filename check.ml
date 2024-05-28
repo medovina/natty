@@ -71,13 +71,20 @@ and possible_app env dot_types vars formula f g with_dot =
     | [] -> error "can't apply" formula
     | all -> all
 
+let encode_name id typ =
+  if mem id logical_ops then id
+  else if String.contains id ':' then failwith "encode_name"
+  else sprintf "%s:%s" id (str_replace " " "" (show_type typ))
+
+let encode_const id typ = Const (encode_name id typ, typ)
+
 let check_formula env =
   let dot_types = const_types1 env "·" in
   let rec check vars formula as_type =
     let possible = possible_types env dot_types vars in
     let find_const id =
       if mem as_type (const_types formula env id)
-        then Const (id, as_type)
+        then encode_const id as_type
         else error ("expected " ^ show_type as_type) formula in
     let check_app f g with_dot =
       let possible =
@@ -87,14 +94,14 @@ let check_formula env =
         | [(t, u, typ, dot)] ->
             let f, g = check vars f t, check vars g u in
             if dot then
-              App (App (Const ("·", Fun (t, Fun (u, typ))), f), g)
+              App (App (encode_const "·" (Fun (t, Fun (u, typ))), f), g)
             else App (f, g)
         | [] -> error (show_type as_type ^ " expected") formula
         | _ -> error ("ambiguous as type " ^ show_type as_type) formula in
     match formula with
       | Const (id, typ) ->
           if typ = unknown_type then find_const id
-          else if typ = as_type then Const (id, as_type)
+          else if typ = as_type then encode_const id as_type
           else error "type_mismatch" formula
       | Var (id, _) -> (
           match assoc_opt id vars with
@@ -221,14 +228,22 @@ let check_stmt env stmt =
     | Definition (id, typ, f) ->
         Definition (id, typ, top_check env f)
     | Theorem (name, f, proof, range) ->
-        let f = top_check env f in
-        Theorem (name, f, Option.map (expand_proof stmt env f range) proof, range)
+        let f1 = top_check env f in
+        Theorem (name, f1, Option.map (expand_proof stmt env f range) proof, range)
     | stmt -> stmt
+
+let encode_names = function
+  | ConstDecl (id, typ) -> ConstDecl (encode_name id typ, typ)
+  | Definition (id, typ, f) -> Definition (encode_name id typ, typ, f)
+  | stmt -> stmt 
 
 let check_program _debug stmts =
   debug := _debug;
   let check env stmt =
     let stmt = check_stmt env stmt in
     (stmt :: env, stmt) in
-  try (Ok (snd (fold_left_map check [] stmts))) with
+  try
+    let stmts = snd (fold_left_map check [] stmts) in
+    Ok (map encode_names stmts)
+  with
     | Check_error (err, formula) -> Error (err, formula)

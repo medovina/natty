@@ -22,6 +22,10 @@ let is_lower c = 'a' <= c && c <= 'z'
 
 let is_letter c = is_lower c || ('A' <= c && c <= 'Z')
 
+let is_digit c = '0' <= c && c <= '9'
+
+let is_id_char c = is_letter c || is_digit c || c = '_'
+
 (* strings *)
 
 let strlen = String.length
@@ -67,6 +71,8 @@ let str_lines = String.split_on_char '\n'
 
 let unlines = String.concat "\n"
 
+let parens_if b s = if b then sprintf "(%s)" s else s
+
 let indent_by n = map (prepend (n_spaces n))
 
 let indent_lines n s = unlines (indent_by n (str_lines s))
@@ -95,7 +101,11 @@ let utf8_len = utf8_count (Fun.const 1)
  * occupy in UTF-16. *)
 let utf16_encode_len = utf8_count (fun n -> if n > 3 then 2 else 1)
 
-let ascii_map = [("·", "*"); ("≤", "<="); ("≥", ">=")]
+let ascii_map = [
+  ("·", "*"); ("→", "->"); ("⨯", "x");
+  ("≤", "<="); ("≥", ">=");
+  ("𝔹", "B"); ("ℕ", "N"); ("ℤ", "Z")
+]
 
 module StringSet = Set.Make (String)
 module StringMap = Map.Make (String)

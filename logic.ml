@@ -11,11 +11,17 @@ type typ =
   | Base of id
   | Product of typ * typ
 
-let rec show_type = function
-  | Bool -> "𝔹"
-  | Fun (t, u) -> sprintf "(%s → %s)" (show_type t) (show_type u)
-  | Base id -> id
-  | Product (t, u) -> sprintf "(%s ⨯ %s)" (show_type t) (show_type u)
+let show_type t =
+  let rec show outer left typ =
+    let op prec sym t u =
+      parens_if (outer > prec || outer = prec && left) @@
+      sprintf "%s %s %s" (show prec true t) sym (show prec false u) in
+    match typ with
+      | Bool -> "𝔹"
+      | Fun (t, u) -> op 0 "→" t u
+      | Base id -> id
+      | Product (t, u) -> op 1 "⨯" t u in
+  show (-1) false t
 
 let mk_fun_type t u = Fun (t, u)
 
@@ -104,6 +110,8 @@ let _true = Const ("⊤", Bool)
 let _not f = App (Const ("¬", Fun (Bool, Bool)), f)
 
 let logical_binary = ["∧"; "∨"; "→"; "↔"]
+
+let logical_ops = ["⊥"; "⊤"; "¬"; "∀"; "∃"] @ logical_binary
 
 let binop op typ f g = App (App (Const (op, typ), f), g) 
 let binop_unknown op = binop op unknown_type
@@ -194,19 +202,24 @@ let single_letter = function
   | (Const (id, _) | Var (id, _)) when is_letter id.[0] -> Some id
   | _ -> None
 
+let without_type_suffix id =
+  match String.index_opt id ':' with
+    | Some i -> String.sub id 0 i
+    | None -> id
+
 let show_formula_multi multi f =
-  let parens b s = if b then sprintf "(%s)" s else s in
   let rec show indent multi outer right f =
     let show1 outer right f = show indent multi outer right f in
-    let show_eq eq f g = parens (eq_prec < outer)
+    let show_eq eq f g = parens_if (eq_prec < outer)
       (sprintf "%s %s %s" (show1 eq_prec false f) eq (show1 eq_prec true g)) in
     match kind f with
       | True -> "⊤"
       | False -> "⊥"
       | Not g -> (match g with
         | Eq (t, u) -> show_eq "≠" t u
-        | _ -> parens (not_prec < outer) ("¬" ^ show1 not_prec false g))
-      | Binary (op, _, t, u) when mem_assoc op binary_ops ->
+        | _ -> parens_if (not_prec < outer) ("¬" ^ show1 not_prec false g))
+      | Binary (op, _, t, u) when mem_assoc (without_type_suffix op) binary_ops ->
+          let op = without_type_suffix op in
           let prec = assoc op binary_ops in
           let p = prec < outer ||
             prec = outer && (op = "·" || op = "+" || op = "→" && not right) in
@@ -226,18 +239,21 @@ let show_formula_multi multi f =
                 map (show (indent + 3) multi prec false) (tl fs) in
               String.concat (sprintf "\n%s %s " (n_spaces indent) op) ss
           else layout multi in
-          parens p s
+          parens_if p s
       | Quant (q, id, typ, u) ->
           let prefix = sprintf "%s%s:%s." q id (show_type typ) in
-          parens (quantifier_prec < outer)
+          parens_if (quantifier_prec < outer)
             (prefix ^ show (indent + utf8_len prefix) multi quantifier_prec false u)
       | _ -> match f with
-        | Const (id, _typ) -> id
+        | Const (id, _typ) -> without_type_suffix id
         | Var (id, _typ) -> id
+        | App (App (Const ("(,)", _), f), g) ->
+            parens_if (outer > -2) @@
+              sprintf "%s, %s" (show1 (-1) false f) (show1 (-1) false g)
         | App (t, u) ->
-            sprintf "%s(%s)" (show1 10 false t) (show1 (-1) false u)
+            sprintf "%s(%s)" (show1 10 false t) (show1 (-2) false u)
         | Lambda (id, typ, t) ->
-            parens (quantifier_prec < outer)
+            parens_if (quantifier_prec < outer)
               (sprintf "λ%s:%s.%s" id (show_type typ) (show1 quantifier_prec false t))
         | Eq (t, u) -> show_eq "=" t u in
   show 0 multi (-1) false f

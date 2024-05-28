@@ -8,21 +8,24 @@ open Util
 let quote s =
   let s = fold_right (uncurry str_replace) ascii_map s in
   let s = str_replace "." "_" s in
-  if is_lower (s.[0]) then s else sprintf "'%s'" s
+  if is_lower (s.[0]) && String.for_all is_id_char s
+    then s else sprintf "'%s'" s
 
 let base_type = function
   | "ℕ" -> "nat"
+  | "ℤ" -> "int"
   | id -> id
 
-let thf_type =
+let rec thf_type typ =
   let rec f left = function
     | Bool -> "$o"
     | Base id -> base_type id
     | Fun (t, u) ->
         let s = sprintf "%s > %s" (f true t) (f false u) in
         if left then sprintf "(%s)" s else s
-    | Product _ -> assert false
-  in f false
+    | Product (t, u) ->
+        sprintf "%s_%s" (thf_type t) (thf_type u)
+  in f false typ
 
 let binary = [("∧", "&"); ("∨", "|"); ("→", "=>"); ("↔", "<=>")]
 
