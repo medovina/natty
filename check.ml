@@ -272,13 +272,13 @@ let rec encode_names known_tuple_types = function
       concat_map tuple_defs new_tuple_types @ (stmt ::
         encode_names (new_tuple_types @ known_tuple_types) stmts)
 
-let check_program _debug stmts =
+let check_program _debug from_thf stmts =
   debug := _debug;
   let check env stmt =
     let stmt = check_stmt env stmt in
     (stmt :: env, stmt) in
   try
     let stmts = snd (fold_left_map check [] stmts) in
-    Ok (encode_names [] stmts)
+    Ok (if from_thf then stmts else encode_names [] stmts)
   with
     | Check_error (err, formula) -> Error (err, formula)
