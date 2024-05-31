@@ -145,3 +145,25 @@ Proof.
   3. Let a, b, c ∈ ℕ, and suppose that a + c < b + c.  If a = b then b + c < b + c, a contradiction. If b < a then b + c < a + c by part (2) of this theorem, so b + c < a + c < b + c, also a contradiction.  By Theorem 6.1, the only alternative is a < b.
 
   5. Let a, b, c ∈ ℕ, and suppose that ac < bc.  If c = 0 then 0 < 0, which is a contradiction.  So c ≠ 0.  If a = b then bc < bc, a contradiction.  If b < a then bc < ac by part (4) of this theorem, so bc < ac < bc, also a contradiction.  By Theorem 6.1, the only alternative is a < b.
+
+Axiom 4.  There exists a type ℤ with a function z : ℕ ⨯ ℕ → ℤ such that
+
+  a. For all a, b, c, d ∈ ℕ, z(a, b) = z(c, d) if and only if a + d = b + c.
+  b. For all x ∈ ℤ, there exist some a, b ∈ ℕ such that x = z(a, b).
+
+Definition.  Let 0 : ℤ = z(0, 0).  Let 1 : ℤ = z(1, 0).
+
+Axiom 5.  There is a binary operation + : ℤ → ℤ → ℤ such that for all a, b, c, d ∈ ℕ,
+
+    z(a, b) + z(c, d) = z(a + c, b + d).
+
+Axiom 6.  There is a unary operation − : ℤ → ℤ such that for all a, b ∈ ℕ,
+
+  −z(a, b) = z(b, a).
+
+Theorem 8.  Let x, y, z ∈ ℤ.
+
+  1. (x + y) + z = x + (y + z).
+  2. x + y = y + x.
+  3. x + 0 = x.
+  4. x + (−x) = 0.

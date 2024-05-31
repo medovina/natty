@@ -68,11 +68,15 @@ let thf_statement is_conjecture f =
   let const id typ =
     sprintf "%s, type, %s: %s" (quote (id ^ "_decl")) (quote id) (thf_type typ) in
   let axiom name f = sprintf "%s, axiom, %s" (quote name) (thf_formula f) in
+  let type_decl t = sprintf "%s_type, type, %s: $tType" t t in
   let conv = function
-    | TypeDecl id ->
-        let t = base_type id in
-        [sprintf "%s_type, type, %s: $tType" t t]
-    | ConstDecl (id, typ) -> [const id typ]
+    | TypeDecl id -> [type_decl (base_type id)]
+    | ConstDecl (id, typ) ->
+        (if (starts_with "(,)" id) then match typ with
+          | Fun (_, Fun (_, (Product _ as prod))) ->
+              [type_decl (thf_type prod)]
+          | _ -> failwith "thf_statement"
+        else []) @ [const id typ]
     | Axiom (name, f, _) -> [axiom ("ax_" ^ name) f]
     | Definition (id, typ, f) -> [const id typ; axiom (id ^ "_def") f]
     | Theorem (name, f, _, _) ->

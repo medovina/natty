@@ -75,6 +75,11 @@ let is_app_or_const = function
   | App _ | Const _ -> true
   | _ -> false
 
+let app_or_eq h f g = match h with
+  | App _ -> App (f, g)
+  | Eq _ -> Eq (f, g)
+  | _ -> assert false
+
 let map_formula fn = function
   | App (f, g) -> App (fn f, fn g)
   | Lambda (id, typ, f) -> Lambda (id, typ, fn f)
@@ -86,10 +91,9 @@ let fold_left_formula fn acc = function
   | Lambda (_id, _typ, f) -> fn acc f
   | _ -> acc
 
-let app_or_eq h f g = match h with
-  | App _ -> App (f, g)
-  | Eq _ -> Eq (f, g)
-  | _ -> assert false
+let formula_types = function
+    | Const (_, typ) | Var (_, typ) | Lambda (_, typ, _) -> [typ]
+    | _ -> []
 
 let rec type_of = function
   | Const (_, typ) | Var (_, typ) -> typ
@@ -247,7 +251,7 @@ let show_formula_multi multi f =
       | _ -> match f with
         | Const (id, _typ) -> without_type_suffix id
         | Var (id, _typ) -> id
-        | App (App (Const ("(,)", _), f), g) ->
+        | App (App (Const (id, _), f), g) when starts_with "(,)" id ->
             parens_if (outer > -2) @@
               sprintf "%s, %s" (show1 (-1) false f) (show1 (-1) false g)
         | App (t, u) ->

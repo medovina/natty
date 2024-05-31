@@ -73,14 +73,25 @@ let stmt_name stmt = (match stmt with
   | Theorem _ -> "theorem") ^ " " ^ stmt_id stmt
 
 let stmt_formula = function
-  | Axiom (_, f, _) -> Some f
-  | Definition (_, _, f) -> Some f
-  | Theorem (_, f, _, _) -> Some f
+  | Axiom (_, f, _) | Definition (_, _, f) | Theorem (_, f, _, _) -> Some f
   | _ -> None
 
+let stmt_types = function
+  | ConstDecl (_, typ) | Definition (_, typ, _) -> [typ]
+  | _ -> []
+
+let map_stmt_formulas fn = function
+  | Axiom (id, f, name) -> Axiom (id, fn f, name)
+  | Definition (id, typ, f) -> Definition (id, typ, fn f)
+  | Theorem (id, f, proof, range) ->
+      let map_proof = function
+        | Steps steps -> Steps steps
+        | Formulas fs -> Formulas (map_triple_fst fn fs) in
+      Theorem (id, fn f, Option.map map_proof proof, range)
+  | stmt -> stmt
+
 let stmt_const = function
-  | ConstDecl (id, _) -> Some id
-  | Definition (id, _, _) -> Some id
+  | ConstDecl (id, _) | Definition (id, _, _) -> Some id
   | _ -> None
 
 let mk_eq_def sym typ f =

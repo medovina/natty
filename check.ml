@@ -71,12 +71,7 @@ and possible_app env dot_types vars formula f g with_dot =
     | [] -> error "can't apply" formula
     | all -> all
 
-let encode_name id typ =
-  if mem id logical_ops then id
-  else if String.contains id ':' then failwith "encode_name"
-  else sprintf "%s:%s" id (str_replace " " "" (show_type typ))
-
-let encode_const id typ = Const (encode_name id typ, typ)
+let tuple_cons_type t u = Fun (t, Fun (u, Product (t, u)))
 
 let check_formula env =
   let dot_types = const_types1 env "·" in
@@ -84,7 +79,7 @@ let check_formula env =
     let possible = possible_types env dot_types vars in
     let find_const id =
       if mem as_type (const_types formula env id)
-        then encode_const id as_type
+        then Const (id, as_type)
         else error ("expected " ^ show_type as_type) formula in
     let check_app f g with_dot =
       let possible =
@@ -94,14 +89,14 @@ let check_formula env =
         | [(t, u, typ, dot)] ->
             let f, g = check vars f t, check vars g u in
             if dot then
-              App (App (encode_const "·" (Fun (t, Fun (u, typ))), f), g)
+              App (App (Const ("·", (Fun (t, Fun (u, typ)))), f), g)
             else App (f, g)
         | [] -> error (show_type as_type ^ " expected") formula
         | _ -> error ("ambiguous as type " ^ show_type as_type) formula in
     match formula with
       | Const (id, typ) ->
           if typ = unknown_type then find_const id
-          else if typ = as_type then encode_const id as_type
+          else if typ = as_type then Const (id, as_type)
           else error "type_mismatch" formula
       | Var (id, _) -> (
           match assoc_opt id vars with
@@ -111,7 +106,9 @@ let check_formula env =
             | None -> find_const id)
       | App (App (Const ("(,)", _), f), g) -> (
           match as_type with
-            | Product (t, u) -> tuple2 (check vars f t) (check vars g u)
+            | Product (t, u) ->
+                apply [Const ("(,)", tuple_cons_type t u);
+                       check vars f t; check vars g u]
             | _ -> error "type mismatch" formula)
       | App (App (Const ("∈", _), f), g) -> check_app g f false
       | App (f, g) -> check_app f g true
@@ -232,10 +229,48 @@ let check_stmt env stmt =
         Theorem (name, f1, Option.map (expand_proof stmt env f range) proof, range)
     | stmt -> stmt
 
-let encode_names = function
-  | ConstDecl (id, typ) -> ConstDecl (encode_name id typ, typ)
-  | Definition (id, typ, f) -> Definition (encode_name id typ, typ, f)
-  | stmt -> stmt 
+let encode_name id typ =
+  if mem id logical_ops then id
+  else if String.contains id ':' then failwith "encode_name"
+  else sprintf "%s:%s" id (str_replace " " "" (show_type typ))
+
+let encode_const id typ = Const (encode_name id typ, typ)
+
+let tuple_constructor t u = sprintf "(,)%s%s" (show_type t) (show_type u)
+
+let rec register tuple_types = function
+  | Product (t, u) ->
+      tuple_types := union [(t, u)] !tuple_types
+  | Fun (t, u) ->
+      iter (register tuple_types) [t; u]
+  | _ -> ()
+
+let rec encode_formula tuple_types f =
+  formula_types f |> iter (register tuple_types);
+  match f with
+    | Const ("(,)", typ) -> (
+        match typ with
+          | Fun (t, Fun (u, Product _)) -> Const (tuple_constructor t u, typ)
+          | _ -> failwith "encode_formula")
+    | Const (id, typ) -> Const (encode_name id typ, typ)
+    | f -> map_formula (encode_formula tuple_types) f
+
+let rec encode_names known_tuple_types = function
+  | [] -> []
+  | stmt :: stmts ->
+      let tuple_types = ref [] in
+      let encode = encode_formula tuple_types in
+      stmt_types stmt |> iter (register tuple_types);
+      let stmt = match stmt with
+        | ConstDecl (id, typ) -> ConstDecl (encode_name id typ, typ)
+        | Definition (id, typ, f) ->
+            Definition (encode_name id typ, typ, encode f)
+        | _ -> map_stmt_formulas encode stmt in
+      let new_tuple_types = subtract !tuple_types known_tuple_types in
+      let tuple_defs (t, u) =
+        [ ConstDecl (tuple_constructor t u, tuple_cons_type t u) ] in
+      concat_map tuple_defs new_tuple_types @ (stmt ::
+        encode_names (new_tuple_types @ known_tuple_types) stmts)
 
 let check_program _debug stmts =
   debug := _debug;
@@ -244,6 +279,6 @@ let check_program _debug stmts =
     (stmt :: env, stmt) in
   try
     let stmts = snd (fold_left_map check [] stmts) in
-    Ok (map encode_names stmts)
+    Ok (encode_names [] stmts)
   with
     | Check_error (err, formula) -> Error (err, formula)
