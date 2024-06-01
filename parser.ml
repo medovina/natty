@@ -272,7 +272,9 @@ let definition = str "Definition." >>
 
 let mk_step f =
   match kind f with
-    | Quant ("∃", x, typ, f) -> IsSome (x, typ, f)
+    | Quant ("∃", _, typ, _) ->
+        let (ids, f) = gather_quant_of_type "∃" typ f in
+        IsSome (ids, typ, f)
     | _ -> mk_assert f
 
 let opt_contra = opt []

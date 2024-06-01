@@ -198,10 +198,11 @@ and block_formulas (Block (step, range, children)) =
     | Let (ids, typ) -> apply (for_all_vars_typ (ids, typ))
     | LetVal (id, _typ, value) -> apply (fun f -> rsubst1 f value id)
     | Assume a -> apply (implies a)
-    | IsSome (id, typ, g) ->
-        let ex = _exists id typ g in
-        ((ex, ex, range) :: map_triple_fst (fun f -> _for_all id typ (implies g f)) fs,
-         if is_free_in id concl then _exists id typ concl else concl)
+    | IsSome (ids, typ, g) ->
+        let ex = exists_vars_typ (ids, typ) g in
+        ((ex, ex, range) ::
+            map_triple_fst (fun f -> for_all_vars_typ (ids, typ) (implies g f)) fs,
+         if any_free_in ids concl then exists_vars_typ (ids, typ) concl else concl)
     | Escape | Group _ -> failwith "block_formulas"
 
 let expand_proof stmt env f range = function

@@ -161,9 +161,21 @@ Axiom 6.  There is a unary operation − : ℤ → ℤ such that for all a, b �
 
   −z(a, b) = z(b, a).
 
-Theorem 8.  Let x, y, z ∈ ℤ.
+Theorem 8.  Let i, j, k ∈ ℤ.
 
-  1. (x + y) + z = x + (y + z).
-  2. x + y = y + x.
-  3. x + 0 = x.
-  4. x + (−x) = 0.
+  1. (i + j) + k = i + (j + k).
+  2. i + j = j + i.
+  3. i + 0 = i.
+  4. i + (−i) = 0.
+
+Proof.
+
+  1. Let i, j, k ∈ ℤ. We know that there are some a, b, c, d, e, f ∈ ℕ such that i = z(a, b) and j = z(c, d) and k = z(e, f).  Then
+  
+      (i + j) + k = (z(a, b) + z(c, d)) + z(e, f)
+                      = z(a + c, b + d) + z(e, f)
+                      = z((a + c) + e, (b + d) + f)
+                      = z(a + (c + e), b + (d + f))
+                      = z(a, b) + z(c + e, d + f)
+                      = z(a, b) + (z(c, d) + z(e, f))
+                      = i + (j + k).

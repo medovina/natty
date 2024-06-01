@@ -292,16 +292,9 @@ let free_vars = find_vars true
 let free_vars_types f = unique (find_vars_types true f)
 
 let is_free_in x f = mem x (free_vars f)
+let any_free_in xs f = overlap xs (free_vars f)
 
 let is_free_in_any x fs = exists (fun f -> is_free_in x f) fs
-
-let consts f =
-  let rec collect = function
-    | Const (id, _) -> [id]
-    | Var _ -> []
-    | App (t, u) | Eq (t, u) -> collect t @ collect u
-    | Lambda (_, _, f) -> collect f in
-  unique (collect f)
 
 let quant_vars_typ quant (ids, typ) f =
   fold_right (fun id f -> quant id typ f) ids f
@@ -319,7 +312,10 @@ let rec gather_quant q f = match kind f with
       let (qs, f) = gather_quant q u in ((id, typ) :: qs, f)
   | _ -> ([], f)
 
-let for_alls = gather_quant "∀"
+let rec gather_quant_of_type q typ f = match kind f with
+  | Quant (q', id, typ', u) when q = q' && typ = typ' ->
+      let (qs, f) = gather_quant_of_type q typ u in (id :: qs, f)
+  | _ -> ([], f)
 
 let rec gather_lambdas = function
   | Lambda (x, typ, f) ->
