@@ -91,10 +91,6 @@ let fold_left_formula fn acc = function
   | Lambda (_id, _typ, f) -> fn acc f
   | _ -> acc
 
-let formula_types = function
-    | Const (_, typ) | Var (_, typ) | Lambda (_, typ, _) -> [typ]
-    | _ -> []
-
 let rec type_of = function
   | Const (_, typ) | Var (_, typ) -> typ
   | App (f, _) -> (match type_of f with

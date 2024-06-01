@@ -76,10 +76,6 @@ let stmt_formula = function
   | Axiom (_, f, _) | Definition (_, _, f) | Theorem (_, f, _, _) -> Some f
   | _ -> None
 
-let stmt_types = function
-  | ConstDecl (_, typ) | Definition (_, typ, _) -> [typ]
-  | _ -> []
-
 let map_stmt_formulas fn = function
   | Axiom (id, f, name) -> Axiom (id, fn f, name)
   | Definition (id, typ, f) -> Definition (id, typ, fn f)
@@ -90,16 +86,8 @@ let map_stmt_formulas fn = function
       Theorem (id, fn f, Option.map map_proof proof, range)
   | stmt -> stmt
 
-let stmt_const = function
-  | ConstDecl (id, _) | Definition (id, _, _) -> Some id
-  | _ -> None
-
 let mk_eq_def sym typ f =
   Definition (sym, typ, Eq (Const (sym, typ), f))
-
-let axiom_named name = function
-  | Axiom (_id, f, Some n) when eq_icase n name -> Some f
-  | _ -> None
 
 let show_statement multi s =
   let name = stmt_name s in

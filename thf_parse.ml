@@ -42,9 +42,7 @@ let type_operators = [
 let rec type_term s = choice [
   parens typ;
   str "$o" >>$ Bool;
-  id |>> function
-    | "nat" -> Base "ℕ"
-    | id -> Base id
+  id |>> fun id -> Base id
   ] s
 and typ s = expression type_operators type_term s
 

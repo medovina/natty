@@ -229,48 +229,53 @@ let check_stmt env stmt =
         Theorem (name, f1, Option.map (expand_proof stmt env f range) proof, range)
     | stmt -> stmt
 
-let encode_name id typ =
-  if mem id logical_ops then id
-  else if String.contains id ':' then failwith "encode_name"
-  else sprintf "%s:%s" id (str_replace " " "" (show_type typ))
-
-let encode_const id typ = Const (encode_name id typ, typ)
+let type_as_id typ = str_replace " " "" (show_type typ)
 
 let tuple_constructor t u = sprintf "(,)%s%s" (show_type t) (show_type u)
 
-let rec register tuple_types = function
+let encode_id id typ =
+  if mem id logical_ops then id
+  else if id = "(,)" then
+    match typ with
+      | Fun (t, Fun (u, Product _)) -> tuple_constructor t u
+      | _ -> failwith "encode_id"
+  else if String.contains id ':' then failwith "encode_id"
+  else sprintf "%s:%s" id (type_as_id typ)
+
+let rec encode_type tuple_types typ = match typ with
   | Product (t, u) ->
-      tuple_types := union [(t, u)] !tuple_types
-  | Fun (t, u) ->
-      iter (register tuple_types) [t; u]
-  | _ -> ()
+      tuple_types := union [(t, u)] !tuple_types;
+      Base (type_as_id typ)
+  | Fun (t, u) -> Fun (encode_type tuple_types t, encode_type tuple_types u)
+  | _ -> typ
 
 let rec encode_formula tuple_types f =
-  formula_types f |> iter (register tuple_types);
   match f with
-    | Const ("(,)", typ) -> (
-        match typ with
-          | Fun (t, Fun (u, Product _)) -> Const (tuple_constructor t u, typ)
-          | _ -> failwith "encode_formula")
-    | Const (id, typ) -> Const (encode_name id typ, typ)
+    | Const (id, typ) -> Const (encode_id id typ, encode_type tuple_types typ)
+    | Var (id, typ) -> Var (id, encode_type tuple_types typ)
+    | Lambda (id, typ, f) ->
+        Lambda (id, encode_type tuple_types typ, encode_formula tuple_types f)
     | f -> map_formula (encode_formula tuple_types) f
 
-let rec encode_names known_tuple_types = function
+let rec encode_stmts known_tuple_types = function
   | [] -> []
   | stmt :: stmts ->
       let tuple_types = ref [] in
       let encode = encode_formula tuple_types in
-      stmt_types stmt |> iter (register tuple_types);
       let stmt = match stmt with
-        | ConstDecl (id, typ) -> ConstDecl (encode_name id typ, typ)
+        | ConstDecl (id, typ) ->
+            ConstDecl (encode_id id typ, encode_type tuple_types typ)
         | Definition (id, typ, f) ->
-            Definition (encode_name id typ, typ, encode f)
+            Definition (encode_id id typ, encode_type tuple_types typ, encode f)
         | _ -> map_stmt_formulas encode stmt in
       let new_tuple_types = subtract !tuple_types known_tuple_types in
       let tuple_defs (t, u) =
-        [ ConstDecl (tuple_constructor t u, tuple_cons_type t u) ] in
+        let tuple_type_id = type_as_id (Product (t, u)) in
+        [TypeDecl tuple_type_id;
+         ConstDecl (tuple_constructor t u,
+                    Fun (t, Fun (u, Base tuple_type_id)))] in
       concat_map tuple_defs new_tuple_types @ (stmt ::
-        encode_names (new_tuple_types @ known_tuple_types) stmts)
+        encode_stmts (new_tuple_types @ known_tuple_types) stmts)
 
 let check_program _debug from_thf stmts =
   debug := _debug;
@@ -279,6 +284,6 @@ let check_program _debug from_thf stmts =
     (stmt :: env, stmt) in
   try
     let stmts = snd (fold_left_map check [] stmts) in
-    Ok (if from_thf then stmts else encode_names [] stmts)
+    Ok (if from_thf then stmts else encode_stmts [] stmts)
   with
     | Check_error (err, formula) -> Error (err, formula)
