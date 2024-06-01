@@ -101,12 +101,6 @@ let utf8_len = utf8_count (Fun.const 1)
  * occupy in UTF-16. *)
 let utf16_encode_len = utf8_count (fun n -> if n > 3 then 2 else 1)
 
-let ascii_map = [
-  ("·", "*"); ("→", "->"); ("⨯", "x");
-  ("≤", "<="); ("≥", ">=");
-  ("𝔹", "B"); ("ℕ", "N"); ("ℤ", "Z")
-]
-
 module StringSet = Set.Make (String)
 module StringMap = Map.Make (String)
 

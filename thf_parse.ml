@@ -70,13 +70,11 @@ let build_quant quant args formula =
     | [] -> formula
   in f args
 
-let map_id id = opt_default (assoc_opt id (map swap ascii_map)) id
-
 let rec term s = choice [
   parens formula;
   str "$false" >>$ _false;
   str "$true" >>$ _true;
-  id |>> (fun id -> Const (map_id id, unknown_type));
+  id |>> (fun id -> Const (id, unknown_type));
   var |>> (fun id -> Var (to_lower id, unknown_type));
   (str "~" >> term) |>> _not;
   quantifier "!" _for_all;
@@ -90,7 +88,7 @@ and formula s = expression operators term s
 
 let thf_type = id << str ":" >>= fun id ->
    (str "$tType" >>$ TypeDecl id) <|>
-   (typ |>> fun typ -> ConstDecl (map_id id, typ))
+   (typ |>> fun typ -> ConstDecl (id, typ))
 
 let thf_formula = empty >>?
   str "thf" >> parens (

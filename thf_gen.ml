@@ -6,7 +6,6 @@ open Statement
 open Util
 
 let quote s =
-  let s = fold_right (uncurry str_replace) ascii_map s in
   let s = str_replace "." "_" s in
   if is_lower (s.[0]) && String.for_all is_id_char s
     then s else sprintf "'%s'" s
