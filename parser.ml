@@ -44,6 +44,20 @@ let id_or_sym = id <|> sym
 
 let word = empty >>? many1_chars letter
 
+let keywords = ["axiom"; "definition"; "lemma"; "proof"; "theorem"]
+
+let with_range p = empty >>?
+  (get_pos >>= fun (_index, line1, col1) ->
+  p >>= fun x ->
+  get_pos |>> fun (_index, line2, col2) ->
+    (x, Range ((line1, col1), (line2, col2))))
+
+let record kind p = with_range p >>=
+  fun (f, range) -> update_user_state (cons (kind f, range)) >>$ f
+
+let record_formula = record mk_formula_syntax
+let record_type = record mk_type_syntax
+
 (* types *)
 
 let infix sym f assoc = Infix (str sym >>$ f, assoc)
@@ -53,7 +67,8 @@ let type_operators = [
   [ infix "→" mk_fun_type Assoc_right ]
 ]
 
-let typ = expression type_operators (id |>> fun id -> mk_base_type id)
+let typ = expression type_operators
+  (record_type (id |>> fun id -> mk_base_type id))
 
 let of_type = any_str [":"; "∈"]
 
@@ -100,15 +115,6 @@ let prop_operators = [
 
 (* terms *)
 
-let with_range p = empty >>?
-  (get_pos >>= fun (_index, line1, col1) ->
-  p >>= fun x ->
-  get_pos |>> fun (_index, line2, col2) ->
-    (x, Range ((line1, col1), (line2, col2))))
-
-let record_pos p = with_range p >>=
-  fun (f, range) -> update_user_state (cons (f, range)) >>$ f
-
 let compare_op op = infix op (binop_unknown op) Assoc_right
 
 let mk_not_less f g = _not (binop_unknown "<" f g)
@@ -117,9 +123,9 @@ let var_term = var |>> (fun v -> Var (v, unknown_type))
 
 let unary_minus f = App (Const ("-", unknown_type), f)
 
-let rec term s = (record_pos @@ choice [
+let rec term s = (record_formula @@ choice [
   (sym |>> fun c -> Const (c, unknown_type));
-  pipe2 (record_pos var_term <<? str "(")
+  pipe2 (record_formula var_term <<? str "(")
     (sep_by1 expr (str ",") << str ")") tuple_apply;
   var_term;
   str "(" >> expr << str ")";
@@ -144,7 +150,7 @@ and operators = [
       [ infix "≮" mk_not_less Assoc_right ]
 ]
 
-and expr s = (record_pos (expression operators terms |>> chain_ops)) s
+and expr s = (record_formula (expression operators terms |>> chain_ops)) s
 
 and atomic s =
   (expr << optional (any_str ["is true"; "always holds"])) s
@@ -287,9 +293,12 @@ let opt_contra = opt []
 let rec proof_intro_prop = pipe2
   (reason >> opt_str "," >> optional have >> with_range proposition) opt_contra cons
 
+and proof_prop1 = pipe2 (with_range proposition << optional reason) opt_contra cons
+
 and proof_prop s = choice [
   proof_intro_prop;
-  pipe2 (with_range proposition << optional reason) opt_contra cons] s
+  proof_prop1
+  ] s
 
 let proof_if_prop = with_range (triple
   (with_range (str "if" >> small_prop))
@@ -302,7 +311,8 @@ let assert_step = proof_if_prop <|> (choice [
   proof_intro_prop;
   opt_str "and" >> so_or_have >> proof_prop;
   pipe2 (str "Since" >> proof_prop) (str "," >> have >> proof_prop) (@);
-  any_str ["We will show that"; "We start by showing that"] >> proposition >>$ []
+  any_str ["We will show that"; "We start by showing that"] >> proposition >>$ [];
+  proof_prop1
   ] |>> map_fst mk_step)
 
 let assert_steps =
@@ -342,8 +352,11 @@ let proof_clause = pipe2
 let proof_sentence =
   (sep_by1 proof_clause (str ";") |>> concat) << str "."
 
+let new_paragraph = empty >>? (any_str keywords <|> label)
+
 let proof_steps =
-  many1 proof_sentence |>> (fun steps -> Steps (concat steps))
+  many1 (not_followed_by new_paragraph "" >> proof_sentence) |>>
+    (fun steps -> Steps (concat steps))
 
 let proof_item = pair label proof_steps
 

@@ -9,6 +9,15 @@ type pos = int * int   (* line number, colum number *)
 type range = Range of pos * pos
 let empty_range = Range ((0, 0), (0, 0))
 
+type syntax = Type of typ | Formula of formula
+let mk_type_syntax t = Type t
+let mk_formula_syntax f = Formula f
+
+let syntax_ref_eq x y = match x, y with
+  | Type t, Type u -> t == u
+  | Formula f, Formula g -> f == g
+  | _, _ -> false
+
 type proof_step =
   | Assert of formula
   | Let of id list * typ
@@ -20,6 +29,10 @@ type proof_step =
 
 let mk_assert f = Assert f
 
+let step_types = function
+  | Let (_, typ) | LetVal (_, typ, _) | IsSome (_, typ, _) -> [typ]
+  | _ -> []
+  
 let rec step_decl_vars = function
   | Let (ids, _) -> ids
   | LetVal (id, _, _) -> [id]

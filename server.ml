@@ -155,9 +155,9 @@ let check text =
         let (line, col) = adjust_pos text (line, col) in
         Error ((line, col), (line, col + 1), last (str_lines (String.trim msg)))
     | Success (prog, origin_map) -> (
-        match Check.check_program 0 false prog with
-          | Error (err, formula) ->
-              let (pos1, pos2) = match assq_opt formula origin_map with
+        match Check.check_program 0 false origin_map prog with
+          | Error (err, range) ->
+              let (pos1, pos2) = match range with
                 | Some (Range (pos1, pos2)) -> (adjust_pos text pos1, adjust_pos text pos2)
                 | None -> ((0, 0), (0, 0)) in
               Error (pos1, pos2, err)

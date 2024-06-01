@@ -123,7 +123,9 @@ contra = ',' ['which is'] ['again' | 'also' | 'similarly'] 'a contradiction' ['t
 
 proof_intro_prop = reason [','] [have] proposition [contra]
 
-proof_prop = proof_intro_prop | proposition [reason] [contra]
+proof_prop1 = proposition [reason] [contra]
+
+proof_prop = proof_intro_prop | proof_prop1
 
 proof_if_prop = 'if' small_prop [','] 'then' proof_prop {',' so proof_prop}
 
@@ -132,7 +134,8 @@ assert_step =
     proof_intro_prop |
     ['And'] so_or_have proof_prop |
     'Since' proof_prop ',' have proof_prop |
-    ('We will show that' | 'We start by showing that') proposition
+    ('We will show that' | 'We start by showing that') proposition |
+    proof_prop1
 
 assert_steps = assert_step {',' ('and' so_or_have | so) proof_prop}
 

@@ -7,9 +7,19 @@ open Util
 
 let debug = ref 0
 
-exception Check_error of string * formula
+exception Check_error of string * syntax
 
-let error s f = raise (Check_error (s, f))
+let error s f = raise (Check_error (s, Formula f))
+let type_error s typ = raise (Check_error (s, Type typ))
+
+let rec check_type env typ = match typ with
+  | Bool -> ()
+  | Fun (t, u) | Product (t, u) ->
+      check_type env t; check_type env u
+  | Base id ->
+      if typ <> unknown_type && not (mem (TypeDecl id) env) then
+        type_error ("undefined type " ^ id) typ
+      else ()
 
 let is_const id = function
   | ConstDecl (i, typ) when i = id -> Some typ
@@ -214,6 +224,7 @@ let expand_proof stmt env f range = function
           print_newline ()
         );
       );
+      concat_map step_types (map fst steps) |> iter (check_type env);
       let blocks = infer_blocks steps @ [Block (Assert f, range, [])] in
       if !debug > 0 then print_blocks blocks;
       let fs = fst (blocks_formulas blocks) in
@@ -278,7 +289,12 @@ let rec encode_stmts known_tuple_types = function
       concat_map tuple_defs new_tuple_types @ (stmt ::
         encode_stmts (new_tuple_types @ known_tuple_types) stmts)
 
-let check_program _debug from_thf stmts =
+let rec syntax_pos item = function
+  | [] -> None
+  | (s, range) :: ss ->
+      if syntax_ref_eq s item then Some range else syntax_pos item ss
+
+let check_program _debug from_thf origin_map stmts =
   debug := _debug;
   let check env stmt =
     let stmt = check_stmt env stmt in
@@ -287,4 +303,4 @@ let check_program _debug from_thf stmts =
     let stmts = snd (fold_left_map check [] stmts) in
     Ok (if from_thf then stmts else encode_stmts [] stmts)
   with
-    | Check_error (err, formula) -> Error (err, formula)
+    | Check_error (err, item) -> Error (err, syntax_pos item origin_map)

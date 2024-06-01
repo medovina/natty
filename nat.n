@@ -172,10 +172,18 @@ Proof.
 
   1. Let i, j, k ∈ ℤ. We know that there are some a, b, c, d, e, f ∈ ℕ such that i = z(a, b) and j = z(c, d) and k = z(e, f).  Then
   
-      (i + j) + k = (z(a, b) + z(c, d)) + z(e, f)
-                      = z(a + c, b + d) + z(e, f)
-                      = z((a + c) + e, (b + d) + f)
-                      = z(a + (c + e), b + (d + f))
-                      = z(a, b) + z(c + e, d + f)
-                      = z(a, b) + (z(c, d) + z(e, f))
-                      = i + (j + k).
+    (i + j) + k = (z(a, b) + z(c, d)) + z(e, f)
+                    = z(a + c, b + d) + z(e, f)
+                    = z((a + c) + e, (b + d) + f)
+                    = z(a + (c + e), b + (d + f))
+                    = z(a, b) + z(c + e, d + f)
+                    = z(a, b) + (z(c, d) + z(e, f))
+                    = i + (j + k).
+
+  2. Let i, j ∈ ℤ.  There are some a, b, c, d ∈ ℕ such that i = z(a, b) and j = z(c, d).  Then
+
+    i + j = z(a, b) + z(c, d)
+          = z(a + c, b + d)
+          = z(c + a, d + b)
+          = z(c, d) + z(a, b)
+          = j + i.
