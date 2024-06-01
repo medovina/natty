@@ -176,9 +176,7 @@ let rec gather_associative op f = match kind f with
 let gather_and = gather_associative "∧"
 let gather_or = gather_associative "∨"
 
-let implies f g = match bool_kind f with
-  | Binary ("∧", _, s, t) -> implies1 s (implies1 t g)
-  | _ -> implies1 f g
+let implies f g = fold_right implies1 (gather_and f) g
 
 let rec gather_implies f = match bool_kind f with
   | Binary ("→", _, f, g) -> f :: gather_implies g
