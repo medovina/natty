@@ -290,15 +290,10 @@ let opt_contra = opt []
     (optional (str "to" >> theorem_ref))) |>>
       fun (_, range) -> [(_false, range)])
 
-let rec proof_intro_prop = pipe2
-  (reason >> opt_str "," >> optional have >> with_range proposition) opt_contra cons
-
-and proof_prop1 = pipe2 (with_range proposition << optional reason) opt_contra cons
-
-and proof_prop s = choice [
-  proof_intro_prop;
-  proof_prop1
-  ] s
+let proof_prop = pipe2 (choice [
+  reason >> opt_str "," >> optional have >> with_range proposition;
+  optional have >> with_range proposition << optional reason
+  ]) opt_contra cons
 
 let proof_if_prop = with_range (triple
   (with_range (str "if" >> small_prop))
@@ -307,16 +302,16 @@ let proof_if_prop = with_range (triple
   (fun (((f, range), gs, hs), outer_range) ->
     [(Group ((Assume f, range) :: map_fst mk_step (gs @ hs)), outer_range)])
 
+let and_or_so = (str "and" << optional so) <|> so
+
 let assert_step = proof_if_prop <|> (choice [
-  proof_intro_prop;
-  opt_str "and" >> so_or_have >> proof_prop;
-  pipe2 (str "Since" >> proof_prop) (str "," >> have >> proof_prop) (@);
+  pipe2 (str "Since" >> proof_prop) (str "," >> proof_prop) (@);
   any_str ["We will show that"; "We start by showing that"] >> proposition >>$ [];
-  proof_prop1
+  optional and_or_so >> proof_prop
   ] |>> map_fst mk_step)
 
 let assert_steps =
-  let join = str "," >> ((str "and" >> so_or_have) <|> so) in
+  let join = str "," >> and_or_so in
   pipe2 assert_step (many (join >> proof_prop |>> map_fst mk_step) |>> concat) (@)
 
 let now = (str "First" >>$ false) <|>
