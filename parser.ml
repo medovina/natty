@@ -7,6 +7,9 @@ open Logic
 open Statement
 open Util
 
+type state = { syntax_map : (syntax * range) list; unique_count : int ref }
+let empty_state = { syntax_map = []; unique_count = ref 0 }
+
 let (<<?) p q = attempt (p << q)
 let (>>=?) p q = attempt (p >>= q)
 
@@ -52,8 +55,10 @@ let with_range p = empty >>?
   get_pos |>> fun (_index, line2, col2) ->
     (x, Range ((line1, col1), (line2, col2))))
 
+let add_syntax pair state = { state with syntax_map = pair :: state.syntax_map }
+
 let record kind p = with_range p >>=
-  fun (f, range) -> update_user_state (cons (kind f, range)) >>$ f
+  fun (f, range) -> update_user_state (add_syntax (kind f, range)) >>$ f
 
 let record_formula = record mk_formula_syntax
 let record_type = record mk_type_syntax
@@ -61,6 +66,21 @@ let record_type = record mk_type_syntax
 (* types *)
 
 let infix sym f assoc = Infix (str sym >>$ f, assoc)
+
+let const_op p sym =
+  record_formula (p >>
+    get_user_state |>> fun st ->
+    incr st.unique_count;
+    (* We append a unique integer to the unknown type "?" here to force different
+     * syntactic occurrences to be distinct objects, so they will have distinct
+     * positions for error reporting. *)
+    Const (sym, unknown_type_n !(st.unique_count)))
+
+let infix_binop1 p sym assoc =
+  Infix ((const_op p sym |>> fun const ->
+            fun f g -> apply [const; f; g]), assoc)
+
+let infix_binop sym assoc = infix_binop1 (str sym) sym assoc
 
 let type_operators = [
   [ infix "⨯" (fun t u -> Product (t, u)) Assoc_right ];
@@ -141,12 +161,12 @@ and terms s = (term >>= fun t -> many_fold_left (binop_unknown "·") t next_term
 
 and operators = [
   [ Prefix (minus >>$ unary_minus) ];
-  [ infix "·" (binop_unknown "·") Assoc_left ];
-  [ infix "+" (binop_unknown "+") Assoc_left;
-    Infix (minus >>$ binop_unknown "-", Assoc_left) ];
-  [ infix "∈" (binop_unknown "∈") Assoc_none ];
+  [ infix_binop "·" Assoc_left ];
+  [ infix_binop "+" Assoc_left;
+    infix_binop1 minus "-" Assoc_left ];
+  [ infix_binop "∈" Assoc_none ];
   [ infix "=" mk_eq Assoc_right ; infix "≠" mk_neq Assoc_right ] @
-      map compare_op ["<"; "≤"; ">"; "≥"] @
+      map (fun op -> infix_binop op Assoc_right) ["<"; "≤"; ">"; "≥"] @
       [ infix "≮" mk_not_less Assoc_right ]
 ]
 
@@ -374,4 +394,6 @@ let theorem_group =
 let program =
   many (axiom_group <|> definition <|> theorem_group) << empty << eof |>> concat
 
-let parse text = MParser.parse_string (pair program get_user_state) text []
+let get_syntax_map = get_user_state |>> fun state -> state.syntax_map
+
+let parse text = MParser.parse_string (pair program get_syntax_map) text empty_state

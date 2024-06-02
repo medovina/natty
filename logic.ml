@@ -34,6 +34,11 @@ let mk_base_type = function
   | id -> Base id
 
 let unknown_type = Base "?"
+let unknown_type_n n = Base (sprintf "?%d" n)
+
+let is_unknown = function
+  | Base id -> id.[0] = '?'
+  | _ -> false
 
 let rec arity = function
   | Fun (_, typ) -> 1 + arity typ

@@ -17,7 +17,7 @@ let rec check_type env typ = match typ with
   | Fun (t, u) | Product (t, u) ->
       check_type env t; check_type env u
   | Base id ->
-      if typ <> unknown_type && not (mem (TypeDecl id) env) then
+      if not (is_unknown typ) && not (mem (TypeDecl id) env) then
         type_error ("undefined type " ^ id) typ
       else ()
 
@@ -41,7 +41,7 @@ let rec subtype t u = t = u || match t, u with
 let rec possible_types env dot_types vars =
   let rec possible formula = match formula with
     | Const (id, typ) ->
-        if typ = unknown_type then const_types formula env id
+        if is_unknown typ then const_types formula env id
         else [typ]
     | Var (id, _) -> (
         match assoc_opt id vars with
@@ -105,7 +105,7 @@ let check_formula env =
         | _ -> error ("ambiguous as type " ^ show_type as_type) formula in
     match formula with
       | Const (id, typ) ->
-          if typ = unknown_type then find_const id
+          if is_unknown typ then find_const id
           else if typ = as_type then Const (id, as_type)
           else error "type_mismatch" formula
       | Var (id, _) -> (
@@ -292,7 +292,10 @@ let rec encode_stmts known_tuple_types = function
 let rec syntax_pos item = function
   | [] -> None
   | (s, range) :: ss ->
-      if syntax_ref_eq s item then Some range else syntax_pos item ss
+      if syntax_ref_eq s item then (
+        assert (syntax_pos item ss = None);
+        Some range)
+      else syntax_pos item ss
 
 let check_program _debug from_thf origin_map stmts =
   debug := _debug;
