@@ -199,7 +199,7 @@ Proof.
     i + (−i) = z(a, b) + −z(a, b)
                 = z(a, b) + z(b, a)
                 = z(a + b, b + a)
-                = z(0, 0)                     by Axiom 4(a)
+                = z(0, 0)     by Axiom 4(a)
                 = 0.
 
 Axiom 7.  There is a binary operation · : ℤ → ℤ → ℤ such that for all a, b, c, d ∈ ℕ,
@@ -249,12 +249,12 @@ Proof.
 
 Theorem 11.  Let i, j ∈ ℕ.  If ij = 0, then i = 0 or j = 0.
 
-# Proof.
+Proof.
 
-#   Let i, j ∈ ℤ.  Suppose that ij = 0 and that i ≠ 0.  We will deduce that j = 0.  There are some a, b, c, d ∈ ℕ such that i = z(a, b) and j = z(c, d).  So by Axiom 7 we see that ij = z(ac + bd, ad + bc).  It then follows from Lemma 8 that a ≠ b and ac + bd = ad + bc.  By Theorem 6.1 we know that either a < b or a > b.
+  Let i, j ∈ ℤ.  Suppose that ij = 0 and that i ≠ 0.  We will deduce that j = 0.  There are some a, b, c, d ∈ ℕ such that i = z(a, b) and j = z(c, d).  So by Axiom 7 we see that ij = z(ac + bd, ad + bc).  It then follows from Lemma 8 that a ≠ b and ac + bd = ad + bc.  By Theorem 6.1 we know that either a < b or a > b.
   
-#   First, suppose that a < b.  Then there is some g ∈ ℕ such that a + g = b.  Hence ac + (a + g)d = ad + (a + g)c.  So ac + ad + gd = ad + ac + gc, so gd = gc.  Since a ≠ b, we must have g ≠ 0, and we deduce that d = c.
+  First, suppose that a < b.  Then there is some g ∈ ℕ such that a + g = b.  Hence ac + (a + g)d = ad + (a + g)c.  So ac + ad + gd = ad + ac + gc, so gd = gc.  Since a ≠ b, we must have g ≠ 0, and we deduce that d = c.
 
-#   Next, suppose that a > b.  Then there is some g ∈ ℕ such that b + g = a.  Hence (b + g)c + bd = (b + g)d + bc.  So bc + gc + bd = bd + gd + bc, so gc = gd.  Since a ≠ b, we must have g ≠ 0, and we deduce that c = d.  
+  Next, suppose that a > b.  Then there is some g ∈ ℕ such that b + g = a.  Hence (b + g)c + bd = (b + g)d + bc.  So bc + gc + bd = bd + gd + bc, so gc = gd.  Since a ≠ b, we must have g ≠ 0, and we deduce that c = d.  
 
-#   In either case c = d.  Lemma 8 then implies that j = 0.
+  In either case c = d.  Then j = 0 by Lemma 8.

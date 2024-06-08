@@ -123,19 +123,20 @@ let have = any_str
    "we conclude that"; "we deduce that"; "we have";
    "we know that"; "we must have"; "we see that"] <|>
    (any_str ["it follows"; "it then follows"] >>
-      optional reason >> str "that")
+      optional ((str "from" >> reference) <|> reason) >>
+      str "that")
 
-let so_or_have = so <|> (optional reason >> have)
+let new_phrase = so <|> (optional reason >> have) <|> str "that"
 
-let comma_and = str "," >>? str "and" <<? not_followed_by so_or_have ""
+let and_op = str "and" <<? not_followed_by new_phrase ""
 
 let prop_operators = [
-  [ infix "and" _and Assoc_left ];
+  [ Infix (and_op >>$ _and, Assoc_left) ];
   [ infix "or" _or Assoc_left ];
   [ infix "implies" implies Assoc_right ];
   [ Postfix (str "for all" >> id_type |>> _for_all') ];
   [ infix "if and only if" _iff Assoc_right ];
-  [ Infix (comma_and >>$ _and, Assoc_left) ];
+  [ Infix (str "," >>? and_op >>$ _and, Assoc_left) ];
   [ Infix (str "," >>? str "or" >>$ _or, Assoc_left) ];
 ]
 
@@ -338,9 +339,13 @@ let proof_if_prop = with_range (triple
 
 let and_or_so = (str "and" << optional so) <|> so
 
+let will_show = choice [
+  str "We will" >> (str "show" <|> str "deduce") >> str "that";
+  str "We start by showing that"]
+
 let assert_step = proof_if_prop <|> (choice [
   pipe2 (str "Since" >> proof_prop) (str "," >> proof_prop) (@);
-  any_str ["We will show that"; "We start by showing that"] >> proposition >>$ [];
+  will_show >> proposition >>$ [];
   optional and_or_so >> proof_prop
   ] |>> map_fst mk_step)
 
@@ -350,7 +355,7 @@ let assert_steps =
 
 let now = (str "First" >>$ false) <|>
   (any_str ["Conversely"; "Finally"; "Next"; "Now";
-            "Putting the cases together"] >>$ true)
+            "In either case"; "Putting the cases together"] >>$ true)
 
 let let_step = pipe2 
   (with_range (str "let" >> ids_type) |>>

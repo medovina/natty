@@ -20,7 +20,7 @@ reference =
     ('axiom' | 'lemma' | 'theorem') theorem_num |
     'part (' number ')' ['of this theorem']
 
-reason = 'by' ( theorem_ref | 'hypothesis')
+reason = 'by' ( reference | 'hypothesis')
 
 (* terms *)
 
@@ -119,7 +119,8 @@ definition = 'Definition.'
 
 so = 'hence' | 'so' | 'then' | 'therefore' | 'which implies' ['that']
     
-have = 'clearly' | 'it' ['then'] 'follows' [reason] 'that' |
+have = 'clearly' |
+    'it' ['then'] 'follows' ['from' reference | reason] 'that' |
     'the only alternative is' |
     'we conclude that' | 'we deduce that' | 'we have' | 'we know that' |
     'we must have' | 'we see that'
@@ -135,16 +136,19 @@ proof_if_prop = 'if' small_prop [','] 'then' proof_prop {',' so proof_prop}
 
 and_or_so = 'and' [so] | so
 
+will_show =
+    'We will' ('show' | 'deduce') 'that' | 'We start by showing that'
+
 assert_step =
     proof_if_prop |
     'Since' proof_prop ',' proof_prop |
-    ('We will show that' | 'We start by showing that') proposition |
+    will_show proposition |
     [and_or_so] proof_prop
 
 assert_steps = assert_step {',' and_or_so proof_prop}
 
 now = 'Conversely' | 'First' | 'Finally' | 'Next' | 'Now' |
-    'Putting the cases together'
+    'In either case' | 'Putting the cases together'
 
 let_step = 'let' ids_type ['with' small_prop]
 
