@@ -420,23 +420,10 @@ let unify_or_match is_unify =
 let unify = unify_or_match true
 let try_match = unify_or_match false
 
-let chainable = ["<"; "≤"; ">"; "≥"]
-
-let chain_ops f =
-  let rec collect = function
-    | Eq (f, g) -> prepend f mk_eq g
-    | App (App (Const (op, _), f), g) when mem op chainable ->
-        prepend f (binop_unknown op) g
-    | g -> ([g], [])
-  and prepend f op g =
-    let (terms, ops) = collect g in (f :: terms, op :: ops) in
-  let rec pairs = function
-    | (f :: g :: terms, op :: ops) ->
-        op f g :: pairs (g :: terms, ops)
-    | ([_f], []) -> []
-    | _ -> failwith "pairs" in
-  let (terms, ops) = collect f in
-  if ops = [] then f else fold_right1 _and (pairs (terms, ops))
+let rec chain_ops (f, ops_exprs) = match ops_exprs with
+  | [] -> f
+  | [(op, g)] -> op f g
+  | (op, g) :: ops_exprs -> _and (op f g) (chain_ops (g, ops_exprs))
 
 let expand_multi_eq f =
   let rec expand = function

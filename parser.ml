@@ -32,7 +32,11 @@ let opt_str s = optional (str s)
 
 let any_str ss = choice (map str ss)
 
-let var = empty >>? (letter |>> char_to_string)
+let parens s = str "(" >> s << str ")"
+
+let letter1 = letter |>> char_to_string
+
+let var = empty >>? letter1
 
 let id = var <|> any_str ["𝔹"; "ℕ"; "ℤ"]
 
@@ -74,11 +78,11 @@ let const_op p sym =
     (* We append a unique integer to the unknown type "?" here to force different
      * syntactic occurrences to be distinct objects, so they will have distinct
      * positions for error reporting. *)
-    Const (sym, unknown_type_n !(st.unique_count)))
+    Const (sym, unknown_type_n !(st.unique_count))) |>> fun const ->
+      fun f g -> apply [const; f; g]
 
 let infix_binop1 p sym assoc =
-  Infix ((const_op p sym |>> fun const ->
-            fun f g -> apply [const; f; g]), assoc)
+  Infix (const_op p sym, assoc)
 
 let infix_binop sym assoc = infix_binop1 (str sym) sym assoc
 
@@ -98,16 +102,18 @@ let id_opt_type = pair id (opt unknown_type (of_type >> typ))
 
 let ids_type = pair (sep_by1 id (str ",")) (of_type >> typ)
 
-(* operators for small propositions *)
+(* reasons *)
 
 let theorem_num =
-  number >> (many (char '.' >>? number)) >>$ "" 
+  number >> (many (char '.' >>? number)) >> optional (parens letter) >>$ "" 
 
-let theorem_ref = choice [
-  any_str ["lemma"; "theorem"] >> theorem_num;
-  str "part" >> str "(" >> number << str ")" << opt_str "of this theorem" ]
+let reference = choice [
+  any_str ["axiom"; "lemma"; "theorem"] >> theorem_num;
+  str "part" >> parens number << opt_str "of this theorem" ]
 
-let reason = str "by" >>? (theorem_ref <|> str "hypothesis")
+let reason = str "by" >>? (reference <|> str "hypothesis")
+
+(* operators for small propositions *)
 
 let so = any_str ["hence"; "so"; "then"; "therefore"] <|>
   (str "which implies" << opt_str "that")
@@ -148,7 +154,7 @@ let rec term s = (record_formula @@ choice [
   pipe2 (record_formula var_term <<? str "(")
     (sep_by1 expr (str ",") << str ")") tuple_apply;
   var_term;
-  str "(" >> expr << str ")";
+  parens expr;
   pipe3 (str "{" >> var) (of_type >> typ) (str "|" >> proposition << str "}")
     (fun var typ expr -> Lambda (var, typ, expr))
  ]) s
@@ -164,13 +170,20 @@ and operators = [
   [ infix_binop "·" Assoc_left ];
   [ infix_binop "+" Assoc_left;
     infix_binop1 minus "-" Assoc_left ];
-  [ infix_binop "∈" Assoc_none ];
-  [ infix "=" mk_eq Assoc_right ; infix "≠" mk_neq Assoc_right ] @
-      map (fun op -> infix_binop op Assoc_right) ["<"; "≤"; ">"; "≥"] @
-      [ infix "≮" mk_not_less Assoc_right ]
+  [ infix_binop "∈" Assoc_none ]
 ]
 
-and expr s = (record_formula (expression operators terms |>> chain_ops)) s
+and base_expr s = expression operators terms s
+
+and eq_op s = choice ([
+  str "=" >>$ mk_eq;
+  str "≠" >>$ mk_neq;
+  str "≮" >>$ mk_not_less] @
+  map (fun op -> const_op (str op) op) ["<"; "≤"; ">"; "≥"]) s
+
+and eq_expr s = pair eq_op (base_expr << optional reason) s
+
+and expr s = record_formula (pair base_expr (many eq_expr) |>> chain_ops) s
 
 and atomic s =
   (expr << optional (any_str ["is true"; "always holds"])) s
@@ -240,7 +253,7 @@ let label =
 let top_sentence = with_range (top_prop << str ".")
 
 let proposition_item = triple
-  label top_sentence (option (str "(" >> word << str ")"))
+  label top_sentence (option (parens word))
 
 let prop_items = many1 proposition_item
 
@@ -307,7 +320,7 @@ let opt_contra = opt []
   (str "," >>? with_range (opt_str "which is " >>?
     optional (any_str ["again"; "also"; "similarly"]) >>?
     str "a contradiction" >>
-    (optional (str "to" >> theorem_ref))) |>>
+    (optional (str "to" >> reference))) |>>
       fun (_, range) -> [(_false, range)])
 
 let proof_prop = pipe2 (choice [

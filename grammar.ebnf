@@ -12,6 +12,16 @@ id_opt_type = id [of_type typ]
 
 ids_type = id {',' id}+ of_type typ
 
+(* reasons *)
+
+theorem_num = number {'.' number} ['(' letter ')']
+
+reference =
+    ('axiom' | 'lemma' | 'theorem') theorem_num |
+    'part (' number ')' ['of this theorem']
+
+reason = 'by' ( theorem_ref | 'hypothesis')
+
 (* terms *)
 
 term =
@@ -22,9 +32,13 @@ terms = term+
 
 (* expressions *)
 
-op = '·' | '+' | '∈' | '=' | '≠' | '<' | '≤' | '>' | '≥' | '≮'
+op = '·' | '+' | '-' | '∈'
 
-expr = terms | expr op expr
+base_expr = terms | base_expr op base_expr
+
+eq_op = '=' | '≠' | '<' | '≤' | '>' | '≥' | '≮'
+
+expr = base_expr { eq_op base_expr [reason] }
 
 atomic = expr ['is true' | 'always holds']
 
@@ -101,14 +115,6 @@ definition = 'Definition.'
     ({eq_definition}+ | for_all_ids {relation_definition})
 
 (* proofs *)
-
-theorem_num = number {'.' number}
-
-theorem_ref =
-    ('lemma' | 'theorem') theorem_num |
-    'part (' number ')' ['of this theorem']
-
-reason = 'by' ( theorem_ref | 'hypothesis')
 
 so = 'hence' | 'so' | 'then' | 'therefore' | 'which implies' ['that']
     
