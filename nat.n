@@ -159,6 +159,8 @@ Definition.  Let 0 : ℤ = z(0, 0).  Let 1 : ℤ = z(1, 0).
 
 Lemma 8.  For all a, b ∈ ℕ, z(a, b) = 0 if and only if a = b.
 
+Lemma 9.  0 : ℤ ≠ 1 : ℤ.
+
 Axiom 5.  There is a binary operation + : ℤ → ℤ → ℤ such that for all a, b, c, d ∈ ℕ,
 
     z(a, b) + z(c, d) = z(a + c, b + d).
@@ -167,7 +169,7 @@ Axiom 6.  There is a unary operation − : ℤ → ℤ such that for all a, b �
 
   −z(a, b) = z(b, a).
 
-Theorem 9.  Let i, j, k ∈ ℤ.
+Theorem 10.  Let i, j, k ∈ ℤ.
 
   1. (i + j) + k = i + (j + k).
   2. i + j = j + i.
@@ -206,7 +208,7 @@ Axiom 7.  There is a binary operation · : ℤ → ℤ → ℤ such that for all
 
     z(a, b) · z(c, d) = z(ac + bd, ad + bc).
 
-Theorem 10.  Let i, j, k ∈ ℤ.
+Theorem 11.  Let i, j, k ∈ ℤ.
 
   1. (ij)k = i(jk).
   2. ij = ji.
@@ -247,7 +249,7 @@ Proof.
                 = z(a, b) · z(c, d) + z(a, b) · z(e, f)
                 = ij + ik.
 
-Theorem 11.  Let i, j ∈ ℕ.  If ij = 0, then i = 0 or j = 0.
+Theorem 12.  Let i, j ∈ ℕ.  If ij = 0, then i = 0 or j = 0.
 
 Proof.
 
@@ -258,3 +260,16 @@ Proof.
   Next, suppose that a > b.  Then there is some g ∈ ℕ such that b + g = a.  Hence (b + g)c + bd = (b + g)d + bc.  So bc + gc + bd = bd + gd + bc, so gc = gd.  Since a ≠ b, we must have g ≠ 0, and we deduce that c = d.  
 
   In either case c = d.  Then j = 0 by Lemma 8.
+
+Axiom 8.  There is a relation < : ℤ → ℤ → 𝔹 such that for all a, b, c, d ∈ ℕ,
+
+    z(a, b) < z(c, d) if and only if a + d < b + c.
+
+Definition.  For all i, j ∈ ℤ, we write i > j iff j < i.
+
+Theorem 13.  Let i, j, k ∈ ℤ.
+
+  1. Precisely one of i < j or i = j or i > j holds.
+  2. If i < j and j < k, then i < k.
+  3. If i < j then i + k < j + k.
+  4. If i < j and k > 0, then ik < jk.

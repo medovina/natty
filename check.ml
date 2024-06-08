@@ -51,6 +51,8 @@ let rec possible_types env dot_types vars =
         let+ t = possible f in
         let+ u = possible g in
         [Product (t, u)]
+    | App (Const (":", Fun (t, t')), _) ->
+        assert (t = t'); [t]
     | App (App (Const ("∈", _), _), _) -> [Bool]
     | App (f, g) -> unique @@
         possible_app env dot_types vars formula f g true |>
@@ -120,6 +122,8 @@ let check_formula env =
                 apply [Const ("(,)", tuple_cons_type t u);
                        check vars f t; check vars g u]
             | _ -> error "type mismatch" formula)
+      | App (Const (":", Fun (t, t')), f) ->
+          assert (t = t'); check vars f t
       | App (App (Const ("∈", _), f), g) -> check_app g f false
       | App (f, g) -> check_app f g true
       | Lambda (id, typ, f) -> (

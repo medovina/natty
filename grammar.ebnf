@@ -32,9 +32,12 @@ terms = term+
 
 (* expressions *)
 
-op = '·' | '+' | '-' | '∈'
+binary_op = '·' | '+' | '-' | '∈'
 
-base_expr = terms | base_expr op base_expr
+base_expr = terms |
+    base_expr binary_op base_expr |
+    '-' base_expr |
+    base_expr ':' typ
 
 eq_op = '=' | '≠' | '<' | '≤' | '>' | '≥' | '≮'
 
@@ -97,7 +100,7 @@ propositions = [for_all_ids] top_prop_or_items
 
 (* axioms *)
 
-operation = 'a' ['binary' | 'unary'] 'operation'
+operation = ('a' | 'an') ['binary' | 'unary'] ('operation' | 'relation')
 
 axiom_decl = 'a type' id |
     (('an element' | 'a function' | operation) id_or_sym of_type typ)

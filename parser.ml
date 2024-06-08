@@ -150,6 +150,9 @@ let var_term = var |>> (fun v -> Var (v, unknown_type))
 
 let unary_minus f = App (Const ("-", unknown_type), f)
 
+let ascribe typ f =
+  App (Const (":", Fun (typ, typ)), f)
+
 let rec term s = (record_formula @@ choice [
   (sym |>> fun c -> Const (c, unknown_type));
   pipe2 (record_formula var_term <<? str "(")
@@ -167,6 +170,7 @@ and terms s = (term >>= fun t -> many_fold_left (binop_unknown "·") t next_term
 (* expressions *)
 
 and operators = [
+  [ Postfix (str ":" >> typ |>> ascribe) ];
   [ Prefix (minus >>$ unary_minus) ];
   [ infix_binop "·" Assoc_left ];
   [ infix_binop "+" Assoc_left;
@@ -269,7 +273,9 @@ let propositions =
 
 (* axioms *)
 
-let operation = str "a" >>? any_str ["binary"; "unary"] << str "operation"
+let operation =
+  any_str ["a"; "an"] >>? optional (any_str ["binary"; "unary"]) >>
+    any_str ["operation"; "relation"]
 
 let axiom_decl =
   str "a type" >> id |>> (fun id -> TypeDecl id) <|>
