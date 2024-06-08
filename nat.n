@@ -1,3 +1,5 @@
+# Natural numbers
+
 Axiom 1.  There exists a type ℕ with an element 0 ∈ ℕ and a function s : ℕ → ℕ such that
 
   a. There is no n ∈ ℕ such that s(n) = 0.
@@ -146,12 +148,16 @@ Proof.
 
   5. Let a, b, c ∈ ℕ, and suppose that ac < bc.  If c = 0 then 0 < 0, which is a contradiction.  So c ≠ 0.  If a = b then bc < bc, a contradiction.  If b < a then bc < ac by part (4) of this theorem, so bc < ac < bc, also a contradiction.  By Theorem 6.1, the only alternative is a < b.
 
+# Integers
+
 Axiom 4.  There exists a type ℤ with a function z : ℕ ⨯ ℕ → ℤ such that
 
   a. For all a, b, c, d ∈ ℕ, z(a, b) = z(c, d) if and only if a + d = b + c.
   b. For all x ∈ ℤ, there exist some a, b ∈ ℕ such that x = z(a, b).
 
 Definition.  Let 0 : ℤ = z(0, 0).  Let 1 : ℤ = z(1, 0).
+
+Lemma 8.  For all a, b ∈ ℕ, z(a, b) = 0 if and only if a = b.
 
 Axiom 5.  There is a binary operation + : ℤ → ℤ → ℤ such that for all a, b, c, d ∈ ℕ,
 
@@ -161,7 +167,7 @@ Axiom 6.  There is a unary operation − : ℤ → ℤ such that for all a, b �
 
   −z(a, b) = z(b, a).
 
-Theorem 8.  Let i, j, k ∈ ℤ.
+Theorem 9.  Let i, j, k ∈ ℤ.
 
   1. (i + j) + k = i + (j + k).
   2. i + j = j + i.
@@ -193,5 +199,62 @@ Proof.
     i + (−i) = z(a, b) + −z(a, b)
                 = z(a, b) + z(b, a)
                 = z(a + b, b + a)
-                = z(0, 0)
+                = z(0, 0)                     by Axiom 4(a)
                 = 0.
+
+Axiom 7.  There is a binary operation · : ℤ → ℤ → ℤ such that for all a, b, c, d ∈ ℕ,
+
+    z(a, b) · z(c, d) = z(ac + bd, ad + bc).
+
+Theorem 10.  Let i, j, k ∈ ℤ.
+
+  1. (ij)k = i(jk).
+  2. ij = ji.
+  3. i · 1 = i.
+  4. i(j + k) = ij + ik.
+  
+Proof.
+
+  1. Let i, j, k ∈ ℤ.  There are some a, b, c, d, e, f ∈ ℕ such that i = z(a, b) and j = z(c, d) and k = z(e, f).  Then
+
+    (ij)k = (z(a, b) · z(c, d)) · z(e, f)
+          = z(ac + bd, ad + bc) · z(e, f)
+          = z((ac + bd)e + (ad + bc)f, (ac + bd)f + (ad + bc)e)
+          = z(ace + bde + adf + bcf, acf + bdf + ade + bce)
+          = z(ace + adf + bcf + bde, acf + ade + bce + bdf)
+          = z(a(ce + df) + b(cf + de), a(cf + de) + b(ce + df))
+          = z(a, b) · z(ce + df, cf + de)
+          = z(a, b) · (z(c, d) · z(e, f))
+          = i(jk).
+
+  2. Let i, j ∈ ℤ.  Then there are some a, b, c, d ∈ ℕ such that i = z(a, b) and j = z(c, d).  Then
+
+    ij = z(a, b) · z(c, d)
+      = z(ac + bd, ad + bc)
+      = z(ca + db, cb + da)
+      = z(c, d) · z(a, b)
+      = ji.
+
+
+  4. Let i, j, k ∈ ℤ.  There are some a, b, c, d, e, f ∈ ℕ such that i = z(a, b) and j = z(c, d) and k = z(e, f).  Then
+
+    i(j + k) = z(a, b) · (z(c, d) + z(e, f))
+                = z(a, b) · z(c + e, d + f)
+                = z(a(c + e) + b(d + f), a(d + f) + b(c + e))
+                = z(ac + ae + bd + bf, ad + af + bc + be)
+                = z(ac + bd + ae + bf, ad + bc + af + be)
+                = z(ac + bd, ad + bc) + z(ae + bf, af + be)
+                = z(a, b) · z(c, d) + z(a, b) · z(e, f)
+                = ij + ik.
+
+Theorem 11.  Let i, j ∈ ℕ.  If ij = 0, then i = 0 or j = 0.
+
+# Proof.
+
+#   Let i, j ∈ ℤ.  Suppose that ij = 0 and that i ≠ 0.  We will deduce that j = 0.  There are some a, b, c, d ∈ ℕ such that i = z(a, b) and j = z(c, d).  So by Axiom 7 we see that ij = z(ac + bd, ad + bc).  It then follows from Lemma 8 that a ≠ b and ac + bd = ad + bc.  By Theorem 6.1 we know that either a < b or a > b.
+  
+#   First, suppose that a < b.  Then there is some g ∈ ℕ such that a + g = b.  Hence ac + (a + g)d = ad + (a + g)c.  So ac + ad + gd = ad + ac + gc, so gd = gc.  Since a ≠ b, we must have g ≠ 0, and we deduce that d = c.
+
+#   Next, suppose that a > b.  Then there is some g ∈ ℕ such that b + g = a.  Hence (b + g)c + bd = (b + g)d + bc.  So bc + gc + bd = bd + gd + bc, so gc = gd.  Since a ≠ b, we must have g ≠ 0, and we deduce that c = d.  
+
+#   In either case c = d.  Lemma 8 then implies that j = 0.

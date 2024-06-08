@@ -238,12 +238,13 @@ and proposition s = choice [
 
 let rec let_prop s = pipe2 (str "Let" >> id_type << str ".") top_prop _for_all' s
 
-and suppose s = pipe2
-  (str "Suppose that" >> sep_by1 proposition (str ", and that") << str ".")
-  (str "Then" >> proposition)
+and suppose s = (str "Suppose that" >>
+      sep_by1 proposition (opt_str "," >> str "and that")) s
+
+and suppose_then s = pipe2 (suppose << str ".") (str "Then" >> proposition)
   (fold_right implies) s
 
-and top_prop s = (let_prop <|> suppose <|> proposition) s
+and top_prop s = (let_prop <|> suppose_then <|> proposition) s
 
 (* proposition lists *)
 
@@ -363,8 +364,8 @@ let let_val_step =
     fun (((id, typ), f), range) -> (LetVal (id, typ, f), range)
 
 let assume_step =
-  with_range (str "Suppose that" >> proposition) |>>
-    fun (f, range) -> (Assume f, range)
+  with_range suppose |>>
+    fun (fs, range) -> (Assume (fold_left1 _and fs), range)
 
 let let_or_assume =
   single let_val_step <|> let_step <|> single assume_step
@@ -396,7 +397,7 @@ let proofs = str "Proof." >> choice [
 
 let theorem_group =
   ((str "Lemma" <|> str "Theorem") >> int << str ".") >>= fun n -> 
-  str "Let" >> ids_type << str "." >>=
+  opt ([], Bool) (str "Let" >> ids_type << str ".") >>=
   fun ids_typ -> pipe2 (top_prop_or_items ids_typ) (opt [] proofs)
     (fun props proofs ->
       props |> map (fun (label, f, _name, range) ->
