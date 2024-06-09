@@ -20,7 +20,7 @@ reference =
     ('axiom' | 'lemma' | 'theorem') theorem_num |
     'part (' number ')' ['of this theorem']
 
-reason = 'by' ( reference | 'hypothesis')
+reason = (('by' | 'using') reference) | 'by hypothesis'
 
 (* terms *)
 
@@ -63,9 +63,11 @@ for_all_prop = for_all_ids proposition
 
 there_exists = 'There' ('is' | 'are' | 'exists' | 'exist')
 
-exists_prop = there_exists ('some' | 'no') ids_type 'such that' proposition
+exists_prop =
+    there_exists ['some' | 'no'] ids_type ['with' small_prop]
+    'such that' proposition
 
-precisely_prop = 'Precisely one of' small_prop 'holds'
+precisely_prop = ('Exactly' | 'Precisely') 'one of' small_prop 'holds'
 
 cannot_prop = 'It cannot be that' proposition
 
@@ -120,7 +122,8 @@ definition = 'Definition.'
 
 (* proofs *)
 
-so = 'hence' | 'so' | 'then' | 'therefore' | 'which implies' ['that']
+so = 'hence' | 'so' | 'then' | 'therefore' |
+    'which implies' ['that'] | 'which means that'
     
 have = 'clearly' |
     'it' ['then'] 'follows' ['from' reference | reason] 'that' |
@@ -146,6 +149,7 @@ assert_step =
     proof_if_prop |
     'Since' proof_prop ',' proof_prop |
     will_show proposition |
+    'The result follows' reason |
     [and_or_so] proof_prop
 
 assert_steps = assert_step {',' and_or_so proof_prop}

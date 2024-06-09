@@ -13,8 +13,6 @@ let empty_state = { syntax_map = []; unique_count = ref 0 }
 let (<<?) p q = attempt (p << q)
 let (>>=?) p q = attempt (p >>= q)
 
-let opt_fold p q f = p >>= fun x -> opt x (q |>> f x)
-
 let comment = char '#' << skip_many_until any_char newline
 
 let empty = skip_many (space <|> comment)
@@ -111,11 +109,13 @@ let reference = choice [
   any_str ["axiom"; "lemma"; "theorem"] >> theorem_num;
   str "part" >> parens number << opt_str "of this theorem" ]
 
-let reason = str "by" >>? (reference <|> str "hypothesis")
+let reason =
+  (any_str ["by"; "using"] >>? reference) <|> str "by hypothesis"
 
 (* operators for small propositions *)
 
-let so = any_str ["hence"; "so"; "then"; "therefore"] <|>
+let so =
+  any_str ["hence"; "so"; "then"; "therefore"; "which means that"] <|>
   (str "which implies" << opt_str "that")
 
 let have = any_str 
@@ -216,18 +216,20 @@ and for_all_prop s = pipe2
 and there_exists =
   str "There" >> any_str ["is"; "are"; "exists"; "exist"]
 
-and exists_prop s = pipe3
-  (there_exists >> ((str "some" >>$ true) <|> (str "no" >>$ false)))
-  ids_type (str "such that" >> proposition)
-  (fun some (ids, typ) p ->
+and exists_prop s = pipe4
+  (there_exists >> opt true ((str "some" >>$ true) <|> (str "no" >>$ false)))
+  ids_type (option (str "with" >> small_prop)) (str "such that" >> proposition)
+  (fun some (ids, typ) with_prop p ->
+    let p = opt_fold _and with_prop p in
     (if some then Fun.id else _not) (exists_vars_typ (ids, typ) p)) s
 
 and precisely_prop s = (
-  str "Precisely one of" >> small_prop << str "holds" |>> fun f ->
-    let gs = gather_or f in
-    assert (length gs > 1);
-    let ns = all_pairs gs |> map (fun (f, g) -> _not (_and f g)) in
-    fold_left1 _and (f :: ns)
+  any_str ["Exactly"; "Precisely"] >> str "one of" >> small_prop << str "holds" |>>
+    fun f ->
+      let gs = gather_or f in
+      assert (length gs > 1);
+      let ns = all_pairs gs |> map (fun (f, g) -> _not (_and f g)) in
+      fold_left1 _and (f :: ns)
   ) s
 
 and cannot_prop s = (
@@ -352,6 +354,7 @@ let will_show = choice [
 let assert_step = proof_if_prop <|> (choice [
   pipe2 (str "Since" >> proof_prop) (str "," >> proof_prop) (@);
   will_show >> proposition >>$ [];
+  str "The result follows" >> reason >>$ [];
   optional and_or_so >> proof_prop
   ] |>> map_fst mk_step)
 

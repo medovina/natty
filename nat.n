@@ -1,4 +1,4 @@
-# Natural numbers
+# Natural numbers: definition
 
 Axiom 1.  There exists a type ℕ with an element 0 ∈ ℕ and a function s : ℕ → ℕ such that
 
@@ -9,6 +9,8 @@ Axiom 1.  There exists a type ℕ with an element 0 ∈ ℕ and a function s : �
 Definition.  Let 1 : ℕ = s(0).
 
 Lemma 1.  Let a ∈ ℕ.  Suppose that a ≠ 0.  Then there is some b ∈ ℕ such that a = s(b).
+
+# Natural numbers: addition
 
 Axiom 2.  There is a binary operation + : ℕ → ℕ → ℕ such that for all n, m ∈ ℕ,
 
@@ -25,6 +27,8 @@ Theorem 2.  Let a, b, c ∈ ℕ.
   6. a + s(b) ≠ 0.
   7. a + s(b) ≠ a.
   8. If a + b = 0, then a = 0 and b = 0.
+
+# Natural numbers: multiplication
 
 Axiom 3.  There is a binary operation · : ℕ → ℕ → ℕ such that for all n, m ∈ ℕ,
 
@@ -74,6 +78,8 @@ Proof.
 
   So s(b) ∈ G.  Hence x ∈ G for all x ∈ ℕ.
 
+# Cancellation of multiplication
+
 Theorem 4.  Let a, b, c ∈ ℕ.  If c ≠ 0 and ac = bc then a = b.
 
 Proof. Let
@@ -83,6 +89,8 @@ Proof. Let
   Let b, c ∈ ℕ with c ≠ 0 and 0 · c = bc. Then bc = 0.  Since c ≠ 0, we must have b = 0 by Theorem 3.8.  So 0 = b, and hence 0 ∈ G.
 
   Now let a ∈ ℕ, and suppose that a ∈ G.  Let b, c ∈ ℕ, and suppose that c ≠ 0 and s(a) · c = bc.  Then by Theorem 3.5 we deduce that ca + c = bc.  If b = 0, then either s(a) = 0 or c = 0, which is a contradiction.  Hence b ≠ 0.  By Lemma 1 there is some p ∈ ℕ such that b = s(p).  Therefore ca + c = s(p) · c, and we see that ca + c = cp + c.  It follows by Theorem 2.1 that ca = cp, so ac = pc.  By hypothesis it follows that a = p.  Therefore s(a) = s(p) = b.  Hence s(a) ∈ G, and we deduce that x ∈ G for all x ∈ ℕ.
+
+# Natural numbers: inequalities
 
 Definition.  For all a, b ∈ ℕ, a ≤ b iff there is some c ∈ ℕ such that a + c = b.  a < b iff a ≤ b and a ≠ b.
 
@@ -124,6 +132,8 @@ Proof.
 
   Putting the cases together, we see that s(x) < y or s(x) = y or s(x) > y always holds.  Hence s(x) ∈ G, and we conclude that x ∈ G for all x ∈ ℕ.
 
+# More identities involving inequalities
+
 Theorem 7.  Let a, b, c ∈ ℕ.
 
   1. a < b if and only if s(a) < s(b).
@@ -148,7 +158,21 @@ Proof.
 
   5. Let a, b, c ∈ ℕ, and suppose that ac < bc.  If c = 0 then 0 < 0, which is a contradiction.  So c ≠ 0.  If a = b then bc < bc, a contradiction.  If b < a then bc < ac by part (4) of this theorem, so bc < ac < bc, also a contradiction.  By Theorem 6.1, the only alternative is a < b.
 
-# Integers
+Lemma 8.  Let a, b, c, d ∈ ℕ.  If a < b and c < d, then bc + ad < ac + bd.
+
+Proof.
+
+  Let a, b, c, d ∈ ℕ, and suppose that a < b and c < d.  Then there exist g, h ∈ ℕ with g > 0 and h > 0 such that b = a + g and d = c + h.  Then
+
+    ac + bd = ac + (a + g)(c + h)
+                = ac + ac + ah + gc + gh
+                = ac + gc + ac + ah + gh
+                = (a + g)c + a(c + h) + gh
+                = (bc + ad) + gh.
+
+   We must have gh > 0, and so ac + bd < bc + ad.
+
+# Integers: definition
 
 Axiom 4.  There exists a type ℤ with a function z : ℕ ⨯ ℕ → ℤ such that
 
@@ -157,9 +181,11 @@ Axiom 4.  There exists a type ℤ with a function z : ℕ ⨯ ℕ → ℤ such t
 
 Definition.  Let 0 : ℤ = z(0, 0).  Let 1 : ℤ = z(1, 0).
 
-Lemma 8.  For all a, b ∈ ℕ, z(a, b) = 0 if and only if a = b.
+Lemma 9.  For all a, b ∈ ℕ, z(a, b) = 0 if and only if a = b.
 
-Lemma 9.  0 : ℤ ≠ 1 : ℤ.
+Lemma 10.  0 : ℤ ≠ 1 : ℤ.
+
+# Integers: addition
 
 Axiom 5.  There is a binary operation + : ℤ → ℤ → ℤ such that for all a, b, c, d ∈ ℕ,
 
@@ -169,7 +195,7 @@ Axiom 6.  There is a unary operation − : ℤ → ℤ such that for all a, b �
 
   −z(a, b) = z(b, a).
 
-Theorem 10.  Let i, j, k ∈ ℤ.
+Theorem 11.  Let i, j, k ∈ ℤ.
 
   1. (i + j) + k = i + (j + k).
   2. i + j = j + i.
@@ -196,6 +222,13 @@ Proof.
           = z(c, d) + z(a, b)
           = j + i.
 
+  3. Let i ∈ ℤ.  Then there are some a, b ∈ ℕ such that i = z(a, b).  So
+
+    i + 0 = z(a, b) + z(0, 0)
+            = z(a + 0, b + 0)
+            = z(a, b)
+            = i.
+
   4. Let i ∈ ℤ.  Then there are some a, b ∈ ℕ such that i = z(a, b).  So
 
     i + (−i) = z(a, b) + −z(a, b)
@@ -204,11 +237,13 @@ Proof.
                 = z(0, 0)     by Axiom 4(a)
                 = 0.
 
+# Integers: multiplication
+
 Axiom 7.  There is a binary operation · : ℤ → ℤ → ℤ such that for all a, b, c, d ∈ ℕ,
 
     z(a, b) · z(c, d) = z(ac + bd, ad + bc).
 
-Theorem 11.  Let i, j, k ∈ ℤ.
+Theorem 12.  Let i, j, k ∈ ℤ.
 
   1. (ij)k = i(jk).
   2. ij = ji.
@@ -237,7 +272,6 @@ Proof.
       = z(c, d) · z(a, b)
       = ji.
 
-
   4. Let i, j, k ∈ ℤ.  There are some a, b, c, d, e, f ∈ ℕ such that i = z(a, b) and j = z(c, d) and k = z(e, f).  Then
 
     i(j + k) = z(a, b) · (z(c, d) + z(e, f))
@@ -249,7 +283,7 @@ Proof.
                 = z(a, b) · z(c, d) + z(a, b) · z(e, f)
                 = ij + ik.
 
-Theorem 12.  Let i, j ∈ ℕ.  If ij = 0, then i = 0 or j = 0.
+Theorem 13.  Let i, j ∈ ℤ.  If ij = 0, then i = 0 or j = 0.
 
 Proof.
 
@@ -261,15 +295,35 @@ Proof.
 
   In either case c = d.  Then j = 0 by Lemma 8.
 
+# Integers: inequalities
+
 Axiom 8.  There is a relation < : ℤ → ℤ → 𝔹 such that for all a, b, c, d ∈ ℕ,
 
     z(a, b) < z(c, d) if and only if a + d < b + c.
 
 Definition.  For all i, j ∈ ℤ, we write i > j iff j < i.
 
-Theorem 13.  Let i, j, k ∈ ℤ.
+Theorem 14.  Let i, j, k ∈ ℤ.
 
   1. Precisely one of i < j or i = j or i > j holds.
   2. If i < j and j < k, then i < k.
   3. If i < j then i + k < j + k.
   4. If i < j and k > 0, then ik < jk.
+
+Proof.
+
+  1. Let i, j ∈ ℤ.  Then there are some a, b, c, d ∈ ℕ such that i = z(a, b) and j = z(c, d).  By Theorem 6.1 we know that exactly one of a + d < b + c or a + d = b + c or a + d > b + c holds.  The result follows using Axiom 8.
+
+  2. Let i, j, k ∈ ℤ, and suppose that i < j and j < k.  There are some a, b, c, d, e, f ∈ ℕ such that i = z(a, b) and j = z(c, d) and k = z(e, f).  Then z(a, b) < z(c, d) and z(c, d) < z(e, f), so a + d < b + c and c + f < d + e.  It follows that a + d + f < b + c + f and b + c + f < b + d + e, so a + d + f < b + d + e.  Then a + f < b + e by Theorem 7.3, so i < k.
+
+  3. Let i, j, k ∈ ℤ, and suppose that i < j.  There are some a, b, c, d, e, f ∈ ℕ such that i = z(a, b) and j = z(c, d) and k = z(e, f).  Then z(a, b) < z(c, d), and therefore a + d < b + c.  Hence (a + d) + (e + f) < (b + c) + (e + f), and therefore (a + e) + (d + f) < (b + f) + (c + e).  It follows by Axiom 8 that z(a + e, b + f) < z(c + e, d + f), and hence z(a, b) + z(e, f) < z(c, d) + z(e, f), which means that i + k < j + k.
+
+  4. Let i, j, k ∈ ℤ, and suppose that i < j and k > 0.  There are some a, b, c, d, e, f ∈ ℕ such that i = z(a, b) and j = z(c, d) and k = z(e, f). So z(a, b) < z(c, d) and z(e, f) > 0, which means that a + d < b + c and f < e.  So by Lemma 8 we have
+  
+    (b + c)f + (a + d)e < (a + d)f + (b + c)e.
+
+  Then
+  
+    (ae + bf) + (cf + de) < (af + be) + (ce + df).
+    
+  So z(ae + bf, af + be) < z(ce + df, cf + de) by Axiom 8.  And so z(a, b) · z(e, f) < z(c, d) · z(e, f), so we have ik < jk.
