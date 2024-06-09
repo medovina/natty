@@ -5,12 +5,16 @@ from os import path
 timeout = default_timeout = 5
 timeout_suffix = ''
 eval_all = False
+only_theorems = False
 
 i = 1
 while i < len(sys.argv):
     arg = sys.argv[i]
     if arg == '-a':
         eval_all = True
+        i += 1
+    elif arg == '-h':
+        only_theorems = True
         i += 1
     elif arg.startswith('-t'):
         timeout = int(arg[2:])
@@ -97,7 +101,7 @@ class Group:
 
 thm_group = Group('theorems')
 step_group = Group('steps')
-groups = [thm_group, step_group]
+groups = [thm_group] if only_theorems else [thm_group, step_group]
 
 results = {}
 for file in files:
