@@ -18,7 +18,8 @@ theorem_num = number {'.' number} ['(' letter ')']
 
 reference =
     ('axiom' | 'lemma' | 'theorem') theorem_num |
-    'part (' number ')' ['of this theorem']
+    'part (' number ')' ['of this theorem'] |
+    'the definition of' var
 
 reason = (('by' | 'using') reference) | 'by hypothesis'
 
@@ -47,9 +48,17 @@ atomic = expr ['is true' | 'always holds']
 
 (* small propositions *)
 
+there_exists = 'There' ('is' | 'are' | 'exists' | 'exist')
+
+exists_prop =
+    there_exists ['some' | 'no'] ids_type ['with' small_prop]
+    'such that' small_prop
+
 prop_op = 'and' | 'or' | 'implies' | 'if and only if' | ', and' | ', or'
 
-small_prop = atomic | small_prop prop_op small_prop | small_prop 'for all' id_type
+small_prop =
+    atomic | exists_prop |
+    small_prop prop_op small_prop | small_prop 'for all' id_type
 
 (* propositions *)
 
@@ -61,18 +70,12 @@ for_all_ids = 'For all' ids_type ','
 
 for_all_prop = for_all_ids proposition
 
-there_exists = 'There' ('is' | 'are' | 'exists' | 'exist')
-
-exists_prop =
-    there_exists ['some' | 'no'] ids_type ['with' small_prop]
-    'such that' proposition
-
 precisely_prop = ('Exactly' | 'Precisely') 'one of' small_prop 'holds'
 
 cannot_prop = 'It cannot be that' proposition
 
 proposition =
-    for_all_prop | exists_prop | if_then_prop |
+    for_all_prop | if_then_prop |
     either_or_prop | precisely_prop | cannot_prop |
     small_prop
 
@@ -127,6 +130,7 @@ so = 'hence' | 'so' | 'then' | 'therefore' |
     
 have = 'clearly' |
     'it' ['then'] 'follows' ['from' reference | reason] 'that' |
+    'it is clear that'
     'the only alternative is' |
     'we conclude that' | 'we deduce that' | 'we have' | 'we know that' |
     'we must have' | 'we see that'
@@ -143,12 +147,16 @@ proof_if_prop = 'if' small_prop [','] 'then' proof_prop {',' so proof_prop}
 and_or_so = 'and' [so] | so
 
 will_show =
-    'We will' ('show' | 'deduce') 'that' | 'We start by showing that'
+    'We need to show that' |
+    'We start by showing that' |
+    'We will' ('show' | 'deduce') 'that'
+
+to_show = 'To show that' small_prop ','
 
 assert_step =
     proof_if_prop |
     'Since' proof_prop ',' proof_prop |
-    will_show proposition |
+    [to_show] will_show proposition |
     'The result follows' reason |
     [and_or_so] proof_prop
 

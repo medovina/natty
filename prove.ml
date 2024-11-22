@@ -857,7 +857,7 @@ let prove_all opts thf prog =
     | [] ->
         if (not thf) then
           if all_success then
-            printf "%s theorems were %sproved."
+            printf "%s theorems were %sproved.\n"
               (if opts.disprove then "No" else "All") dis
           else if opts.keep_going then
             printf "Some theorems were %sproved.\n" dis

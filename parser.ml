@@ -107,7 +107,9 @@ let theorem_num =
 
 let reference = choice [
   any_str ["axiom"; "lemma"; "theorem"] >> theorem_num;
-  str "part" >> parens number << opt_str "of this theorem" ]
+  str "part" >> parens number << opt_str "of this theorem";
+  str "the definition of" >> var
+  ]
 
 let reason =
   (any_str ["by"; "using"] >>? reference) <|> str "by hypothesis"
@@ -119,7 +121,7 @@ let so =
   (str "which implies" << opt_str "that")
 
 let have = any_str 
-  ["clearly"; "the only alternative is";
+  ["clearly"; "it is clear that"; "the only alternative is";
    "we conclude that"; "we deduce that"; "we have";
    "we know that"; "we must have"; "we see that"] <|>
    (any_str ["it follows"; "it then follows"] >>
@@ -195,7 +197,17 @@ and atomic s =
 
 (* small propositions *)
 
-and small_prop s = expression prop_operators atomic s
+and there_exists =
+  str "There" >> any_str ["is"; "are"; "exists"; "exist"]
+
+and exists_prop s = pipe4
+  (there_exists >> opt true ((str "some" >>$ true) <|> (str "no" >>$ false)))
+  ids_type (option (str "with" >> small_prop)) (str "such that" >> small_prop)
+  (fun some (ids, typ) with_prop p ->
+    let p = opt_fold _and with_prop p in
+    (if some then Fun.id else _not) (exists_vars_typ (ids, typ) p)) s
+
+and small_prop s = expression prop_operators (exists_prop <|> atomic) s
 
 (* propositions *)
 
@@ -213,16 +225,6 @@ and for_all_ids s = (str "For all" >> ids_type << str ",") s
 and for_all_prop s = pipe2
   for_all_ids proposition for_all_vars_typ s
 
-and there_exists =
-  str "There" >> any_str ["is"; "are"; "exists"; "exist"]
-
-and exists_prop s = pipe4
-  (there_exists >> opt true ((str "some" >>$ true) <|> (str "no" >>$ false)))
-  ids_type (option (str "with" >> small_prop)) (str "such that" >> proposition)
-  (fun some (ids, typ) with_prop p ->
-    let p = opt_fold _and with_prop p in
-    (if some then Fun.id else _not) (exists_vars_typ (ids, typ) p)) s
-
 and precisely_prop s = (
   any_str ["Exactly"; "Precisely"] >> str "one of" >> small_prop << str "holds" |>>
     fun f ->
@@ -236,7 +238,7 @@ and cannot_prop s = (
   str "It cannot be that" >> proposition |>> _not) s
 
 and proposition s = choice [
-  for_all_prop; exists_prop; if_then_prop;
+  for_all_prop; if_then_prop;
   either_or_prop; precisely_prop; cannot_prop;
   small_prop
 ] s
@@ -348,12 +350,16 @@ let proof_if_prop = with_range (triple
 let and_or_so = (str "and" << optional so) <|> so
 
 let will_show = choice [
-  str "We will" >> (str "show" <|> str "deduce") >> str "that";
-  str "We start by showing that"]
+  str "We need to show that";
+  str "We start by showing that";
+  str "We will" >> (str "show" <|> str "deduce") >> str "that"
+  ]
+
+let to_show = str "To show that" >> small_prop << str ","
 
 let assert_step = proof_if_prop <|> (choice [
   pipe2 (str "Since" >> proof_prop) (str "," >> proof_prop) (@);
-  will_show >> proposition >>$ [];
+  optional to_show >> will_show >> proposition >>$ [];
   str "The result follows" >> reason >>$ [];
   optional and_or_so >> proof_prop
   ] |>> map_fst mk_step)
