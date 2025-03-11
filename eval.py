@@ -93,8 +93,11 @@ class Group:
             out.write('\n')
             n = len(self.results)
 
-            proved[''] = f'proved (of {n})'
-            writer.writerow(proved)
+            proved_row = {'' : f'proved (of {n})'}
+            for p in provers:
+                percent = proved[p] / n * 100
+                proved_row[p] = f'{proved[p]} ({percent:.0f}%)'
+            writer.writerow(proved_row)
 
             avg_time = { prover : f'{t / proved[prover]:.2f}'
                          for prover, t in total_time.items() }
