@@ -5,40 +5,48 @@ from os import path
 timeout = default_timeout = 5
 timeout_suffix = ''
 eval_all = False
-only_theorems = False
+eval_prover = None
+all_theorems = False
 
 i = 1
 while i < len(sys.argv):
     arg = sys.argv[i]
     if arg == '-a':
         eval_all = True
-        i += 1
     elif arg == '-h':
-        only_theorems = True
-        i += 1
+        all_theorems = True
+    elif arg.startswith('-p'):
+        eval_prover = arg[2:].lower()
     elif arg.startswith('-t'):
         timeout = int(arg[2:])
         timeout_suffix = f'_{timeout}'
-        i += 1
     else:
         break
+    i += 1
 
 if i != len(sys.argv) - 1:
-    print(f'usage: {sys.argv[0]} [-a] [-t<num>] <dir>')
+    print(f'usage: {sys.argv[0]} [options...] <dir>')
     print( '    -a: evaluate all provers')
+    print( '    -h: also try to prove theorems without proof steps')
+    print( '    -p<prover>: evaluate only the given prover')
     print(f'    -t<num>: timeout (default is {default_timeout} seconds)')
     sys.exit(1)
 dir = sys.argv[i]
 
 all_provers = [
     ('Natty', f'./natty -t{timeout}'),
-    ('E', f'eprover-ho --auto -s --cpu-limit={timeout}'),
+    ('E', f'eprover-ho --auto -s --cpu-limit={timeout}'),   # -s: silent
     ('Vampire', f'vampire -t {timeout}'),
     ('Zipperposition', f'zipperposition --mode best --input tptp --timeout {timeout}'),
 ]
 
-provers = all_provers if eval_all else [all_provers[0]]
-prover_names = [p[0] for p in provers]
+if eval_all:
+    eval_provers = all_provers
+elif eval_prover != None:
+    eval_provers = [p for p in all_provers if p[0].lower().startswith(eval_prover)]
+else:
+    eval_provers = [all_provers[0]]
+all_prover_names = [p[0] for p in all_provers]
 
 files = [name.removesuffix('.thf') for name in os.listdir(dir) if name.endswith('.thf')]
 files.sort(key = lambda s: [int(n) for n in s.replace('s', '').split('_')])
@@ -55,7 +63,7 @@ class Group:
                 for row in reader:
                     name, conjecture = row[''], row['conjecture']
                     row_ids = [k for k, v in self.results.items()
-                         if (v[''], v['conjecture']) == (name, conjecture)]
+                                 if (v[''], v['conjecture']) == (name, conjecture)]
                     if row_ids != []:
                         self.results[row_ids[0]] = row
 
@@ -65,7 +73,7 @@ class Group:
         total_score = defaultdict(float)
 
         for result in self.results.values():
-            for prover in prover_names:
+            for prover in all_prover_names:
                 r = result.get(prover)
                 if r != None and r != '':
                     try:
@@ -76,9 +84,10 @@ class Group:
                     except ValueError:
                         total_score[prover] += 2 * timeout
 
+        provers = list(proved.keys())
         with open(self.results_file, 'w') as out:
-            fieldnames = ['', 'conjecture'] + prover_names
-            writer = csv.DictWriter(out, fieldnames = fieldnames, extrasaction = 'ignore')
+            fieldnames = ['', 'conjecture'] + provers
+            writer = csv.DictWriter(out, fieldnames = fieldnames)
             writer.writeheader()
             writer.writerows(self.results.values())
             out.write('\n')
@@ -101,20 +110,26 @@ class Group:
 
 thm_group = Group('theorems')
 step_group = Group('steps')
-groups = [thm_group] if only_theorems else [thm_group, step_group]
+groups = [thm_group, step_group] if all_theorems else [step_group]
 
 results = {}
 for file in files:
     with open(path.join(dir, file + '.thf')) as f:
         conjecture = f.readline().strip().removeprefix('% Problem: '.strip())
-    group = step_group if '_s' in file else thm_group
-    name = file.replace('_s','_').replace('_', '.')
-    group.results[file] = { '' : f'thm {name}', 'conjecture' : conjecture }
+    name = file.replace('_', '.')
+    data = { '' : f'thm {name}', 'conjecture' : conjecture }
+    if '_s' in file:
+        step_group.results[file] = data
+    else:
+        thm_group.results[file] = data
+        prefix = file.removesuffix('.thf') + '_s'
+        if not any(f.startswith(prefix) for f in files):  # theorem has no steps
+            step_group.results[file] = data
 
 for g in groups:
     g.read()
 
-for prover, command in provers:
+for prover, command in eval_provers:
     for group in groups:
         changed = False
         for file, result in group.results.items():
