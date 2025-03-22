@@ -829,19 +829,28 @@ let output_proof pformula =
   List.sort id_compare steps |> iter (print_formula true "");
   print_newline ()
 
-let expand_proofs stmts for_export =
+let number_hypotheses name stmts =
+  let f n = function
+    | (Theorem _) as thm ->
+        let hyp_name = sprintf "%s.h%d" name n in
+        (n + 1, set_theorem_id hyp_name thm)
+    | stmt -> (n, stmt) in
+  snd (fold_left_map f 1 stmts)
+
+let expand_proofs stmts for_export : (statement * statement list) list =
   let rec expand known = function
     | stmt :: stmts ->
         let thms = match stmt with
-          | Theorem (name, formula, proof, _) as thm -> (
-            (thm, formula, known) :: match proof with
-                | Some (Formulas fs) ->
-                    fs |> mapi (fun j (f, orig, range) ->
+          | Theorem (name, _, proof, _) as thm -> (
+            (thm, known) :: match proof with
+                | Some (ExpandedSteps fs) ->
+                    fs |> mapi (fun j stmts ->
                       let s = if for_export then "s" else "" in
                       let step_name = sprintf "%s.%s%d" name s (j + 1) in
-                      let t = Theorem (step_name, f, None, range) in
-                      (t, orig, known))
-                | Some _ -> assert false
+                      let (hypotheses, conjecture) = split_last stmts in
+                      (set_theorem_id step_name conjecture,
+                       rev (number_hypotheses name hypotheses) @ known))
+                | Some (Steps _) -> assert false
                 | None -> [])
           | _ -> [] in
         thms @ expand (stmt :: known) stmts
@@ -861,7 +870,7 @@ let prove_all opts thf prog =
               (if opts.disprove then "No" else "All") dis
           else if opts.keep_going then
             printf "Some theorems were %sproved.\n" dis
-    | (thm, _, known) :: rest ->
+    | (thm, known) :: rest ->
         let success = match thm with
           | Theorem (_, _, None, _) ->
               print_endline (show_statement true thm ^ "\n");

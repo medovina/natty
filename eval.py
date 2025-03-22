@@ -165,10 +165,10 @@ for prover, command in eval_provers:
                     status = 'Error'
             print(status)
             match status:
-                case 'Theorem':
+                case 'Theorem' | 'ContradictoryAxioms':  # contradictory axioms are still a proof
                     res = f'{elapsed:.2f}'
                 case 'GaveUp':
-                    res = 'timeout' if prover.startswith('E ') else 'gave up'
+                    res = 'gave up'
                 case 'ResourceOut' | 'Timeout':
                     res = 'timeout'
                 case 'Error':

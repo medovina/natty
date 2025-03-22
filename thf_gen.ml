@@ -57,6 +57,10 @@ and quant q ids_typs f =
 
 and thf_formula f = thf "" false f
 
+let is_hypothesis name =
+  let step = last (String.split_on_char '.' name) in
+  strlen step > 1 && step.[0] == 'h' && is_digit (step.[1])
+
 let thf_statement is_conjecture f =
   let const id typ =
     sprintf "%s, type, %s: %s" (quote (id ^ "_decl")) (quote id) (thf_type typ) in
@@ -68,7 +72,8 @@ let thf_statement is_conjecture f =
     | Axiom (name, f, _) -> [axiom ("ax_" ^ name) f]
     | Definition (id, typ, f) -> [const id typ; axiom (id ^ "_def") f]
     | Theorem (name, f, _, _) ->
-        let t = if is_conjecture then "conjecture" else "theorem" in
+        let t = if is_conjecture then "conjecture" else
+          if is_hypothesis name then "hypothesis" else "theorem" in
         [sprintf "%s, %s, %s" (quote ("thm_" ^ name)) t (thf_formula f)] in
   unlines (map (sprintf "thf(%s).") (conv f))
 

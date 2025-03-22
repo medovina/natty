@@ -60,10 +60,6 @@ let rec show_proof_step = function
   | Group steps ->
       sprintf "[%s]" (comma_join (map show_proof_step (map fst steps)))
 
-type proof =
-  | Steps of (proof_step * range) list
-  | Formulas of (formula * formula * range) list  (* full, short original *)
-
 type statement =
   | TypeDecl of id
   | ConstDecl of id * typ
@@ -71,12 +67,20 @@ type statement =
   | Definition of id * typ * formula
   | Theorem of id * formula * proof option * range
 
+and proof =
+  | Steps of (proof_step * range) list
+  | ExpandedSteps of statement list list
+
 let stmt_id = function
   | TypeDecl id -> id
   | ConstDecl (id, _) -> id
   | Axiom (id, _, _) -> id
   | Definition (id, _, _) -> id
   | Theorem (id, _, _, _) -> id
+
+let set_theorem_id id = function
+  | Theorem (_, formula, proof, range) -> Theorem (id, formula, proof, range)
+  | _ -> assert false
 
 let stmt_name stmt = (match stmt with
   | TypeDecl _ -> "type"
@@ -89,13 +93,14 @@ let stmt_formula = function
   | Axiom (_, f, _) | Definition (_, _, f) | Theorem (_, f, _, _) -> Some f
   | _ -> None
 
-let map_stmt_formulas fn = function
+let rec map_stmt_formulas fn = function
   | Axiom (id, f, name) -> Axiom (id, fn f, name)
   | Definition (id, typ, f) -> Definition (id, typ, fn f)
   | Theorem (id, f, proof, range) ->
       let map_proof = function
         | Steps steps -> Steps steps
-        | Formulas fs -> Formulas (map_triple_fst fn fs) in
+        | ExpandedSteps esteps ->
+            ExpandedSteps (map (map (map_stmt_formulas fn)) esteps) in
       Theorem (id, fn f, Option.map map_proof proof, range)
   | stmt -> stmt
 

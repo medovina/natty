@@ -9,10 +9,11 @@ open Util
 
 let thf_file dir name = mk_path dir (name ^ ".thf")
 
-let write_thf dir name proven stmt problem =
+let write_thf dir name proven stmt =
   let f = thf_file dir (str_replace "." "_" name) in
   if not (Sys.file_exists f) then (
     let out = open_out f in
+    let problem = Option.get (stmt_formula stmt) in
     let problem =
       if free_vars problem = [] then remove_universal problem else problem in
     fprintf out "%% Problem: %s\n\n" (show_formula problem);
@@ -24,8 +25,8 @@ let write_thf dir name proven stmt problem =
     Out_channel.close out)
 
 let write_files dir prog =
-  Prove.expand_proofs prog true |> iter (fun (thm, orig, known) ->
-    write_thf dir (stmt_id thm) (rev known) thm orig)
+  Prove.expand_proofs prog true |> iter (fun (thm, known) ->
+    write_thf dir (stmt_id thm) (rev known) thm)
 
 ;;
 

@@ -189,37 +189,44 @@ let infer_blocks steps =
   assert (rest = []);
   blocks
 
-let rec blocks_formulas blocks = match blocks with
-  | [] -> ([], _true)
-  | block :: rest ->
-      let (fs, concl) = block_formulas block in
-      let (gs, final_concl) = blocks_formulas rest in
-      (fs @ map_triple_fst (fun f -> implies concl f) gs,
-      if rest = [] then concl
-      else match last blocks with
-        | Block (Assume _, _, _) -> _and concl final_concl
-        | _ -> final_concl)
+let rec blocks_steps blocks : statement list list * formula =
+  match blocks with
+    | [] -> ([], _true)
+    | block :: rest ->
+        let (fs, concl) = block_steps block in
+        let (gs, final_concl) = blocks_steps rest in
+        (fs @ map (cons (Theorem ("hyp", concl, None, empty_range))) gs,
+        if rest = [] then concl
+        else match last blocks with
+          | Block (Assume _, _, _) -> _and concl final_concl
+          | _ -> final_concl)
 
-and block_formulas (Block (step, range, children)) =
-  let (fs, concl) = blocks_formulas children in
-  let apply fn = (map_triple_fst fn fs, fn concl) in
+and block_steps (Block (step, range, children)) : statement list list * formula =
+  let (fs, concl) = blocks_steps children in
+  (* let apply fn = (map_fst fn fs, fn concl) in *)
   match step with
     | Assert f -> (
         match expand_multi_eq f with
           | Some (eqs, concl) ->
-              (map (fun eq -> (eq, eq, range)) eqs, concl)
-          | None -> ([(f, f, range)], f))
-    | Let (ids, typ) -> apply (for_all_vars_typ (ids, typ))
-    | LetVal (id, _typ, value) -> apply (fun f -> rsubst1 f value id)
-    | Assume a -> apply (implies a)
+              (map (fun eq -> [Theorem ("", eq, None, range)]) eqs, concl)
+          | None -> ([[Theorem ("", f, None, range)]], f)  )
+    | Let (ids, typ) ->
+        let decls = map (fun id -> ConstDecl (id, typ)) ids in
+        (map (append decls) fs, for_all_vars_typ (ids, typ) concl)
+    | LetVal (id, _typ, value) ->
+        let sub f = rsubst1 f value id in
+        (map (map (map_stmt_formulas sub)) fs, sub concl)
+    | Assume a ->
+        (map (cons (Theorem ("hyp", a, None, empty_range))) fs, implies a concl)
     | IsSome (ids, typ, g) ->
         let ex = exists_vars_typ (ids, typ) g in
-        ((ex, ex, range) ::
-            map_triple_fst (fun f -> for_all_vars_typ (ids, typ) (implies g f)) fs,
+        let stmts =
+          map (fun id -> ConstDecl (id, typ)) ids @ [Theorem ("hyp", g, None, empty_range)] in
+        ([Theorem ("", ex, None, range)] :: map (append stmts) fs,
          if any_free_in ids concl then exists_vars_typ (ids, typ) concl else concl)
     | Escape | Group _ -> failwith "block_formulas"
 
-let expand_proof stmt env f range = function
+let rec expand_proof stmt env f range = function
   | Steps steps ->
       if !debug > 0 then (
         printf "%s:\n\n" (stmt_name stmt);
@@ -231,11 +238,11 @@ let expand_proof stmt env f range = function
       concat_map step_types (map fst steps) |> iter (check_type env);
       let blocks = infer_blocks steps @ [Block (Assert f, range, [])] in
       if !debug > 0 then print_blocks blocks;
-      let fs = fst (blocks_formulas blocks) in
-      Formulas (map_triple_fst (top_check env) fs)
+      let fs = fst (blocks_steps blocks) in
+      ExpandedSteps (map (check_stmts env) fs)
   | _ -> assert false
 
-let check_stmt env stmt =
+and check_stmt env stmt =
   match stmt with
     | Axiom (id, f, name) -> Axiom (id, top_check env f, name)
     | Definition (id, typ, f) ->
@@ -245,6 +252,12 @@ let check_stmt env stmt =
         Theorem (name, f1, Option.map (expand_proof stmt env f range) proof, range)
     | stmt -> stmt
 
+and check_stmts initial_env stmts =
+  let check env stmt =
+    let stmt = check_stmt env stmt in
+    (stmt :: env, stmt) in
+  snd (fold_left_map check initial_env stmts)
+    
 let type_as_id typ = str_replace " " "" (show_type typ)
 
 let tuple_constructor t u = sprintf "(,)%s%s" (show_type t) (show_type u)
@@ -283,6 +296,12 @@ let rec encode_stmts known_tuple_types = function
             ConstDecl (encode_id id typ, encode_type tuple_types typ)
         | Definition (id, typ, f) ->
             Definition (encode_id id typ, encode_type tuple_types typ, encode f)
+        | Theorem (id, f, proof, range) ->
+            let map_proof = function
+              | ExpandedSteps esteps ->
+                  ExpandedSteps (map (encode_stmts known_tuple_types) esteps)
+              | _ -> assert false in
+            Theorem (id, encode f, Option.map map_proof proof, range)
         | _ -> map_stmt_formulas encode stmt in
       let new_tuple_types = subtract !tuple_types known_tuple_types in
       let tuple_defs (t, u) =
@@ -303,11 +322,8 @@ let rec syntax_pos item = function
 
 let check_program _debug from_thf origin_map stmts =
   debug := _debug;
-  let check env stmt =
-    let stmt = check_stmt env stmt in
-    (stmt :: env, stmt) in
   try
-    let stmts = snd (fold_left_map check [] stmts) in
+    let stmts = check_stmts [] stmts in
     Ok (if from_thf then stmts else encode_stmts [] stmts)
   with
     | Check_error (err, item) -> Error (err, syntax_pos item origin_map)

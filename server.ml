@@ -204,7 +204,7 @@ let init opts =
       | (uri, Ok prog) :: rs ->
           let* ss = to_prove rs in
           Some ((expand_proofs prog false |> filter_map (
-            fun (thm, _, known) ->
+            fun (thm, known) ->
               match thm with
                 | Theorem (_, _, None, _) -> Some (uri, thm, known)
                 | _ -> None)) @ ss) in
