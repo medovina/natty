@@ -71,6 +71,10 @@ and proof =
   | Steps of (proof_step * range) list
   | ExpandedSteps of statement list list
 
+let is_theorem = function
+  | Theorem _ -> true
+  | _ -> false
+
 let stmt_id = function
   | TypeDecl id -> id
   | ConstDecl (id, _) -> id

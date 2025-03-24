@@ -28,6 +28,18 @@ let write_files dir prog =
   Prove.expand_proofs prog true |> iter (fun (thm, known) ->
     write_thf dir (stmt_id thm) (rev known) thm)
 
+let write_thm_info prog =
+  let thms = filter is_theorem prog in
+  let thm_steps = function
+    | Theorem (_, _, proof, _) -> (match proof with
+        | Some (ExpandedSteps steps) -> Some steps
+        | Some (Steps _) -> assert false
+        | None -> None)
+    | _ -> assert false in
+  let step_groups = filter_map thm_steps thms in
+  printf "%d theorems (%d with proofs, %d without)\n"
+    (length thms) (length step_groups) (length thms - length step_groups);
+  printf "%d output steps\n" (length (concat step_groups))
 ;;
 
 if Array.length Sys.argv = 1 then usage();
@@ -50,7 +62,8 @@ let (opts, source) = parse_args (tl (Array.to_list Sys.argv)) in
                                         origin_map prog with
                 | Error (err, _pos) -> print_endline err
                 | Ok prog ->
-                    if opts.export then
+                  (if opts.verbose then write_thm_info prog);
+                  if opts.export then
                       let dir = Filename.remove_extension source in
                       clean_dir dir;
                       write_files dir prog
