@@ -17,7 +17,9 @@ let comment = char '#' << skip_many_until any_char newline
 
 let empty = skip_many (space <|> comment)
 
-let number = empty >>? many1_chars digit
+let raw_number = many1_chars digit
+
+let number = empty >>? raw_number
 
 let int = number |>> int_of_string
 
@@ -103,7 +105,7 @@ let ids_type = pair (sep_by1 id (str ",")) (of_type >> typ)
 (* reasons *)
 
 let theorem_num =
-  number >> (many (char '.' >>? number)) >> optional (parens letter) >>$ "" 
+  number >> (many (char '.' >>? raw_number)) >> optional (parens letter) >>$ "" 
 
 let reference = choice [
   any_str ["axiom"; "lemma"; "theorem"] >> theorem_num;
