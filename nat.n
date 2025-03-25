@@ -82,7 +82,7 @@ Theorem 4.  Let a, b ∈ ℕ.
   1. ab = 0 if and only if a = 0 or b = 0.
   2. ab = 1 if and only if a = 1 and b = 1.
 
-# Cancellation of multiplication
+# Right cancellation of multiplication
 
 Theorem 5.  Let a, b, c ∈ ℕ.  If c ≠ 0 and ac = bc then a = b.
 
