@@ -4,7 +4,6 @@ open MParser
 open Yojson
 open Yojson.Basic.Util
 
-open List
 open Options
 open Printf
 open Prove

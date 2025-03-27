@@ -1,4 +1,3 @@
-open List
 open MParser
 
 open Logic

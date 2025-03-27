@@ -1,7 +1,10 @@
 open Either
-open List
-open Printf
 
+(* Export all List functions from this module, but omit the type List.t. *)
+include (List : module type of List with type 'a t := 'a list)
+open List
+
+open Printf
 open MParser
 
 (* functions *)

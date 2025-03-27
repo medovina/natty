@@ -1,6 +1,5 @@
 open Printf
 
-open List
 open Util
 
 type id = string
