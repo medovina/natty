@@ -43,8 +43,8 @@ let write_thm_info prog =
 
 if Array.length Sys.argv = 1 then usage();
 
-let (opts, source) = parse_args (tl (Array.to_list Sys.argv)) in
-  if opts.server then Server.run opts
+let source = parse_args (tl (Array.to_list Sys.argv)) in
+  if !(opts.server) then Server.run ()
   else match source with
     | None -> usage()
     | Some source ->
@@ -57,15 +57,15 @@ let (opts, source) = parse_args (tl (Array.to_list Sys.argv)) in
           | Failed (msg, _) ->
               print_endline msg
           | Success (prog, origin_map) ->
-              match Check.check_program opts.debug (parser == Thf_parse.parse)
+              match Check.check_program (parser == Thf_parse.parse)
                                         origin_map prog with
                 | Error (err, _pos) -> print_endline err
                 | Ok prog ->
-                  (if opts.verbose then write_thm_info prog);
-                  if opts.export then
+                  (if !(opts.verbose) then write_thm_info prog);
+                  if !(opts.export) then
                       let dir = Filename.remove_extension source in
                       clean_dir dir;
                       write_files dir prog
                     else
-                      Prove.prove_all opts (ext = ".thf") prog;
+                      Prove.prove_all (ext = ".thf") prog;
                       profile_report ()

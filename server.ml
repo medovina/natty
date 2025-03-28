@@ -17,8 +17,6 @@ let adjust_pos text (line_num, col_num) =
   (line_num - 1, col_num)
 
 type prover_data = {
-  opts: options;
-
   mutex: Mutex.t;
   semaphore: Semaphore.Binary.t;
   notify_out: out_channel;
@@ -39,7 +37,7 @@ let prove_stmts data stmts =
     | (uri, thm, known) :: ss ->
         let success =
           printf "proving %s\n%!" (stmt_name thm);
-          match prove data.opts.timeout (rev known) thm false (cancel_check data stmts) with
+          match prove !(opts.timeout) (rev known) thm false (cancel_check data stmts) with
             | Proof _ -> true
             | _ -> false in
         let abort = Mutex.protect data.mutex (fun () ->
@@ -154,7 +152,7 @@ let check text =
         let (line, col) = adjust_pos text (line, col) in
         Error ((line, col), (line, col + 1), last (str_lines (String.trim msg)))
     | Success (prog, origin_map) -> (
-        match Check.check_program 0 false origin_map prog with
+        match Check.check_program false origin_map prog with
           | Error (err, range) ->
               let (pos1, pos2) = match range with
                 | Some (Range (pos1, pos2)) -> (adjust_pos text pos1, adjust_pos text pos2)
@@ -167,8 +165,8 @@ let clear_diags output uri =
   write_message output (publish_diagnostics uri [])
 
 let init opts =
-  printf "language server running: pipe = %s\n%!" opts.pipe;
-  let (input, output) = open_connection (ADDR_UNIX opts.pipe) in
+  printf "language server running: pipe = %s\n%!" !(opts.pipe);
+  let (input, output) = open_connection (ADDR_UNIX !(opts.pipe)) in
   printf "connected%!\n";
   
   let msg = read_message input in
@@ -218,15 +216,14 @@ let init opts =
     Semaphore.Binary.release data.semaphore;
     notify_progress output 0 (length stmts)
 
-let run opts =
-  if opts.pipe = "" then failwith "--pipe expected"
+let run () =
+  if !(opts.pipe) = "" then failwith "--pipe expected"
   else
     let (input, output) = init opts in
     let input_descr = descr_of_in_channel input in
     let (pipe_read, pipe_write) = Unix.pipe () in
     let notify_in = in_channel_of_descr pipe_read in
     let data = {
-      opts;
       mutex = Mutex.create ();
       semaphore = Semaphore.Binary.make false;
       notify_out = out_channel_of_descr pipe_write;

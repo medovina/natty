@@ -5,8 +5,6 @@ open Options
 open Statement
 open Util
 
-let debug = ref 0
-
 let formula_counter = ref 0
 
 type pformula = {
@@ -837,10 +835,12 @@ let number_hypotheses name stmts =
   snd (fold_left_map f 1 stmts)
 
 let expand_proofs stmts for_export : (statement * statement list) list =
+  let thm_name = !(opts.thm_name) in
   let rec expand known = function
     | stmt :: stmts ->
         let thms = match stmt with
           | Theorem (name, _, proof, _) as thm -> (
+            if (thm_name <> "" && name <> thm_name) then [] else
             (thm, known) :: match proof with
                 | Some (ExpandedSteps fs) ->
                     fs |> mapi (fun j stmts ->
@@ -854,31 +854,31 @@ let expand_proofs stmts for_export : (statement * statement list) list =
           | _ -> [] in
         thms @ expand (stmt :: known) stmts
     | [] -> [] in
-  expand [] stmts
+  let res = expand [] stmts in
+  if thm_name <> "" && res == []
+    then failwith (sprintf "theorem %s not found" thm_name) else res
 
-let prove_all opts thf prog =
-  debug := opts.debug;
-  profiling := opts.profile;
+let prove_all thf prog =
   profile "prove_all" @@ fun () ->
-  let dis = if opts.disprove then "dis" else "" in
+  let dis = if !(opts.disprove) then "dis" else "" in
   let rec prove_stmts all_success = function
     | [] ->
         if (not thf) then
           if all_success then
             printf "%s theorems were %sproved.\n"
-              (if opts.disprove then "No" else "All") dis
-          else if opts.keep_going then
+              (if !(opts.disprove) then "No" else "All") dis
+          else if !(opts.keep_going) then
             printf "Some theorems were %sproved.\n" dis
     | (thm, known) :: rest ->
         let success = match thm with
           | Theorem (_, _, None, _) ->
               print_endline (show_statement true thm ^ "\n");
               let result =
-                prove opts.timeout (rev known) thm opts.disprove (Fun.const false) in
+                prove !(opts.timeout) (rev known) thm !(opts.disprove) (Fun.const false) in
               let b = match result with
                   | Proof (pformula, elapsed) ->
                       printf "%sproved in %.2f s\n" dis elapsed;
-                      if opts.show_proofs then (
+                      if !(opts.show_proofs) then (
                         print_newline ();
                         output_proof pformula);
                       true
@@ -887,9 +887,9 @@ let prove_all opts thf prog =
                   | Stopped -> assert false in
               if thf then printf "SZS status %s\n" (szs result);
               print_newline ();
-              if opts.disprove then not b else b
+              if !(opts.disprove) then not b else b
           | Theorem _ -> true
           | _ -> assert false in
-        if success || opts.keep_going then
+        if success || !(opts.keep_going) then
           prove_stmts (all_success && success) rest in
   prove_stmts true (expand_proofs prog false)

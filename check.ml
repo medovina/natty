@@ -1,10 +1,9 @@
 open Printf
 
 open Logic
+open Options
 open Statement
 open Util
-
-let debug = ref 0
 
 exception Check_error of string * syntax
 
@@ -227,18 +226,20 @@ and block_steps (Block (step, range, children)) : statement list list * formula 
 
 let rec expand_proof stmt env f range = function
   | Steps steps ->
-      if !debug > 0 then (
-        printf "%s:\n\n" (stmt_name stmt);
-        if !debug > 1 then (
-          steps |> iter (fun (s, _range) -> print_endline (show_proof_step s));
-          print_newline ()
+      let thm_name = !(opts.thm_name) in
+      if thm_name <> "" && stmt_id stmt <> thm_name then None else (
+        if !debug > 0 then (
+          printf "%s:\n\n" (stmt_name stmt);
+          if !debug > 1 then (
+            steps |> iter (fun (s, _range) -> print_endline (show_proof_step s));
+            print_newline ()
+          );
         );
-      );
-      concat_map step_types (map fst steps) |> iter (check_type env);
-      let blocks = infer_blocks steps @ [Block (Assert f, range, [])] in
-      if !debug > 0 then print_blocks blocks;
-      let fs = fst (blocks_steps blocks) in
-      ExpandedSteps (map (check_stmts env) fs)
+        concat_map step_types (map fst steps) |> iter (check_type env);
+        let blocks = infer_blocks steps @ [Block (Assert f, range, [])] in
+        if !debug > 0 then print_blocks blocks;
+        let fs = fst (blocks_steps blocks) in
+        Some (ExpandedSteps (map (check_stmts env) fs)))
   | _ -> assert false
 
 and check_stmt env stmt =
@@ -248,7 +249,7 @@ and check_stmt env stmt =
         Definition (id, typ, top_check env f)
     | Theorem (name, f, proof, range) ->
         let f1 = top_check env f in
-        Theorem (name, f1, Option.map (expand_proof stmt env f range) proof, range)
+        Theorem (name, f1, Option.bind proof (expand_proof stmt env f range), range)
     | stmt -> stmt
 
 and check_stmts initial_env stmts =
@@ -319,8 +320,7 @@ let rec syntax_pos item = function
         Some range)
       else syntax_pos item ss
 
-let check_program _debug from_thf origin_map stmts =
-  debug := _debug;
+let check_program from_thf origin_map stmts =
   try
     let stmts = check_stmts [] stmts in
     Ok (if from_thf then stmts else encode_stmts [] stmts)
