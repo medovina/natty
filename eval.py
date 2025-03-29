@@ -1,6 +1,9 @@
-import csv, os, re, subprocess, sys, time
+import csv, multiprocessing, os, re, subprocess, sys, threading
 from collections import defaultdict
+from concurrent import futures
 from os import path
+
+clear_line = '\033[K'
 
 timeout = default_timeout = 5
 timeout_suffix = ''
@@ -33,20 +36,20 @@ if i != len(sys.argv) - 1:
     sys.exit(1)
 dir = sys.argv[i]
 
-all_provers = [
-    ('Natty', f'./natty -t{timeout}'),
-    ('E', f'eprover-ho --auto -s --cpu-limit={timeout}'),   # -s: silent
-    ('Vampire', f'vampire -t {timeout}'),
-    ('Zipperposition', f'zipperposition --mode best --input tptp --timeout {timeout}'),
-]
+all_provers = {
+    'Natty' : f'./natty -t{timeout}',
+    'E' : f'eprover-ho --auto -s --cpu-limit={timeout}',   # -s: silent
+    'Vampire' : f'vampire -t {timeout}',
+    'Zipperposition' : f'zipperposition --mode best --input tptp --timeout {timeout}'
+}
 
+all_prover_names = list(all_provers.keys())
 if eval_all:
-    eval_provers = all_provers
+    eval_provers = all_prover_names
 elif eval_prover != None:
-    eval_provers = [p for p in all_provers if p[0].lower().startswith(eval_prover)]
+    eval_provers = [p for p in all_prover_names if p.lower().startswith(eval_prover)]
 else:
-    eval_provers = [all_provers[0]]
-all_prover_names = [p[0] for p in all_provers]
+    eval_provers = all_prover_names[0]
 
 files = [name.removesuffix('.thf') for name in os.listdir(dir) if name.endswith('.thf')]
 files.sort(key = lambda s: [int(n) for n in s.replace('s', '').split('_')])
@@ -132,52 +135,81 @@ for file in files:
 for g in groups:
     g.read()
 
-for prover, command in eval_provers:
+proving = []
+lock = threading.Lock()
+
+def show_proving():
+    print(clear_line + f'proving {', '.join(proving)}...', end = '\r')
+
+def prove(prover, file):
+    with lock:
+        proving.append(file)
+        show_proving()
+
+    command = all_provers[prover]
+    filename = path.join(dir, file + '.thf')
+
+    cmd = command + " " + filename
+
+    completed = subprocess.run("time -f 'time:%U %S' " + cmd, shell = True, capture_output = True)
+
+    text = completed.stdout.decode('utf-8') + completed.stderr.decode('utf-8')
+    lines = text.splitlines()
+    times = lines[-1].removeprefix('time:')
+    assert times != lines[-1], 'no times found'
+    elapsed = sum(map(float, times.split()))
+
+    for line in lines:
+        if m := re.search(r'SZS status (\w+)', line):
+            status = m[1]
+            break
+        if line == 'Aborted':
+            status = 'Error'
+            break
+    else:
+        if prover.startswith('Vampire') or prover.startswith('Zipperposition'):
+            status = 'Timeout'
+        else:
+            status = 'Error'
+
+    with lock:
+        print(clear_line + cmd)
+        print(status)
+        proving.remove(file)
+        show_proving()
+
+    match status:
+        case 'Theorem' | 'ContradictoryAxioms':  # contradictory axioms are still a proof
+            res = f'{elapsed:.2f}'
+        case 'GaveUp':
+            res = 'gave up'
+        case 'ResourceOut' | 'Timeout':
+            res = 'timeout'
+        case 'Error':
+            res = 'error'
+        case _:
+            print(f'unknown status: {text}')
+            assert False
+    return res
+
+def prove1(prover, file):
+    try:
+        return prove(prover, file)
+    except Exception as e:
+        print(e)
+        raise e
+
+for prover in eval_provers:
     for group in groups:
-        changed = False
-        for file, result in group.results.items():
-            r = result.get(prover)
-            if r != None and r != '':
-                continue
-            changed = True
+        files = []
+        for file, results in group.results.items():
+            r = results.get(prover)
+            if r == None or r == '':
+                files.append(file)
 
-            filename = path.join(dir, file + '.thf')
-
-            cmd = command + " " + filename
-            print(cmd)
-
-            start = time.time()
-            completed = subprocess.run(cmd, shell = True, capture_output = True)
-            elapsed = time.time() - start
-
-            text = completed.stdout.decode('utf-8') + completed.stderr.decode('utf-8')
-            for line in text.splitlines():
-                if m := re.search(r'SZS status (\w+)', line):
-                    status = m[1]
-                    break
-                if line == 'Aborted':
-                    status = 'Error'
-                    break
-            else:
-                if prover.startswith('Vampire') or prover.startswith('Zipperposition'):
-                    status = 'Timeout'
-                else:
-                    status = 'Error'
-            print(status)
-            match status:
-                case 'Theorem' | 'ContradictoryAxioms':  # contradictory axioms are still a proof
-                    res = f'{elapsed:.2f}'
-                case 'GaveUp':
-                    res = 'gave up'
-                case 'ResourceOut' | 'Timeout':
-                    res = 'timeout'
-                case 'Error':
-                    res = 'error'
-                case _:
-                    print(f'unknown status: {text}')
-                    assert False
-            result[prover] = res
-
-        # output continuously
-        if changed:
+        if files != []:
+            with futures.ThreadPoolExecutor(multiprocessing.cpu_count()) as ex:
+                out = ex.map(lambda file: prove1(prover, file), files)
+            for file, res in zip(files, out):
+                group.results[file][prover] = res
             group.write()
