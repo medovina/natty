@@ -58,18 +58,22 @@ and thf_formula f = thf "" false f
 
 let is_hypothesis name =
   let step = last (String.split_on_char '.' name) in
-  strlen step > 1 && step.[0] == 'h' && is_digit (step.[1])
+  strlen step > 1 && step.[0] = 'h' && is_digit (step.[1])
 
 let thf_statement is_conjecture f =
   let const id typ =
     sprintf "%s, type, %s: %s" (quote (id ^ "_decl")) (quote id) (thf_type typ) in
-  let axiom name f = sprintf "%s, axiom, %s" (quote name) (thf_formula f) in
+  let axiom name kind f =
+    sprintf "%s, %s, %s" (quote name) kind (thf_formula f) in
   let type_decl t = sprintf "%s, type, %s: $tType" (quote (t ^ "_type")) (quote t) in
   let conv = function
     | TypeDecl id -> [type_decl id]
     | ConstDecl (id, typ) -> [const id typ]
-    | Axiom (name, f, _) -> [axiom ("ax_" ^ name) f]
-    | Definition (id, typ, f) -> [const id typ; axiom (id ^ "_def") f]
+    | Axiom (name, f, _) -> [axiom ("ax_" ^ name) "axiom" f]
+    | Definition (id, typ, _f) as def -> [
+        const id typ;
+        axiom (id ^ "_def") "definition" (Option.get (stmt_formula def))
+        ]
     | Theorem (name, f, _, _) ->
         let t = if is_conjecture then "conjecture" else
           if is_hypothesis name then "hypothesis" else "theorem" in

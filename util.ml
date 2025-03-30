@@ -17,6 +17,10 @@ let (let*) = Option.bind
 
 let opt_default opt def = Option.value opt ~default:def
 
+let opt_all_eq x = function
+  | Some y -> y = x
+  | None -> true
+
 let opt_fold f opt acc = fold_right f (Option.to_list opt) acc
 
 (* chars *)

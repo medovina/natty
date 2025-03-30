@@ -855,7 +855,7 @@ let expand_proofs stmts for_export : (statement * statement list) list =
         thms @ expand (stmt :: known) stmts
     | [] -> [] in
   let res = expand [] stmts in
-  if thm_name <> "" && res == []
+  if thm_name <> "" && res = []
     then failwith (sprintf "theorem %s not found" thm_name) else res
 
 let prove_all thf prog =

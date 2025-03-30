@@ -305,14 +305,14 @@ let axiom_group = (str "Axiom" >> int << str ".") >>= fun n ->
 
 let eq_definition = pipe3
   (str "Let" >> sym) (str ":" >> typ) (str "=" >> term << str ".")
-  mk_eq_def
+  mk_def
 
 let relation_definition (ids, typ) = opt_str "we write" >>?
   id >>=? fun x ->
     pipe3 sym id (str "iff" >> proposition) (fun op y prop ->
     assert (ids = [x; y]);
-    mk_eq_def op (Fun (typ, Fun (typ, Bool)))
-      (Lambda (x, typ, Lambda (y, typ, prop)))) << str "."
+    Definition (op, Fun (typ, Fun (typ, Bool)),
+                Lambda (x, typ, Lambda (y, typ, prop)))) << str "."
 
 let definition = str "Definition." >>
   choice [

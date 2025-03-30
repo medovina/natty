@@ -73,6 +73,8 @@ and proof =
   | Steps of (proof_step * range) list
   | ExpandedSteps of statement list list
 
+let mk_def id typ formula = Definition (id, typ, formula)
+
 let is_theorem = function
   | Theorem _ -> true
   | _ -> false
@@ -96,7 +98,8 @@ let stmt_name stmt = (match stmt with
   | Theorem _ -> "theorem") ^ " " ^ stmt_id stmt
 
 let stmt_formula = function
-  | Axiom (_, f, _) | Definition (_, _, f) | Theorem (_, f, _, _) -> Some f
+  | Axiom (_, f, _) | Theorem (_, f, _, _) -> Some f
+  | Definition (id, typ, f) -> Some (Eq (Const (id, typ), f))
   | _ -> None
 
 let rec map_stmt_formulas fn = function
@@ -110,9 +113,6 @@ let rec map_stmt_formulas fn = function
       Theorem (id, fn f, Option.map map_proof proof, range)
   | stmt -> stmt
 
-let mk_eq_def sym typ f =
-  Definition (sym, typ, Eq (Const (sym, typ), f))
-
 let show_statement multi s =
   let name = stmt_name s in
   let show prefix f = indent_with_prefix prefix (show_formula_multi multi f) in
@@ -123,6 +123,6 @@ let show_statement multi s =
     | Axiom (_, f, _) -> show (name ^ ": ") f
     | Definition (id, typ, f) ->
         let prefix =
-          sprintf "definition %s: %s ; " (without_type_suffix id) (show_type typ) in
+          sprintf "definition %s: %s = " (without_type_suffix id) (show_type typ) in
         show prefix f
     | Theorem (_, f, _, _) -> show (name ^ ": ") f
