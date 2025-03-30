@@ -8,6 +8,9 @@ type pos = int * int   (* line number, colum number *)
 type range = Range of pos * pos
 let empty_range = Range ((0, 0), (0, 0))
 
+let show_range (Range ((line1, col1), (line2, col2))) =
+  sprintf "%d:%d - %d:%d" line1 col1 line2 col2
+
 type syntax = Type of typ | Formula of formula
 let mk_type_syntax t = Type t
 let mk_formula_syntax f = Formula f

@@ -59,7 +59,11 @@ let source = parse_args (tl (Array.to_list Sys.argv)) in
           | Success (prog, origin_map) ->
               match Check.check_program (parser == Thf_parse.parse)
                                         origin_map prog with
-                | Error (err, _pos) -> print_endline err
+                | Error (err, opt_range) ->
+                    let range = match opt_range with
+                      | Some r -> " at " ^ show_range r
+                      | None -> "" in
+                    print_endline (err ^ range)
                 | Ok prog ->
                   (if !(opts.verbose) then write_thm_info prog);
                   if !(opts.export) then
