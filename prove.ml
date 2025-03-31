@@ -137,7 +137,18 @@ let unary_check s t = match s, t with
       check g
   | _ -> false
 
-(* Knuth-Bendix ordering on first-order terms *)
+(* lexicographic path ordering on first-order terms *)
+let rec lpo_gt s t =
+  match t with
+    | Var (t1, _) -> s <> t && mem t1 (all_vars s)
+    | _ ->
+        is_app_or_const s && is_app_or_const t &&
+          let (f, ss), (g, ts) = collect_args s, collect_args t in
+          exists (fun x -> x = t || lpo_gt x t) ss ||
+          for_all (fun x -> lpo_gt s x) ts &&
+            (const_gt f g || f = g && lex_gt lpo_gt ss ts)
+
+(* Knuth-Bendix ordering on first-order terms, presently unused *)
 let rec kb_gt s t =
   let s_vars, t_vars = count_vars s, count_vars t in
   (s_vars |> for_all (fun (v, n) -> n >= lookup_var v t_vars)) &&
@@ -181,7 +192,9 @@ let get_index x map =
                       let q1 = _const (q ^ prime) in
                       apply [q1; encode_type typ; fn (x :: outer) f]
                   | _ -> failwith "encode_term")
-            | Const _ -> apply (head :: map (fn outer) args)
+            | Const (id, typ) ->
+                let c1 = Const (id ^ "_" ^ string_of_int (length args), typ) in
+                apply (c1 :: map (fn outer) args)
             | _ -> failwith "encode_term")
       | Lambda (x, typ, f) ->
           if is_ground t then
@@ -199,7 +212,7 @@ let term_gt s t =
   let type_map, fluid_map = ref [], ref [] in
   let s1 = encode_term type_map fluid_map s in
   let t1 = encode_term type_map fluid_map t in
-  kb_gt s1 t1
+  lpo_gt s1 t1
 
 let term_ge s t = s = t || term_gt s t
 

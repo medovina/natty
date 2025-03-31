@@ -49,7 +49,7 @@ if eval_all:
 elif eval_prover != None:
     eval_provers = [p for p in all_prover_names if p.lower().startswith(eval_prover)]
 else:
-    eval_provers = all_prover_names[0]
+    eval_provers = [all_prover_names[0]]
 
 files = [name.removesuffix('.thf') for name in os.listdir(dir) if name.endswith('.thf')]
 files.sort(key = lambda s: [int(n) for n in s.replace('s', '').split('_')])
@@ -208,7 +208,7 @@ for prover in eval_provers:
                 files.append(file)
 
         if files != []:
-            with futures.ThreadPoolExecutor(multiprocessing.cpu_count()) as ex:
+            with futures.ThreadPoolExecutor(multiprocessing.cpu_count() // 2) as ex:
                 out = ex.map(lambda file: prove1(prover, file), files)
             for file, res in zip(files, out):
                 group.results[file][prover] = res
