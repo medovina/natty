@@ -82,6 +82,22 @@ Theorem 4.  Let a, b ∈ ℕ.
   1. ab = 0 if and only if a = 0 or b = 0.
   2. ab = 1 if and only if a = 1 and b = 1.
 
+Proof.
+
+  2. Let a, b ∈ ℕ.  If a = 1 and b = 1, then ab = 1.
+  
+  Now suppose that ab = 1.  If a = 0 then ab = 0, a contradiction.  Similarly, if b = 0 then ab = 0, a contradiction.  So a ≠ 0 and b ≠ 0.  Then by Lemma 1 there exist c, d ∈ ℕ such that a = s(c) and b = s(d).
+
+  Suppose that c ≠ 0.  Then there exists e ∈ ℕ such that c = s(e), so a = s(s(e)).  Then
+
+    s(0) = 1 = s(s(e)) · s(d)
+                   = s(e) · s(d) + s(d)
+                   = e · s(d) + s(d) + s(d)
+                   = s(e · s(d) + d) + s(d)
+                   = s(s(e · s(d) + d)).
+
+  By Axiom 1(b), 0 = s(e · s(d) + d).  This is a contradiction to Axiom 1(a).  So it must be that c = 0.  Therefore a = s(0) = 1.  Then 1 · b = 1.  It follows by Theorem 3.2 that b = 1, so a = b = 1.
+
 # Right cancellation of multiplication
 
 Theorem 5.  Let a, b, c ∈ ℕ.  If c ≠ 0 and ac = bc then a = b.

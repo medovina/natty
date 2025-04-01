@@ -130,12 +130,10 @@ so = 'hence' | 'so' | 'then' | 'therefore' |
     
 have = 'clearly' |
     'it' ['then'] 'follows' ['from' reference | reason] 'that' |
-    'it is clear that'
+    'it is clear that' | 'it must be that' | 'similarly' [','] |
     'the only alternative is' |
     'we conclude that' | 'we deduce that' | 'we have' | 'we know that' |
     'we must have' | 'we see that'
-
-so_or_have = so | [reason] have
 
 contra = ',' ['which is'] ['again' | 'also' | 'similarly'] 'a contradiction' ['to' theorem_ref]
 
@@ -154,10 +152,11 @@ will_show =
 to_show = 'To show that' small_prop ','
 
 assert_step =
-    proof_if_prop |
+    [have] proof_if_prop |
     'Since' proof_prop ',' proof_prop |
     [to_show] will_show proposition |
     'The result follows' reason |
+    'This is a contradiction to' reference |
     [and_or_so] proof_prop
 
 assert_steps = assert_step {',' and_or_so proof_prop}

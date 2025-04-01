@@ -1,0 +1,322 @@
+theorem 3.4:
+
+let a, b : ℕ
+  let_val G : ? = λx:ℕ.(ab) · x = a · (bx)
+    assert (ab) · 0 = 0 ∧ 0 = a(b · 0)
+    assert 0 ∈ G
+    let c : ℕ
+      assume c ∈ G
+        assert (ab) · s(c) = (ab) · c + ab ∧ (ab) · c + ab = a · (bc) + ab ∧ a · (bc) + ab = a · (bc + b) ∧ a · (bc + b) = a · (b · s(c))
+        assert s(c) ∈ G
+    assert ∀x:ℕ.x ∈ G
+assert ∀a:ℕ.∀b:ℕ.∀c:ℕ.(ab) · c = a(bc)
+
+theorem 3.5:
+
+let a : ℕ
+  let_val G : ? = λx:ℕ.s(a) · x = ax + x
+    assert s(a) · 0 = 0 ∧ 0 = a · 0 + 0
+    assert 0 ∈ G
+    let b : ℕ
+      assume b ∈ G
+        assert s(a) · s(b) = s(a) · b + s(a) ∧ s(a) · b + s(a) = (ab + b) + s(a) ∧ (ab + b) + s(a) = ab + (b + s(a)) ∧ ab + (b + s(a)) = ab + s(b + a) ∧ ab + s(b + a) = ab + s(a + b) ∧ ab + s(a + b) = ab + (a + s(b)) ∧ ab + (a + s(b)) = (ab + a) + s(b) ∧ (ab + a) + s(b) = a · s(b) + s(b)
+        assert s(b) ∈ G
+    assert ∀x:ℕ.x ∈ G
+assert ∀a:ℕ.∀b:ℕ.s(a) · b = ab + b
+
+theorem 4.2:
+
+let a, b : ℕ
+  assume a = 1 ∧ b = 1
+    assert ab = 1
+  assume ab = 1
+    assume a = 0
+      assert ab = 0
+      assert ⊥
+    assume b = 0
+      assert ab = 0
+      assert ⊥
+    assert a ≠ 0 ∧ b ≠ 0
+    is_some c, d : ℕ : a = s(c) ∧ b = s(d)
+      assume c ≠ 0
+        is_some e : ℕ : c = s(e)
+          assert a = s(s(e))
+          assert s(0) = 1 ∧ 1 = s(s(e)) · s(d) ∧ s(s(e)) · s(d) = s(e) · s(d) + s(d) ∧ s(e) · s(d) + s(d) = (e · s(d) + s(d)) + s(d) ∧ (e · s(d) + s(d)) + s(d) = s(e · s(d) + d) + s(d) ∧ s(e · s(d) + d) + s(d) = s(s(e · s(d) + d))
+          assert 0 = s(e · s(d) + d)
+          assert ⊥
+      assert c = 0
+    assert a = s(0) ∧ s(0) = 1
+    assert 1 · b = 1
+    assert b = 1
+    assert a = b ∧ b = 1
+assert ∀a:ℕ.∀b:ℕ.(ab = 1 ↔ a = 1 ∧ b = 1)
+
+theorem 5:
+
+let_val G : ? = λx:ℕ.∀y:ℕ.∀z:ℕ.(z ≠ 0 → xz = yz → x = y)
+  let b, c : ℕ
+    assume c ≠ 0 ∧ 0 · c = bc
+      assert bc = 0
+      assert c ≠ 0
+      assert b = 0
+      assert 0 = b
+  assert 0 ∈ G
+  let a : ℕ
+    assume a ∈ G
+      let b, c : ℕ
+        assume c ≠ 0 ∧ s(a) · c = bc
+          assert ca + c = bc
+          assume b = 0
+            assert s(a) = 0 ∨ c = 0
+            assert ⊥
+          assert b ≠ 0
+          is_some p : ℕ : b = s(p)
+            assert ca + c = s(p) · c
+            assert ca + c = cp + c
+            assert ca = cp
+            assert ac = pc
+            assert a = p
+            assert s(a) = s(p) ∧ s(p) = b
+      assert s(a) ∈ G
+  assert ∀x:ℕ.x ∈ G
+assert ∀a:ℕ.∀b:ℕ.∀c:ℕ.(c ≠ 0 → ac = bc → a = b)
+
+theorem 7.1:
+
+let a, b : ℕ
+  assume a < b ∧ a = b
+    assert a < a
+    assert ⊥
+  assume a = b ∧ a > b
+    assert a > a
+    assert ⊥
+  assume a < b ∧ b < a
+    assert a < a
+    assert ⊥
+let_val G : ? = λx:ℕ.∀y:ℕ.x < y ∨ x = y ∨ x > y
+  let y : ℕ
+    assert 0 ≤ y
+    assert y = 0 ∨ y > 0
+  assert 0 ∈ G
+  let x : ℕ
+    assume x ∈ G
+      let y : ℕ
+        assert x < y ∨ x = y ∨ x > y
+        assume x < y
+          is_some p : ℕ : x + p = y
+            assume p = 0
+              assert x = y
+              assert s(x) > y
+            assume p ≠ 0
+              is_some r : ℕ : p = s(r)
+                assert x + s(r) = y
+                assert s(x) + r = y
+              assert s(x) ≤ y
+              assert s(x) < y ∨ s(x) = y
+        assume x = y
+          assert s(x) > x ∧ x = y
+        assume x > y
+          assert s(x) > x
+          assert s(x) > y
+        assert s(x) < y ∨ s(x) = y ∨ s(x) > y
+      assert s(x) ∈ G
+  assert ∀x:ℕ.x ∈ G
+assert ∀a:ℕ.∀b:ℕ.(a < b ∨ a = b ∨ a > b) ∧ ¬(a < b ∧ a = b) ∧ ¬(a < b ∧ a > b) ∧ ¬(a = b ∧ a > b)
+
+theorem 8.1:
+
+let a, b : ℕ
+  assume a < b
+    is_some c : ℕ : a + c = b
+      assert (a + 1) + c = b + 1
+      assert s(a) + c = s(b)
+    assert s(a) < s(b)
+  assume s(a) < s(b)
+    is_some c : ℕ : s(a) + c = s(b)
+      assert (a + 1) + c = b + 1
+      assert a + c = b
+    assert a < b
+assert ∀a:ℕ.∀b:ℕ.(a < b ↔ s(a) < s(b))
+
+theorem 8.2:
+
+let a, b : ℕ
+  assume a < b
+    let_val G : ? = λc:ℕ.a + c < b + c
+      assert 0 ∈ G
+      let c : ℕ
+        assume c ∈ G
+          assert a + c < b + c
+          assert s(a + c) < s(b + c)
+          assert a + s(c) < b + s(c)
+          assert s(c) ∈ G
+      assert ∀c:ℕ.c ∈ G
+assert ∀a:ℕ.∀b:ℕ.∀c:ℕ.(a < b → a + c < b + c)
+
+theorem 8.3:
+
+let a, b, c : ℕ
+  assume a + c < b + c
+    assume a = b
+      assert b + c < b + c
+      assert ⊥
+    assume b < a
+      assert b + c < a + c
+      assert b + c < a + c ∧ a + c < b + c
+      assert ⊥
+    assert a < b
+assert ∀a:ℕ.∀b:ℕ.∀c:ℕ.(a + c < b + c → a < b)
+
+theorem 8.5:
+
+let a, b, c : ℕ
+  assume ac < bc
+    assume c = 0
+      assert 0 < 0
+      assert ⊥
+    assert c ≠ 0
+    assume a = b
+      assert bc < bc
+      assert ⊥
+    assume b < a
+      assert bc < ac
+      assert bc < ac ∧ ac < bc
+      assert ⊥
+    assert a < b
+assert ∀a:ℕ.∀b:ℕ.∀c:ℕ.(ac < bc → a < b)
+
+theorem 9:
+
+let a, b, c, d : ℕ
+  assume a < b ∧ c < d
+    is_some g, h : ℕ : g > 0 ∧ h > 0 ∧ b = a + g ∧ d = c + h
+      assert ac + bd = ac + (a + g) · (c + h) ∧ ac + (a + g) · (c + h) = (((ac + ac) + ah) + gc) + gh ∧ (((ac + ac) + ah) + gc) + gh = (((ac + gc) + ac) + ah) + gh ∧ (((ac + gc) + ac) + ah) + gh = ((a + g) · c + a(c + h)) + gh ∧ ((a + g) · c + a(c + h)) + gh = (bc + ad) + gh
+      assert gh > 0
+    assert ac + bd < bc + ad
+assert ∀a:ℕ.∀b:ℕ.∀c:ℕ.∀d:ℕ.(a < b → c < d → bc + ad < ac + bd)
+
+theorem 12.1:
+
+let i, j, k : ℤ
+  is_some a, b, c, d, e, f : ℕ : i = z(a, b) ∧ j = z(c, d) ∧ k = z(e, f)
+    assert (i + j) + k = (z(a, b) + z(c, d)) + z(e, f) ∧ (z(a, b) + z(c, d)) + z(e, f) = z(a + c, b + d) + z(e, f) ∧ z(a + c, b + d) + z(e, f) = z((a + c) + e, (b + d) + f) ∧ z((a + c) + e, (b + d) + f) = z(a + (c + e), b + (d + f)) ∧ z(a + (c + e), b + (d + f)) = z(a, b) + z(c + e, d + f) ∧ z(a, b) + z(c + e, d + f) = z(a, b) + (z(c, d) + z(e, f)) ∧ z(a, b) + (z(c, d) + z(e, f)) = i + (j + k)
+assert ∀i:ℤ.∀j:ℤ.∀k:ℤ.(i + j) + k = i + (j + k)
+
+theorem 12.2:
+
+let i, j : ℤ
+  is_some a, b, c, d : ℕ : i = z(a, b) ∧ j = z(c, d)
+    assert i + j = z(a, b) + z(c, d) ∧ z(a, b) + z(c, d) = z(a + c, b + d) ∧ z(a + c, b + d) = z(c + a, d + b) ∧ z(c + a, d + b) = z(c, d) + z(a, b) ∧ z(c, d) + z(a, b) = j + i
+assert ∀i:ℤ.∀j:ℤ.i + j = j + i
+
+theorem 12.3:
+
+let i : ℤ
+  is_some a, b : ℕ : i = z(a, b)
+    assert i + 0 = z(a, b) + z(0, 0) ∧ z(a, b) + z(0, 0) = z(a + 0, b + 0) ∧ z(a + 0, b + 0) = z(a, b) ∧ z(a, b) = i
+assert ∀i:ℤ.i + 0 = i
+
+theorem 12.4:
+
+let i : ℤ
+  is_some a, b : ℕ : i = z(a, b)
+    assert i + -(i) = z(a, b) + -(z(a, b)) ∧ z(a, b) + -(z(a, b)) = z(a, b) + z(b, a) ∧ z(a, b) + z(b, a) = z(a + b, b + a) ∧ z(a + b, b + a) = z(0, 0) ∧ z(0, 0) = 0
+assert ∀i:ℤ.i + -(i) = 0
+
+theorem 14.1:
+
+let i, j, k : ℤ
+  is_some a, b, c, d, e, f : ℕ : i = z(a, b) ∧ j = z(c, d) ∧ k = z(e, f)
+    assert (ij) · k = (z(a, b) · z(c, d)) · z(e, f) ∧ (z(a, b) · z(c, d)) · z(e, f) = z(ac + bd, ad + bc) · z(e, f) ∧ z(ac + bd, ad + bc) · z(e, f) = z((ac + bd) · e + (ad + bc) · f, (ac + bd) · f + (ad + bc) · e) ∧ z((ac + bd) · e + (ad + bc) · f, (ac + bd) · f + (ad + bc) · e) = z((((ac) · e + (bd) · e) + (ad) · f) + (bc) · f, (((ac) · f + (bd) · f) + (ad) · e) + (bc) · e) ∧ z((((ac) · e + (bd) · e) + (ad) · f) + (bc) · f, (((ac) · f + (bd) · f) + (ad) · e) + (bc) · e) = z((((ac) · e + (ad) · f) + (bc) · f) + (bd) · e, (((ac) · f + (ad) · e) + (bc) · e) + (bd) · f) ∧ z((((ac) · e + (ad) · f) + (bc) · f) + (bd) · e, (((ac) · f + (ad) · e) + (bc) · e) + (bd) · f) = z(a(ce + df) + b(cf + de), a(cf + de) + b(ce + df)) ∧ z(a(ce + df) + b(cf + de), a(cf + de) + b(ce + df)) = z(a, b) · z(ce + df, cf + de) ∧ z(a, b) · z(ce + df, cf + de) = z(a, b) · (z(c, d) · z(e, f)) ∧ z(a, b) · (z(c, d) · z(e, f)) = i(jk)
+assert ∀i:ℤ.∀j:ℤ.∀k:ℤ.(ij) · k = i(jk)
+
+theorem 14.2:
+
+let i, j : ℤ
+  is_some a, b, c, d : ℕ : i = z(a, b) ∧ j = z(c, d)
+    assert ij = z(a, b) · z(c, d) ∧ z(a, b) · z(c, d) = z(ac + bd, ad + bc) ∧ z(ac + bd, ad + bc) = z(ca + db, cb + da) ∧ z(ca + db, cb + da) = z(c, d) · z(a, b) ∧ z(c, d) · z(a, b) = ji
+assert ∀i:ℤ.∀j:ℤ.ij = ji
+
+theorem 14.4:
+
+let i, j, k : ℤ
+  is_some a, b, c, d, e, f : ℕ : i = z(a, b) ∧ j = z(c, d) ∧ k = z(e, f)
+    assert i(j + k) = z(a, b) · (z(c, d) + z(e, f)) ∧ z(a, b) · (z(c, d) + z(e, f)) = z(a, b) · z(c + e, d + f) ∧ z(a, b) · z(c + e, d + f) = z(a(c + e) + b(d + f), a(d + f) + b(c + e)) ∧ z(a(c + e) + b(d + f), a(d + f) + b(c + e)) = z(((ac + ae) + bd) + bf, ((ad + af) + bc) + be) ∧ z(((ac + ae) + bd) + bf, ((ad + af) + bc) + be) = z(((ac + bd) + ae) + bf, ((ad + bc) + af) + be) ∧ z(((ac + bd) + ae) + bf, ((ad + bc) + af) + be) = z(ac + bd, ad + bc) + z(ae + bf, af + be) ∧ z(ac + bd, ad + bc) + z(ae + bf, af + be) = z(a, b) · z(c, d) + z(a, b) · z(e, f) ∧ z(a, b) · z(c, d) + z(a, b) · z(e, f) = ij + ik
+assert ∀i:ℤ.∀j:ℤ.∀k:ℤ.i(j + k) = ij + ik
+
+theorem 15:
+
+let i, j : ℤ
+  assume ij = 0 ∧ i ≠ 0
+    is_some a, b, c, d : ℕ : i = z(a, b) ∧ j = z(c, d)
+      assert ij = z(ac + bd, ad + bc)
+      assert a ≠ b ∧ ac + bd = ad + bc
+      assert a < b ∨ a > b
+      assume a < b
+        is_some g : ℕ : a + g = b
+          assert ac + (a + g) · d = ad + (a + g) · c
+          assert (ac + ad) + gd = (ad + ac) + gc
+          assert gd = gc
+          assert a ≠ b
+          assert g ≠ 0
+        assert d = c
+      assume a > b
+        is_some g : ℕ : b + g = a
+          assert (b + g) · c + bd = (b + g) · d + bc
+          assert (bc + gc) + bd = (bd + gd) + bc
+          assert gc = gd
+          assert a ≠ b
+          assert g ≠ 0
+        assert c = d
+      assert c = d
+    assert j = 0
+assert ∀i:ℤ.∀j:ℤ.(ij = 0 → i = 0 ∨ j = 0)
+
+theorem 17.1:
+
+let i, j : ℤ
+  is_some a, b, c, d : ℕ : i = z(a, b) ∧ j = z(c, d)
+    assert (a + d < b + c ∨ a + d = b + c ∨ a + d > b + c) ∧ ¬(a + d < b + c ∧ a + d = b + c) ∧ ¬(a + d < b + c ∧ a + d > b + c) ∧ ¬(a + d = b + c ∧ a + d > b + c)
+assert ∀i:ℤ.∀j:ℤ.(i < j ∨ i = j ∨ i > j) ∧ ¬(i < j ∧ i = j) ∧ ¬(i < j ∧ i > j) ∧ ¬(i = j ∧ i > j)
+
+theorem 17.2:
+
+let i, j, k : ℤ
+  assume i < j ∧ j < k
+    is_some a, b, c, d, e, f : ℕ : i = z(a, b) ∧ j = z(c, d) ∧ k = z(e, f)
+      assert z(a, b) < z(c, d) ∧ z(c, d) < z(e, f)
+      assert a + d < b + c ∧ c + f < d + e
+      assert (a + d) + f < (b + c) + f ∧ (b + c) + f < (b + d) + e
+      assert (a + d) + f < (b + d) + e
+      assert a + f < b + e
+    assert i < k
+assert ∀i:ℤ.∀j:ℤ.∀k:ℤ.(i < j → j < k → i < k)
+
+theorem 17.3:
+
+let i, j, k : ℤ
+  assume i < j
+    is_some a, b, c, d, e, f : ℕ : i = z(a, b) ∧ j = z(c, d) ∧ k = z(e, f)
+      assert z(a, b) < z(c, d)
+      assert a + d < b + c
+      assert (a + d) + (e + f) < (b + c) + (e + f)
+      assert (a + e) + (d + f) < (b + f) + (c + e)
+      assert z(a + e, b + f) < z(c + e, d + f)
+      assert z(a, b) + z(e, f) < z(c, d) + z(e, f)
+    assert i + k < j + k
+assert ∀i:ℤ.∀j:ℤ.∀k:ℤ.(i < j → i + k < j + k)
+
+theorem 17.4:
+
+let i, j, k : ℤ
+  assume i < j ∧ k > 0
+    is_some a, b, c, d, e, f : ℕ : i = z(a, b) ∧ j = z(c, d) ∧ k = z(e, f)
+      assert z(a, b) < z(c, d) ∧ z(e, f) > 0
+      assert a + d < b + c ∧ f < e
+      assert (b + c) · f + (a + d) · e < (a + d) · f + (b + c) · e
+      assert (ae + bf) + (cf + de) < (af + be) + (ce + df)
+      assert z(ae + bf, af + be) < z(ce + df, cf + de)
+      assert z(a, b) · z(e, f) < z(c, d) · z(e, f)
+    assert ik < jk
+assert ∀i:ℤ.∀j:ℤ.∀k:ℤ.(i < j → k > 0 → ik < jk)
+

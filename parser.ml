@@ -122,9 +122,11 @@ let so =
   (str "which implies" << opt_str "that")
 
 let have = any_str 
-  ["clearly"; "it is clear that"; "the only alternative is";
+  ["clearly"; "it is clear that"; "it must be that";
+   "the only alternative is";
    "we conclude that"; "we deduce that"; "we have";
    "we know that"; "we must have"; "we see that"] <|>
+   (str "similarly" << opt_str ",") <|>
    (any_str ["it follows"; "it then follows"] >>
       optional ((str "from" >> reference) <|> reason) >>
       str "that")
@@ -358,12 +360,14 @@ let will_show = choice [
 
 let to_show = str "To show that" >> small_prop << str ","
 
-let assert_step = proof_if_prop <|> (choice [
-  pipe2 (str "Since" >> proof_prop) (str "," >> proof_prop) (@);
-  optional to_show >> will_show >> proposition >>$ [];
-  str "The result follows" >> reason >>$ [];
-  optional and_or_so >> proof_prop
-  ] |>> map_fst mk_step)
+let assert_step =
+  (optional have >>? proof_if_prop) <|> (choice [
+    pipe2 (str "Since" >> proof_prop) (str "," >> proof_prop) (@);
+    optional to_show >> will_show >> proposition >>$ [];
+    str "The result follows" >> reason >>$ [];
+    single (with_range (str "This is a contradiction to" >> reference >>$ _false));
+    optional and_or_so >> proof_prop
+    ] |>> map_fst mk_step)
 
 let assert_steps =
   let join = str "," >> and_or_so in

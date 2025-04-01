@@ -134,8 +134,6 @@ let map_triple_fst f = map (fun (x, y, z) -> (f x, y, z))
 
 let (let+) = fun a f -> concat_map f a
 
-let singleton x = [x]
-
 let rec last = function
   | [] -> failwith "last"
   | [x] -> x
@@ -147,12 +145,6 @@ let rec split_last = function
   | x :: xs ->
       let (ys, last) = split_last xs in
       (x :: ys, last)
-
-let rec take n xs =
-  if n = 0 then [] else
-    match xs with
-      | x :: xs -> x :: take (n - 1) xs
-      | [] -> failwith "take"
 
 let index_of_opt x ys = find_index (fun z -> z = x) ys
 

@@ -156,41 +156,48 @@ let print_blocks blocks =
   print "" blocks;
   print_newline ()
 
-let infer_blocks steps =
+let infer_blocks steps : block list =
   let rec all_vars = function
     | [] -> []
     | step :: steps ->
         subtract (step_free_vars step @ all_vars steps) (step_decl_vars step) in
-  let rec infer vars in_assume steps = match steps with
-    | [] -> ([], steps)
-    | (step, range) :: rest ->
-        if overlap (step_decl_vars step) (concat vars) then ([], steps)
-        else let in_use = match vars with
-          | [] -> true
-          | top_vars :: _ -> overlap top_vars (all_vars (map fst steps)) in
-        if step <> Assert _false && not in_use then ([], steps)
-        else match step with
-          | Escape ->
-              if in_assume then ([], rest) else infer vars false rest
-          | Group steps ->
-              let rec group_blocks = function
-                | [] -> []
-                | steps ->
-                    let (blocks, rest) = infer [] false steps in
-                    blocks @ group_blocks rest in
-              let blocks = group_blocks steps in
-              let (blocks2, rest2) = infer vars in_assume rest in
-              (blocks @ blocks2, rest2)
-          | _ ->
-            let (children, rest1) =
-              match step with
-                | Assume _ -> infer vars true rest
-                | _ -> match step_decl_vars step with
-                  | [] -> ([], rest)
-                  | step_vars -> infer (step_vars :: vars) in_assume rest in
-            let (blocks, rest2) = infer vars in_assume rest1 in
-            (Block (step, range, children) :: blocks, rest2) in
-  let (blocks, rest) = infer [] false steps in
+  let rec infer vars in_assume steps : block list * (proof_step * range) list * bool =
+    match steps with
+      | [] -> ([], steps, false)
+      | (step, range) :: rest ->
+          if overlap (step_decl_vars step) (concat vars) then ([], steps, false)
+          else let in_use = match vars with
+            | [] -> true
+            | top_vars :: _ -> overlap top_vars (all_vars (map fst steps)) in
+          if step <> Assert _false && not in_use then ([], steps, false)
+          else match step with
+            | Escape ->
+                if in_assume then ([], rest, true) else infer vars false rest
+            | Assert f when f = _false ->
+                if in_assume then ([Block (step, range, [])], rest, true)
+                  else error "contradiction without assumption" f
+            | Group steps ->
+                let rec group_blocks = function
+                  | [] -> []
+                  | steps ->
+                      let (blocks, rest, _bail) = infer [] false steps in
+                      blocks @ group_blocks rest in
+                let blocks = group_blocks steps in
+                let (blocks2, rest2, bail) = infer vars in_assume rest in
+                (blocks @ blocks2, rest2, bail)
+            | _ ->
+              let (children, rest1, bail) =
+                match step with
+                  | Assume _ ->
+                      let (blocks, rest, _bail) = infer vars true rest in
+                      (blocks, rest, false)
+                  | _ -> match step_decl_vars step with
+                    | [] -> ([], rest, false)
+                    | step_vars -> infer (step_vars :: vars) in_assume rest in
+              let (blocks, rest2, bail) =
+                if bail then ([], rest1, true) else infer vars in_assume rest1 in
+              (Block (step, range, children) :: blocks, rest2, bail) in
+  let (blocks, rest, _bail) = infer [] false steps in
   assert (rest = []);
   blocks
 
