@@ -196,7 +196,11 @@ let infer_blocks steps : block list =
                     | step_vars -> infer (step_vars :: vars) in_assume rest in
               let (blocks, rest2, bail) =
                 if bail then ([], rest1, true) else infer vars in_assume rest1 in
-              (Block (step, range, children) :: blocks, rest2, bail) in
+              let out_blocks = match step with
+                | IsSome _ ->
+                    [Block (step, range, children @ blocks)]  (* pull siblings into block *)
+                | _ -> Block (step, range, children) :: blocks in
+              (out_blocks, rest2, bail) in
   let (blocks, rest, _bail) = infer [] false steps in
   assert (rest = []);
   blocks
