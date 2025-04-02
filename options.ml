@@ -5,7 +5,6 @@ type options = {
   export: bool ref;
   keep_going: bool ref;
   pipe: string ref;
-  profile: bool ref;
   server: bool ref;
   show_proofs: bool ref;
   thm_name: string ref;
@@ -18,7 +17,6 @@ let opts = {
   export = ref false;
   keep_going = ref false;
   pipe = ref "";
-  profile = ref false;
   server = ref false;
   show_proofs = ref false;
   thm_name = ref "";
@@ -44,7 +42,7 @@ let parse_args args =
             | 'l' -> opts.server := true
             | 'n' -> opts.thm_name := value
             | 'p' -> opts.show_proofs := true
-            | 'r' -> opts.profile := true
+            | 'r' -> profiling := true
             | 't' -> opts.timeout := float_of_int (int_val ())
             | 'v' -> opts.verbose := true
             | 'x' -> opts.export := true
