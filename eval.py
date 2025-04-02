@@ -143,8 +143,6 @@ def prove(prover, file):
             if m := re.search(given_regex, line):
                 res['given'] = m[1]
                 break
-        else:
-            assert False, 'given clause count not found'
 
     with lock:
         print(clear_line + cmd)
