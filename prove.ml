@@ -760,7 +760,7 @@ let find_ac_ops pformulas =
   let commutative = filter_map commutative_axiom formulas in
   intersect associative commutative
 
-type result = Proof of pformula * float | Timeout | GaveUp | Stopped
+type result = Proof of pformula * float * int | Timeout | GaveUp | Stopped
 
 let szs = function
   | Proof _ -> "Theorem"
@@ -796,7 +796,7 @@ let refute timeout pformulas cancel_check =
                 loop used (count + 1)
             | Some p ->
                 let (used, rewritten) = back_simplify p used in
-                if p.formula = _false then Proof (p, elapsed) else
+                if p.formula = _false then Proof (p, elapsed, count) else
                   let used = p :: used in
                   let generated =
                     concat_map (all_super p) used @ all_eres p @ all_split p |>
@@ -805,7 +805,7 @@ let refute timeout pformulas cancel_check =
                     rw_simplify_all queue ac_ops used found (rewritten @ generated) in
                   dbg_newline ();
                   match find_opt (fun p -> p.formula = _false) new_pformulas with
-                    | Some p -> Proof (p, elapsed)
+                    | Some p -> Proof (p, elapsed, count)
                     | None ->
                         queue_add queue new_pformulas;
                         loop used (count + 1)
@@ -889,8 +889,8 @@ let prove_all thf prog =
               let result =
                 prove !(opts.timeout) (rev known) thm !(opts.disprove) (Fun.const false) in
               let b = match result with
-                  | Proof (pformula, elapsed) ->
-                      printf "%sproved in %.2f s\n" dis elapsed;
+                  | Proof (pformula, elapsed, given) ->
+                      printf "%sproved in %.2f s (given clauses: %d)\n" dis elapsed given;
                       if !(opts.show_proofs) then (
                         print_newline ();
                         output_proof pformula);
