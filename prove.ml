@@ -288,9 +288,9 @@ let clausify_step id lits in_use =
           Some ([g], [g])
       | Not g -> (match bool_kind g with
         | Quant ("∀", x, typ, g) ->
-            new_lits (_exists x typ (_not g))
+            new_lits (_exists x typ (negate g))
         | Quant ("∃", x, typ, g) ->
-            new_lits (_for_all x typ (_not g))
+            new_lits (_for_all x typ (negate g))
         | _ -> None)
       | _ -> None in
   let rec loop before = function
@@ -409,10 +409,11 @@ let eq_pairs t t' = [(t, t'); (t', t)] |>
 
 let super dp d' t_t' cp c c1 =
   let pairs = match terms t_t' with
-    | (false, _, _) -> (match bool_kind t_t' with
-        | Not (Eq _ as eq) -> [(eq, _false)]
-        | _ -> failwith "super")
-    | (true, t, t') -> eq_pairs t t' in   (* iii: pre-check *)
+    | (true, t, t') ->
+        if t' = _true || t' = _false then [(t, t')]
+        (* else (Eq (t, t'), _true) :: eq_pairs t t'   (* iii: pre-check *) *)
+        else [(Eq (t, t'), _true)]
+    | (false, t, t') -> [(Eq (t, t'), _false)] in
   let+ (t, t') = pairs in
   let+ (u, parent_eq) = green_subterms c1 |>
     filter (fun (u, _) -> not (is_var u || is_fluid u)) in  (* i, ii *)
@@ -432,7 +433,7 @@ let super dp d' t_t' cp c c1 =
             not (is_maximal lit_gt t_eq_t'_s d'_s) ||  (* vi *)
             is_applied_symbol t_s || (* vii *)
             t'_s = _false && not (top_positive u c1 sub (is_inductive cp))  (* viii *)
-        then [] else
+        then [] else (
           let c1_t' = replace_in_formula t' u c1 in
           let c_s = replace1 (rsubst sub c1_t') c1_s c_s in
           let e = multi_or (d'_s @ c_s) in
@@ -440,23 +441,25 @@ let super dp d' t_t' cp c c1 =
           let u_show = show_formula u in
           let rule = sprintf "sup: %s / %s" tt'_show u_show in
           let w, cw = basic_weight e, basic_weight cp.formula in
-          let cost = if w <= cw then 0.01 else 1.0 in
-          [mk_pformula rule [dp; cp] (unprefix_vars e) cost]
+          let cost = if w <= cw then 0.01 else 0.1 in
+          [mk_pformula rule [dp; cp] (unprefix_vars e) cost])
 
 let all_super dp cp =
   profile "all_super" @@ fun () ->
   if total_cost [dp; cp] 0.0 > max_cost ||
     dp = cp && is_inductive dp then []
-  else (
+  else
     let d_steps, c_steps = clausify_steps dp, clausify_steps cp in
     let+ (dp, d_steps, cp, c_steps) =
       [(dp, d_steps, cp, c_steps); (cp, c_steps, dp, d_steps)] in
-    let+ (d_lits, new_lits, _) = d_steps in
-    let d_lits, new_lits = map prefix_vars d_lits, map prefix_vars new_lits in
-    let+ d_lit = new_lits in
-    let+ (c_lits, _, exposed_lits) = c_steps in
-    let+ c_lit = exposed_lits in
-    super dp (remove1 d_lit d_lits) d_lit cp c_lits c_lit)
+    if dp.goal || cp.goal then
+      let+ (d_lits, new_lits, _) = d_steps in
+      let d_lits, new_lits = map prefix_vars d_lits, map prefix_vars new_lits in
+      let+ d_lit = new_lits in
+      let+ (c_lits, _, exposed_lits) = c_steps in
+      let+ c_lit = exposed_lits in
+      super dp (remove1 d_lit d_lits) d_lit cp c_lits c_lit
+    else []
 
 (*      C' ∨ u ≠ u'
  *     ────────────   eres
@@ -526,8 +529,9 @@ let update p rewriting f =
  *     t = t'    C⟨t'σ⟩
  *
  *   (i) tσ > t'σ
- *   (ii) C > (t = t')σ   *)
-
+ *   (ii) (t = t')σ ≯ C
+ *
+ *)
 let rewrite dp cp =
   let pairs = match remove_universal dp.formula with
     | Eq (t, t') -> eq_pairs t t' (* i: pre-check *)
@@ -541,7 +545,7 @@ let rewrite dp cp =
     | Some sub ->
         let t_s, t'_s = u, rsubst sub t' in
         if term_gt t_s t'_s &&  (* (i) *)
-           clause_gt (clausify cp) [Eq (t_s, t'_s)] then (* (ii) *)
+           not (clause_gt [Eq (t_s, t'_s)] (clausify cp)) then (* (ii) *)
           let e = replace_in_formula t'_s t_s c in
           [update cp (Some dp) e]
         else []

@@ -172,6 +172,10 @@ let fkind boolean = function
 let bool_kind = fkind true
 let kind = fkind false
 
+let negate f = match bool_kind f with
+  | Not f -> f
+  | _ -> _not f
+
 let rec gather_associative op f = match kind f with
   | Binary (op', _, f, g) when op' = op ->
       gather_associative op f @ gather_associative op g
