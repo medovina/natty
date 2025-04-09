@@ -238,8 +238,10 @@ and block_steps (Block (step, range, children)) : statement list list * formula 
 
 let rec expand_proof stmt env f range = function
   | Steps steps ->
-      let thm_name = !(opts.thm_name) in
-      if thm_name <> "" && stmt_id stmt <> thm_name then None else (
+      let thm_name = stmt_id stmt in
+      let only_thm = !(opts.only_thm) in
+      if not (only_thm |> opt_for_all (fun o ->
+          thm_name = o || starts_with (thm_name ^ ".") o)) then None else (
         if !debug > 0 then (
           printf "%s:\n\n" (stmt_name stmt);
           if !debug > 1 then (

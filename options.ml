@@ -7,7 +7,7 @@ type options = {
   pipe: string ref;
   server: bool ref;
   show_proofs: bool ref;
-  thm_name: string ref;
+  only_thm: string option ref;
   timeout: float ref;
   verbose: bool ref
 }
@@ -19,7 +19,7 @@ let opts = {
   pipe = ref "";
   server = ref false;
   show_proofs = ref false;
-  thm_name = ref "";
+  only_thm = ref None;
   timeout = ref 5.0;
   verbose = ref false
 }
@@ -40,7 +40,7 @@ let parse_args args =
             | 'd' -> let level = if arg = "-d" then 1 else int_val () in
                      debug := level
             | 'l' -> opts.server := true
-            | 'n' -> opts.thm_name := value
+            | 'n' -> opts.only_thm := Some value
             | 'p' -> opts.show_proofs := true
             | 'r' -> profiling := true
             | 't' -> opts.timeout := float_of_int (int_val ())

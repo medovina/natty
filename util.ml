@@ -7,19 +7,17 @@ open List
 open Printf
 open MParser
 
-(* functions *)
-
-let uncurry f (x, y) = f x y
-
 (* options *)
 
 let (let*) = Option.bind
 
 let opt_default opt def = Option.value opt ~default:def
 
-let opt_all_eq x = function
-  | Some y -> y = x
+let opt_for_all f = function
+  | Some x -> f x
   | None -> true
+
+let opt_all_eq x = opt_for_all ((=) x)
 
 let opt_fold f opt acc = fold_right f (Option.to_list opt) acc
 
@@ -165,6 +163,8 @@ let fold_lefti (f: 'a -> int -> 'b -> 'a) (acc: 'a) (xs: 'b list): 'a =
     | (x :: xs) -> fn (i + 1) (f acc i x) xs
   in fn 0 acc xs
 
+let filter_mapi f list = filter_map (Fun.id) (mapi f list)
+
 let rec all_pairs = function
   | [] -> []
   | x :: xs -> map (fun y -> (x, y)) xs @ all_pairs xs
@@ -271,8 +271,6 @@ let write_file filename text =
 let single s = count 1 s
 
 let triple p q r = pipe3 p q r (fun x y z -> (x, y, z))
-
-let quadruple p q r s = pipe4 p q r s (fun w x y z -> (w, x, y, z))
 
 let trace msg s =
   (return () |>> (fun _ -> printf "entering %s\n" msg)) >>

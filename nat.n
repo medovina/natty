@@ -54,7 +54,7 @@ Proof.
   We have (ab) · 0 = 0 = a(b · 0), so 0 ∈ G.  Now let c ∈ ℕ, and suppose that c ∈ G.  Then
 
     (a · b) · s(c) = (a · b) · c + a · b      by Axiom 3(b)
-                   = a · (b · c) + a · b
+                   = a · (b · c) + a · b           by hypothesis
                    = a · (b · c + b)                by Theorem 3.3
                    = a · (b · s(c))                  by Axiom 3(b).
                  

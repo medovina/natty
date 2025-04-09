@@ -862,28 +862,31 @@ let number_hypotheses name stmts =
   snd (fold_left_map f 1 stmts)
 
 let expand_proofs stmts for_export : (statement * statement list) list =
-  let thm_name = !(opts.thm_name) in
+  let only_thm = !(opts.only_thm) in
   let rec expand known = function
     | stmt :: stmts ->
         let thms = match stmt with
           | Theorem (name, _, proof, _) as thm -> (
-            if (thm_name <> "" && name <> thm_name) then [] else
-            (thm, known) :: match proof with
+            (if (opt_all_eq name only_thm) then [(thm, known)] else []) @
+              match proof with
                 | Some (ExpandedSteps fs) ->
-                    fs |> mapi (fun j stmts ->
+                    fs |> filter_mapi (fun j stmts ->
                       let s = if for_export then "s" else "" in
                       let step_name = sprintf "%s.%s%d" name s (j + 1) in
-                      let (hypotheses, conjecture) = split_last stmts in
-                      (set_theorem_id step_name conjecture,
-                       rev (number_hypotheses name hypotheses) @ known))
+                      if (only_thm |> opt_for_all (fun o -> o = name || o = step_name)) then
+                        let (hypotheses, conjecture) = split_last stmts in
+                        Some (set_theorem_id step_name conjecture,
+                              rev (number_hypotheses name hypotheses) @ known)
+                      else None)
                 | Some (Steps _) -> assert false
                 | None -> [])
           | _ -> [] in
         thms @ expand (stmt :: known) stmts
     | [] -> [] in
   let res = expand [] stmts in
-  if thm_name <> "" && res = []
-    then failwith (sprintf "theorem %s not found" thm_name) else res
+  only_thm |> Option.iter (fun only_thm ->
+    if res = [] then failwith (sprintf "theorem %s not found" only_thm));
+  res
 
 let prove_all thf prog =
   profile "prove_all" @@ fun () ->
