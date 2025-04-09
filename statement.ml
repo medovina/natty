@@ -113,6 +113,15 @@ let rec map_stmt_formulas fn = function
       Theorem (id, fn f, Option.map map_proof proof, range)
   | stmt -> stmt
 
+let decl_var = function
+  | ConstDecl (i, typ) -> Some (i, typ)
+  | Definition (i, typ, _f) -> Some (i, typ)
+  | _ -> None
+
+let is_const id def =
+  let* (i, typ) = decl_var def in
+  if i = id then Some typ else None
+
 let show_statement multi s =
   let name = stmt_name s in
   let show prefix f = indent_with_prefix prefix (show_formula_multi multi f) in

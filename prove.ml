@@ -6,6 +6,7 @@ open Statement
 open Util
 
 let formula_counter = ref 0
+let consts = ref []
 
 type pformula = {
   id: int;
@@ -84,14 +85,23 @@ let rec number_formula pformula =
 let create_pformula rule parents formula delta =
   number_formula (mk_pformula rule parents formula delta)
 
-(* Symbol precedence.  ⊥ > ⊤ have the lowest precedence.  We group other
- * symbols by arity, then (arbitrarily) alphabetically. *)
- let const_gt f g =
+(* Symbol precedence.  ⊥ and ⊤ have the lowest precedence, with ⊥ > ⊤.
+ * For other symbols, if c was defined after d then it has higher precedence.
+ * If both c and d are predefined (e.g. Boolean operators) then we order them
+ * alphabetically (arbitrarily). *)
+let const_gt f g =
+  let prio (c, c_type) =
+    let index = find_index (fun x -> x = (c, c_type)) !consts in
+    if index = None && c.[0] <> '@' && c.[0] <> '_' && not (mem c logical_ops)
+      then failwith ("no precedence: " ^ c);
+    (index, c) in
   match f, g with
-    | Const (c, _), Const ("⊤", _) -> c <> "⊤"
-    | Const (c, _), Const ("⊥", _) -> c <> "⊥"
+    | Const ("⊤", _), _ -> false
+    | Const _, Const ("⊤", _) -> true
+    | Const ("⊥", _), _ -> false
+    | Const _, Const ("⊥", _) -> true
     | Const (f, f_type), Const (g, g_type) ->
-        (arity f_type, f) > (arity g_type, g)
+        prio (f, f_type) > prio (g, g_type)
     | _ -> failwith "const_gt"
 
 let rec lex_gt gt ss ts = match ss, ts with
@@ -168,7 +178,7 @@ let get_index x map =
 
 (* Map higher-order terms to first-order terms as described in
  * Bentkamp et al, section 3.9 "A Concrete Term Order". *)
- let encode_term type_map fluid_map t =
+let encode_term type_map fluid_map t =
   let encode_fluid t = _var ("@v" ^ string_of_int (get_index t fluid_map)) in
   let encode_type typ = _const ("@t" ^ string_of_int (get_index typ type_map)) in
   let rec fn outer t =
@@ -189,19 +199,18 @@ let get_index x map =
             | Const (q, _) when q = "∀" || q = "∃" -> (
                 match args with
                   | [Lambda (x, typ, f)] ->
-                      let q1 = _const (q ^ prime) in
+                      let q1 = _const ("@" ^ q ^ prime) in
                       apply [q1; encode_type typ; fn (x :: outer) f]
                   | _ -> failwith "encode_term")
-            | Const (id, typ) ->
-                let c1 = Const (id ^ "_" ^ string_of_int (length args), typ) in
-                apply (c1 :: map (fn outer) args)
+            | Const _ ->
+                apply (head :: map (fn outer) args)
             | _ -> failwith "encode_term")
       | Lambda (x, typ, f) ->
           if is_ground t then
-            apply [_const "λ"; encode_type typ; fn (x :: outer) f]
+            apply [_const "@λ"; encode_type typ; fn (x :: outer) f]
           else encode_fluid t (* assume fluid *)
       | Eq (t, u) ->
-          apply [_const "="; encode_type (type_of t); fn outer t; fn outer u] in
+          apply [_const "@="; encode_type (type_of t); fn outer t; fn outer u] in
     match u with
       | Var (v, typ) -> Var (v ^ prime, typ)
       | u -> u
@@ -275,7 +284,7 @@ let clausify_step id lits in_use =
       | Quant ("∃", x, typ, g) ->
           let vars_types = free_vars_types f in
           let skolem_type = fold_right1 mk_fun_type (typ :: map snd vars_types) in
-          let c = sprintf "%s%d" x id in
+          let c = sprintf "_%s%d" x id in
           let c = match in_use with
             | Some names ->
                 let c = suffix c !names in
@@ -827,6 +836,7 @@ let to_pformula stmt = stmt_formula stmt |> Option.map (fun f ->
 
 let prove timeout known_stmts thm invert cancel_check =
   formula_counter := 0;
+  consts := filter_map decl_var known_stmts;
   let known = known_stmts |> filter_map (fun s ->
     match to_pformula s with
       | Some p -> dbg_newline (); Some p

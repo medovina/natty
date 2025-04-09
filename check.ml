@@ -19,11 +19,6 @@ let rec check_type env typ = match typ with
         type_error ("undefined type " ^ id) typ
       else ()
 
-let is_const id = function
-  | ConstDecl (i, typ) when i = id -> Some typ
-  | Definition (i, typ, _f) when i = id -> Some typ
-  | _ -> None
-
 let const_types1 env id = filter_map (is_const id) env
 
 let const_types formula env id =
