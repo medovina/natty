@@ -93,7 +93,7 @@ let const_gt f g =
   let prio (c, c_type) =
     let index = find_index (fun x -> x = (c, c_type)) !consts in
     if index = None && c.[0] <> '@' && c.[0] <> '_' && not (mem c logical_ops)
-      then failwith ("no precedence: " ^ c);
+      then (printf "no precedence: %s" c; assert false);
     (index, c) in
   match f, g with
     | Const ("⊤", _), _ -> false
@@ -660,12 +660,12 @@ let is_tautology f =
 
 let associative_axiom f =
   let is_assoc (f, g) = match kind f, kind g with
-    | Binary (op, _, f1, Var (z, _)), Binary (op3, _, Var (x', _), g1) -> (
+    | Binary (op, _, f1, Var (z, typ)), Binary (op3, _, Var (x', _), g1) -> (
         match kind f1, kind g1 with
           | Binary (op2, _, Var (x, _), Var (y, _)),
             Binary (op4, _, Var (y', _), Var (z', _))
               when op = op2 && op2 = op3 && op3 = op4 &&
-                  (x, y, z) = (x', y', z') -> Some op
+                  (x, y, z) = (x', y', z') -> Some (op, typ)
           | _ -> None)
     | _ -> None in
   remove_universal f |> function
@@ -674,23 +674,10 @@ let associative_axiom f =
 
 let commutative_axiom f = remove_universal f |> function
     | Eq (f, g) -> (match kind f, kind g with
-        | Binary (op, _, Var (x, _), Var (y, _)), Binary (op', _, Var (y', _), Var (x', _))
-            when (op, x, y) = (op', x', y') -> Some op
+        | Binary (op, _, Var (x, typ), Var (y, _)), Binary (op', _, Var (y', _), Var (x', _))
+            when (op, x, y) = (op', x', y') -> Some (op, typ)
         | _ -> None)
     | _ -> None
-
-let is_ac_tautology ac_ops = function
-  | Eq (f, g) as eq -> (
-      match kind f with
-        | Binary (op, _, _, _) when mem op ac_ops ->
-            let b =
-              std_sort (gather_associative op f) = std_sort (gather_associative op g) &&
-              not (associative_axiom eq = Some op || commutative_axiom eq = Some op) in
-            if b && !debug > 0 then
-              printf "AC tautology: %s\n" (show_formula eq);
-            b
-        | _ -> false)
-  | _ -> false
 
 (* approximate: equivalent formulas could possibly have different canonical forms *)
 let canonical pformula =
@@ -720,13 +707,13 @@ let queue_add queue pformulas =
 let dbg_newline () =
   if !debug > 0 then print_newline ()
 
-let rw_simplify queue ac_ops used found pformula =
+let rw_simplify queue used found pformula =
   profile "rw_simplify" @@ fun () ->
   let rec repeat_rewrite p = match rewrite_from used p with
     | None -> p
     | Some p -> repeat_rewrite p in
   let p = simplify (repeat_rewrite pformula) in
-    if is_tautology p.formula || is_ac_tautology ac_ops p.formula then None
+    if is_tautology p.formula then None
     else
       match any_subsumes used p with
         | Some pf ->
@@ -755,11 +742,11 @@ let rw_simplify queue ac_ops used found pformula =
                     found := FormulaMap.add f p !found;
                     Some p)
 
-let rec rw_simplify_all queue ac_ops used found = function
+let rec rw_simplify_all queue used found = function
   | [] -> []
   | p :: ps ->
-      let ps' = rw_simplify_all queue ac_ops used found ps in
-      match rw_simplify queue ac_ops used found p with
+      let ps' = rw_simplify_all queue used found ps in
+      match rw_simplify queue used found p with
         | None -> ps'
         | Some p' -> p' :: ps'
 
@@ -773,12 +760,6 @@ let rec back_simplify from = function
           | Some p' -> (ps', p' :: rewritten)
           | None -> (p :: ps', rewritten)
 
-let find_ac_ops pformulas =
-  let formulas = map (fun p -> p.formula) pformulas in
-  let associative = filter_map associative_axiom formulas in
-  let commutative = filter_map commutative_axiom formulas in
-  intersect associative commutative
-
 type result = Proof of pformula * float * int | Timeout | GaveUp | Stopped
 
 let szs = function
@@ -788,10 +769,6 @@ let szs = function
   | Stopped -> "Stopped"
 
 let refute timeout pformulas cancel_check =
-  dbg_newline ();
-  let ac_ops = find_ac_ops pformulas in
-  if !debug > 0 && ac_ops <> [] then
-    printf "AC operators: %s\n\n" (comma_join ac_ops);
   let found = ref @@ FormulaMap.of_list (pformulas |> map (fun p -> (canonical p, p))) in
   let queue = ref PFQueue.empty in
   queue_add queue pformulas;
@@ -805,7 +782,7 @@ let refute timeout pformulas cancel_check =
       | Some ((p, _cost), q) ->
           queue := q;
           dbg_print_formula false (sprintf "[%.3f s] given #%d: " elapsed count) p;
-          let p1 = rw_simplify queue ac_ops used found p in
+          let p1 = rw_simplify queue used found p in
           let (p1, gen) =
             if p.pinned then (Some p, if p1 = Some p then [] else Option.to_list p1)
             else (p1, []) in
@@ -821,7 +798,7 @@ let refute timeout pformulas cancel_check =
                     concat_map (all_super p) used @ all_eres p @ all_split p |>
                       filter (fun p -> cost_of p <= max_cost) in
                   let new_pformulas = gen @
-                    rw_simplify_all queue ac_ops used found (rewritten @ generated) in
+                    rw_simplify_all queue used found (rewritten @ generated) in
                   dbg_newline ();
                   match find_opt (fun p -> p.formula = _false) new_pformulas with
                     | Some p -> Proof (p, elapsed, count)
@@ -830,19 +807,54 @@ let refute timeout pformulas cancel_check =
                         loop used (count + 1)
   in loop [] 1
 
-let to_pformula stmt = stmt_formula stmt |> Option.map (fun f ->
-  create_pformula (stmt_name stmt) [] (rename_vars f) 0.0)
+(* Given an associative/commutative operator *, construct the axiom
+ *     x * (y * z) = y * (x * z)
+ * which turns * into a ground convergent system.
+ * See e.g. Baader/Nipkow, section 11.2 "Ordered rewriting". *)
+let ac_axiom (op, typ) =
+  let c_op = Const (op, Fun (typ, Fun (typ, typ))) in
+  let var v = Var (v, typ) in
+  let e1 = apply [c_op; var "x"; apply [c_op; var "y"; var "z"]] in
+  let e2 = apply [c_op; var "y"; apply [c_op; var "x"; var "z"]] in
+  for_all_vars_typ (["x"; "y"; "z"], typ) (Eq (e1, e2))
+
+type ac_type = Assoc | Comm
+
+let ac_complete formulas =
+  let rec scan ops = function
+    | (name, f) :: rest -> (name, f) ::
+        let kind = match associative_axiom f with
+          | Some op_typ -> Some (Assoc, op_typ)
+          | None -> match commutative_axiom f with
+            | Some op_typ -> Some (Comm, op_typ)
+            | None -> None in
+        (match kind with
+          | Some (kind, ((op, _typ) as op_typ)) ->
+              let other = match kind with Assoc -> Comm | Comm -> Assoc in
+              if mem (other, op_typ) ops then (
+                if !debug > 0 then printf "AC operator: %s\n\n" op;
+                let axiom = ("AC completion: " ^ without_type_suffix op, ac_axiom op_typ) in
+                axiom :: scan (remove (kind, op_typ) ops) rest
+              ) else scan ((kind, op_typ) :: ops) rest
+          | None -> scan ops rest)
+    | [] -> [] in
+  scan [] formulas
+
+let to_pformula name f = create_pformula name [] (rename_vars f) 0.0
 
 let prove timeout known_stmts thm invert cancel_check =
-  formula_counter := 0;
+  let known_stmts = rev known_stmts in
   consts := filter_map decl_var known_stmts;
-  let known = known_stmts |> filter_map (fun s ->
-    match to_pformula s with
-      | Some p -> dbg_newline (); Some p
-      | None -> None) in
-  let pformula = Option.get (to_pformula thm) in
+  let formulas = known_stmts |> filter_map (fun stmt ->
+    stmt_formula stmt |> Option.map (fun f -> (stmt_name stmt, f))) in
+  formula_counter := 0;
+  let known = ac_complete formulas |> map (fun (name, f) ->
+    let p = to_pformula name f in
+    dbg_newline (); p) in
+  let pformula = to_pformula (stmt_name thm) (Option.get (stmt_formula thm)) in
   let goal = if invert then pformula else
     create_pformula "negate" [pformula] (_not pformula.formula) (-1.0) in
+  dbg_newline ();
   refute timeout (known @ [goal]) cancel_check
 
 let output_proof pformula =
@@ -902,7 +914,7 @@ let prove_all thf prog =
           | Theorem (_, _, None, _) ->
               print_endline (show_statement true thm ^ "\n");
               let result =
-                prove !(opts.timeout) (rev known) thm !(opts.disprove) (Fun.const false) in
+                prove !(opts.timeout) known thm !(opts.disprove) (Fun.const false) in
               let b = match result with
                   | Proof (pformula, elapsed, given) ->
                       printf "%sproved in %.2f s (given clauses: %d)\n" dis elapsed given;

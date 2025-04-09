@@ -45,25 +45,6 @@ Theorem 3.  Let a, b, c ∈ ℕ.
   6. ab = ba.
   7. (a + b)c = ac + bc.
 
-Proof.
-
-  5. Let a ∈ ℕ.  Let
-
-        G = { x ∈ ℕ | s(a) · x = ax + x }.
-    
-  We have s(a) · 0 = 0 = a · 0 + 0, so 0 ∈ G.  Now let b ∈ ℕ, and suppose that b ∈ G.  Then
-
-  s(a) · s(b) = s(a) · b + s(a)
-              = (ab + b) + s(a)
-              = ab + (b + s(a))
-              = ab + s(b + a)
-              = ab + s(a + b)
-              = ab + (a + s(b))
-              = (ab + a) + s(b)
-              = a · s(b) + s(b).
-
-  So s(b) ∈ G.  Hence x ∈ G for all x ∈ ℕ.
-
 Theorem 4.  Let a, b ∈ ℕ.
 
   1. ab = 0 if and only if a = 0 or b = 0.
