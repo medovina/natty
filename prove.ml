@@ -251,6 +251,7 @@ let or_split f = match bool_kind f with
   | Binary ("→", _, s, t) -> Some (_not s, t)
   | Not g -> (match bool_kind g with
     | Binary ("∧", _, f, g) -> Some (_not f, _not g)
+    | Binary ("↔", _, f, g) -> Some (_not (implies f g), _not (implies g f))
     | _ -> None)
   | _ -> None
 
@@ -268,6 +269,7 @@ let rec mini_clausify f = match or_split f with
         oc(∀x.s) = s[y/x] = ⊤  (y not in s or C)
         oc(∃x.s) = s[k(y̅)/x] = ⊤
         oc(¬(s ∧ t)) = s = ⊥ ∨ t = ⊥
+        oc(¬(s ↔ t)) = ¬(s → t) ∨ ¬(t → s)
         oc(¬(∀x.s)) = s[k(y̅)/x] = ⊥
         oc(¬(∃x.s)) = s[y/x] = ⊥  (y not in s or C)
         
