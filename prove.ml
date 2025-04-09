@@ -85,6 +85,8 @@ let rec number_formula pformula =
 let create_pformula rule parents formula delta =
   number_formula (mk_pformula rule parents formula delta)
 
+let is_skolem s = is_letter s.[0] && is_digit s.[strlen s - 1]
+
 (* Symbol precedence.  ⊥ and ⊤ have the lowest precedence, with ⊥ > ⊤.
  * For other symbols, if c was defined after d then it has higher precedence.
  * If both c and d are predefined (e.g. Boolean operators) then we order them
@@ -92,7 +94,8 @@ let create_pformula rule parents formula delta =
 let const_gt f g =
   let prio (c, c_type) =
     let index = find_index (fun x -> x = (c, c_type)) !consts in
-    if index = None && c.[0] <> '@' && c.[0] <> '_' && not (mem c logical_ops)
+    if index = None && c.[0] <> '@' && c.[0] <> '_' && not (is_skolem c) &&
+        not (mem c logical_ops)
       then (printf "no precedence: %s" c; assert false);
     (index, c) in
   match f, g with
@@ -287,7 +290,7 @@ let clausify_step id lits in_use =
       | Quant ("∃", x, typ, g) ->
           let vars_types = free_vars_types f in
           let skolem_type = fold_right1 mk_fun_type (typ :: map snd vars_types) in
-          let c = sprintf "_%s%d" x id in
+          let c = sprintf "%s%d" x id in
           let c = match in_use with
             | Some names ->
                 let c = suffix c !names in
