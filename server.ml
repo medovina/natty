@@ -200,7 +200,7 @@ let init opts =
       | (_uri, Error _) :: _ -> None
       | (uri, Ok prog) :: rs ->
           let* ss = to_prove rs in
-          Some ((expand_proofs prog false |> filter_map (
+          Some ((expand_proofs prog |> filter_map (
             fun (thm, known) ->
               match thm with
                 | Theorem (_, _, None, _) -> Some (uri, thm, known)

@@ -24,7 +24,7 @@ let write_thf dir name proven stmt =
     Out_channel.close out)
 
 let write_files dir prog =
-  Prove.expand_proofs prog true |> iter (fun (thm, known) ->
+  Prove.expand_proofs prog |> iter (fun (thm, known) ->
     write_thf dir (stmt_id thm) (rev known) thm)
 
 let write_thm_info prog =

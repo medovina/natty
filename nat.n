@@ -47,19 +47,6 @@ Theorem 3.  Let a, b, c ∈ ℕ.
 
 Proof.
 
-  4. Let a, b ∈ ℕ.  Let
-
-        G = { x ∈ ℕ | (a · b) · x = a · (b · x) }.
-  
-  We have (ab) · 0 = 0 = a(b · 0), so 0 ∈ G.  Now let c ∈ ℕ, and suppose that c ∈ G.  Then
-
-    (a · b) · s(c) = (a · b) · c + a · b      by Axiom 3(b)
-                   = a · (b · c) + a · b           by hypothesis
-                   = a · (b · c + b)                by Theorem 3.3
-                   = a · (b · s(c))                  by Axiom 3(b).
-                 
-  So s(c) ∈ G.  Hence x ∈ G for all x ∈ ℕ.
-
   5. Let a ∈ ℕ.  Let
 
         G = { x ∈ ℕ | s(a) · x = ax + x }.

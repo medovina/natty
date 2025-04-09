@@ -156,7 +156,8 @@ let rec lpo_gt s t =
           let (f, ss), (g, ts) = collect_args s, collect_args t in
           exists (fun x -> x = t || lpo_gt x t) ss ||
           for_all (fun x -> lpo_gt s x) ts &&
-            (const_gt f g || f = g && lex_gt lpo_gt ss ts)
+            let (ns, nt) = length ss, length ts in
+            (const_gt f g || f = g && (ns > nt || ns = nt && lex_gt lpo_gt ss ts))
 
 (* Knuth-Bendix ordering on first-order terms, presently unused *)
 let rec kb_gt s t =
@@ -177,7 +178,9 @@ let get_index x map =
         length !map - 1
 
 (* Map higher-order terms to first-order terms as described in
- * Bentkamp et al, section 3.9 "A Concrete Term Order". *)
+ * Bentkamp et al, section 3.9 "A Concrete Term Order".  That section introduces
+ * a distinct symbol f_k for each arity k.  We use the symbol f to represent
+ * all the f_k, then order by arity in lpo_gt. *)
 let encode_term type_map fluid_map t =
   let encode_fluid t = _var ("@v" ^ string_of_int (get_index t fluid_map)) in
   let encode_type typ = _const ("@t" ^ string_of_int (get_index typ type_map)) in
@@ -359,7 +362,9 @@ let unprefix_vars f =
       Lambda (x, _typ, fix (x :: outer) f)
     | f -> map_formula (fix outer) f in
   fix [] f
-  
+
+(* Gather green or blue subterms.  Unlike in Bentkamp et al, we
+ * allow the head of an application to be a blue subterm. *)
 let subterms is_blue t =
   let rec gather parent_eq acc t = (t, parent_eq) :: match t with
     | App _ ->
@@ -369,7 +374,8 @@ let subterms is_blue t =
             | [Lambda (_x, _typ, f)] -> gather parent_eq acc f
             | _ -> acc
           else acc
-        else fold_left (gather parent_eq) acc args
+        else fold_left (gather parent_eq) acc
+                (if is_blue then head :: args else args)
     | Eq (f, g) ->
         let acc = gather ((f, g) :: parent_eq) acc f in
         gather ((g, f) :: parent_eq) acc g
@@ -555,7 +561,7 @@ let rewrite dp cp =
         let t_s, t'_s = u, rsubst sub t' in
         if term_gt t_s t'_s &&  (* (i) *)
            not (clause_gt [Eq (t_s, t'_s)] (clausify cp)) then (* (ii) *)
-          let e = replace_in_formula t'_s t_s c in
+          let e = reduce (replace_in_formula t'_s t_s c) in
           [update cp (Some dp) e]
         else []
     | _ -> []
@@ -824,15 +830,8 @@ let refute timeout pformulas cancel_check =
                         loop used (count + 1)
   in loop [] 1
 
-let lower = function
-  | Eq ((Const (_, typ) as c), (Lambda _ as l)) when target_type typ = Bool ->
-      let (vars_typs, g) = gather_lambdas l in
-      for_all_vars_typs vars_typs (
-        _iff (apply (c :: map mk_var' vars_typs)) g)
-  | f -> f
-
 let to_pformula stmt = stmt_formula stmt |> Option.map (fun f ->
-  create_pformula (stmt_name stmt) [] (rename_vars (lower f)) 0.0)
+  create_pformula (stmt_name stmt) [] (rename_vars f) 0.0)
 
 let prove timeout known_stmts thm invert cancel_check =
   formula_counter := 0;
@@ -861,7 +860,7 @@ let number_hypotheses name stmts =
     | stmt -> (n, stmt) in
   snd (fold_left_map f 1 stmts)
 
-let expand_proofs stmts for_export : (statement * statement list) list =
+let expand_proofs stmts : (statement * statement list) list =
   let only_thm = !(opts.only_thm) in
   let rec expand known = function
     | stmt :: stmts ->
@@ -871,8 +870,7 @@ let expand_proofs stmts for_export : (statement * statement list) list =
               match proof with
                 | Some (ExpandedSteps fs) ->
                     fs |> filter_mapi (fun j stmts ->
-                      let s = if for_export then "s" else "" in
-                      let step_name = sprintf "%s.%s%d" name s (j + 1) in
+                      let step_name = sprintf "%s.s%d" name (j + 1) in
                       if (only_thm |> opt_for_all (fun o -> o = name || o = step_name)) then
                         let (hypotheses, conjecture) = split_last stmts in
                         Some (set_theorem_id step_name conjecture,
@@ -922,4 +920,4 @@ let prove_all thf prog =
           | _ -> assert false in
         if success || !(opts.keep_going) then
           prove_stmts (all_success && success) rest in
-  prove_stmts true (expand_proofs prog false)
+  prove_stmts true (expand_proofs prog)
