@@ -572,11 +572,11 @@ let rewrite dp cp =
     | _ -> []
 
 let rewrite_from ps q =
-  let rewrite_opt cp dp =
-    match rewrite dp cp with
+  let rewrite_opt dp =
+    match rewrite dp q with
       | new_cp :: _ -> Some new_cp
       | _ -> None in
-  find_map (rewrite_opt q) ps
+  find_map rewrite_opt ps
 
 (*      C     σ(C)
  *   ═══════════════   subsume
@@ -712,18 +712,20 @@ let queue_add queue pformulas =
 let dbg_newline () =
   if !debug > 0 then print_newline ()
 
-let rw_simplify queue used found pformula =
+let rw_simplify src queue used found pformula =
   profile "rw_simplify" @@ fun () ->
   let rec repeat_rewrite p = match rewrite_from used p with
     | None -> p
     | Some p -> repeat_rewrite p in
   let p = simplify (repeat_rewrite pformula) in
-    if is_tautology p.formula then None
+    if is_tautology p.formula then (
+      if !debug > 0 then printf "%s tautology\n" src;
+      None)
     else
       match any_subsumes used p with
         | Some pf ->
             if !debug > 0 then (
-              let prefix = sprintf "subsumed by #%d: " pf.id in
+              let prefix = sprintf "%s subsumed by #%d: " src pf.id in
               print_line (prefix_show prefix p.formula));
             None
         | None ->
@@ -738,8 +740,8 @@ let rw_simplify queue used found pformula =
                           queue := PFQueue.adjust pf (Fun.const (queue_cost pf)) !queue;
                         sprintf " (adjusted cost to %.2f)" (cost_of p))
                       else "" in
-                    if !debug > 1 then (
-                      let prefix = sprintf "duplicate of #%d%s: " pf.id adjust in
+                    if !debug > 0 then (
+                      let prefix = sprintf "%s duplicate of #%d%s: " src pf.id adjust in
                       print_line (prefix_show prefix p.formula));
                     None
                 | None ->
@@ -747,11 +749,11 @@ let rw_simplify queue used found pformula =
                     found := FormulaMap.add f p !found;
                     Some p)
 
-let rec rw_simplify_all queue used found = function
+let rec rw_simplify_all src queue used found = function
   | [] -> []
   | p :: ps ->
-      let ps' = rw_simplify_all queue used found ps in
-      match rw_simplify queue used found p with
+      let ps' = rw_simplify_all src queue used found ps in
+      match rw_simplify src queue used found p with
         | None -> ps'
         | Some p' -> p' :: ps'
 
@@ -787,7 +789,7 @@ let refute timeout pformulas cancel_check =
       | Some ((p, _cost), q) ->
           queue := q;
           dbg_print_formula false (sprintf "[%.3f s] given #%d: " elapsed count) p;
-          let p1 = rw_simplify queue used found p in
+          let p1 = rw_simplify "given is" queue used found p in
           let (p1, gen) =
             if p.pinned then (Some p, if p1 = Some p then [] else Option.to_list p1)
             else (p1, []) in
@@ -803,7 +805,7 @@ let refute timeout pformulas cancel_check =
                     concat_map (all_super p) used @ all_eres p @ all_split p |>
                       filter (fun p -> cost_of p <= max_cost) in
                   let new_pformulas = gen @
-                    rw_simplify_all queue used found (rewritten @ generated) in
+                    rw_simplify_all "generated" queue used found (rewritten @ generated) in
                   dbg_newline ();
                   match find_opt (fun p -> p.formula = _false) new_pformulas with
                     | Some p -> Proof (p, elapsed, count)
