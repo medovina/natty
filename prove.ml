@@ -71,7 +71,7 @@ let mk_pformula rule parents formula delta =
     goal = as_goal || exists (fun p -> p.goal) parents;
     delta = adjust_delta parents delta;
     cost = ref (total_cost parents delta);
-    pinned = false }
+    pinned = as_goal }
 
 let rec number_formula pformula =
   if pformula.id > 0 then pformula
@@ -873,9 +873,9 @@ let output_proof pformula =
 
 let number_hypotheses name stmts =
   let f n = function
-    | (Theorem _) as thm ->
+    | (Hypothesis _) as hyp ->
         let hyp_name = sprintf "%s.h%d" name n in
-        (n + 1, set_theorem_id hyp_name thm)
+        (n + 1, set_stmt_id hyp_name hyp)
     | stmt -> (n, stmt) in
   snd (fold_left_map f 1 stmts)
 
@@ -892,7 +892,7 @@ let expand_proofs stmts : (statement * statement list) list =
                       let step_name = sprintf "%s.s%d" name (j + 1) in
                       if (only_thm |> opt_for_all (fun o -> o = name || o = step_name)) then
                         let (hypotheses, conjecture) = split_last stmts in
-                        Some (set_theorem_id step_name conjecture,
+                        Some (set_stmt_id step_name conjecture,
                               rev (number_hypotheses name hypotheses) @ known)
                       else None)
                 | Some (Steps _) -> assert false

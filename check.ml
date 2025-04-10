@@ -206,7 +206,7 @@ let rec blocks_steps blocks : statement list list * formula =
     | block :: rest ->
         let (fs, concl) = block_steps block in
         let (gs, final_concl) = blocks_steps rest in
-        (fs @ map (cons (Theorem ("hyp", concl, None, empty_range))) gs,
+        (fs @ map (cons (Hypothesis ("hyp", concl))) gs,
         if rest = [] then concl
         else match last blocks with
           | Block (Assume _, _, _) -> _and concl final_concl
@@ -227,11 +227,11 @@ and block_steps (Block (step, range, children)) : statement list list * formula 
     | LetVal (id, typ, value) ->
         (map (cons (Definition (id, typ, value))) fs, rsubst1 concl value id)
     | Assume a ->
-        (map (cons (Theorem ("hyp", a, None, empty_range))) fs, implies a concl)
+        (map (cons (Hypothesis ("hyp", a))) fs, implies a concl)
     | IsSome (ids, typ, g) ->
         let ex = exists_vars_typ (ids, typ) g in
         let stmts =
-          map (fun id -> ConstDecl (id, typ)) ids @ [Theorem ("hyp", g, None, empty_range)] in
+          map (fun id -> ConstDecl (id, typ)) ids @ [Hypothesis ("hyp", g)] in
         ([Theorem ("", ex, None, range)] :: map (append stmts) fs,
          if any_free_in ids concl then exists_vars_typ (ids, typ) concl else concl)
     | Escape | Group _ -> failwith "block_formulas"
@@ -259,13 +259,14 @@ let rec expand_proof stmt env f range = function
 and check_stmt env stmt =
   match stmt with
     | Axiom (id, f, name) -> Axiom (id, top_check env f, name)
+    | Hypothesis (id, f) -> Hypothesis (id, top_check env f)
     | Definition (id, typ, f) ->
         let f = check_formula env f typ in
         Definition (id, type_of f, f)
     | Theorem (name, f, proof, range) ->
         let f1 = top_check env f in
         Theorem (name, f1, Option.bind proof (expand_proof stmt env f range), range)
-    | stmt -> stmt
+    | TypeDecl _ | ConstDecl _ -> stmt
 
 and check_stmts initial_env stmts =
   let check env stmt =
@@ -282,8 +283,9 @@ let encode_id id typ =
   else if id = "(,)" then
     match typ with
       | Fun (t, Fun (u, Product _)) -> tuple_constructor t u
-      | _ -> failwith "encode_id"
-  else if String.contains id ':' then failwith "encode_id"
+      | _ -> failwith
+          (sprintf "encode_id: %s does not construct a tuple" (show_type typ))
+  else if String.contains id ':' then failwith "encode_id: double encode"
   else sprintf "%s:%s" id (type_as_id typ)
 
 let rec encode_type tuple_types typ = match typ with

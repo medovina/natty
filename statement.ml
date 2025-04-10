@@ -66,6 +66,7 @@ type statement =
   | TypeDecl of id
   | ConstDecl of id * typ
   | Axiom of id * formula * id option (* id, formula, descriptive name *)
+  | Hypothesis of id * formula
   | Definition of id * typ * formula
   | Theorem of id * formula * proof option * range
 
@@ -83,10 +84,12 @@ let stmt_id = function
   | TypeDecl id -> id
   | ConstDecl (id, _) -> id
   | Axiom (id, _, _) -> id
+  | Hypothesis (id, _) -> id
   | Definition (id, _, _) -> id
   | Theorem (id, _, _, _) -> id
 
-let set_theorem_id id = function
+let set_stmt_id id = function
+  | Hypothesis (_, formula) -> Hypothesis (id, formula)
   | Theorem (_, formula, proof, range) -> Theorem (id, formula, proof, range)
   | _ -> assert false
 
@@ -94,16 +97,18 @@ let stmt_name stmt = (match stmt with
   | TypeDecl _ -> "type"
   | ConstDecl _ -> "const"
   | Axiom _ -> "axiom"
+  | Hypothesis _ -> "hypothesis"
   | Definition _ -> "definition"
   | Theorem _ -> "theorem") ^ " " ^ stmt_id stmt
 
 let stmt_formula = function
-  | Axiom (_, f, _) | Theorem (_, f, _, _) -> Some f
+  | Axiom (_, f, _) | Hypothesis (_, f) | Theorem (_, f, _, _) -> Some f
   | Definition (id, typ, f) -> Some (Eq (Const (id, typ), f))
   | _ -> None
 
-let rec map_stmt_formulas fn = function
+let rec map_stmt_formulas fn stmt = match stmt with
   | Axiom (id, f, name) -> Axiom (id, fn f, name)
+  | Hypothesis (id, f) -> Hypothesis (id, fn f)
   | Definition (id, typ, f) -> Definition (id, typ, fn f)
   | Theorem (id, f, proof, range) ->
       let map_proof = function
@@ -111,7 +116,7 @@ let rec map_stmt_formulas fn = function
         | ExpandedSteps esteps ->
             ExpandedSteps (map (map (map_stmt_formulas fn)) esteps) in
       Theorem (id, fn f, Option.map map_proof proof, range)
-  | stmt -> stmt
+  | TypeDecl _ | ConstDecl _ -> stmt
 
 let decl_var = function
   | ConstDecl (i, typ) -> Some (i, typ)
@@ -129,7 +134,7 @@ let show_statement multi s =
     | TypeDecl _ -> name
     | ConstDecl (id, typ) ->
         sprintf "const %s : %s" (without_type_suffix id) (show_type typ)
-    | Axiom (_, f, _) -> show (name ^ ": ") f
+    | Axiom (_, f, _) | Hypothesis (_, f) -> show (name ^ ": ") f
     | Definition (id, typ, f) ->
         let prefix =
           sprintf "definition %s: %s = " (without_type_suffix id) (show_type typ) in

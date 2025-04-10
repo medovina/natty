@@ -92,8 +92,10 @@ let thf_formula = empty >>?
     pair (id << str ",") (id << str ",") >>= fun (name, role) ->
       match role with
         | "type" -> thf_type
-        | "axiom" | "definition" | "hypothesis" | "theorem"  ->
+        | "axiom" | "definition" | "theorem"  ->
             formula |>> fun f -> Axiom (name, f, None)
+        | "hypothesis" ->
+            formula |>> fun f -> Hypothesis (name, f)
         | "conjecture" ->
             formula |>> fun f -> Theorem (name, f, None, empty_range)
         | _ -> failwith "unknown role")
