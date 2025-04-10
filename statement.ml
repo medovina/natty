@@ -76,6 +76,10 @@ and proof =
 
 let mk_def id typ formula = Definition (id, typ, formula)
 
+let is_hypothesis = function
+  | Hypothesis _ -> true
+  | _ -> false
+
 let is_theorem = function
   | Theorem _ -> true
   | _ -> false

@@ -71,7 +71,7 @@ let mk_pformula rule parents formula delta =
     goal = as_goal || exists (fun p -> p.goal) parents;
     delta = adjust_delta parents delta;
     cost = ref (total_cost parents delta);
-    pinned = as_goal }
+    pinned = false }
 
 let rec number_formula pformula =
   if pformula.id > 0 then pformula
@@ -84,6 +84,8 @@ let rec number_formula pformula =
 
 let create_pformula rule parents formula delta =
   number_formula (mk_pformula rule parents formula delta)
+
+let pin pformula = { pformula with pinned = true }
 
 let is_skolem s = is_letter s.[0] && is_digit s.[strlen s - 1]
 
@@ -829,7 +831,7 @@ type ac_type = Assoc | Comm
 
 let ac_complete formulas =
   let rec scan ops = function
-    | (name, f) :: rest -> (name, f) ::
+    | (name, f, is_hyp) :: rest -> (name, f, is_hyp) ::
         let kind = match associative_axiom f with
           | Some op_typ -> Some (Assoc, op_typ)
           | None -> match commutative_axiom f with
@@ -840,7 +842,8 @@ let ac_complete formulas =
               let other = match kind with Assoc -> Comm | Comm -> Assoc in
               if mem (other, op_typ) ops then (
                 if !debug > 0 then printf "AC operator: %s\n\n" op;
-                let axiom = ("AC completion: " ^ without_type_suffix op, ac_axiom op_typ) in
+                let axiom =
+                  ("AC completion: " ^ without_type_suffix op, ac_axiom op_typ, false) in
                 axiom :: scan (remove (kind, op_typ) ops) rest
               ) else scan ((kind, op_typ) :: ops) rest
           | None -> scan ops rest)
@@ -853,16 +856,17 @@ let prove timeout known_stmts thm invert cancel_check =
   let known_stmts = rev known_stmts in
   consts := filter_map decl_var known_stmts;
   let formulas = known_stmts |> filter_map (fun stmt ->
-    stmt_formula stmt |> Option.map (fun f -> (stmt_name stmt, f))) in
+    stmt_formula stmt |> Option.map (fun f ->
+      (stmt_name stmt, f, is_hypothesis stmt))) in
   formula_counter := 0;
-  let known = ac_complete formulas |> map (fun (name, f) ->
-    let p = to_pformula name f in
+  let known = ac_complete formulas |> map (fun (name, f, is_hyp) ->
+    let p = (if is_hyp then pin else Fun.id) (to_pformula name f) in
     dbg_newline (); p) in
   let pformula = to_pformula (stmt_name thm) (Option.get (stmt_formula thm)) in
   let goal = if invert then pformula else
     create_pformula "negate" [pformula] (_not pformula.formula) (-1.0) in
   dbg_newline ();
-  refute timeout (known @ [goal]) cancel_check
+  refute timeout (known @ [pin goal]) cancel_check
 
 let output_proof pformula =
   let steps =
