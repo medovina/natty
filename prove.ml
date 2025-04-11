@@ -18,7 +18,8 @@ type pformula = {
   goal: bool;
   delta: float;
   cost: float ref;
-  pinned: bool
+  pinned: int;
+  initial: bool
 }
 
 let cost_of p = !(p.cost)
@@ -37,8 +38,11 @@ let print_formula with_origin prefix pformula =
       let all = parents @ rule @ rw @ simp in
       sprintf " [%s]" (comma_join all)
     else "" in
+  let mark b c = if b then " " ^ c else "" in
+  let pin = match pformula.pinned with
+    | 2 -> " P" | 1 -> " p" | _ -> "" in
   let annotate =
-    (if pformula.goal then " g" else "") ^ (if pformula.pinned then " p" else "") in
+    (mark pformula.initial "i") ^ (mark pformula.goal "g") ^ pin in
   printf "%s%s {%.2f%s}\n"
     (indent_with_prefix prefix (show_multi pformula.formula))
     origin (cost_of pformula) annotate
@@ -71,7 +75,7 @@ let mk_pformula rule parents formula delta =
     goal = as_goal || exists (fun p -> p.goal) parents;
     delta = adjust_delta parents delta;
     cost = ref (total_cost parents delta);
-    pinned = false }
+    pinned = 0; initial = false }
 
 let rec number_formula pformula =
   if pformula.id > 0 then pformula
@@ -85,7 +89,9 @@ let rec number_formula pformula =
 let create_pformula rule parents formula delta =
   number_formula (mk_pformula rule parents formula delta)
 
-let pin pformula = { pformula with pinned = true }
+let pin pformula = { pformula with pinned = 2 }
+
+let initial pformula = { pformula with initial = true }
 
 let is_skolem s = is_letter s.[0] && is_digit s.[strlen s - 1]
 
@@ -534,7 +540,7 @@ let all_split p =
     let splits = remove [p.formula] (run [p.formula]) in
     rev splits |> map (fun lits ->
       let ps = mk_pformula "split" [p] (multi_or lits) 0.0 in
-      {ps with pinned = pin})
+      {ps with pinned = if pin then 2 else 0})
 
 let update p rewriting f =
   let (r, simp) = match rewriting with
@@ -544,7 +550,8 @@ let update p rewriting f =
     { p with rewrites = union r p.rewrites; simp = p.simp || simp; formula = f }
   else
     { id = 0; rule = ""; rewrites = r; simp; parents = [p];
-      goal = p.goal; delta = 0.0; cost = p.cost; formula = f; pinned = false}
+      goal = p.goal; delta = 0.0; cost = p.cost; formula = f;
+      pinned = 0; initial = false}
 
 (*     t = t'    C⟨tσ⟩
  *   ═══════════════════   rw
@@ -763,10 +770,12 @@ let rec back_simplify from = function
   | [] -> ([], [])
   | p :: ps ->
       let (ps', rewritten) = back_simplify from ps in
-      if p.pinned then (p :: ps', rewritten)
+      if p.pinned = 1 then (p :: ps', rewritten)
       else
         match rewrite_from [from] p with
-          | Some p' -> (ps', p' :: rewritten)
+          | Some p' ->
+              if p.pinned = 2 then ({p with pinned = 1} :: ps', p' :: rewritten)
+              else (ps', p' :: rewritten)
           | None -> (p :: ps', rewritten)
 
 type result = Proof of pformula * float * int | Timeout | GaveUp | Stopped
@@ -793,7 +802,9 @@ let refute timeout pformulas cancel_check =
           dbg_print_formula false (sprintf "[%.3f s] given #%d: " elapsed count) p;
           let p1 = rw_simplify "given is" queue used found p in
           let (p1, gen) =
-            if p.pinned then (Some p, if p1 = Some p then [] else Option.to_list p1)
+            if p.pinned > 0 then
+              let extra = if p1 = Some p then [] else Option.to_list p1 in
+              (Some {p with pinned = (if extra = [] then p.pinned else 1)}, extra)
             else (p1, []) in
           match p1 with
             | None ->
@@ -860,7 +871,7 @@ let prove timeout known_stmts thm invert cancel_check =
       (stmt_name stmt, f, is_hypothesis stmt))) in
   formula_counter := 0;
   let known = ac_complete formulas |> map (fun (name, f, is_hyp) ->
-    let p = (if is_hyp then pin else Fun.id) (to_pformula name f) in
+    let p = (if is_hyp then pin else Fun.id) (initial (to_pformula name f)) in
     dbg_newline (); p) in
   let pformula = to_pformula (stmt_name thm) (Option.get (stmt_formula thm)) in
   let goal = if invert then pformula else
