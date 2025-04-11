@@ -553,7 +553,7 @@ let update p rewriting f =
     let branch = max (p.branch - 1) 0 in
     { id = 0; rule = ""; rewrites = r; simp; parents = [p];
       goal = p.goal; delta = 0.0; cost = p.cost; formula = f;
-      pinned = if branch > 0 then 2 else 0; initial = false; branch }
+      pinned = if branch > 0 then 2 else 0; initial = p.initial; branch }
 
 (*     t = t'    C⟨tσ⟩
  *   ═══════════════════   rw
