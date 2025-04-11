@@ -15,7 +15,7 @@ type pformula = {
   rewrites: pformula list;
   simp: bool;
   formula: formula;
-  goal: bool;
+  support: bool;
   delta: float;
   cost: float ref;
   pinned: int;
@@ -44,7 +44,7 @@ let print_formula with_origin prefix pformula =
     | 2 -> " P" | 1 -> " p" | _ -> "" in
   let annotate =
     (if pformula.branch > 0 then sprintf " b%d" pformula.branch else "") ^
-    (mark pformula.initial "i") ^ (mark pformula.goal "g") ^ pin in
+    (mark pformula.initial "i") ^ pin ^ (mark pformula.support "s") in
   printf "%s%s {%.2f%s}\n"
     (indent_with_prefix prefix (show_multi pformula.formula))
     origin (cost_of pformula) annotate
@@ -72,9 +72,8 @@ let total_cost parents delta =
 let max_cost = 1.3
 
 let mk_pformula rule parents formula delta =
-  let (as_goal, delta) = if delta = -1.0 then (true, 0.0) else (false, delta) in
   { id = 0; rule; rewrites = []; simp = false; parents; formula;
-    goal = as_goal || exists (fun p -> p.goal) parents;
+    support = exists (fun p -> p.support) parents;
     delta = adjust_delta parents delta;
     cost = ref (total_cost parents delta);
     pinned = 0; initial = false; branch = 0 }
@@ -92,8 +91,6 @@ let create_pformula rule parents formula delta =
   number_formula (mk_pformula rule parents formula delta)
 
 let pin pformula = { pformula with pinned = 2 }
-
-let initial pformula = { pformula with initial = true }
 
 let is_skolem s = is_letter s.[0] && is_digit s.[strlen s - 1]
 
@@ -482,7 +479,7 @@ let all_super dp cp =
     let d_steps, c_steps = clausify_steps dp, clausify_steps cp in
     let+ (dp, d_steps, cp, c_steps) =
       [(dp, d_steps, cp, c_steps); (cp, c_steps, dp, d_steps)] in
-    if dp.goal || cp.goal then
+    if dp.support || cp.support then
       let+ (d_lits, new_lits, _) = d_steps in
       let d_lits, new_lits = map prefix_vars d_lits, map prefix_vars new_lits in
       let+ d_lit = new_lits in
@@ -552,7 +549,7 @@ let update p rewriting f =
   else
     let branch = max (p.branch - 1) 0 in
     { id = 0; rule = ""; rewrites = r; simp; parents = [p];
-      goal = p.goal; delta = 0.0; cost = p.cost; formula = f;
+      support = p.support; delta = 0.0; cost = p.cost; formula = f;
       pinned = if branch > 0 then 2 else 0; initial = p.initial; branch }
 
 (*     t = t'    C⟨tσ⟩
@@ -706,7 +703,7 @@ end) (struct
   let compare = Stdlib.compare
 end)
 
-let queue_cost p = (cost_of p, if p.goal && cost_of p > 0.0 then 0 else 1)
+let queue_cost p = (cost_of p, if p.support && cost_of p > 0.0 then 0 else 1)
 
 let queue_add queue pformulas =
   let queue_element p = (p, queue_cost p) in
@@ -885,13 +882,14 @@ let prove timeout known_stmts thm invert cancel_check =
       (stmt_name stmt, f, is_hypothesis stmt))) in
   formula_counter := 0;
   let known = ac_complete formulas |> map (fun (name, f, is_hyp) ->
-    let p = (if is_hyp then pin else Fun.id) (initial (to_pformula name f)) in
+    let p = {(to_pformula name f) with initial = true} in
+    let p = if is_hyp then {(pin p) with support = true} else p in
     dbg_newline (); p) in
   let pformula = to_pformula (stmt_name thm) (Option.get (stmt_formula thm)) in
   let goal = if invert then pformula else
-    create_pformula "negate" [pformula] (_not pformula.formula) (-1.0) in
+    create_pformula "negate" [pformula] (_not pformula.formula) (0.0) in
   dbg_newline ();
-  refute timeout (known @ [{(pin goal) with branch = 2}]) cancel_check
+  refute timeout (known @ [{(pin goal) with support = true; branch = 2}]) cancel_check
 
 let output_proof pformula =
   let steps =
