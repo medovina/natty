@@ -132,6 +132,13 @@ let map_triple_fst f = map (fun (x, y, z) -> (f x, y, z))
 
 let (let+) = fun a f -> concat_map f a
 
+let head_opt xs = nth_opt xs 0
+
+let to_option = function
+  | [] -> None
+  | [x] -> Some x
+  | _ -> failwith "to_option"
+
 let rec last = function
   | [] -> failwith "last"
   | [x] -> x
@@ -178,6 +185,8 @@ let subtract xs ys = filter (fun x -> not (mem x ys)) xs
 let subtractq xs ys = filter (fun x -> not (memq x ys)) xs
 
 let remove x xs = subtract xs [x]
+
+let removeq x xs = subtractq xs [x]
 
 let rec remove1 x = function
   | [] -> failwith "not found"
