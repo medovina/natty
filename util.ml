@@ -13,10 +13,6 @@ let (let*) = Option.bind
 
 let opt_default opt def = Option.value opt ~default:def
 
-let opt_exists f = function
-  | Some x -> f x
-  | None -> false
-
 let opt_for_all f = function
   | Some x -> f x
   | None -> true

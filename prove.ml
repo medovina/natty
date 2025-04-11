@@ -544,8 +544,7 @@ let update p rewriting f =
     { p with rewrites = union r p.rewrites; simp = p.simp || simp; formula = f }
   else
     { id = 0; rule = ""; rewrites = r; simp; parents = [p];
-      goal = p.goal; delta = 0.0; cost = p.cost; formula = f;
-      pinned = p.pinned && opt_exists (fun r -> r.pinned) rewriting }
+      goal = p.goal; delta = 0.0; cost = p.cost; formula = f; pinned = false}
 
 (*     t = t'    C⟨tσ⟩
  *   ═══════════════════   rw
@@ -579,8 +578,7 @@ let rewrite_from ps q =
     match rewrite dp q with
       | new_cp :: _ -> Some new_cp
       | _ -> None in
-  let (pinned, unpinned) = partition (fun p -> p.pinned) ps in
-  find_map rewrite_opt (pinned @ unpinned)
+  find_map rewrite_opt ps
 
 (*      C     σ(C)
  *   ═══════════════   subsume
@@ -720,7 +718,7 @@ let rw_simplify src queue used found pformula =
   profile "rw_simplify" @@ fun () ->
   let rec repeat_rewrite p = match rewrite_from used p with
     | None -> p
-    | Some p -> if p.pinned then p else repeat_rewrite p in
+    | Some p -> repeat_rewrite p in
   let p = simplify (repeat_rewrite pformula) in
     if is_tautology p.formula then (
       if !debug > 0 then printf "%s tautology\n" src;
@@ -765,9 +763,11 @@ let rec back_simplify from = function
   | [] -> ([], [])
   | p :: ps ->
       let (ps', rewritten) = back_simplify from ps in
-      match rewrite_from [from] p with
-        | Some p' -> ((if p.pinned then p :: ps' else ps'), p' :: rewritten)
-        | None -> (p :: ps', rewritten)
+      if p.pinned then (p :: ps', rewritten)
+      else
+        match rewrite_from [from] p with
+          | Some p' -> (ps', p' :: rewritten)
+          | None -> (p :: ps', rewritten)
 
 type result = Proof of pformula * float * int | Timeout | GaveUp | Stopped
 
