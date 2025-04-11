@@ -64,7 +64,7 @@ Proof.
                    = s(e · s(d) + d) + s(d)
                    = s(s(e · s(d) + d + d)).
 
-  By Axiom 1(b), 0 = s(e · s(d) + d + d).  This is a contradiction to Axiom 1(a).  So it must be that c = 0.  Therefore a = s(0) = 1.  Then 1 · b = 1.  It follows by Theorem 3.2 that b = 1, so a = b = 1.
+  By Axiom 1(b), 0 = s(e · s(d) + d + d).  This is a contradiction to Axiom 1(a).  So it must be that c = 0.  Therefore a = s(0) = 1.  Then 1 · b = 1.  By Theorem 3.2 1 · b = b, so we have b = 1.  And so a = b = 1.
 
 # Right cancellation of multiplication
 
