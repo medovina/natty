@@ -778,8 +778,7 @@ let rewrite_or_branch queue used found pformula : pformula list =
 
 let rw_simplify_all queue used found ps =
   ps |> filter_map (fun p ->
-    if p.pinned > 0 then Some (number_formula p)
-    else rw_simplify "generated" queue used found p)
+    (if p.pinned > 0 then process else rw_simplify) "generated" queue used found p)
 
 let rec back_simplify from = function
   | [] -> ([], [])
@@ -833,8 +832,7 @@ let refute timeout pformulas cancel_check =
                     concat_map (all_super p) used @ all_eres p @ all_split p |>
                       filter (fun p -> cost_of p <= max_cost) in
                   let new_pformulas = gen @
-                    rw_simplify_all queue used found (rewritten @ generated) in
-                  (* new_pformulas |> iter (fun p -> dbg_print_formula true "new: " p); *)
+                    rw_simplify_all queue used found (rev (rewritten @ generated)) in
                   dbg_newline ();
                   match find_opt (fun p -> p.formula = _false) new_pformulas with
                     | Some p -> Proof (p, elapsed, count)
@@ -893,7 +891,7 @@ let prove timeout known_stmts thm invert cancel_check =
   let goal = if invert then pformula else
     create_pformula "negate" [pformula] (_not pformula.formula) (-1.0) in
   dbg_newline ();
-  refute timeout (known @ [{(pin goal) with branch = 0}]) cancel_check
+  refute timeout (known @ [{(pin goal) with branch = 2}]) cancel_check
 
 let output_proof pformula =
   let steps =
