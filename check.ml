@@ -214,7 +214,6 @@ let rec blocks_steps blocks : statement list list * formula =
 
 and block_steps (Block (step, range, children)) : statement list list * formula =
   let (fs, concl) = blocks_steps children in
-  (* let apply fn = (map_fst fn fs, fn concl) in *)
   match step with
     | Assert f -> (
         match expand_multi_eq f with

@@ -557,7 +557,6 @@ let update p rewriting f =
  *     t = t'    C⟨t'σ⟩
  *
  *   (i) tσ > t'σ
- *
  *)
 let rewrite dp cp =
   let pairs = match remove_universal dp.formula with
@@ -714,8 +713,10 @@ let dbg_newline () =
 let process src queue used found p1 =
   let p = simplify p1 in
   if is_tautology p.formula then (
-    if !debug > 1 then
-      printf "%s tautology: %s ==> %s\n" src (show_formula p1.formula) (show_formula p.formula);
+    if !debug > 1 || !debug = 1 && src <> "generated" then (
+      printf "%s tautology: %s ==> " src (show_formula p1.formula);
+      print_formula true "" p
+    );
     None)
   else
     match any_subsumes used p with
@@ -881,13 +882,9 @@ let prove timeout known_stmts thm invert cancel_check =
       (stmt_name stmt, f, is_hypothesis stmt))) in
   formula_counter := 0;
   let formulas = ac_complete formulas in
-  let count = length formulas in
-  let known = formulas |> mapi (fun i (name, f, is_hyp) ->
+  let known = formulas |> map (fun (name, f, is_hyp) ->
     let p = {(to_pformula name f) with initial = true} in
-    let p = if is_hyp
-      then {(pin p) with support = true;
-                         branch = if i = count - 1 then 1 else 0 }
-      else p in
+    let p = if is_hyp then {(pin p) with support = true; branch = 1 } else p in
     dbg_newline (); p) in
   let pformula = to_pformula (stmt_name thm) (Option.get (stmt_formula thm)) in
   let goal = if invert then pformula else

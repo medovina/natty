@@ -127,6 +127,10 @@ let _or = logical_op "∨"
 let implies1 = logical_op "→"
 let _iff = logical_op "↔"
 
+let multi_and = function
+  | [] -> _true
+  | xs -> fold_left1 _and xs
+
 let multi_or = function
   | [] -> _false
   | xs -> fold_left1 _or xs
@@ -431,7 +435,7 @@ let rec chain_ops (f, ops_exprs) = match ops_exprs with
   | [(op, g)] -> op f g
   | (op, g) :: ops_exprs -> _and (op f g) (chain_ops (g, ops_exprs))
 
-let expand_multi_eq f =
+let expand_multi_eq f : (formula list * formula) option =
   let rec expand = function
     | [] -> Some []
     | Eq (_, g) as eq :: rest -> (
@@ -442,10 +446,12 @@ let expand_multi_eq f =
           | _ -> None)
     | _ -> None in
   match expand (gather_and f) with
-    | Some eqs -> (
-        match hd eqs, last eqs with
-          | Eq (a, _), Eq (_, b) -> Some (eqs, Eq (a, b))
-          | _ -> assert false)
+    | Some eqs ->
+        let concl = if length eqs <= 2 then multi_and eqs else
+          match hd eqs, last eqs with
+            | Eq (a, _), Eq (_, b) -> Eq (a, b)
+            | _ -> assert false in
+        Some (eqs, concl)
     | None -> None
 
 let next_var x avoid =

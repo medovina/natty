@@ -234,7 +234,7 @@ and precisely_prop s = (
       let gs = gather_or f in
       assert (length gs > 1);
       let ns = all_pairs gs |> map (fun (f, g) -> _not (_and f g)) in
-      fold_left1 _and (f :: ns)
+      multi_and (f :: ns)
   ) s
 
 and cannot_prop s = (
@@ -390,7 +390,7 @@ let let_val_step =
 
 let assume_step =
   with_range suppose |>>
-    fun (fs, range) -> (Assume (fold_left1 _and fs), range)
+    fun (fs, range) -> (Assume (multi_and fs), range)
 
 let let_or_assume =
   single let_val_step <|> let_step <|> single assume_step
