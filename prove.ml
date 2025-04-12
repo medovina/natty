@@ -446,7 +446,6 @@ let simp_eq = function
  *     (viii) if t'σ = ⊥, u is at the top level of a positive literal  *)
 
 let super dp d' t_t' cp c c1 =
-  let dbg = dp.id = 2 && cp.id = 28 in
   let pairs = match terms t_t' with
     | (true, t, t') ->
         if t' = _true || t' = _false then [(t, t')]
@@ -473,8 +472,6 @@ let super dp d' t_t' cp c c1 =
             is_applied_symbol t_s || (* vii *)
             t'_s = _false && not (top_positive u c1 sub (is_inductive cp))  (* viii *)
         then [] else (
-          if dbg then printf "super: t_eq_t'_s = [%s], d'_s = %s\n"
-            (show_formula t_eq_t'_s) (show_formulas d'_s);
           let c1_t' = replace_in_formula t' u c1 in
           let c_s = replace1 (rsubst sub c1_t') c1_s c_s in
           let e = multi_or (d'_s @ c_s) in
