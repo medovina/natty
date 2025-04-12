@@ -16,6 +16,7 @@ type pformula = {
   simp: bool;
   formula: formula;
   support: bool;
+  goal: bool;
   delta: float;
   cost: float ref;
   pinned: int;
@@ -44,7 +45,8 @@ let print_formula with_origin prefix pformula =
     | 2 -> " P" | 1 -> " p" | _ -> "" in
   let annotate =
     (if pformula.branch > 0 then sprintf " b%d" pformula.branch else "") ^
-    (mark pformula.initial "i") ^ pin ^ (mark pformula.support "s") in
+    (mark pformula.goal "g") ^ (mark pformula.initial "i") ^ pin ^
+    (mark pformula.support "s") in
   printf "%s%s {%.2f%s}\n"
     (indent_with_prefix prefix (show_multi pformula.formula))
     origin (cost_of pformula) annotate
@@ -74,6 +76,7 @@ let max_cost = 1.3
 let mk_pformula rule parents formula delta =
   { id = 0; rule; rewrites = []; simp = false; parents; formula;
     support = exists (fun p -> p.support) parents;
+    goal = exists (fun p -> p.goal) parents;
     delta = adjust_delta parents delta;
     cost = ref (total_cost parents delta);
     pinned = 0; initial = false; branch = 0 }
@@ -482,7 +485,7 @@ let super dp d' t_t' cp c c1 =
 let all_super dp cp =
   profile "all_super" @@ fun () ->
   if total_cost [dp; cp] 0.0 > max_cost ||
-    dp = cp && is_inductive dp then []
+    is_inductive dp && not cp.goal || is_inductive cp && not dp.goal then []
   else
     let d_steps, c_steps = clausify_steps dp, clausify_steps cp in
     let+ (dp, d_steps, cp, c_steps) =
@@ -557,7 +560,7 @@ let update p rewriting f =
   else
     let branch = max (p.branch - 1) 0 in
     { id = 0; rule = ""; rewrites = r; simp; parents = [p];
-      support = p.support; delta = 0.0; cost = p.cost; formula = f;
+      support = p.support; goal = p.goal; delta = 0.0; cost = p.cost; formula = f;
       pinned = if branch > 0 then 2 else 0; initial = p.initial; branch }
 
 (*     t = t'    C⟨tσ⟩
@@ -898,7 +901,8 @@ let prove timeout known_stmts thm invert cancel_check =
   let goal = if invert then pformula else
     create_pformula "negate" [pformula] (_not pformula.formula) (0.0) in
   dbg_newline ();
-  refute timeout (known @ [{(pin goal) with support = true; branch = 2}]) cancel_check
+  let goal = {(pin goal) with goal = true; support = true; branch = 2} in
+  refute timeout (known @ [goal]) cancel_check
 
 let output_proof pformula =
   let steps =
