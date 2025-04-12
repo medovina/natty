@@ -557,7 +557,6 @@ let update p rewriting f =
  *     t = t'    C⟨t'σ⟩
  *
  *   (i) tσ > t'σ
- *   (ii) (t = t')σ ≯ C
  *
  *)
 let rewrite dp cp =
@@ -572,8 +571,7 @@ let rewrite dp cp =
   match try_match t u with
     | Some sub ->
         let t_s, t'_s = u, rsubst sub t' in
-        if term_gt t_s t'_s &&  (* (i) *)
-           not (clause_gt [Eq (t_s, t'_s)] (clausify cp)) then (* (ii) *)
+        if term_gt t_s t'_s then  (* (i) *)
           let e = reduce (replace_in_formula t'_s t_s c) in
           [update cp (Some dp) e]
         else []
@@ -713,10 +711,11 @@ let queue_add queue pformulas =
 let dbg_newline () =
   if !debug > 0 then print_newline ()
 
-let process src queue used found p =
-  let p = simplify p in
+let process src queue used found p1 =
+  let p = simplify p1 in
   if is_tautology p.formula then (
-    if !debug > 1 then printf "%s tautology\n" src;
+    if !debug > 1 then
+      printf "%s tautology: %s ==> %s\n" src (show_formula p1.formula) (show_formula p.formula);
     None)
   else
     match any_subsumes used p with
@@ -881,9 +880,14 @@ let prove timeout known_stmts thm invert cancel_check =
     stmt_formula stmt |> Option.map (fun f ->
       (stmt_name stmt, f, is_hypothesis stmt))) in
   formula_counter := 0;
-  let known = ac_complete formulas |> map (fun (name, f, is_hyp) ->
+  let formulas = ac_complete formulas in
+  let count = length formulas in
+  let known = formulas |> mapi (fun i (name, f, is_hyp) ->
     let p = {(to_pformula name f) with initial = true} in
-    let p = if is_hyp then {(pin p) with support = true} else p in
+    let p = if is_hyp
+      then {(pin p) with support = true;
+                         branch = if i = count - 1 then 1 else 0 }
+      else p in
     dbg_newline (); p) in
   let pformula = to_pformula (stmt_name thm) (Option.get (stmt_formula thm)) in
   let goal = if invert then pformula else
