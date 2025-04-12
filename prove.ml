@@ -68,6 +68,9 @@ let merge_cost parents = match parents with
       let ancestors = search parents (fun p -> p.parents) in
       sum (ancestors |> map (fun p -> p.delta))
 
+let inducted p =
+  search [p] (fun p -> p.parents) |> exists (fun p -> is_inductive p)
+
 let total_cost parents delta =
   merge_cost parents +. adjust_delta parents delta
 
@@ -484,8 +487,8 @@ let super dp d' t_t' cp c c1 =
 
 let all_super dp cp =
   profile "all_super" @@ fun () ->
-  if total_cost [dp; cp] 0.0 > max_cost ||
-    is_inductive dp && not cp.goal || is_inductive cp && not dp.goal then []
+  let no_induct c d = is_inductive c && (not d.goal || inducted d) in
+  if total_cost [dp; cp] 0.0 > max_cost || no_induct dp cp || no_induct cp dp then []
   else
     let d_steps, c_steps = clausify_steps dp, clausify_steps cp in
     let+ (dp, d_steps, cp, c_steps) =
