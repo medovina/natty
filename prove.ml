@@ -883,7 +883,14 @@ let ac_complete formulas =
     | [] -> [] in
   scan [] formulas
 
-let to_pformula name f = create_pformula name [] (rename_vars f) 0.0
+let lower = function
+  | Eq ((Const (_, typ) as c), (Lambda _ as l)) when target_type typ = Bool ->
+      let (vars_typs, g) = gather_lambdas l in
+      for_all_vars_typs vars_typs (
+        _iff (apply (c :: map mk_var' vars_typs)) g)
+  | f -> f
+
+let to_pformula name f = create_pformula name [] (rename_vars (lower f)) 0.0
 
 let prove timeout known_stmts thm invert cancel_check =
   let known_stmts = rev known_stmts in
