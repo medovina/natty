@@ -59,7 +59,7 @@ let is_inductive pformula = match kind pformula.formula with
   | _ -> false
 
 let adjust_delta parents delta =
-  if exists is_inductive parents then 1.0 else delta
+  if exists is_inductive parents then 0.1 else delta
 
 let merge_cost parents = match parents with
     | [] -> 0.0
@@ -411,10 +411,6 @@ let is_fluid t = match t with
   | Lambda _ -> not (is_ground t) (* approximate *)
   | _ -> false
 
-let is_applied_symbol f = match bool_kind f with
-  | True | False | Not _ | Binary _ -> true
-  | _ -> false
-
 let is_eligible sub parent_eq =
   parent_eq |> for_all (fun (s, t) ->
     not (term_gt (subst_n sub t) (subst_n sub s)))
@@ -442,8 +438,7 @@ let simp_eq = function
  *     (iv) the position of u is eligible in C w.r.t. σ
  *     (v) Cσ ≰ Dσ
  *     (vi) t = t' is maximal in D w.r.t. σ
- *     (vii) tσ is not a fully applied logical symbol
- *     (viii) if t'σ = ⊥, u is at the top level of a positive literal  *)
+ *     (vii) if t'σ = ⊥, u is at the top level of a positive literal  *)
 
 let super dp d' t_t' cp c c1 =
   let pairs = match terms t_t' with
@@ -469,8 +464,7 @@ let super dp d' t_t' cp c c1 =
             not (is_eligible sub parent_eq) ||  (* iv *)
             t'_s <> _false && clause_gt d_s c_s ||  (* v *)
             not (is_maximal lit_gt (simp_eq t_eq_t'_s) d'_s) ||  (* vi *)
-            is_applied_symbol t_s || (* vii *)
-            t'_s = _false && not (top_positive u c1 sub (is_inductive cp))  (* viii *)
+            t'_s = _false && not (top_positive u c1 sub (is_inductive cp))  (* vii *)
         then [] else (
           let c1_t' = replace_in_formula t' u c1 in
           let c_s = replace1 (rsubst sub c1_t') c1_s c_s in
