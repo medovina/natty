@@ -120,7 +120,8 @@ let logical_ops = ["⊥"; "⊤"; "¬"; "∀"; "∃"] @ logical_binary
 let binop op typ f g = App (App (Const (op, typ), f), g) 
 let binop_unknown op = binop op unknown_type
 
-let logical_op op = binop op (Fun (Bool, Fun (Bool, Bool)))
+let logical_op_type = Fun (Bool, Fun (Bool, Bool))
+let logical_op op = binop op logical_op_type
 
 let _and = logical_op "∧"
 let _or = logical_op "∨"
@@ -148,6 +149,7 @@ let _for_all = quant "∀"
 let _for_all' = quant' "∀"
 let _exists = quant "∃"
 
+let c_and = Const("∧", logical_op_type)
 let c_for_all = Const("∀", quant_type)
 let c_exists = Const("∃", quant_type)
 
@@ -269,7 +271,7 @@ let show_formula_multi multi f =
   show 0 multi (-1) false f
 
 let show_formula = show_formula_multi false
-let show_formula_list fs =
+let show_formulas fs =
   sprintf "[%s]" (comma_join (map show_formula fs))
   
 let show_multi = show_formula_multi true

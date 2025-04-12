@@ -381,7 +381,8 @@ let subterms is_blue t =
   let rec gather parent_eq acc t = (t, parent_eq) :: match t with
     | App _ ->
         let (head, args) = collect_args t in
-        if head = c_for_all || head = c_exists then
+        if head = c_and && not is_blue then acc
+        else if head = c_for_all || head = c_exists then
           if is_blue then match args with
             | [Lambda (_x, _typ, f)] -> gather parent_eq acc f
             | _ -> acc
@@ -421,6 +422,10 @@ let top_positive u c sub inductive =
 let eq_pairs t t' = [(t, t'); (t', t)] |>
   filter (fun (t, t') -> not (term_ge t' t))
 
+let simp_eq = function
+  | Eq (Eq (t, t'), f) when f = _true -> Eq (t, t')
+  | f -> f
+
 (*      D:[D' ∨ t = t']    C⟨u⟩
  *    ───────────────────────────   sup
  *          (D' ∨ C⟨t'⟩)σ             σ ∈ csu(t, u)
@@ -435,6 +440,7 @@ let eq_pairs t t' = [(t, t'); (t', t)] |>
  *     (viii) if t'σ = ⊥, u is at the top level of a positive literal  *)
 
 let super dp d' t_t' cp c c1 =
+  let dbg = dp.id = 2 && cp.id = 28 in
   let pairs = match terms t_t' with
     | (true, t, t') ->
         if t' = _true || t' = _false then [(t, t')]
@@ -457,10 +463,12 @@ let super dp d' t_t' cp c c1 =
             not (is_maximal lit_gt c1_s c_s) ||  (* iv *)
             not (is_eligible sub parent_eq) ||  (* iv *)
             t'_s <> _false && clause_gt d_s c_s ||  (* v *)
-            not (is_maximal lit_gt t_eq_t'_s d'_s) ||  (* vi *)
+            not (is_maximal lit_gt (simp_eq t_eq_t'_s) d'_s) ||  (* vi *)
             is_applied_symbol t_s || (* vii *)
             t'_s = _false && not (top_positive u c1 sub (is_inductive cp))  (* viii *)
         then [] else (
+          if dbg then printf "super: t_eq_t'_s = [%s], d'_s = %s\n"
+            (show_formula t_eq_t'_s) (show_formulas d'_s);
           let c1_t' = replace_in_formula t' u c1 in
           let c_s = replace1 (rsubst sub c1_t') c1_s c_s in
           let e = multi_or (d'_s @ c_s) in
