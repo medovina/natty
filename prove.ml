@@ -193,6 +193,15 @@ let get_index x map =
         map := x :: !map;
         length !map - 1
 
+let de_bruijn_encode x =
+  let rec encode count t = match t with
+    | Var (id, _typ) ->
+        if id = x then _const ("@db" ^ string_of_int count) else t
+    | Lambda (id, typ, f) ->
+        if id = x then t else Lambda (id, typ, encode (count + 1) f)
+    | t -> map_formula (encode count) t in
+  encode 0
+
 (* Map higher-order terms to first-order terms as described in
  * Bentkamp et al, section 3.9 "A Concrete Term Order".  That section introduces
  * a distinct symbol f_k for each arity k.  We use the symbol f to represent
@@ -200,18 +209,15 @@ let get_index x map =
 let encode_term type_map fluid_map t =
   let encode_fluid t = _var ("@v" ^ string_of_int (get_index t fluid_map)) in
   let encode_type typ = _const ("@t" ^ string_of_int (get_index typ type_map)) in
-  let rec fn outer t =
-    let prime = if outer = [] then "" else "'" in
-    let lookup_var v = match index_of_opt v outer with
-      | Some i -> _const ("@d" ^ string_of_int i)
-      | None -> _var v in
+  let rec encode in_lam t =
+    let prime = if in_lam then "'" else "" in
     let u = match t with
       | Const _ -> t
-      | Var (v, _) -> lookup_var v
+      | Var (v, _) -> _var v
       | App _ ->
           let (head, args) = collect_args t in
           let head = match head with
-            | Var (v, _) -> lookup_var v
+            | Var (v, _) -> _var v
             | _ -> head in (
           match head with
             | Var _ -> encode_fluid (apply (head :: args))
@@ -219,21 +225,21 @@ let encode_term type_map fluid_map t =
                 match args with
                   | [Lambda (x, typ, f)] ->
                       let q1 = _const ("@" ^ q ^ prime) in
-                      apply [q1; encode_type typ; fn (x :: outer) f]
+                      apply [q1; encode_type typ; encode in_lam (de_bruijn_encode x f)]
                   | _ -> failwith "encode_term")
             | Const _ ->
-                apply (head :: map (fn outer) args)
+                apply (head :: map (encode in_lam) args)
             | _ -> failwith "encode_term")
       | Lambda (x, typ, f) ->
           if is_ground t then
-            apply [_const "@λ"; encode_type typ; fn (x :: outer) f]
+            apply [_const "@lam"; encode_type typ; encode true (de_bruijn_encode x f)]
           else encode_fluid t (* assume fluid *)
       | Eq (t, u) ->
-          apply [_const "@="; encode_type (type_of t); fn outer t; fn outer u] in
+          apply [_const "@="; encode_type (type_of t); encode in_lam t; encode in_lam u] in
     match u with
       | Var (v, typ) -> Var (v ^ prime, typ)
       | u -> u
-  in fn [] t
+  in encode false t
 
 let term_gt s t =
   profile "term_gt" @@ fun () ->
