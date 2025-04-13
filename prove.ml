@@ -548,7 +548,8 @@ let all_split p =
     let splits = remove [p.formula] (run [p.formula]) in
     rev splits |> map (fun lits ->
       let ps = mk_pformula "split" [p] (multi_or lits) 0.0 in
-      {ps with pinned = p.pinned; initial = p.initial; branch = p.branch})
+      {ps with pinned = if p.pinned > 0 then 2 else 0;
+               initial = p.initial; branch = p.branch})
 
 let update p rewriting f =
   let (r, simp) = match rewriting with
@@ -900,8 +901,8 @@ let prove timeout known_stmts thm invert cancel_check =
   formula_counter := 0;
   let formulas = ac_complete formulas in
   let known = formulas |> map (fun (name, f, is_hyp) ->
-    let p = {(to_pformula name f) with initial = true} in
-    let p = if is_hyp then {(pin p) with support = true; branch = 1 } else p in
+    let p = {(pin (to_pformula name f)) with initial = true} in
+    let p = if is_hyp then {p with support = true; branch = 1 } else p in
     dbg_newline (); p) in
   let pformula = to_pformula (stmt_name thm) (Option.get (stmt_formula thm)) in
   let goal = if invert then pformula else

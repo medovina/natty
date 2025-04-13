@@ -22,11 +22,13 @@ Theorem 2.  Let a, b, c ∈ ℕ.
   1. If a + c = b + c, then a = b.
   2. (a + b) + c = a + (b + c).
   3. 0 + a = a = a + 0.
-  4. s(a) + b = s(a + b).
-  5. a + b = b + a.
-  6. a + s(b) ≠ 0.
-  7. a + s(b) ≠ a.
-  8. If a + b = 0, then a = 0 and b = 0.
+  4. 1 + a = s(a) = a + 1.
+  5. s(a) + b = s(a + b).
+  6. a + b = b + a.
+  7. a ≠ s(a). 
+  8. a + s(b) ≠ 0.
+  9. a + s(b) ≠ a.
+  10. If a + b = 0, then a = 0 and b = 0.
 
 # Natural numbers: multiplication
 
@@ -92,6 +94,12 @@ Theorem 6.  Let a, b, c ∈ ℕ.
   4. If a ≤ b and b < c, then a < c.
   5. If a < b and b ≤ c, then a < c.
   6. If a < b and b < c, then a < c.
+
+Proof.
+
+  3. Let a, b, c ∈ ℕ.  Suppose that a ≤ b and b ≤ c.  Then there exist d, e ∈ ℕ such that a + d = b and b + e = c.  Then a + (d + e) = (a + d) + e = b + e = c, so a ≤ c.
+
+  4. Let a, b, c ∈ ℕ.  Suppose that a ≤ b and b < c.  Then b ≤ c, so a ≤ c by part (3) of this theorem.  There exist d, e ∈ ℕ such that a + d = b and b + e = c.  So a + (d + e) = (a + d) + e = b + e = c.  If e = 0 then b = c, which is a contradiction.  So e ≠ 0, and so there exists f ∈ ℕ such that e = s(f).  Then a + (d + s(f)) = c, so a + s(d + f) = c.  If a = c then a + s(d + f) = a, which is a contradiction.  So a ≠ c.  It follows that a < c.
 
 Theorem 7.  Let a, b ∈ ℕ.
 
