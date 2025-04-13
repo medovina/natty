@@ -419,10 +419,10 @@ let is_eligible sub parent_eq =
   parent_eq |> for_all (fun (s, t) ->
     not (term_gt (subst_n sub t) (subst_n sub s)))
 
-let top_positive u c sub inductive =
+let top_level only_pos u c sub inductive =
   let (pos, _, _) = terms u in 
   let cs = mini_clausify c in
-  pos && mem u cs &&
+  (pos = only_pos) && mem u cs &&
     (inductive || is_maximal lit_gt (rsubst sub u) (map (rsubst sub) cs))
 
 let eq_pairs t t' = [(t, t'); (t', t)] |>
@@ -442,7 +442,8 @@ let simp_eq = function
  *     (iv) the position of u is eligible in C w.r.t. σ
  *     (v) Cσ ≰ Dσ
  *     (vi) t = t' is maximal in D w.r.t. σ
- *     (vii) if t'σ = ⊥, u is at the top level of a positive literal  *)
+ *     (vii) if t'σ = ⊥, u is at the top level of a positive literal
+             if t'σ = ⊤, u is at the top level of a negative literal *)
 
 let super dp d' t_t' cp c c1 =
   let pairs = match terms t_t' with
@@ -468,7 +469,8 @@ let super dp d' t_t' cp c c1 =
             not (is_eligible sub parent_eq) ||  (* iv *)
             t'_s <> _false && clause_gt d_s c_s ||  (* v *)
             not (is_maximal lit_gt (simp_eq t_eq_t'_s) d'_s) ||  (* vi *)
-            t'_s = _false && not (top_positive u c1 sub (is_inductive cp))  (* vii *)
+            (t'_s = _false || t'_s = _true) &&
+              not (top_level (t'_s = _false) u c1 sub (is_inductive cp)) (* vii *)
         then [] else (
           let c1_t' = replace_in_formula t' u c1 in
           let c_s = replace1 (rsubst sub c1_t') c1_s c_s in
