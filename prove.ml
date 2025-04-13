@@ -419,10 +419,9 @@ let is_eligible sub parent_eq =
   parent_eq |> for_all (fun (s, t) ->
     not (term_gt (subst_n sub t) (subst_n sub s)))
 
-let top_level only_pos u c sub inductive =
-  let (pos, _, _) = terms u in 
+let top_level pos u c sub inductive =
   let cs = mini_clausify c in
-  (pos = only_pos) && mem u cs &&
+    mem (if pos then u else _not u) cs &&
     (inductive || is_maximal lit_gt (rsubst sub u) (map (rsubst sub) cs))
 
 let eq_pairs t t' = [(t, t'); (t', t)] |>
@@ -442,8 +441,8 @@ let simp_eq = function
  *     (iv) the position of u is eligible in C w.r.t. σ
  *     (v) Cσ ≰ Dσ
  *     (vi) t = t' is maximal in D w.r.t. σ
- *     (vii) if t'σ = ⊥, u is at the top level of a positive literal
-             if t'σ = ⊤, u is at the top level of a negative literal *)
+ *     (vii) if t'σ = ⊥, u is a literal
+             if t'σ = ⊤, ¬u is a literal *)
 
 let super dp d' t_t' cp c c1 =
   let pairs = match terms t_t' with
@@ -527,7 +526,7 @@ let all_eres cp = run_clausify cp eres
 
 let all_split p =
   let skolem_names = ref [] in
-  let rec run lits =
+  let rec run lits : formula list list =
     let lits1 = clausify1 p.id lits (Some skolem_names) in
     let split lit f g =
       let top = if lits1 = lits then [] else [lits] in
