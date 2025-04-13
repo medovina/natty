@@ -387,14 +387,12 @@ let unprefix_vars f =
     | f -> map_formula (fix outer) f in
   fix [] f
 
-(* Gather green or blue subterms.  Unlike in Bentkamp et al, we
- * allow the head of an application to be a blue subterm. *)
+(* Gather green or blue subterms.  *)
 let subterms is_blue t =
   let rec gather parent_eq acc t = (t, parent_eq) :: match t with
     | App _ ->
         let (head, args) = collect_args t in
-        if head = c_and && not is_blue then acc
-        else if head = c_for_all || head = c_exists then
+        if head = c_for_all || head = c_exists then
           if is_blue then match args with
             | [Lambda (_x, _typ, f)] -> gather parent_eq acc f
             | _ -> acc
