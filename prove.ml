@@ -912,7 +912,7 @@ let prove timeout known_stmts thm invert cancel_check =
     dbg_newline (); p) in
   let pformula = to_pformula (stmt_name thm) (Option.get (stmt_formula thm)) in
   let goal = if invert then pformula else
-    create_pformula "negate" [pformula] (_not pformula.formula) (0.0) in
+    create_pformula "negate" [pformula] (_not pformula.formula) (0.01) in
   dbg_newline ();
   let goal = {(pin goal) with goal = true; support = true; branch = 2} in
   refute timeout (known @ [goal]) cancel_check
