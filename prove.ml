@@ -33,7 +33,7 @@ let print_formula with_origin prefix pformula =
     if with_origin then
       let parents = pformula.parents |> map (fun p -> string_of_int (p.id)) in
       let rule = if pformula.rule <> "" then [pformula.rule] else [] in
-      let rewrites = pformula.rewrites |> map (fun r -> r.id) in
+      let rewrites = rev pformula.rewrites |> map (fun r -> r.id) in
       let rw = if rewrites = [] then []
         else [sprintf "rw(%s)" (comma_join (map string_of_int rewrites))] in
       let simp = if pformula.simp then ["simp"] else [] in
@@ -556,7 +556,7 @@ let update p rewriting f =
     | Some p -> ([p], false)
     | None -> ([], true) in
   if p.id = 0 then
-    { p with rewrites = union r p.rewrites; simp = p.simp || simp; formula = f }
+    { p with rewrites = r @ p.rewrites; simp = p.simp || simp; formula = f }
   else
     let branch = max (p.branch - 1) 0 in
     { id = 0; rule = ""; rewrites = r; simp; parents = [p];
