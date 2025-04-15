@@ -884,6 +884,12 @@ let ac_complete formulas =
   scan [] formulas
 
 let lower = function
+  | Eq (Const _ as c,
+      Lambda (x, x_typ, Lambda (y, y_typ,
+        App (App ((Const _ as d), (Var (y', _) as vy)), (Var (x', _) as vx)))))
+        when (x, y) = (x', y') ->
+          for_all_vars_typs [(x, x_typ); (y, y_typ)]
+            (Eq (apply [c; vx; vy], apply [d; vy; vx]))
   | Eq ((Const (_, typ) as c), (Lambda _ as l)) when target_type typ = Bool ->
       let (vars_typs, g) = gather_lambdas l in
       for_all_vars_typs vars_typs (

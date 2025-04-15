@@ -101,6 +101,8 @@ Proof.
 
   4. Let a, b, c ∈ ℕ.  Suppose that a ≤ b and b < c.  Then b ≤ c, so a ≤ c by part (3) of this theorem.  There exist d, e ∈ ℕ such that a + d = b and b + e = c.  So a + (d + e) = (a + d) + e = b + e = c.  If e = 0 then b = c, which is a contradiction.  So e ≠ 0, and so there exists f ∈ ℕ such that e = s(f).  Then a + (d + s(f)) = c, so a + s(d + f) = c.  If a = c then a + s(d + f) = a, which is a contradiction.  So a ≠ c.  It follows that a < c.
 
+  5. Let a, b, c ∈ ℕ.  Suppose that a < b and b ≤ c.  Then a ≤ b, so a ≤ c by part (3) of this theorem.  There exist d, e ∈ ℕ such that a + d = b and b + e = c.  So a + (d + e) = (a + d) + e = b + e = c.  If d = 0 then a = b, which is a contradiction.  So d ≠ 0, and so there exists f ∈ ℕ such that d = s(f).  Then a + (s(f) + e) = c, so a + s(f + e) = c.  If a = c then a + s(f + e) = a, which is a contradiction.  So a ≠ c.  It follows that a < c.
+
 Theorem 7.  Let a, b ∈ ℕ.
 
   1. Precisely one of a < b or a = b or a > b holds.
