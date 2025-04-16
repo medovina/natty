@@ -19,7 +19,7 @@ type pformula = {
   goal: bool;
   delta: float;
   cost: float ref;
-  initial: bool;
+  hypothesis: bool;
 }
 
 let cost_of p = !(p.cost)
@@ -40,7 +40,7 @@ let print_formula with_origin prefix pformula =
     else "" in
   let mark b c = if b then " " ^ c else "" in
   let annotate =
-    (mark pformula.goal "g") ^ (mark pformula.initial "i") ^
+    (mark pformula.goal "g") ^ (mark pformula.hypothesis "h") ^
     (mark pformula.support "s") in
   printf "%s%s {%.2f%s}\n"
     (indent_with_prefix prefix (show_multi pformula.formula))
@@ -77,7 +77,7 @@ let mk_pformula rule parents formula delta =
     goal = false;
     delta = adjust_delta parents delta;
     cost = ref (total_cost parents delta);
-    initial = false }
+    hypothesis = false }
 
 let rec number_formula pformula =
   if pformula.id > 0 then pformula
@@ -541,7 +541,7 @@ let all_split p =
     let splits = remove [p.formula] (run [p.formula]) in
     rev splits |> map (fun lits ->
       let ps = mk_pformula "split" [p] (multi_or lits) 0.0 in
-      {ps with initial = p.initial})
+      {ps with hypothesis = p.hypothesis})
 
 let update p rewriting f =
   let (r, simp) = match rewriting with
@@ -552,11 +552,11 @@ let update p rewriting f =
   else
     { id = 0; rule = ""; rewrites = r; simp; parents = [p];
       support = p.support; goal = p.goal; delta = 0.0; cost = p.cost; formula = f;
-      initial = p.initial }
+      hypothesis = p.hypothesis }
 
-(*     t = t'    C⟨tσ⟩
+(*     t = t'    C⟪tσ⟫
  *   ═══════════════════   rw
- *     t = t'    C⟨t'σ⟩
+ *     t = t'    C⟪t'σ⟫
  *
  *   (i) tσ > t'σ
  *   (ii) (t = t')σ ≯ C
@@ -772,10 +772,11 @@ let rw_simplify src queue used found p : pformula list =
       let (ground_eq, other) = partition ground_equational used in
       opt_or (is_false (repeat_rewrite ground_eq p)) (fun () ->
         (* try rewriting with each non-ground equation individually *)
-        let comm_axioms = used |> filter (fun p ->
-          Option.is_some (commutative_axiom p.formula)) in
-        let p = repeat_rewrite comm_axioms p in
-        other |> find_map (fun from -> is_false (repeat_rewrite [from] p)))
+        let axioms = used |> filter (fun p ->
+          Option.is_some (commutative_axiom p.formula) ||
+          ground_equational p && not p.hypothesis) in
+        let p1 = repeat_rewrite axioms p in
+        other |> find_map (fun from -> is_false (repeat_rewrite [from] p1)))
     else None in
   let q = match q with
     | Some p -> p
@@ -898,9 +899,9 @@ let prove timeout known_stmts thm invert cancel_check : result =
   formula_counter := 0;
   let formulas = ac_complete formulas in
   let count = length formulas in
-  let known = formulas |> mapi (fun i (name, f, _is_hyp) ->
+  let known = formulas |> mapi (fun i (name, f, is_hyp) ->
     let p = {(to_pformula name f) with
-                initial = true; support = (i = count - 1)} in
+                hypothesis = is_hyp; support = (i = count - 1)} in
     (* let p = if is_hyp then {p with support = true } else p in *)
     dbg_newline (); p) in
   let pformula = to_pformula (stmt_name thm) (Option.get (stmt_formula thm)) in
