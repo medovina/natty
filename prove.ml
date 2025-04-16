@@ -574,8 +574,7 @@ let rewrite dp cp =
   match try_match t u with
     | Some sub ->
         let t_s, t'_s = u, rsubst sub t' in
-        if term_gt t_s t'_s &&  (* (i) *)
-           not (clause_gt [Eq (t_s, t'_s)] (clausify cp)) then (* (ii) *)
+        if term_gt t_s t'_s then
           let e = reduce (replace_in_formula t'_s t_s c) in
           [update cp (Some dp) e]
         else []
@@ -757,12 +756,12 @@ let rewrite_from ps q = find_map (fun p -> rewrite_opt p q) ps
 
 let ground_equational p = is_eq (p.formula)
 
-let repeat_rewrite used pformula : pformula =
+let repeat_rewrite used p : pformula =
   profile "repeat_rewrite" @@ fun () ->
   let rec loop p = match rewrite_from used p with
     | None -> p
     | Some p -> loop p in
-  loop pformula
+  loop p
 
 let rw_simplify src queue used found p : pformula list =
   let is_false p = if simp p.formula = _false then Some p else None in
@@ -898,11 +897,9 @@ let prove timeout known_stmts thm invert cancel_check : result =
       (stmt_name stmt, f, is_hypothesis stmt))) in
   formula_counter := 0;
   let formulas = ac_complete formulas in
-  let count = length formulas in
-  let known = formulas |> mapi (fun i (name, f, is_hyp) ->
+  let known = formulas |> map (fun (name, f, is_hyp) ->
     let p = {(to_pformula name f) with
-                hypothesis = is_hyp; support = (i = count - 1)} in
-    (* let p = if is_hyp then {p with support = true } else p in *)
+                hypothesis = is_hyp; support = is_hyp} in
     dbg_newline (); p) in
   let pformula = to_pformula (stmt_name thm) (Option.get (stmt_formula thm)) in
   let goal = if invert then pformula else
