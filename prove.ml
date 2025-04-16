@@ -19,9 +19,7 @@ type pformula = {
   goal: bool;
   delta: float;
   cost: float ref;
-  pinned: int;
   initial: bool;
-  branch: int
 }
 
 let cost_of p = !(p.cost)
@@ -41,11 +39,8 @@ let print_formula with_origin prefix pformula =
       sprintf " [%s]" (comma_join all)
     else "" in
   let mark b c = if b then " " ^ c else "" in
-  let pin = match pformula.pinned with
-    | 2 -> " P" | 1 -> " p" | _ -> "" in
   let annotate =
-    (if pformula.branch > 0 then sprintf " b%d" pformula.branch else "") ^
-    (mark pformula.goal "g") ^ (mark pformula.initial "i") ^ pin ^
+    (mark pformula.goal "g") ^ (mark pformula.initial "i") ^
     (mark pformula.support "s") in
   printf "%s%s {%.2f%s}\n"
     (indent_with_prefix prefix (show_multi pformula.formula))
@@ -79,10 +74,10 @@ let max_cost = 1.3
 let mk_pformula rule parents formula delta =
   { id = 0; rule; rewrites = []; simp = false; parents; formula;
     support = exists (fun p -> p.support) parents;
-    goal = exists (fun p -> p.goal) parents;
+    goal = false;
     delta = adjust_delta parents delta;
     cost = ref (total_cost parents delta);
-    pinned = 0; initial = false; branch = 0 }
+    initial = false }
 
 let rec number_formula pformula =
   if pformula.id > 0 then pformula
@@ -95,8 +90,6 @@ let rec number_formula pformula =
 
 let create_pformula rule parents formula delta =
   number_formula (mk_pformula rule parents formula delta)
-
-let pin pformula = { pformula with pinned = 2 }
 
 let is_skolem s = is_letter s.[0] && is_digit s.[strlen s - 1]
 
@@ -548,8 +541,7 @@ let all_split p =
     let splits = remove [p.formula] (run [p.formula]) in
     rev splits |> map (fun lits ->
       let ps = mk_pformula "split" [p] (multi_or lits) 0.0 in
-      {ps with pinned = if p.pinned > 0 then 2 else 0;
-               initial = p.initial; branch = p.branch})
+      {ps with initial = p.initial})
 
 let update p rewriting f =
   let (r, simp) = match rewriting with
@@ -558,16 +550,17 @@ let update p rewriting f =
   if p.id = 0 then
     { p with rewrites = r @ p.rewrites; simp = p.simp || simp; formula = f }
   else
-    let branch = max (p.branch - 1) 0 in
     { id = 0; rule = ""; rewrites = r; simp; parents = [p];
       support = p.support; goal = p.goal; delta = 0.0; cost = p.cost; formula = f;
-      pinned = if branch > 0 then 2 else 0; initial = p.initial; branch }
+      initial = p.initial }
 
 (*     t = t'    C⟨tσ⟩
  *   ═══════════════════   rw
  *     t = t'    C⟨t'σ⟩
  *
  *   (i) tσ > t'σ
+ *   (ii) (t = t')σ ≯ C
+ *
  *)
 let rewrite dp cp =
   let pairs = match remove_universal dp.formula with
@@ -581,7 +574,8 @@ let rewrite dp cp =
   match try_match t u with
     | Some sub ->
         let t_s, t'_s = u, rsubst sub t' in
-        if term_gt t_s t'_s then  (* (i) *)
+        if term_gt t_s t'_s &&  (* (i) *)
+           not (clause_gt [Eq (t_s, t'_s)] (clausify cp)) then (* (ii) *)
           let e = reduce (replace_in_formula t'_s t_s c) in
           [update cp (Some dp) e]
         else []
@@ -761,44 +755,46 @@ let rewrite_opt dp cp = head_opt (rewrite dp cp)
     
 let rewrite_from ps q = find_map (fun p -> rewrite_opt p q) ps
 
-let rw_simplify src queue used found pformula =
-  profile "rw_simplify" @@ fun () ->
-  let rec repeat_rewrite p = match rewrite_from used p with
+let ground_equational p = is_eq (p.formula)
+
+let repeat_rewrite used pformula : pformula =
+  profile "repeat_rewrite" @@ fun () ->
+  let rec loop p = match rewrite_from used p with
     | None -> p
-    | Some p -> repeat_rewrite p in
-  let p = repeat_rewrite pformula in
-  process src queue used found p
+    | Some p -> loop p in
+  loop pformula
+
+let rw_simplify src queue used found p : pformula list =
+  let is_false p = if simp p.formula = _false then Some p else None in
+  let q =
+    if p.goal then
+      (* first try rewriting with ground equations, likely a confluent system *)
+      let (ground_eq, other) = partition ground_equational used in
+      opt_or (is_false (repeat_rewrite ground_eq p)) (fun () ->
+        (* try rewriting with each non-ground equation individually *)
+        let comm_axioms = used |> filter (fun p ->
+          Option.is_some (commutative_axiom p.formula)) in
+        let p = repeat_rewrite comm_axioms p in
+        other |> find_map (fun from -> is_false (repeat_rewrite [from] p)))
+    else None in
+  let q = match q with
+    | Some p -> p
+    | None -> repeat_rewrite used p in
+  Option.to_list (process src queue used found q)
 
 let rewrite_or_branch queue used found pformula : pformula list =
-  let rewrite () = Option.to_list (rw_simplify "given is" queue used found pformula) in
-  if pformula.branch > 0 then
-    let initial = used |> filter (fun p -> p.initial) in
-    let rewrite_from init = rewrite_opt init pformula |>
-      Option.map (fun p -> (init.id, p)) in
-    let ps = filter_map rewrite_from initial in
-    if ps <> [] then
-      let f (id, p) =
-        (if p.branch > 0 then process else rw_simplify)
-          (sprintf "given (branch via %d) is" id) queue used found p in
-      filter_map f ps
-    else rewrite ()
-  else rewrite ()
+  rw_simplify "given is" queue used found pformula
 
-let rw_simplify_all queue used found ps =
-  ps |> filter_map (fun p ->
-    (if p.pinned > 0 then process else rw_simplify) "generated" queue used found p)
+let rw_simplify_all queue used found ps : pformula list =
+  ps |> concat_map (fun p -> rw_simplify "generated" queue used found p)
 
 let rec back_simplify from = function
   | [] -> ([], [])
   | p :: ps ->
       let (ps', rewritten) = back_simplify from ps in
-      if p.pinned <> 1 || p.branch > 0 && from.initial then 
-        match rewrite_from [from] p with
-          | Some p' ->
-              if p.pinned = 2 then ({p with pinned = 1} :: ps', p' :: rewritten)
-              else (ps', p' :: rewritten)
-          | None -> (p :: ps', rewritten)
-      else (p :: ps', rewritten)
+      match rewrite_from [from] p with
+        | Some p' -> (ps', p' :: rewritten)
+        | None -> (p :: ps', rewritten)
 
 type result = Proof of pformula * float * int | Timeout | GaveUp | Stopped
 
@@ -823,18 +819,18 @@ let refute timeout pformulas cancel_check =
           queue := q;
           dbg_print_formula false (sprintf "[#%d, %.3f s] given: " count elapsed) p;
           let ps = rewrite_or_branch queue used found p in
-          let (p1, gen) =
-            if p.pinned > 0 then
+          (* let (p1, gen) = *)
+            (* if p.pinned > 0 then
               let extra = removeq p ps in
-              (Some {p with pinned = (if extra = [] then p.pinned else 1)}, extra)
-            else (to_option ps, []) in
-          match p1 with
-            | None ->
+              (Some {p with pinned = (if extra = [] then p.pinned else 1)}, extra) else *)
+              (* (to_option ps, []) in *)
+          match sort_by (fun p -> basic_weight p.formula) ps with
+            | [] ->
                 if !debug > 0 then print_newline ();
                 loop used (count + 1)
-            | Some p ->
-                let (used, rewritten) = back_simplify p used in
-                if p.formula = _false then Proof (p, elapsed, count) else
+            | p :: gen ->
+                if p.formula = _false then Proof (p, Sys.time () -. start, count) else
+                  let (used, rewritten) = back_simplify p used in
                   let used = p :: used in
                   let generated =
                     concat_map (all_super p) used @ all_eres p @ all_split p |>
@@ -898,7 +894,7 @@ let lower = function
 
 let to_pformula name f = create_pformula name [] (rename_vars (lower f)) 0.0
 
-let prove timeout known_stmts thm invert cancel_check =
+let prove timeout known_stmts thm invert cancel_check : result =
   let known_stmts = rev known_stmts in
   consts := filter_map decl_var known_stmts;
   let formulas = known_stmts |> filter_map (fun stmt ->
@@ -906,15 +902,15 @@ let prove timeout known_stmts thm invert cancel_check =
       (stmt_name stmt, f, is_hypothesis stmt))) in
   formula_counter := 0;
   let formulas = ac_complete formulas in
-  let known = formulas |> map (fun (name, f, is_hyp) ->
-    let p = {(pin (to_pformula name f)) with initial = true} in
-    let p = if is_hyp then {p with support = true; branch = 1 } else p in
+  let known = formulas |> map (fun (name, f, _is_hyp) ->
+    let p = {(to_pformula name f) with initial = true} in
+    (* let p = if is_hyp then {p with support = true } else p in *)
     dbg_newline (); p) in
   let pformula = to_pformula (stmt_name thm) (Option.get (stmt_formula thm)) in
   let goal = if invert then pformula else
     create_pformula "negate" [pformula] (_not pformula.formula) (0.01) in
   dbg_newline ();
-  let goal = {(pin goal) with goal = true; support = true; branch = 2} in
+  let goal = {goal with goal = true; support = true} in
   refute timeout (known @ [goal]) cancel_check
 
 let output_proof pformula =

@@ -1,5 +1,3 @@
-open Either
-
 (* Export all List functions from this module, but omit the type List.t. *)
 include (List : module type of List with type 'a t := 'a list)
 open List
@@ -20,6 +18,10 @@ let opt_for_all f = function
 let opt_all_eq x = opt_for_all ((=) x)
 
 let opt_fold f opt acc = fold_right f (Option.to_list opt) acc
+
+let opt_or x y = match x with
+  | Some x -> Some x
+  | None -> y ()
 
 (* chars *)
 
@@ -108,16 +110,6 @@ let utf16_encode_len = utf8_count (fun n -> if n > 3 then 2 else 1)
 
 module StringSet = Set.Make (String)
 module StringMap = Map.Make (String)
-
-(* either *)
-
-let mk_left x = Left x
-
-let gather_left_right xs =
-  let f x (ls, rs) = match x with
-    | Left l -> (l :: ls, rs)
-    | Right r -> (ls, r :: rs) in
-  fold_right f xs ([], [])
 
 (* tuples *)
 
