@@ -819,11 +819,6 @@ let refute timeout pformulas cancel_check =
           queue := q;
           dbg_print_formula false (sprintf "[#%d, %.3f s] given: " count elapsed) p;
           let ps = rewrite_or_branch queue used found p in
-          (* let (p1, gen) = *)
-            (* if p.pinned > 0 then
-              let extra = removeq p ps in
-              (Some {p with pinned = (if extra = [] then p.pinned else 1)}, extra) else *)
-              (* (to_option ps, []) in *)
           match sort_by (fun p -> basic_weight p.formula) ps with
             | [] ->
                 if !debug > 0 then print_newline ();
@@ -902,8 +897,10 @@ let prove timeout known_stmts thm invert cancel_check : result =
       (stmt_name stmt, f, is_hypothesis stmt))) in
   formula_counter := 0;
   let formulas = ac_complete formulas in
-  let known = formulas |> map (fun (name, f, _is_hyp) ->
-    let p = {(to_pformula name f) with initial = true} in
+  let count = length formulas in
+  let known = formulas |> mapi (fun i (name, f, _is_hyp) ->
+    let p = {(to_pformula name f) with
+                initial = true; support = (i = count - 1)} in
     (* let p = if is_hyp then {p with support = true } else p in *)
     dbg_newline (); p) in
   let pformula = to_pformula (stmt_name thm) (Option.get (stmt_formula thm)) in
