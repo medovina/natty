@@ -898,11 +898,12 @@ let quick_refute known goal =
       Option.is_some (commutative_axiom p.formula)) in
     let reduce = repeat_rewrite comm_axioms in
     known |> find_map (fun q ->
-      let* r = rewrite_opt q last_hyp in
-      let* s = rewrite_opt (reduce r) (reduce goal) in
-      let s = simplify s in
-      if s.formula = _false
-        then Some (Proof (number_formula s, Sys.time () -. start, 0)) else None)
+      rewrite q last_hyp @ all_super q last_hyp |> find_map (fun r ->
+        let r = simplify r in
+        let* s = rewrite_opt (reduce r) (reduce goal) in
+        let s = simplify s in
+        if s.formula = _false
+          then Some (Proof (number_formula s, Sys.time () -. start, 0)) else None))
   else None
 
 let prove timeout known_stmts thm invert cancel_check : result =
