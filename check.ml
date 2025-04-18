@@ -139,7 +139,7 @@ let check_formula env formula as_type =
           else error (show_type (Option.get as_type) ^ " expected") formula in
   check [] formula (if is_unknown as_type then None else Some as_type)
 
-let top_check env f = reduce (check_formula env f Bool)
+let top_check env f = b_reduce (check_formula env f Bool)
 
 type block = Block of proof_step * range * block list
 

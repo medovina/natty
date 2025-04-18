@@ -374,16 +374,16 @@ let subst_n subst f =
   fold_left (fun f (x, t) -> subst1 f t x) f subst
   
 (* β-reduction *)
-let rec reduce = function
-  | App (f, g) -> (match reduce f, reduce g with
-      | Lambda (x, _typ, f), g -> reduce (subst1 f g x)  
+let rec b_reduce = function
+  | App (f, g) -> (match b_reduce f, b_reduce g with
+      | Lambda (x, _typ, f), g -> b_reduce (subst1 f g x)  
       | f, g -> App (f, g))
-  | Lambda (id, typ, f) -> Lambda (id, typ, reduce f)
-  | Eq (f, g) -> Eq (reduce f, reduce g)
+  | Lambda (id, typ, f) -> Lambda (id, typ, b_reduce f)
+  | Eq (f, g) -> Eq (b_reduce f, b_reduce g)
   | f -> f
 
-let rsubst1 t u x = reduce (subst1 t u x)
-let rsubst subst f = reduce (subst_n subst f)
+let rsubst1 t u x = b_reduce (subst1 t u x)
+let rsubst subst f = b_reduce (subst_n subst f)
 
 let eta = function
   | Lambda (id, typ, App (f, Var (id', typ'))) when id = id' && typ = typ' -> f  

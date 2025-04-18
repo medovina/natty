@@ -575,7 +575,7 @@ let rewrite dp cp =
     | Some sub ->
         let t_s, t'_s = u, rsubst sub t' in
         if term_gt t_s t'_s then
-          let e = reduce (replace_in_formula t'_s t_s c) in
+          let e = b_reduce (replace_in_formula t'_s t_s c) in
           [update cp (Some dp) e]
         else []
     | _ -> []
@@ -769,7 +769,7 @@ let rw_simplify src queue used found p : pformula list =
     if p.goal then
       (* first try rewriting with ground equations, likely a confluent system *)
       let (ground_eq, other) = partition ground_equational used in
-      opt_or (is_false (repeat_rewrite ground_eq p)) (fun () ->
+      or_opt (is_false (repeat_rewrite ground_eq p)) (fun () ->
         (* try rewriting with each non-ground equation individually *)
         let axioms = used |> filter (fun p ->
           Option.is_some (commutative_axiom p.formula) ||
@@ -889,6 +889,21 @@ let lower = function
 
 let to_pformula name f = create_pformula name [] (rename_vars (lower f)) 0.0
 
+let quick_refute known goal =
+  let start = Sys.time () in
+  let last_hyp = last known in
+  if last_hyp.hypothesis then
+    let comm_axioms = known |> filter (fun p ->
+      Option.is_some (commutative_axiom p.formula)) in
+    let reduce = repeat_rewrite comm_axioms in
+    known |> find_map (fun q ->
+      let* r = rewrite_opt q last_hyp in
+      let* s = rewrite_opt (reduce r) (reduce goal) in
+      let s = simplify s in
+      if s.formula = _false
+        then Some (Proof (s, Sys.time () -. start, 0)) else None)
+  else None
+
 let prove timeout known_stmts thm invert cancel_check : result =
   let known_stmts = rev known_stmts in
   consts := filter_map decl_var known_stmts;
@@ -906,7 +921,8 @@ let prove timeout known_stmts thm invert cancel_check : result =
     create_pformula "negate" [pformula] (_not pformula.formula) (0.01) in
   dbg_newline ();
   let goal = {goal with goal = true; support = true} in
-  refute timeout (known @ [goal]) cancel_check
+  opt_or (quick_refute known goal) (fun () ->
+    refute timeout (known @ [goal]) cancel_check)
 
 let output_proof pformula =
   let steps =

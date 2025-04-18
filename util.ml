@@ -20,6 +20,10 @@ let opt_all_eq x = opt_for_all ((=) x)
 let opt_fold f opt acc = fold_right f (Option.to_list opt) acc
 
 let opt_or x y = match x with
+  | Some x -> x
+  | None -> y ()
+
+let or_opt x y = match x with
   | Some x -> Some x
   | None -> y ()
 
@@ -117,8 +121,6 @@ let swap (x, y) = (y, x)
 
 let map_fst f = map (fun (x, y) -> (f x, y))
 let map_snd f = map (fun (x, y) -> (x, f y))
-
-let map_triple_fst f = map (fun (x, y, z) -> (f x, y, z))
 
 (* lists *)
 
