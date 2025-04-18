@@ -15,12 +15,11 @@ type pformula = {
   rewrites: pformula list;
   simp: bool;
   formula: formula;
+  support: bool;
+  goal: bool;
   delta: float;
   cost: float ref;
   hypothesis: bool;
-  goal: bool;
-  support: bool;
-  resubmitted: bool
 }
 
 let cost_of p = !(p.cost)
@@ -42,7 +41,7 @@ let print_formula with_origin prefix pformula =
   let mark b c = if b then " " ^ c else "" in
   let annotate =
     (mark pformula.goal "g") ^ (mark pformula.hypothesis "h") ^
-    (mark pformula.resubmitted "r") ^ (mark pformula.support "s") in
+    (mark pformula.support "s") in
   printf "%s%s {%.2f%s}\n"
     (indent_with_prefix prefix (show_multi pformula.formula))
     origin (cost_of pformula) annotate
@@ -78,7 +77,7 @@ let mk_pformula rule parents formula delta =
     goal = false;
     delta = adjust_delta parents delta;
     cost = ref (total_cost parents delta);
-    hypothesis = false; resubmitted = false }
+    hypothesis = false }
 
 let rec number_formula pformula =
   if pformula.id > 0 then pformula
@@ -553,7 +552,7 @@ let update p rewriting f =
   else
     { id = 0; rule = ""; rewrites = r; simp; parents = [p];
       support = p.support; goal = p.goal; delta = 0.0; cost = p.cost; formula = f;
-      hypothesis = p.hypothesis; resubmitted = p.resubmitted }
+      hypothesis = p.hypothesis }
 
 (*     t = t'    C⟪tσ⟫
  *   ═══════════════════   rw
@@ -765,16 +764,9 @@ let repeat_rewrite used p : pformula =
   loop p
 
 let rw_simplify src queue used found p : pformula list =
-  let is_false p =
-    if simp p.formula = _false then Some p
-    else if p.resubmitted then (
-      let goals = used |> filter (fun p -> p.goal) in
-      goals |> find_map (fun g ->
-        let* q = rewrite_opt p g in
-        if simp q.formula = _false then Some q else None))
-    else None in
+  let is_false p = if simp p.formula = _false then Some p else None in
   let q =
-    if p.goal || p.resubmitted then
+    if p.goal then
       (* first try rewriting with ground equations, likely a confluent system *)
       let (ground_eq, other) = partition ground_equational used in
       opt_or (is_false (repeat_rewrite ground_eq p)) (fun () ->
@@ -783,8 +775,7 @@ let rw_simplify src queue used found p : pformula list =
           Option.is_some (commutative_axiom p.formula) ||
           ground_equational p && not p.hypothesis) in
         let p1 = repeat_rewrite axioms p in
-        other |> find_map (fun from ->
-          is_false (repeat_rewrite [from] p1)))
+        other |> find_map (fun from -> is_false (repeat_rewrite [from] p1)))
     else None in
   let q = match q with
     | Some p -> p
@@ -910,15 +901,12 @@ let prove timeout known_stmts thm invert cancel_check : result =
     let p = {(to_pformula name f) with
                 hypothesis = is_hyp; support = is_hyp} in
     dbg_newline (); p) in
-  let extra =
-    let l = last known in
-    if l.hypothesis then [{l with resubmitted = true; cost = ref 0.02}] else [] in
-  let p = to_pformula (stmt_name thm) (Option.get (stmt_formula thm)) in
-  let goal = if invert then p else
-    create_pformula "negate" [p] (_not p.formula) (0.01) in
+  let pformula = to_pformula (stmt_name thm) (Option.get (stmt_formula thm)) in
+  let goal = if invert then pformula else
+    create_pformula "negate" [pformula] (_not pformula.formula) (0.01) in
   dbg_newline ();
   let goal = {goal with goal = true; support = true} in
-  refute timeout (known @ goal :: extra) cancel_check
+  refute timeout (known @ [goal]) cancel_check
 
 let output_proof pformula =
   let steps =

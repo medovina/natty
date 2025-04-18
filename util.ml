@@ -118,6 +118,8 @@ let swap (x, y) = (y, x)
 let map_fst f = map (fun (x, y) -> (f x, y))
 let map_snd f = map (fun (x, y) -> (x, f y))
 
+let map_triple_fst f = map (fun (x, y, z) -> (f x, y, z))
+
 (* lists *)
 
 let (let+) = fun a f -> concat_map f a
@@ -135,7 +137,7 @@ let rec last = function
   | _ :: xs -> last xs
 
 let rec split_last = function
-  | [] -> failwith "split_last"
+  | [] -> failwith "chop_last"
   | [x] -> ([], x)
   | x :: xs ->
       let (ys, last) = split_last xs in
