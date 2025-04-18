@@ -890,6 +890,15 @@ let lower = function
 
 let to_pformula name f = create_pformula name [] (rename_vars (lower f)) 0.0
 
+let rec apply_premises thm hyps =
+  let+ a = hyps in
+  let+ t = all_super a thm in
+  let t = simplify t in
+  if basic_weight t.formula < basic_weight thm.formula then
+    let ps = apply_premises t hyps in
+    if ps = [] then [t] else ps
+  else []
+
 let quick_refute known goal =
   let start = Sys.time () in
   let last_hyp = last known in
@@ -897,13 +906,22 @@ let quick_refute known goal =
     let comm_axioms = known |> filter (fun p ->
       Option.is_some (commutative_axiom p.formula)) in
     let reduce = repeat_rewrite comm_axioms in
-    known |> find_map (fun q ->
-      rewrite q last_hyp @ all_super q last_hyp |> find_map (fun r ->
-        let r = simplify r in
-        let* s = rewrite_opt (reduce r) (reduce goal) in
-        let s = simplify s in
-        if s.formula = _false
-          then Some (Proof (number_formula s, Sys.time () -. start, 0)) else None))
+    let reduced = known |> find_map (fun q ->
+      let* r = rewrite_opt q last_hyp in
+      let r = simplify r in
+      let* s = rewrite_opt (reduce r) (reduce goal) in
+      let s = simplify s in
+      if s.formula = _false
+        then Some s else None) in
+    let* found = or_opt reduced (fun () ->
+      let hyps = known |> filter (fun p -> p.hypothesis) in
+      let hyps = hyps |> concat_map (fun p -> p :: all_split p) in
+      head_opt (
+        let+ q = known in
+        let+ q = q :: all_split q in
+        let+ p = apply_premises q (goal :: hyps) in
+        if p.formula = _false then [p] else [])
+      ) in Some (Proof (number_formula found, Sys.time () -. start, 0))
   else None
 
 let prove timeout known_stmts thm invert cancel_check : result =
