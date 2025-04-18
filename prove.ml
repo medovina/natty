@@ -83,8 +83,9 @@ let rec number_formula pformula =
   if pformula.id > 0 then pformula
   else
     let parents = map number_formula pformula.parents in
+    let rewrites = map number_formula pformula.rewrites in
     incr formula_counter;
-    let p = { pformula with parents; id = !formula_counter } in
+    let p = { pformula with parents; rewrites; id = !formula_counter } in
     dbg_print_formula true "" p;
     p
 
@@ -901,7 +902,7 @@ let quick_refute known goal =
       let* s = rewrite_opt (reduce r) (reduce goal) in
       let s = simplify s in
       if s.formula = _false
-        then Some (Proof (s, Sys.time () -. start, 0)) else None)
+        then Some (Proof (number_formula s, Sys.time () -. start, 0)) else None)
   else None
 
 let prove timeout known_stmts thm invert cancel_check : result =
