@@ -134,13 +134,13 @@ let count_vars f =
 
 let lookup_var v vars = opt_default (assoc_opt v vars) 0
 
-let sym_weight for_kb c typ = match c with
-  | "∀" | "∃" -> if for_kb then 1_000_000 else 0
-  | _ -> if arity typ = 1 then 2 else 1
+let sym_weight for_kb c = match c with
+  | "∀" | "∃" -> if for_kb then 1_000_000 else 1
+  | _ -> 1
 
 let term_weight for_kb =
   let rec weight = function
-    | Const (c, typ) -> sym_weight for_kb c typ
+    | Const (c, _) -> sym_weight for_kb c
     | Var _ -> 1
     | App (f, g) | Eq (f, g) -> weight f + weight g
     | Lambda (_, _, f) -> weight f in
@@ -415,8 +415,9 @@ let is_eligible sub parent_eq =
 
 let top_level pos u c sub inductive =
   let cs = mini_clausify c in
-    mem (if pos then u else _not u) cs &&
-    (inductive || is_maximal lit_gt (rsubst sub u) (map (rsubst sub) cs))
+  let lit = if pos then u else _not u in
+  mem lit cs &&
+    (inductive || is_maximal lit_gt (rsubst sub lit) (map (rsubst sub) cs))
 
 let eq_pairs t t' = [(t, t'); (t', t)] |>
   filter (fun (t, t') -> not (term_ge t' t))
