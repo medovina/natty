@@ -53,8 +53,12 @@ let is_inductive pformula = match kind pformula.formula with
   | Quant ("∀", _, Fun (_, Bool), _) -> true
   | _ -> false
 
-let adjust_delta parents delta =
-  if exists is_inductive parents then 0.1 else delta
+let cost_incr = 0.01
+
+let super_cost quick dp cp res size_incr =
+  if is_inductive dp || is_inductive cp then 0.1 else
+  if (dp.goal || cp.goal) && res then 0.0 else
+  if not quick && size_incr then 0.1 else cost_incr
 
 let merge_cost parents = match parents with
     | [] -> 0.0
@@ -66,19 +70,14 @@ let merge_cost parents = match parents with
 let inducted p =
   search [p] (fun p -> p.parents) |> exists (fun p -> is_inductive p)
 
-let total_cost parents delta =
-  merge_cost parents +. adjust_delta parents delta
-
-let cost_incr = 0.01
-
-let max_cost quick = if quick then cost_incr else 1.3
+let cost_limit quick = if quick then cost_incr else 1.3
 
 let mk_pformula rule parents formula delta =
   { id = 0; rule; rewrites = []; simp = false; parents; formula;
     support = exists (fun p -> p.support) parents;
     goal = false;
-    delta = adjust_delta parents delta;
-    cost = ref (total_cost parents delta);
+    delta;
+    cost = ref (merge_cost parents +. delta);
     hypothesis = false }
 
 let rec number_formula pformula =
@@ -441,14 +440,16 @@ let simp_eq = function
  *     (vii) if t'σ = ⊥, u is a literal
              if t'σ = ⊤, ¬u is a literal *)
 
-let super quick dp d' t_t' cp c c1 =
+let super quick avail dp d' t_t' cp c c1 =
+  let is_resolution t' = t' = _true || t' = _false in
   let pairs = match terms t_t' with
     | (true, t, t') ->
         if t' = _true || t' = _false then [(t, t')]
         else (Eq (t, t'), _true) ::
           (if quick then eq_pairs t t' else [])   (* iii: pre-check *)
     | (false, t, t') -> [(Eq (t, t'), _false)] in
-  let+ (t, t') = pairs in
+  let+ (t, t') = pairs |> filter (fun (_, t') ->
+    super_cost quick dp cp (is_resolution t') false <= avail) in
   let+ (u, parent_eq) = green_subterms c1 |>
     filter (fun (u, _) -> not (is_var u || is_fluid u)) in  (* i, ii *)
   match unify t u with
@@ -475,14 +476,14 @@ let super quick dp d' t_t' cp c c1 =
           let u_show = show_formula u in
           let rule = sprintf "sup: %s / %s" tt'_show u_show in
           let w, cw = basic_weight e, basic_weight cp.formula in
-          let cost = if quick || w <= cw then 0.01 else 0.1 in
+          let cost = super_cost quick dp cp (is_resolution t') (w > cw) in
           [mk_pformula rule [dp; cp] (unprefix_vars e) cost])
 
 let all_super quick dp cp =
   profile "all_super" @@ fun () ->
   let no_induct c d = is_inductive c && (not d.goal || inducted d) in
-  if total_cost [dp; cp] cost_incr > max_cost quick ||
-    no_induct dp cp || no_induct cp dp then []
+  let avail = cost_limit quick -. merge_cost [dp; cp] in
+  if avail < super_cost quick dp cp true false || no_induct dp cp || no_induct cp dp then []
   else
     let d_steps, c_steps = clausify_steps dp, clausify_steps cp in
     let+ (dp, d_steps, cp, c_steps) =
@@ -493,7 +494,7 @@ let all_super quick dp cp =
       let+ d_lit = new_lits in
       let+ (c_lits, _, exposed_lits) = c_steps in
       let+ c_lit = exposed_lits in
-      super quick dp (remove1 d_lit d_lits) d_lit cp c_lits c_lit
+      super quick avail dp (remove1 d_lit d_lits) d_lit cp c_lits c_lit
     else []
 
 (*      C' ∨ u ≠ u'
@@ -812,7 +813,7 @@ let refute quick timeout pformulas cancel_check =
                   let used = p :: used in
                   let generated =
                     concat_map (all_super quick p) used @ all_eres p @ all_split p |>
-                      filter (fun p -> cost_of p <= max_cost quick) in
+                      filter (fun p -> cost_of p <= cost_limit quick) in
                   let new_pformulas =
                     rw_simplify_all quick queue used found (rev (rewritten @ generated)) in
                   dbg_newline ();
@@ -894,7 +895,8 @@ let prove timeout known_stmts thm invert cancel_check =
   let result = match run_refute true with
     | Proof _ as p -> p
     | r -> if !(opts.quick) then r else (
-        if !debug > 0 then printf "no quick refutation; beginning main loop\n\n";
+        if !debug > 0 then
+          printf "no quick refutation in %.2f s; beginning main loop\n\n" (Sys.time () -. start);
         run_refute false) in
   (result, Sys.time () -. start)
 
