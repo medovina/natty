@@ -70,7 +70,7 @@ let merge_cost parents = match parents with
 let inducted p =
   search [p] (fun p -> p.parents) |> exists (fun p -> is_inductive p)
 
-let cost_limit quick = if quick then cost_incr else 1.3
+let cost_limit quick = if quick then 0.02 else 1.3
 
 let mk_pformula rule parents formula delta =
   { id = 0; rule; rewrites = []; simp = false; parents; formula;
@@ -445,8 +445,8 @@ let super quick avail dp d' t_t' cp c c1 =
   let pairs = match terms t_t' with
     | (true, t, t') ->
         if t' = _true || t' = _false then [(t, t')]
-        else (Eq (t, t'), _true) ::
-          (if quick then eq_pairs t t' else [])   (* iii: pre-check *)
+        else [(Eq (t, t'), _true)]
+          (* :: (if quick then eq_pairs t t' else [])   (* iii: pre-check *) *)
     | (false, t, t') -> [(Eq (t, t'), _false)] in
   let+ (t, t') = pairs |> filter (fun (_, t') ->
     super_cost quick dp cp (is_resolution t') false <= avail) in
@@ -568,7 +568,7 @@ let update p rewriting f =
  *   (ii) (t = t')σ ≯ C
  *
  *)
-let rewrite dp cp =
+let rewrite quick dp cp : pformula list =
   let pairs = match remove_universal dp.formula with
     | Eq (t, t') -> eq_pairs t t' (* i: pre-check *)
     | App (Const ("¬", _), Eq _) as neq -> [(neq, _true)]
@@ -581,11 +581,21 @@ let rewrite dp cp =
     | Some sub ->
         let t_s, t'_s = u, rsubst sub t' in
         if term_gt t_s t'_s &&  (* (i) *)
-           not (clause_gt [Eq (t_s, t'_s)] (clausify cp)) then (* (ii) *)
+           (quick || not (clause_gt [Eq (t_s, t'_s)] (clausify cp))) then (* (ii) *)
           let e = b_reduce (replace_in_formula t'_s t_s c) in
           [update cp (Some dp) e]
         else []
     | _ -> []
+
+(* non-destructive rewrites for quick refute *)
+let all_rewrite quick dp cp : pformula list =
+  if quick then
+    let avail = cost_limit quick -. merge_cost [dp; cp] in
+    if avail < cost_incr then []
+    else
+      (rewrite quick dp cp @ rewrite quick cp dp) |> map (fun p ->
+        { p with delta = cost_incr; cost = ref (!(p.cost) +. cost_incr) })
+  else []
 
 (*      C     σ(C)
  *   ═══════════════   subsume
@@ -721,7 +731,7 @@ let queue_add queue pformulas =
 let dbg_newline () =
   if !debug > 0 then print_newline ()
 
-let rewrite_opt dp cp = head_opt (rewrite dp cp)
+let rewrite_opt dp cp = head_opt (rewrite false dp cp)
 
 let rewrite_from ps q = find_map (fun p -> rewrite_opt p q) ps
 
@@ -812,8 +822,9 @@ let refute quick timeout pformulas cancel_check =
                     if quick then (used, []) else back_simplify p used in
                   let used = p :: used in
                   let generated =
-                    concat_map (all_super quick p) used @ all_eres p @ all_split p |>
-                      filter (fun p -> cost_of p <= cost_limit quick) in
+                    concat_map (all_super quick p) used @
+                    concat_map (all_rewrite quick p) used @ all_eres p @ all_split p in 
+                  let generated = generated |> filter (fun p -> cost_of p <= cost_limit quick) in
                   let new_pformulas =
                     rw_simplify_all quick queue used found (rev (rewritten @ generated)) in
                   dbg_newline ();
