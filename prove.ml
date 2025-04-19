@@ -69,7 +69,9 @@ let inducted p =
 let total_cost parents delta =
   merge_cost parents +. adjust_delta parents delta
 
-let max_cost quick = if quick then 0.02 else 1.3
+let cost_incr = 0.01
+
+let max_cost quick = if quick then cost_incr else 1.3
 
 let mk_pformula rule parents formula delta =
   { id = 0; rule; rewrites = []; simp = false; parents; formula;
@@ -479,7 +481,8 @@ let super quick dp d' t_t' cp c c1 =
 let all_super quick dp cp =
   profile "all_super" @@ fun () ->
   let no_induct c d = is_inductive c && (not d.goal || inducted d) in
-  if total_cost [dp; cp] 0.0 > max_cost quick || no_induct dp cp || no_induct cp dp then []
+  if total_cost [dp; cp] cost_incr > max_cost quick ||
+    no_induct dp cp || no_induct cp dp then []
   else
     let d_steps, c_steps = clausify_steps dp, clausify_steps cp in
     let+ (dp, d_steps, cp, c_steps) =
@@ -703,11 +706,11 @@ module PFQueue = Psq.Make (struct
   type t = pformula
   let compare = Stdlib.compare
 end) (struct
-  type t = float * int
+  type t = float * bool
   let compare = Stdlib.compare
 end)
 
-let queue_cost p = (cost_of p, if p.support && cost_of p > 0.0 then 0 else 1)
+let queue_cost p = (cost_of p, p.goal && cost_of p = 0.0)
 
 let queue_add queue pformulas =
   let queue_element p = (p, queue_cost p) in
@@ -776,7 +779,7 @@ let rec back_simplify from = function
         | Some p' -> (ps', p' :: rewritten)
         | None -> (p :: ps', rewritten)
 
-type result = Proof of pformula * float * int | Timeout | GaveUp | Stopped
+type result = Proof of pformula * int | Timeout | GaveUp | Stopped
 
 let szs = function
   | Proof _ -> "Theorem"
@@ -803,7 +806,7 @@ let refute quick timeout pformulas cancel_check =
                 if !debug > 0 then print_newline ();
                 loop used (count + 1)
             | Some p ->
-                if p.formula = _false then Proof (p, Sys.time () -. start, count) else
+                if p.formula = _false then Proof (p, count) else
                   let (used, rewritten) =
                     if quick then (used, []) else back_simplify p used in
                   let used = p :: used in
@@ -814,7 +817,7 @@ let refute quick timeout pformulas cancel_check =
                     rw_simplify_all quick queue used found (rev (rewritten @ generated)) in
                   dbg_newline ();
                   match find_opt (fun p -> p.formula = _false) new_pformulas with
-                    | Some p -> Proof (p, elapsed, count)
+                    | Some p -> Proof (p, count)
                     | None ->
                         queue_add queue new_pformulas;
                         loop used (count + 1)
@@ -869,7 +872,7 @@ let lower = function
 
 let to_pformula name f = create_pformula name [] (rename_vars (lower f)) 0.0
 
-let prove timeout known_stmts thm invert cancel_check : result =
+let prove timeout known_stmts thm invert cancel_check =
   let known_stmts = rev known_stmts in
   consts := filter_map decl_var known_stmts;
   let formulas = known_stmts |> filter_map (fun stmt ->
@@ -883,15 +886,17 @@ let prove timeout known_stmts thm invert cancel_check : result =
     dbg_newline (); p) in
   let pformula = to_pformula (stmt_name thm) (Option.get (stmt_formula thm)) in
   let goal = if invert then pformula else
-    create_pformula "negate" [pformula] (_not pformula.formula) (0.01) in
+    create_pformula "negate" [pformula] (_not pformula.formula) (0.00) in
   dbg_newline ();
   let all = known @ [{goal with goal = true; support = true}] in
-  let run_refute quick = refute quick timeout all cancel_check in 
-  match run_refute true with
+  let run_refute quick = refute quick timeout all cancel_check in
+  let start = Sys.time () in
+  let result = match run_refute true with
     | Proof _ as p -> p
     | r -> if !(opts.quick) then r else (
         if !debug > 0 then printf "no quick refutation; beginning main loop\n\n";
-        run_refute false)
+        run_refute false) in
+  (result, Sys.time () -. start)
 
 let output_proof pformula =
   let steps =
@@ -949,10 +954,10 @@ let prove_all thf prog =
         let success = match thm with
           | Theorem (_, _, None, _) ->
               print_endline (show_statement true thm ^ "\n");
-              let result =
+              let (result, elapsed) =
                 prove !(opts.timeout) known thm !(opts.disprove) (Fun.const false) in
               let b = match result with
-                  | Proof (pformula, elapsed, given) ->
+                  | Proof (pformula, given) ->
                       printf "%sproved in %.2f s (given clauses: %d)\n" dis elapsed given;
                       if !(opts.show_proofs) then (
                         print_newline ();

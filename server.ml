@@ -37,7 +37,9 @@ let prove_stmts data stmts =
     | (uri, thm, known) :: ss ->
         let success =
           printf "proving %s\n%!" (stmt_name thm);
-          match prove !(opts.timeout) known thm false (cancel_check data stmts) with
+          let (proof, _elapsed) =
+            prove !(opts.timeout) known thm false (cancel_check data stmts) in
+          match proof with
             | Proof _ -> true
             | _ -> false in
         let abort = Mutex.protect data.mutex (fun () ->
