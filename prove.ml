@@ -439,12 +439,12 @@ let simp_eq = function
  *     (vii) if t'σ = ⊥, u is a literal
              if t'σ = ⊤, ¬u is a literal *)
 
-let super dp d' t_t' cp c c1 =
+let super quick dp d' t_t' cp c c1 =
   let pairs = match terms t_t' with
     | (true, t, t') ->
         if t' = _true || t' = _false then [(t, t')]
-        (* else (Eq (t, t'), _true) :: eq_pairs t t'   (* iii: pre-check *) *)
-        else [(Eq (t, t'), _true)]
+        else (Eq (t, t'), _true) ::
+          (if quick then eq_pairs t t' else [])   (* iii: pre-check *)
     | (false, t, t') -> [(Eq (t, t'), _false)] in
   let+ (t, t') = pairs in
   let+ (u, parent_eq) = green_subterms c1 |>
@@ -473,7 +473,7 @@ let super dp d' t_t' cp c c1 =
           let u_show = show_formula u in
           let rule = sprintf "sup: %s / %s" tt'_show u_show in
           let w, cw = basic_weight e, basic_weight cp.formula in
-          let cost = if w <= cw then 0.01 else 0.1 in
+          let cost = if quick || w <= cw then 0.01 else 0.1 in
           [mk_pformula rule [dp; cp] (unprefix_vars e) cost])
 
 let all_super quick dp cp =
@@ -490,7 +490,7 @@ let all_super quick dp cp =
       let+ d_lit = new_lits in
       let+ (c_lits, _, exposed_lits) = c_steps in
       let+ c_lit = exposed_lits in
-      super dp (remove1 d_lit d_lits) d_lit cp c_lits c_lit
+      super quick dp (remove1 d_lit d_lits) d_lit cp c_lits c_lit
     else []
 
 (*      C' ∨ u ≠ u'
