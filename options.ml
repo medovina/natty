@@ -5,6 +5,7 @@ type options = {
   export: bool ref;
   keep_going: bool ref;
   pipe: string ref;
+  quick: bool ref;
   server: bool ref;
   show_proofs: bool ref;
   only_thm: string option ref;
@@ -17,6 +18,7 @@ let opts = {
   export = ref false;
   keep_going = ref false;
   pipe = ref "";
+  quick = ref false;
   server = ref false;
   show_proofs = ref false;
   only_thm = ref None;
@@ -42,6 +44,7 @@ let parse_args args =
             | 'l' -> opts.server := true
             | 'n' -> opts.only_thm := Some value
             | 'p' -> opts.show_proofs := true
+            | 'q' -> opts.quick := true
             | 'r' -> profiling := true
             | 't' -> opts.timeout := float_of_int (int_val ())
             | 'v' -> opts.verbose := true
@@ -67,6 +70,7 @@ let parse_args args =
       -n<name>        only prove/export theorem with given name
       -p              output proofs
       --pipe=<name>   pipe name for language server
+      -q              only use quick refute
       -r              profile performance
       -t<num>         time limit in seconds
       -v              verbose output

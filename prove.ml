@@ -69,7 +69,7 @@ let inducted p =
 let total_cost parents delta =
   merge_cost parents +. adjust_delta parents delta
 
-let max_cost = 1.3
+let max_cost quick = if quick then 0.02 else 1.3
 
 let mk_pformula rule parents formula delta =
   { id = 0; rule; rewrites = []; simp = false; parents; formula;
@@ -476,10 +476,10 @@ let super dp d' t_t' cp c c1 =
           let cost = if w <= cw then 0.01 else 0.1 in
           [mk_pformula rule [dp; cp] (unprefix_vars e) cost])
 
-let all_super dp cp =
+let all_super quick dp cp =
   profile "all_super" @@ fun () ->
   let no_induct c d = is_inductive c && (not d.goal || inducted d) in
-  if total_cost [dp; cp] 0.0 > max_cost || no_induct dp cp || no_induct cp dp then []
+  if total_cost [dp; cp] 0.0 > max_cost quick || no_induct dp cp || no_induct cp dp then []
   else
     let d_steps, c_steps = clausify_steps dp, clausify_steps cp in
     let+ (dp, d_steps, cp, c_steps) =
@@ -717,7 +717,19 @@ let queue_add queue pformulas =
 let dbg_newline () =
   if !debug > 0 then print_newline ()
 
-let process src queue used found p1 =
+let rewrite_opt dp cp = head_opt (rewrite dp cp)
+
+let rewrite_from ps q = find_map (fun p -> rewrite_opt p q) ps
+
+let repeat_rewrite used p : pformula =
+  profile "repeat_rewrite" @@ fun () ->
+  let rec loop p = match rewrite_from used p with
+    | None -> p
+    | Some p -> loop p in
+  loop p
+
+let rw_simplify quick src queue used found p =
+  let p1 = if quick then p else repeat_rewrite used p in
   let p = simplify p1 in
   if is_tautology p.formula then (
     if !debug > 1 || !debug = 1 && src <> "generated" then (
@@ -726,7 +738,7 @@ let process src queue used found p1 =
     );
     None)
   else
-    match any_subsumes used p with
+    match (if quick then None else any_subsumes used p) with
       | Some pf ->
           if !debug > 0 then (
             let prefix = sprintf "%s subsumed by #%d: " src pf.id in
@@ -753,23 +765,8 @@ let process src queue used found p1 =
                   found := FormulaMap.add f p !found;
                   Some p)
 
-let rewrite_opt dp cp = head_opt (rewrite dp cp)
-    
-let rewrite_from ps q = find_map (fun p -> rewrite_opt p q) ps
-
-let repeat_rewrite used p : pformula =
-  profile "repeat_rewrite" @@ fun () ->
-  let rec loop p = match rewrite_from used p with
-    | None -> p
-    | Some p -> loop p in
-  loop p
-
-let rw_simplify src queue used found p : pformula option =
-  let q = repeat_rewrite used p in
-  process src queue used found q
-
-let rw_simplify_all queue used found ps : pformula list =
-  ps |> filter_map (fun p -> rw_simplify "generated" queue used found p)
+let rw_simplify_all quick queue used found ps : pformula list =
+  ps |> filter_map (fun p -> rw_simplify quick "generated" queue used found p)
 
 let rec back_simplify from = function
   | [] -> ([], [])
@@ -787,7 +784,7 @@ let szs = function
   | GaveUp -> "GaveUp"
   | Stopped -> "Stopped"
 
-let refute timeout pformulas cancel_check =
+let refute quick timeout pformulas cancel_check =
   let found = ref @@ FormulaMap.of_list (pformulas |> map (fun p -> (canonical p, p))) in
   let queue = ref PFQueue.empty in
   queue_add queue pformulas;
@@ -801,19 +798,20 @@ let refute timeout pformulas cancel_check =
       | Some ((p, _cost), q) ->
           queue := q;
           dbg_print_formula false (sprintf "[#%d, %.3f s] given: " count elapsed) p;
-          match rw_simplify "given is" queue used found p with
+          match rw_simplify quick "given is" queue used found p with
             | None ->
                 if !debug > 0 then print_newline ();
                 loop used (count + 1)
             | Some p ->
                 if p.formula = _false then Proof (p, Sys.time () -. start, count) else
-                  let (used, rewritten) = back_simplify p used in
+                  let (used, rewritten) =
+                    if quick then (used, []) else back_simplify p used in
                   let used = p :: used in
                   let generated =
-                    concat_map (all_super p) used @ all_eres p @ all_split p |>
-                      filter (fun p -> cost_of p <= max_cost) in
+                    concat_map (all_super quick p) used @ all_eres p @ all_split p |>
+                      filter (fun p -> cost_of p <= max_cost quick) in
                   let new_pformulas =
-                    rw_simplify_all queue used found (rev (rewritten @ generated)) in
+                    rw_simplify_all quick queue used found (rev (rewritten @ generated)) in
                   dbg_newline ();
                   match find_opt (fun p -> p.formula = _false) new_pformulas with
                     | Some p -> Proof (p, elapsed, count)
@@ -871,8 +869,6 @@ let lower = function
 
 let to_pformula name f = create_pformula name [] (rename_vars (lower f)) 0.0
 
-let quick_refute _known _goal = None
-
 let prove timeout known_stmts thm invert cancel_check : result =
   let known_stmts = rev known_stmts in
   consts := filter_map decl_var known_stmts;
@@ -889,9 +885,13 @@ let prove timeout known_stmts thm invert cancel_check : result =
   let goal = if invert then pformula else
     create_pformula "negate" [pformula] (_not pformula.formula) (0.01) in
   dbg_newline ();
-  let goal = {goal with goal = true; support = true} in
-  opt_or (quick_refute known goal) (fun () ->
-    refute timeout (known @ [goal]) cancel_check)
+  let all = known @ [{goal with goal = true; support = true}] in
+  let run_refute quick = refute quick timeout all cancel_check in 
+  match run_refute true with
+    | Proof _ as p -> p
+    | r -> if !(opts.quick) then r else (
+        if !debug > 0 then printf "no quick refutation; beginning main loop\n\n";
+        run_refute false)
 
 let output_proof pformula =
   let steps =
