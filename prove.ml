@@ -576,7 +576,8 @@ let rewrite dp cp =
   match try_match t u with
     | Some sub ->
         let t_s, t'_s = u, rsubst sub t' in
-        if term_gt t_s t'_s then
+        if term_gt t_s t'_s &&  (* (i) *)
+           not (clause_gt [Eq (t_s, t'_s)] (clausify cp)) then (* (ii) *)
           let e = b_reduce (replace_in_formula t'_s t_s c) in
           [update cp (Some dp) e]
         else []
@@ -756,8 +757,6 @@ let rewrite_opt dp cp = head_opt (rewrite dp cp)
     
 let rewrite_from ps q = find_map (fun p -> rewrite_opt p q) ps
 
-let ground_equational p = is_eq (p.formula)
-
 let repeat_rewrite used p : pformula =
   profile "repeat_rewrite" @@ fun () ->
   let rec loop p = match rewrite_from used p with
@@ -765,30 +764,12 @@ let repeat_rewrite used p : pformula =
     | Some p -> loop p in
   loop p
 
-let rw_simplify src queue used found p : pformula list =
-  let is_false p = if simp p.formula = _false then Some p else None in
-  let q =
-    if p.goal then
-      (* first try rewriting with ground equations, likely a confluent system *)
-      let (ground_eq, other) = partition ground_equational used in
-      or_opt (is_false (repeat_rewrite ground_eq p)) (fun () ->
-        (* try rewriting with each non-ground equation individually *)
-        let axioms = used |> filter (fun p ->
-          Option.is_some (commutative_axiom p.formula) ||
-          ground_equational p && not p.hypothesis) in
-        let p1 = repeat_rewrite axioms p in
-        other |> find_map (fun from -> is_false (repeat_rewrite [from] p1)))
-    else None in
-  let q = match q with
-    | Some p -> p
-    | None -> repeat_rewrite used p in
-  Option.to_list (process src queue used found q)
-
-let rewrite_or_branch queue used found pformula : pformula list =
-  rw_simplify "given is" queue used found pformula
+let rw_simplify src queue used found p : pformula option =
+  let q = repeat_rewrite used p in
+  process src queue used found q
 
 let rw_simplify_all queue used found ps : pformula list =
-  ps |> concat_map (fun p -> rw_simplify "generated" queue used found p)
+  ps |> filter_map (fun p -> rw_simplify "generated" queue used found p)
 
 let rec back_simplify from = function
   | [] -> ([], [])
@@ -820,19 +801,18 @@ let refute timeout pformulas cancel_check =
       | Some ((p, _cost), q) ->
           queue := q;
           dbg_print_formula false (sprintf "[#%d, %.3f s] given: " count elapsed) p;
-          let ps = rewrite_or_branch queue used found p in
-          match sort_by (fun p -> basic_weight p.formula) ps with
-            | [] ->
+          match rw_simplify "given is" queue used found p with
+            | None ->
                 if !debug > 0 then print_newline ();
                 loop used (count + 1)
-            | p :: gen ->
+            | Some p ->
                 if p.formula = _false then Proof (p, Sys.time () -. start, count) else
                   let (used, rewritten) = back_simplify p used in
                   let used = p :: used in
                   let generated =
                     concat_map (all_super p) used @ all_eres p @ all_split p |>
                       filter (fun p -> cost_of p <= max_cost) in
-                  let new_pformulas = gen @
+                  let new_pformulas =
                     rw_simplify_all queue used found (rev (rewritten @ generated)) in
                   dbg_newline ();
                   match find_opt (fun p -> p.formula = _false) new_pformulas with
@@ -891,39 +871,7 @@ let lower = function
 
 let to_pformula name f = create_pformula name [] (rename_vars (lower f)) 0.0
 
-let rec apply_premises thm hyps =
-  let+ a = hyps in
-  let+ t = all_super a thm in
-  let t = simplify t in
-  if basic_weight t.formula < basic_weight thm.formula then
-    let ps = apply_premises t hyps in
-    if ps = [] then [t] else ps
-  else []
-
-let quick_refute known goal =
-  let start = Sys.time () in
-  let last_hyp = last known in
-  if last_hyp.hypothesis then
-    let comm_axioms = known |> filter (fun p ->
-      Option.is_some (commutative_axiom p.formula)) in
-    let reduce = repeat_rewrite comm_axioms in
-    let reduced = known |> find_map (fun q ->
-      let* r = rewrite_opt q last_hyp in
-      let r = simplify r in
-      let* s = rewrite_opt (reduce r) (reduce goal) in
-      let s = simplify s in
-      if s.formula = _false
-        then Some s else None) in
-    let* found = or_opt reduced (fun () ->
-      let hyps = known |> filter (fun p -> p.hypothesis) in
-      let hyps = hyps |> concat_map (fun p -> p :: all_split p) in
-      head_opt (
-        let+ q = known in
-        let+ q = q :: all_split q in
-        let+ p = apply_premises q (goal :: hyps) in
-        if p.formula = _false then [p] else [])
-      ) in Some (Proof (number_formula found, Sys.time () -. start, 0))
-  else None
+let quick_refute _known _goal = None
 
 let prove timeout known_stmts thm invert cancel_check : result =
   let known_stmts = rev known_stmts in
