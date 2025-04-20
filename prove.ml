@@ -19,7 +19,8 @@ type pformula = {
   goal: bool;
   delta: float;
   cost: float ref;
-  hypothesis: bool;
+  hypothesis: bool;  (* currently unused *)
+  derived: bool
 }
 
 let cost_of p = !(p.cost)
@@ -39,7 +40,7 @@ let print_formula with_origin prefix pformula =
       sprintf " [%s]" (comma_join all)
     else "" in
   let mark b c = if b then " " ^ c else "" in
-  let annotate =
+  let annotate = (mark pformula.derived "d") ^
     (mark pformula.goal "g") ^ (mark pformula.hypothesis "h") ^
     (mark pformula.support "s") in
   printf "%s%s {%.2f%s}\n"
@@ -55,10 +56,11 @@ let is_inductive pformula = match kind pformula.formula with
 
 let cost_incr = 0.01
 
-let super_cost quick dp cp res size_incr =
+let super_cost _quick dp cp res _size_incr =
   if is_inductive dp || is_inductive cp then 0.1 else
   if (dp.goal || cp.goal) && res then 0.0 else
-  if not quick && size_incr then 0.1 else cost_incr
+  if res then cost_incr else 0.03
+  (* if not quick && size_incr then 0.1 else *) (* cost_incr *)
 
 let merge_cost parents = match parents with
     | [] -> 0.0
@@ -70,15 +72,18 @@ let merge_cost parents = match parents with
 let inducted p =
   search [p] (fun p -> p.parents) |> exists (fun p -> is_inductive p)
 
+let from_para p =
+  search [p] (fun p -> p.parents) |>
+    exists (fun p -> starts_with "para:" p.rule)
+
 let cost_limit quick = if quick then 0.01 else 1.3
 
-let mk_pformula rule parents formula delta =
+let mk_pformula rule parents derived formula delta =
   { id = 0; rule; rewrites = []; simp = false; parents; formula;
     support = exists (fun p -> p.support) parents;
-    goal = false;
-    delta;
+    goal = false; delta;
     cost = ref (merge_cost parents +. delta);
-    hypothesis = false }
+    hypothesis = false; derived }
 
 let rec number_formula pformula =
   if pformula.id > 0 then pformula
@@ -91,7 +96,7 @@ let rec number_formula pformula =
     p
 
 let create_pformula rule parents formula delta =
-  number_formula (mk_pformula rule parents formula delta)
+  number_formula (mk_pformula rule parents false formula delta)
 
 let is_skolem s = is_letter s.[0] && is_digit s.[strlen s - 1]
 
@@ -399,15 +404,15 @@ let simp_eq = function
              if t'σ = ⊤, ¬u is a literal *)
 
 let super quick avail dp d' t_t' cp c c1 =
-  let is_resolution t' = t' = _true || t' = _false in
+  let para_ok = not quick && not dp.derived && not cp.derived in
   let pairs = match terms t_t' with
     | (true, t, t') ->
         if t' = _true || t' = _false then [(t, t')]
-        else [(Eq (t, t'), _true)]
-          (* :: (if quick then eq_pairs t t' else [])   (* iii: pre-check *) *)
+        else (Eq (t, t'), _true) ::
+          (if para_ok then eq_pairs t t' else [])   (* iii: pre-check *)
     | (false, t, t') -> [(Eq (t, t'), _false)] in
   let+ (t, t') = pairs |> filter (fun (_, t') ->
-    super_cost quick dp cp (is_resolution t') false <= avail) in
+    super_cost quick dp cp (is_bool_const t') false <= avail) in
   let+ (u, parent_eq) = green_subterms c1 |>
     filter (fun (u, _) -> not (is_var u || is_fluid u)) in  (* i, ii *)
   match unify t u with
@@ -432,10 +437,12 @@ let super quick avail dp d' t_t' cp c c1 =
           let e = multi_or (d'_s @ c_s) in
           let tt'_show = str_replace "\\$" "" (show_formula (Eq (t, t'))) in
           let u_show = show_formula u in
-          let rule = sprintf "sup: %s / %s" tt'_show u_show in
+          let res = is_bool_const t' in
+          let rule = sprintf "%s: %s / %s" (if res then "res" else "para")
+            tt'_show u_show in
           let w, cw = term_weight e, term_weight cp.formula in
-          let cost = super_cost quick dp cp (is_resolution t') (w > cw) in
-          [mk_pformula rule [dp; cp] (unprefix_vars e) cost])
+          let cost = super_cost quick dp cp res (w > cw) in
+          [mk_pformula rule [dp; cp] true (unprefix_vars e) cost])
 
 let all_super quick dp cp =
   profile "all_super" @@ fun () ->
@@ -467,7 +474,7 @@ let eres cp c' c_lit =
           | None -> []
           | Some sub ->
               let c1 = map (rsubst sub) c' in
-              [mk_pformula "eres" [cp] (multi_or c1) 0.01]
+              [mk_pformula "eres" [cp] true (multi_or c1) 0.01]
 
 let all_eres cp = run_clausify cp eres
 
@@ -504,7 +511,7 @@ let all_split p =
   else
     let splits = remove [p.formula] (run [p.formula]) in
     rev splits |> map (fun lits ->
-      let ps = mk_pformula "split" [p] (multi_or lits) 0.0 in
+      let ps = mk_pformula "split" [p] p.derived (multi_or lits) 0.0 in
       {ps with hypothesis = p.hypothesis})
 
 let update p rewriting f =
@@ -516,7 +523,7 @@ let update p rewriting f =
   else
     { id = 0; rule = ""; rewrites = r; simp; parents = [p];
       support = p.support; goal = p.goal; delta = 0.0; cost = p.cost; formula = f;
-      hypothesis = p.hypothesis }
+      hypothesis = p.hypothesis; derived = p.derived }
 
 (*     t = t'    C⟪tσ⟫
  *   ═══════════════════   rw

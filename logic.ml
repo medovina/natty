@@ -111,6 +111,8 @@ let rec count_binders = function
 let _false = Const ("⊥", Bool)
 let _true = Const ("⊤", Bool)
 
+let is_bool_const x = x = _true || x = _false
+
 let _not f = App (Const ("¬", Fun (Bool, Bool)), f)
 
 let logical_binary = ["∧"; "∨"; "→"; "↔"]
