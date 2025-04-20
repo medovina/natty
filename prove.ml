@@ -78,12 +78,14 @@ let from_para p =
 
 let cost_limit quick = if quick then 0.01 else 1.3
 
-let mk_pformula rule parents derived formula delta =
+let mk_pformula rule parents step formula delta =
   { id = 0; rule; rewrites = []; simp = false; parents; formula;
     support = exists (fun p -> p.support) parents;
-    goal = false; delta;
+    goal = false;
+    delta;
     cost = ref (merge_cost parents +. delta);
-    hypothesis = false; derived }
+    hypothesis = not step && exists (fun p -> p.hypothesis) parents;
+    derived = step || exists (fun p -> p.derived) parents }
 
 let rec number_formula pformula =
   if pformula.id > 0 then pformula
@@ -511,8 +513,7 @@ let all_split p =
   else
     let splits = remove [p.formula] (run [p.formula]) in
     rev splits |> map (fun lits ->
-      let ps = mk_pformula "split" [p] p.derived (multi_or lits) 0.0 in
-      {ps with hypothesis = p.hypothesis})
+      mk_pformula "split" [p] false (multi_or lits) 0.0)
 
 let update p rewriting f =
   let (r, simp) = match rewriting with
