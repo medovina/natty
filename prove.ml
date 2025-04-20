@@ -70,7 +70,7 @@ let merge_cost parents = match parents with
 let inducted p =
   search [p] (fun p -> p.parents) |> exists (fun p -> is_inductive p)
 
-let cost_limit quick = if quick then 0.02 else 1.3
+let cost_limit quick = if quick then 0.01 else 1.3
 
 let mk_pformula rule parents formula delta =
   { id = 0; rule; rewrites = []; simp = false; parents; formula;
