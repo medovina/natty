@@ -400,7 +400,8 @@ let unify_or_match is_unify =
       | Const (c, typ), Const (c', typ') ->
           if c = c' && typ = typ' then Some subst else None
       | Var (x, typ), f ->
-          if typ = type_of f then
+          if f = Var (x, typ) then Some subst
+          else if typ = type_of f then
             match assoc_opt x subst with
               | Some g ->
                   if is_unify then unify' subst f g
