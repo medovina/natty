@@ -527,6 +527,7 @@ let update p rewriting f =
  *
  *)
 let rewrite quick dp cp : pformula list =
+  if dp.id = cp.id then [] else
   let pairs = match remove_universal dp.formula with
     | Eq (t, t') -> eq_pairs t t' (* i: pre-check *)
     | App (Const ("¬", _), Eq _) as neq -> [(neq, _true)]
