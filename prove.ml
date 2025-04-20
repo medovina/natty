@@ -121,42 +121,13 @@ let rec lex_gt gt ss ts = match ss, ts with
     gt s t || s = t && lex_gt gt ss ts
   | _ -> failwith "lex_gt"
 
-let rec inc_var x = function
-  | [] -> [(x, 1)]
-  | (y, n) :: rest ->
-      if x = y then (y, n + 1) :: rest
-      else (y, n) :: inc_var x rest
-
-let count_vars f =
-  let rec count acc = function
-    | Var (v, _) -> inc_var v acc
-    | f -> fold_left_formula count acc f in
-  count [] f
-
 let lookup_var v vars = opt_default (assoc_opt v vars) 0
 
-let sym_weight for_kb c = match c with
-  | "∀" | "∃" -> if for_kb then 1_000_000 else 1
-  | _ -> 1
-
-let term_weight for_kb =
-  let rec weight = function
-    | Const (c, _) -> sym_weight for_kb c
-    | Var _ -> 1
-    | App (f, g) | Eq (f, g) -> weight f + weight g
-    | Lambda (_, _, f) -> weight f in
-  weight
-
-let basic_weight = term_weight false
-
-let unary_check s t = match s, t with
-  | App (Const (f, _), g), Var (v, _) ->
-      let rec check = function
-        | App (Const (f', _), g) -> f' = f && check g
-        | Var (v', _) -> v' = v
-        | _ -> false in
-      check g
-  | _ -> false
+let rec term_weight = function
+  | Const _ -> 1
+  | Var _ -> 1
+  | App (f, g) | Eq (f, g) -> term_weight f + term_weight g
+  | Lambda (_, _, f) -> term_weight f
 
 (* lexicographic path ordering on first-order terms *)
 let rec lpo_gt s t =
@@ -169,17 +140,6 @@ let rec lpo_gt s t =
           for_all (fun x -> lpo_gt s x) ts &&
             let (ns, nt) = length ss, length ts in
             (const_gt f g || f = g && (ns > nt || ns = nt && lex_gt lpo_gt ss ts))
-
-(* Knuth-Bendix ordering on first-order terms, presently unused *)
-let rec kb_gt s t =
-  let s_vars, t_vars = count_vars s, count_vars t in
-  (s_vars |> for_all (fun (v, n) -> n >= lookup_var v t_vars)) &&
-    let ws, wt = term_weight true s, term_weight true t in
-    ws > wt || ws = wt && (
-      unary_check s t ||
-      is_app_or_const s && is_app_or_const t &&
-          let (f, ss), (g, ts) = collect_args s, collect_args t in
-          const_gt f g || f = g && lex_gt kb_gt ss ts)
 
 let get_index x map =
   match index_of_opt x !map with
@@ -200,13 +160,14 @@ let de_bruijn_encode x =
 (* Map higher-order terms to first-order terms as described in
  * Bentkamp et al, section 3.9 "A Concrete Term Order".  That section introduces
  * a distinct symbol f_k for each arity k.  We use the symbol f to represent
- * all the f_k, then order by arity in lpo_gt. *)
+ * all the f_k, then order by arity in lpo_gt.
+ * We do not implement the transformation to terms ∀_1', ∃_1', z_u', which is
+ * intended for the Knuth-Bendix ordering. *)
 let encode_term type_map fluid_map t =
   let encode_fluid t = _var ("@v" ^ string_of_int (get_index t fluid_map)) in
   let encode_type typ = _const ("@t" ^ string_of_int (get_index typ type_map)) in
-  let rec encode in_lam t =
-    let prime = if in_lam then "'" else "" in
-    let u = match t with
+  let rec encode t =
+    match t with
       | Const _ -> t
       | Var (v, _) -> _var v
       | App _ ->
@@ -219,22 +180,19 @@ let encode_term type_map fluid_map t =
             | Const (q, _) when q = "∀" || q = "∃" -> (
                 match args with
                   | [Lambda (x, typ, f)] ->
-                      let q1 = _const ("@" ^ q ^ prime) in
-                      apply [q1; encode_type typ; encode in_lam (de_bruijn_encode x f)]
+                      let q1 = _const ("@" ^ q) in
+                      apply [q1; encode_type typ; encode (de_bruijn_encode x f)]
                   | _ -> failwith "encode_term")
             | Const _ ->
-                apply (head :: map (encode in_lam) args)
+                apply (head :: map encode args)
             | _ -> failwith "encode_term")
       | Lambda (x, typ, f) ->
           if is_ground t then
-            apply [_const "@lam"; encode_type typ; encode true (de_bruijn_encode x f)]
+            apply [_const "@lam"; encode_type typ; encode (de_bruijn_encode x f)]
           else encode_fluid t (* assume fluid *)
       | Eq (t, u) ->
-          apply [_const "@="; encode_type (type_of t); encode in_lam t; encode in_lam u] in
-    match u with
-      | Var (v, typ) -> Var (v ^ prime, typ)
-      | u -> u
-  in encode false t
+          apply [_const "@="; encode_type (type_of t); encode t; encode u] in
+  encode t
 
 let term_gt s t =
   profile "term_gt" @@ fun () ->
@@ -475,7 +433,7 @@ let super quick avail dp d' t_t' cp c c1 =
           let tt'_show = str_replace "\\$" "" (show_formula (Eq (t, t'))) in
           let u_show = show_formula u in
           let rule = sprintf "sup: %s / %s" tt'_show u_show in
-          let w, cw = basic_weight e, basic_weight cp.formula in
+          let w, cw = term_weight e, term_weight cp.formula in
           let cost = super_cost quick dp cp (is_resolution t') (w > cw) in
           [mk_pformula rule [dp; cp] (unprefix_vars e) cost])
 
