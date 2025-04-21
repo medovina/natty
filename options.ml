@@ -27,6 +27,7 @@ let opts = {
 }
 
 let debug = ref 0
+let debug_super = ref (0, 0)
 
 let parse_args args =
   let rec parse = function
@@ -46,6 +47,10 @@ let parse_args args =
             | 'p' -> opts.show_proofs := true
             | 'q' -> opts.quick := true
             | 'r' -> profiling := true
+            | 's' -> (
+              match String.split_on_char ',' value with
+                | [i; j] -> debug_super := (int_of_string i, int_of_string j)
+                | _ -> failwith "expected formula ids")
             | 't' -> opts.timeout := float_of_int (int_val ())
             | 'v' -> opts.verbose := true
             | 'x' -> opts.export := true
@@ -72,6 +77,7 @@ let parse_args args =
       --pipe=<name>   pipe name for language server
       -q              only use quick refute
       -r              profile performance
+      -s<id>,<id>     debug superposition of given formulas
       -t<num>         time limit in seconds
       -v              verbose output
       -x              export theorems to THF files

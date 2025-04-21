@@ -71,6 +71,10 @@ let is_var = function
   | Var _ -> true
   | _ -> false
 
+let is_lambda = function
+  | Lambda _ -> true
+  | _ -> false
+
 let is_eq = function
   | Eq _ -> true
   | _ -> false

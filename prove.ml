@@ -56,11 +56,8 @@ let is_inductive pformula = match kind pformula.formula with
 
 let cost_incr = 0.01
 
-let super_cost _quick dp cp res _size_incr =
-  if is_inductive dp || is_inductive cp then 0.1 else
-  if (dp.goal || cp.goal) && res then 0.0 else
+let super_cost _quick _dp _cp res _size_incr =
   if res then cost_incr else 0.03
-  (* if not quick && size_incr then 0.1 else *) (* cost_incr *)
 
 let merge_cost parents = match parents with
     | [] -> 0.0
@@ -392,6 +389,8 @@ let simp_eq = function
   | Eq (Eq (t, t'), f) when f = _true -> Eq (t, t')
   | f -> f
 
+let is_higher subst = subst |> exists (fun (_, f) -> is_lambda f)
+
 (*      D:[D' ∨ t = t']    C⟨u⟩
  *    ───────────────────────────   sup
  *          (D' ∨ C⟨t'⟩)σ             σ ∈ csu(t, u)
@@ -406,6 +405,8 @@ let simp_eq = function
              if t'σ = ⊤, ¬u is a literal *)
 
 let super quick avail dp d' t_t' cp c c1 =
+  let dbg = (dp.id, cp.id) = !debug_super in
+  if dbg then printf "super\n";
   let para_ok = not quick && not dp.derived && not cp.derived in
   let pairs = match terms t_t' with
     | (true, t, t') ->
@@ -426,7 +427,8 @@ let super quick avail dp d' t_t' cp c c1 =
         let d_s = t_eq_t'_s :: d'_s in
         let c_s = map (rsubst sub) c in
         let c1_s = rsubst sub c1 in
-        if term_ge t'_s t_s ||  (* iii *)
+        if is_higher sub && not dp.goal ||
+            term_ge t'_s t_s ||  (* iii *)
             not (is_maximal lit_gt c1_s c_s) ||  (* iv *)
             not (is_eligible sub parent_eq) ||  (* iv *)
             t'_s <> _false && clause_gt d_s c_s ||  (* v *)
@@ -434,6 +436,7 @@ let super quick avail dp d' t_t' cp c c1 =
             (t'_s = _false || t'_s = _true) &&
               not (top_level (t'_s = _false) u c1 sub (is_inductive cp)) (* vii *)
         then [] else (
+          if dbg then printf "super: passed conditions\n";
           let c1_t' = replace_in_formula t' u c1 in
           let c_s = replace1 (rsubst sub c1_t') c1_s c_s in
           let e = multi_or (d'_s @ c_s) in
@@ -448,7 +451,8 @@ let super quick avail dp d' t_t' cp c c1 =
 
 let all_super quick dp cp =
   profile "all_super" @@ fun () ->
-  let no_induct c d = is_inductive c && (not d.goal || inducted d) in
+  let no_induct d c = is_inductive c &&
+    (not d.goal && not d.hypothesis || inducted d) in
   let avail = cost_limit quick -. merge_cost [dp; cp] in
   if avail < super_cost quick dp cp true false || no_induct dp cp || no_induct cp dp then []
   else
