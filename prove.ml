@@ -60,10 +60,10 @@ let super_cost quick dp cp res _size_incr =
   if quick && (dp.goal || cp.goal) && res then 0.0 else
   if res then cost_incr else 0.03
 
-let merge_cost parents = match parents with
+let merge_cost parents = match unique parents with
     | [] -> 0.0
     | [p] -> cost_of p
-    | _ ->
+    | parents ->
       let ancestors = search parents (fun p -> p.parents) in
       sum (ancestors |> map (fun p -> p.delta))
 
