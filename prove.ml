@@ -56,7 +56,8 @@ let is_inductive pformula = match kind pformula.formula with
 
 let cost_incr = 0.01
 
-let super_cost _quick _dp _cp res _size_incr =
+let super_cost quick dp cp res _size_incr =
+  if quick && (dp.goal || cp.goal) && res then 0.0 else
   if res then cost_incr else 0.03
 
 let merge_cost parents = match parents with
@@ -73,7 +74,7 @@ let from_para p =
   search [p] (fun p -> p.parents) |>
     exists (fun p -> starts_with "para:" p.rule)
 
-let cost_limit quick = if quick then 0.01 else 1.3
+let cost_limit quick = if quick then 0.01 else 1.0
 
 let mk_pformula rule parents step formula delta =
   { id = 0; rule; rewrites = []; simp = false; parents; formula;
