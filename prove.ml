@@ -561,7 +561,8 @@ let rewrite quick dp cp : pformula list =
     | Some sub ->
         let t_s, t'_s = u, rsubst sub t' in
         if term_gt t_s t'_s &&  (* (i) *)
-           (quick || not (clause_gt [Eq (t_s, t'_s)] (clausify cp))) then (* (ii) *)
+           (quick || type_of t = Bool ||
+              not (clause_gt [Eq (t_s, t'_s)] (clausify cp))) then (* (ii) *)
           let e = b_reduce (replace_in_formula t'_s t_s c) in
           [update cp (Some dp) e]
         else []
