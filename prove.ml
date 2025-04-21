@@ -716,10 +716,16 @@ let rewrite_from ps q = find_map (fun p -> rewrite_opt p q) ps
 
 let repeat_rewrite used p : pformula =
   profile "repeat_rewrite" @@ fun () ->
-  let rec loop p = match rewrite_from used p with
+  let rec loop p = match rewrite_from !used p with
     | None -> p
     | Some p -> loop p in
   loop p
+
+let finish p f found =
+  let p = number_formula p in
+  found := FormulaMap.add f p !found;
+  if p.id = !(opts.show_proof_of) then output_proof p;
+  p
 
 let rw_simplify quick src queue used found p =
   let p1 = if quick then p else repeat_rewrite used p in
@@ -731,7 +737,7 @@ let rw_simplify quick src queue used found p =
     );
     None)
   else
-    match (if quick then None else any_subsumes used p) with
+    match (if quick then None else any_subsumes !used p) with
       | Some pf ->
           if !debug > 0 then (
             let prefix = sprintf "%s subsumed by #%d: " src pf.id in
@@ -742,35 +748,44 @@ let rw_simplify quick src queue used found p =
             let f = canonical p in
             match FormulaMap.find_opt f !found with
               | Some pf ->
-                  let adjust =
-                    if cost_of p < cost_of pf then (
-                      pf.cost := cost_of p;
-                      if PFQueue.mem pf !queue then
-                        queue := PFQueue.adjust pf (Fun.const (queue_cost pf)) !queue;
-                      sprintf " (adjusted cost to %.2f)" (cost_of p))
-                    else "" in
-                      let prefix = sprintf "%s duplicate of #%d%s: " src pf.id adjust in
+                  if cost_of p < cost_of pf then (
+                    let p = finish p f found in
+                    if !debug > 0 then
+                      printf "(%d is a duplicate of %d; replacing with lower cost of %.2f)\n"
+                        p.id pf.id (cost_of p);
+                    if PFQueue.mem pf !queue then
+                      queue := PFQueue.add p (queue_cost p) (PFQueue.remove pf !queue)
+                    else
+                      used := p :: remove1 pf !used;
+                    found := FormulaMap.add f p !found;
+                    (* Ideally we would also update descendents of pf
+                       to have p as an ancestor instead. *)
+                    Some p
+                  ) else (
+                      let prefix = sprintf "%s duplicate of #%d: " src pf.id in
                       dbg_print_formula true prefix p;
-                  (* if !debug > 0 then (
-                    let prefix = sprintf "%s duplicate of #%d%s: " src pf.id adjust in
-                    print_line (prefix_show prefix p.formula)); *)
-                      None
+                    None)
               | None ->
-                  let p = number_formula p in (
-                  found := FormulaMap.add f p !found;
-                  if p.id = !(opts.show_proof_of) then output_proof p;
-                  Some p)
+                  Some (finish p f found)
 
-let rw_simplify_all quick queue used found ps : pformula list =
-  ps |> filter_map (fun p -> rw_simplify quick "generated" queue used found p)
+let rw_simplify_all quick queue used found ps =
+  let simplify (p: pformula) =
+    let p = rw_simplify quick "generated" queue used found p in
+    p |> Option.iter (fun p -> queue := PFQueue.add p (queue_cost p) !queue);
+    p in
+  filter_map simplify ps
 
-let rec back_simplify from = function
-  | [] -> ([], [])
-  | p :: ps ->
-      let (ps', rewritten) = back_simplify from ps in
-      match rewrite_from [from] p with
-        | Some p' -> (ps', p' :: rewritten)
-        | None -> (p :: ps', rewritten)
+let back_simplify from used =
+  let rec loop = function
+    | [] -> ([], [])
+    | p :: ps ->
+        let (ps', rewritten) = loop ps in
+        match rewrite_from [from] p with
+          | Some p' -> (ps', p' :: rewritten)
+          | None -> (p :: ps', rewritten) in
+  let (new_used, rewritten) = loop !used in
+  used := new_used;
+  rewritten
 
 type result = Proof of pformula * int | Timeout | GaveUp | Stopped
 
@@ -782,10 +797,11 @@ let szs = function
 
 let refute quick timeout pformulas cancel_check =
   let found = ref @@ FormulaMap.of_list (pformulas |> map (fun p -> (canonical p, p))) in
+  let used = ref [] in
   let queue = ref PFQueue.empty in
   queue_add queue pformulas;
   let start = Sys.time () in
-  let rec loop used count =
+  let rec loop count =
     let elapsed = Sys.time () -. start in
     if timeout > 0.0 && elapsed > timeout then Timeout
     else if cancel_check () then Stopped
@@ -797,15 +813,14 @@ let refute quick timeout pformulas cancel_check =
           match rw_simplify quick "given is" queue used found p with
             | None ->
                 if !debug > 0 then print_newline ();
-                loop used (count + 1)
+                loop (count + 1)
             | Some p ->
                 if p.formula = _false then Proof (p, count) else
-                  let (used, rewritten) =
-                    if quick then (used, []) else back_simplify p used in
-                  let used = p :: used in
+                  let rewritten = if quick then [] else back_simplify p used in
+                  used := p :: !used;
                   let generated =
-                    concat_map (all_super quick p) used @
-                    concat_map (all_rewrite quick p) used @ all_eres p @ all_split p in 
+                    concat_map (all_super quick p) !used @
+                    concat_map (all_rewrite quick p) !used @ all_eres p @ all_split p in 
                   let generated = generated |> filter (fun p -> cost_of p <= cost_limit quick) in
                   let new_pformulas =
                     rw_simplify_all quick queue used found (rev (rewritten @ generated)) in
@@ -814,8 +829,8 @@ let refute quick timeout pformulas cancel_check =
                     | Some p -> Proof (p, count)
                     | None ->
                         queue_add queue new_pformulas;
-                        loop used (count + 1)
-  in loop [] 1
+                        loop (count + 1)
+  in loop 1
 
 (* Given an associative/commutative operator *, construct the axiom
  *     x * (y * z) = y * (x * z)
