@@ -407,7 +407,7 @@ let is_higher subst = subst |> exists (fun (_, f) -> is_lambda f)
 let super quick avail dp d' t_t' cp c c1 =
   let dbg = (dp.id, cp.id) = !debug_super in
   if dbg then printf "super\n";
-  let para_ok = not quick && not dp.derived && not cp.derived in
+  let para_ok = not quick in
   let pairs = match terms t_t' with
     | (true, t, t') ->
         if t' = _true || t' = _false then [(t, t')]
