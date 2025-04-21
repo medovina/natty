@@ -428,7 +428,7 @@ let super quick avail dp d' t_t' cp c c1 =
         let d_s = t_eq_t'_s :: d'_s in
         let c_s = map (rsubst sub) c in
         let c1_s = rsubst sub c1 in
-        if is_higher sub && not dp.goal ||
+        if is_higher sub && (quick || not dp.goal) ||
             term_ge t'_s t_s ||  (* iii *)
             not (is_maximal lit_gt c1_s c_s) ||  (* iv *)
             not (is_eligible sub parent_eq) ||  (* iv *)
@@ -749,10 +749,12 @@ let rw_simplify quick src queue used found p =
                         queue := PFQueue.adjust pf (Fun.const (queue_cost pf)) !queue;
                       sprintf " (adjusted cost to %.2f)" (cost_of p))
                     else "" in
-                  if !debug > 0 then (
+                      let prefix = sprintf "%s duplicate of #%d%s: " src pf.id adjust in
+                      dbg_print_formula true prefix p;
+                  (* if !debug > 0 then (
                     let prefix = sprintf "%s duplicate of #%d%s: " src pf.id adjust in
-                    print_line (prefix_show prefix p.formula));
-                  None
+                    print_line (prefix_show prefix p.formula)); *)
+                      None
               | None ->
                   let p = number_formula p in (
                   found := FormulaMap.add f p !found;
