@@ -675,6 +675,13 @@ let commutative_axiom f = remove_universal f |> function
         | _ -> None)
     | _ -> None
 
+let output_proof pformula =
+  let steps =
+    search [pformula] (fun p -> unique (p.parents @ p.rewrites)) in
+  let id_compare p q = Int.compare p.id q.id in
+  List.sort id_compare steps |> iter (print_formula true "");
+  print_newline ()
+
 (* approximate: equivalent formulas could possibly have different canonical forms *)
 let canonical pformula =
   let lits = sort Stdlib.compare (map canonical_lit (clausify pformula)) in
@@ -749,6 +756,7 @@ let rw_simplify quick src queue used found p =
               | None ->
                   let p = number_formula p in (
                   found := FormulaMap.add f p !found;
+                  if p.id = !(opts.show_proof_of) then output_proof p;
                   Some p)
 
 let rw_simplify_all quick queue used found ps : pformula list =
@@ -882,13 +890,6 @@ let prove timeout known_stmts thm invert cancel_check =
           printf "no quick refutation in %.2f s; beginning main loop\n\n" (Sys.time () -. start);
         run_refute false) in
   (result, Sys.time () -. start)
-
-let output_proof pformula =
-  let steps =
-    search [pformula] (fun p -> unique (p.parents @ p.rewrites)) in
-  let id_compare p q = Int.compare p.id q.id in
-  List.sort id_compare steps |> iter (print_formula true "");
-  print_newline ()
 
 let number_hypotheses name stmts =
   let f n = function

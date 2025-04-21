@@ -8,6 +8,7 @@ type options = {
   quick: bool ref;
   server: bool ref;
   show_proofs: bool ref;
+  show_proof_of: int ref;
   only_thm: string option ref;
   timeout: float ref;
   verbose: bool ref
@@ -21,6 +22,7 @@ let opts = {
   quick = ref false;
   server = ref false;
   show_proofs = ref false;
+  show_proof_of = ref 0;
   only_thm = ref None;
   timeout = ref 5.0;
   verbose = ref false
@@ -44,7 +46,8 @@ let parse_args args =
                      debug := level
             | 'l' -> opts.server := true
             | 'n' -> opts.only_thm := Some value
-            | 'p' -> opts.show_proofs := true
+            | 'p' -> if arg = "-p" then opts.show_proofs := true
+                     else opts.show_proof_of := int_val ()
             | 'q' -> opts.quick := true
             | 'r' -> profiling := true
             | 's' -> (
@@ -73,7 +76,7 @@ let parse_args args =
       -d<level>       debug level
       -l              run as language server
       -n<name>        only prove/export theorem with given name
-      -p              output proofs
+      -p[<id>]        output proof of theorems, or only of given formula
       --pipe=<name>   pipe name for language server
       -q              only use quick refute
       -r              profile performance
