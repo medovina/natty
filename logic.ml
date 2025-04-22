@@ -294,6 +294,14 @@ let is_ground f =
         has_free outer t || has_free outer u in
   not (has_free [] f)
 
+let all_consts f =
+  let rec find = function
+    | Const (id, _typ) -> [id]
+    | Var _ -> []
+    | App (t, u) | Eq (t, u) -> find t @ find u
+    | Lambda (id, _typ, t) -> remove id (find t)
+  in unique (find f)
+
 let find_vars_types only_free f =
   let rec find = function
     | Const _ -> []
@@ -485,7 +493,10 @@ let first_var start_var = function
  * alphabetical order.  We can't use this order for choosing new names since it
  * may not be isomorphic across equivalent formulas. *)
 let rename_vars f =
-  let num_vars = count_binders f + length (free_vars f) in
+  let consts = all_consts f in
+  let free = free_vars f in
+  let num_vars = count_binders f + length free +
+    length (consts |> filter (fun c -> 'q' <= c.[0] && c.[0] <= 'z')) in
   let start_var = char_to_string (
     if num_vars <= 3 then 'x' else
       let c = Char.chr (Char.code 'z' - num_vars + 1) in
@@ -507,7 +518,7 @@ let rename_vars f =
           let x = next typ in
           let (f, name_map, used) = rename ((id, x) :: name_map) (x :: used) f in
           (Lambda (x, typ, f), remove_assoc id name_map, used) in
-  let (f, _map, _used) = rename [] [] f in
+  let (f, _map, _used) = rename [] (consts @ free) f in
   f
 
 let collect_args t =
