@@ -578,14 +578,16 @@ let all_rewrite quick dp cp : pformula list =
         { p with delta = cost_incr; cost = ref (!(p.cost) +. cost_incr) })
   else []
 
-(*      C     σ(C)
+(*     C    Cσ ∨ R
  *   ═══════════════   subsume
  *         C                 *)
 
 let any_subsumes cs dp =
-  let d = prefix_vars (remove_universal dp.formula) in
+  let d = prefix_vars (remove_quantifiers dp.formula) in
+  let ds = mini_clausify d in
   let subsumes cp =
-    Option.is_some (try_match (remove_universal cp.formula) d) in
+    ds |> exists (fun p ->
+      Option.is_some (try_match (remove_universal cp.formula) p)) in
   find_opt subsumes cs 
 
 let rec expand f = match or_split f with
