@@ -818,11 +818,13 @@ let refute quick timeout pformulas cancel_check =
       | None -> GaveUp
       | Some ((p, _cost), q) ->
           queue := q;
-          dbg_print_formula false (sprintf "[#%d, %.3f s] given: " count elapsed) p;
+          let count = if count = 0 then (if p.goal then 1 else 0) else count + 1 in
+          let prefix = if count = 0 then "" else sprintf "#%d, " count in
+          dbg_print_formula false (sprintf "[%s%.3f s] given: " prefix elapsed) p;
           match rw_simplify quick "given is" queue used found p with
             | None ->
                 if !debug > 0 then print_newline ();
-                loop (count + 1)
+                loop count
             | Some p ->
                 if p.formula = _false then Proof (p, count) else
                   let rewritten = if quick then [] else back_simplify p used in
@@ -838,8 +840,8 @@ let refute quick timeout pformulas cancel_check =
                     | Some p -> Proof (p, count)
                     | None ->
                         queue_add queue new_pformulas;
-                        loop (count + 1)
-  in loop 1
+                        loop count
+  in loop 0
 
 (* Given an associative/commutative operator *, construct the axiom
  *     x * (y * z) = y * (x * z)
