@@ -200,6 +200,15 @@ let infer_blocks steps : block list =
   assert (rest = []);
   blocks
 
+let skolem_name id = if looks_like_var id then id ^ "0" else id
+
+let rec with_skolem_names ids = function
+  | Const (id, typ) when mem id ids -> Const (skolem_name id, typ)
+  | Var (id, typ) when mem id ids -> Var (skolem_name id, typ)
+  | f -> map_formula (with_skolem_names ids) f
+
+let stmt_with_skolem_names ids = map_stmt_formulas (with_skolem_names ids)
+
 let rec blocks_steps blocks : statement list list * formula =
   match blocks with
     | [] -> ([], _true)
@@ -221,7 +230,8 @@ and block_steps (Block (step, range, children)) : statement list list * formula 
               (map (fun eq -> [Theorem ("", eq, None, range)]) eqs, concl)
           | None -> ([[Theorem ("", f, None, range)]], f)  )
     | Let (ids, typ) ->
-        let decls = map (fun id -> ConstDecl (id, typ)) ids in
+        let decls = map (fun id -> ConstDecl (skolem_name id, typ)) ids in
+        let fs = map (map (stmt_with_skolem_names ids)) fs in
         (map (append decls) fs, for_all_vars_typ (ids, typ) concl)
     | LetVal (id, typ, value) ->
         (map (cons (Definition (id, typ, value))) fs, rsubst1 concl value id)
@@ -230,7 +240,9 @@ and block_steps (Block (step, range, children)) : statement list list * formula 
     | IsSome (ids, typ, g) ->
         let ex = exists_vars_typ (ids, typ) g in
         let stmts =
-          map (fun id -> ConstDecl (id, typ)) ids @ [Hypothesis ("hyp", g)] in
+          map (fun id -> ConstDecl (skolem_name id, typ)) ids @
+            [Hypothesis ("hyp", with_skolem_names ids g)] in
+        let fs = map (map (stmt_with_skolem_names ids)) fs in
         ([Theorem ("", ex, None, range)] :: map (append stmts) fs,
          if any_free_in ids concl then exists_vars_typ (ids, typ) concl else concl)
     | Escape | Group _ -> failwith "block_formulas"

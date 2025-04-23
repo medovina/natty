@@ -494,6 +494,8 @@ let first_var start_var = function
   | Fun (_, Bool) -> "P"
   | _ -> start_var
 
+let looks_like_var id = 'q' <= id.[0] && id.[0] <= 'z'
+
 (* Alpha-equivalent formulas should have the same form after renaming.
  * We choose a new name for each variable as soon as we encounter it in
  * the formula structure.  Note that free_vars returns variable names in
@@ -503,7 +505,7 @@ let rename_vars f =
   let consts = all_consts f in
   let free = free_vars f in
   let num_vars = count_binders f + length free +
-    length (consts |> filter (fun c -> 'q' <= c.[0] && c.[0] <= 'z')) in
+    length (filter looks_like_var consts) in
   let start_var = char_to_string (
     if num_vars <= 3 then 'x' else
       let c = Char.chr (Char.code 'z' - num_vars + 1) in
