@@ -234,9 +234,9 @@ let clause_gt = multi_gt lit_gt
 
 let or_split f = match bool_kind f with
   | Binary ("∨", _, s, t) -> Some (s, t)
-  | Binary ("→", _, s, t) -> Some (_not s, t)
+  | Binary ("→", _, s, t) -> Some (negate s, t)
   | Not g -> (match bool_kind g with
-    | Binary ("∧", _, f, g) -> Some (_not f, _not g)
+    | Binary ("∧", _, f, g) -> Some (negate f, negate g)
     | Binary ("↔", _, f, g) -> Some (_not (implies f g), _not (implies g f))
     | _ -> None)
   | _ -> None
