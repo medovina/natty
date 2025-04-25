@@ -102,16 +102,23 @@ let create_pformula rule parents formula delta =
 
 let is_skolem s = is_letter s.[0] && is_digit s.[strlen s - 1]
 
-(* Symbol precedence.  ⊥ and ⊤ have the lowest precedence, with ⊥ > ⊤.
- * For other symbols, if c was defined after d then it has higher precedence.
- * If both c and d are predefined (e.g. Boolean operators) then we order them
- * alphabetically (arbitrarily). *)
+(* Symbol precedence for term ordering.  From highest to lowest:
+ *   Skolem constants created during inference
+ *   constants from input text, in declaration order (later = higher)
+ *   predefined constants (e.g. ¬, ∧, ∨), alphabetically (arbitrarily)
+ *   ⊥
+ *   T 
+ *)
 let const_gt f g =
   let prio (c, c_type) =
-    let index = find_index (fun x -> x = (c, c_type)) !consts in
-    if index = None && c.[0] <> '@' && c.[0] <> '_' && not (is_skolem c) &&
-        not (mem c logical_ops)
-      then (printf "no precedence: %s" c; assert false);
+    let index = match find_index (fun x -> x = (c, c_type)) !consts with
+      | None ->
+          if is_skolem c then Some (length !consts)
+          else (
+            if c.[0] <> '@' && c.[0] <> '_' && not (mem c logical_ops)
+            then (printf "no precedence: %s" c; assert false);
+            None)
+      | Some i -> Some i in
     (index, c) in
   match f, g with
     | Const ("⊤", _), _ -> false
@@ -417,8 +424,7 @@ let eq_pairs para_ok f = match terms f with
 let super quick avail dp d' t_t' cp c c1 : pformula list =
   let dbg = (dp.id, cp.id) = !debug_super in
   if dbg then printf "super\n";
-  let para_ok = not quick in
-  let pairs = eq_pairs para_ok t_t' in  (* iii: pre-check *)
+  let pairs = eq_pairs (not quick) t_t' in  (* iii: pre-check *)
   let+ (t, t') = pairs |> filter (fun (_, t') ->
     super_cost quick dp cp (is_bool_const t') false <= avail) in
   let+ (u, parent_eq) = green_subterms c1 |>
@@ -426,22 +432,24 @@ let super quick avail dp d' t_t' cp c c1 : pformula list =
   match unify t u with
     | None -> []
     | Some sub ->
+        if dbg then printf "super: unified %s with %s\n" (show_formula t) (show_formula u);
         let d'_s = map (rsubst sub) d' in
         let t_s, t'_s = rsubst sub t, rsubst sub t' in
         let t_eq_t'_s = Eq (t_s, t'_s) in
         let d_s = t_eq_t'_s :: d'_s in
         let c_s = map (rsubst sub) c in
         let c1_s = rsubst sub c1 in
+        let fail n = if dbg then printf "super: failed check %d\n" n; true in
         if is_higher sub && (quick || not (orig_goal dp)) ||
-            term_ge t'_s t_s ||  (* iii *)
-            not (is_maximal lit_gt c1_s c_s) ||  (* iv *)
-            not (is_eligible sub parent_eq) ||  (* iv *)
-            t'_s <> _false && clause_gt d_s c_s ||  (* v *)
-            not (is_maximal lit_gt (simp_eq t_eq_t'_s) d'_s) ||  (* vi *)
+            term_ge t'_s t_s && fail 3 ||  (* iii *)
+            not (is_maximal lit_gt c1_s c_s) && fail 4 ||  (* iv *)
+            not (is_eligible sub parent_eq) && fail 4 ||  (* iv *)
+            t'_s <> _false && clause_gt d_s c_s && fail 5 ||  (* v *)
+            not (is_maximal lit_gt (simp_eq t_eq_t'_s) d'_s) && fail 6 ||  (* vi *)
             (t'_s = _false || t'_s = _true) &&
-              not (top_level (t'_s = _false) u c1 sub (is_inductive cp)) (* vii *)
+              not (top_level (t'_s = _false) u c1 sub (is_inductive cp)) && fail 7 (* vii *)
         then [] else (
-          if dbg then printf "super: passed conditions\n";
+          if dbg then printf "super: passed checks\n";
           let c1_t' = replace_in_formula t' u c1 in
           let c_s = replace1 (rsubst sub c1_t') c1_s c_s in
           let e = multi_or (d'_s @ c_s) in
@@ -462,7 +470,7 @@ let all_super quick dp cp : pformula list =
   let num_clauses p = length (mini_clausify (remove_universal p.formula)) in
   let nd, nc = num_clauses dp, num_clauses cp in
   let delta = nd + nc - 2 - max nd nc in
-  let ok_delta = if dp.goal || cp.goal then 0 else -1 in
+  let ok_delta = if dp.goal || cp.goal || orig_hyp dp && orig_hyp cp then 0 else -1 in
   if avail < super_cost quick dp cp true false ||
     no_induct dp cp || no_induct cp dp || delta > ok_delta 
   then []
