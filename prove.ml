@@ -15,11 +15,10 @@ type pformula = {
   rewrites: pformula list;
   simp: bool;
   formula: formula;
-  support: bool;
-  goal: bool;
   delta: float;
   cost: float ref;
-  hypothesis: bool;  (* currently unused *)
+  hypothesis: bool;
+  goal: bool;
   derived: bool
 }
 
@@ -41,8 +40,7 @@ let print_formula with_origin prefix pformula =
     else "" in
   let mark b c = if b then " " ^ c else "" in
   let annotate =
-    (mark pformula.goal "g") ^ (mark pformula.hypothesis "h") ^
-    (mark pformula.support "s") in
+    (mark pformula.goal "g") ^ (mark pformula.hypothesis "h") in
   printf "%s%s {%.2f%s}\n"
     (indent_with_prefix prefix (show_multi pformula.formula))
     origin (cost_of pformula) annotate
@@ -57,6 +55,10 @@ let is_inductive pformula = match kind pformula.formula with
 let cost_incr = 0.01
 
 let orig_goal p = p.goal && not p.derived
+
+let orig_hyp p = p.hypothesis && not p.derived
+
+let in_support p = p.hypothesis || p.goal
 
 let super_cost quick dp cp res _size_incr =
   if quick && (orig_goal dp || orig_goal cp) && res then 0.0 else
@@ -80,11 +82,10 @@ let cost_limit quick = if quick then 0.01 else 1.0
 
 let mk_pformula rule parents step formula delta =
   { id = 0; rule; rewrites = []; simp = false; parents; formula;
-    support = exists (fun p -> p.support) parents;
     goal = exists (fun p -> p.goal) parents;
     delta;
     cost = ref (merge_cost parents +. delta);
-    hypothesis = not step && exists (fun p -> p.hypothesis) parents;
+    hypothesis = exists (fun p -> p.hypothesis) parents;
     derived = step || exists (fun p -> p.derived) parents }
 
 let rec number_formula pformula =
@@ -457,7 +458,7 @@ let super quick avail dp d' t_t' cp c c1 : pformula list =
 let all_super quick dp cp : pformula list =
   profile "all_super" @@ fun () ->
   let no_induct d c = is_inductive c &&
-    (not (orig_goal d) && not d.hypothesis || inducted d) in
+    (not (orig_goal d) && not (orig_hyp d) || inducted d) in
   let avail = cost_limit quick -. merge_cost [dp; cp] in
   let num_clauses p = length (mini_clausify (remove_universal p.formula)) in
   let nd, nc = num_clauses dp, num_clauses cp in
@@ -470,7 +471,7 @@ let all_super quick dp cp : pformula list =
     let d_steps, c_steps = clausify_steps dp, clausify_steps cp in
     let+ (dp, d_steps, cp, c_steps) =
       [(dp, d_steps, cp, c_steps); (cp, c_steps, dp, d_steps)] in
-    if dp.support || cp.support then
+    if in_support dp || in_support cp then
       let+ (d_lits, new_lits, _) = d_steps in
       let d_lits, new_lits = map prefix_vars d_lits, map prefix_vars new_lits in
       let+ d_lit = new_lits in
@@ -538,7 +539,7 @@ let update p rewriting f =
     { p with rewrites = r @ p.rewrites; simp = p.simp || simp; formula = f }
   else
     { id = 0; rule = ""; rewrites = r; simp; parents = [p];
-      support = p.support; goal = p.goal; delta = 0.0; cost = p.cost; formula = f;
+      goal = p.goal; delta = 0.0; cost = p.cost; formula = f;
       hypothesis = p.hypothesis; derived = p.derived }
 
 (*     t = t'    C⟪tσ⟫
@@ -902,13 +903,13 @@ let prove timeout known_stmts thm invert cancel_check =
   let formulas = ac_complete formulas in
   let known = formulas |> map (fun (name, f, is_hyp) ->
     let p = {(to_pformula name f) with
-                hypothesis = is_hyp; support = is_hyp} in
+                hypothesis = is_hyp } in
     dbg_newline (); p) in
   let pformula = to_pformula (stmt_name thm) (Option.get (stmt_formula thm)) in
   let goal = if invert then pformula else
     create_pformula "negate" [pformula] (_not pformula.formula) (0.00) in
   dbg_newline ();
-  let all = known @ [{goal with goal = true; support = true}] in
+  let all = known @ [{goal with goal = true}] in
   let run_refute quick = refute quick timeout all cancel_check in
   let start = Sys.time () in
   let result = match run_refute true with
