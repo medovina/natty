@@ -24,26 +24,25 @@ type pformula = {
 
 let cost_of p = !(p.cost)
 
-let print_formula with_origin prefix pformula =
+let print_formula with_origin prefix pf =
   let prefix =
-    if pformula.id > 0 then prefix ^ sprintf "%d. " (pformula.id) else prefix in
+    if pf.id > 0 then prefix ^ sprintf "%d. " (pf.id) else prefix in
   let origin =
     if with_origin then
-      let parents = pformula.parents |> map (fun p -> string_of_int (p.id)) in
-      let rule = if pformula.rule <> "" then [pformula.rule] else [] in
-      let rewrites = rev pformula.rewrites |> map (fun r -> r.id) in
+      let parents = pf.parents |> map (fun p -> string_of_int (p.id)) in
+      let rule = if pf.rule <> "" then [pf.rule] else [] in
+      let rewrites = rev pf.rewrites |> map (fun r -> r.id) in
       let rw = if rewrites = [] then []
         else [sprintf "rw(%s)" (comma_join (map string_of_int rewrites))] in
-      let simp = if pformula.simp then ["simp"] else [] in
+      let simp = if pf.simp then ["simp"] else [] in
       let all = parents @ rule @ rw @ simp in
       sprintf " [%s]" (comma_join all)
     else "" in
-  let mark b c = if b then " " ^ c else "" in
-  let annotate =
-    (mark pformula.goal "g") ^ (mark pformula.hypothesis "h") in
+  let mark b c = if b then " " ^ (if pf.derived then c else to_upper c) else "" in
+  let annotate = (mark pf.goal "g") ^ (mark pf.hypothesis "h") in
   printf "%s%s {%.2f%s}\n"
-    (indent_with_prefix prefix (show_multi pformula.formula))
-    origin (cost_of pformula) annotate
+    (indent_with_prefix prefix (show_multi pf.formula))
+    origin (cost_of pf) annotate
 
 let dbg_print_formula with_origin prefix pformula =
   if !debug > 0 then print_formula with_origin prefix pformula

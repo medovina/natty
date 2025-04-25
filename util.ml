@@ -54,18 +54,11 @@ let capitalize s =
 
 let to_lower = String.lowercase_ascii
 
-let eq_icase s t = (to_lower s = to_lower t) 
-
-let is_char_in c s = Option.is_some (String.index_opt s c)
+let to_upper = String.uppercase_ascii
 
 let starts_with p s = String.starts_with ~prefix:p s
 
 let ends_with p s = String.ends_with ~suffix:p s
-
-let contains s1 s2 =
-  let re = Str.regexp_string s2 in
-    try ignore (Str.search_forward re s1 0); true
-    with Not_found -> false
 
 (* 'str_replace s t u' replaces s with t in u *)
 let str_replace s = Str.global_replace (Str.regexp_string s)
