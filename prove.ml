@@ -385,14 +385,21 @@ let top_level pos u c sub inductive =
   mem lit cs &&
     (inductive || is_maximal lit_gt (rsubst sub lit) (map (rsubst sub) cs))
 
-let eq_pairs t t' = [(t, t'); (t', t)] |>
-  filter (fun (t, t') -> not (term_ge t' t))
-
 let simp_eq = function
   | Eq (Eq (t, t'), f) when f = _true -> Eq (t, t')
   | f -> f
 
 let is_higher subst = subst |> exists (fun (_, f) -> is_lambda f)
+
+let oriented t t' = [(t, t'); (t', t)] |>
+  filter (fun (t, t') -> not (term_ge t' t))
+
+let eq_pairs para_ok f = match terms f with
+  | (true, t, t') ->
+      if is_bool_const t' then [(t, t')]
+      else (Eq (t, t'), _true) ::
+        (if para_ok then oriented t t' else [])   (* iii: pre-check *)
+  | (false, t, t') -> [(Eq (t, t'), _false)]
 
 (*      D:[D' ∨ t = t']    C⟨u⟩
  *    ───────────────────────────   sup
@@ -411,12 +418,7 @@ let super quick avail dp d' t_t' cp c c1 : pformula list =
   let dbg = (dp.id, cp.id) = !debug_super in
   if dbg then printf "super\n";
   let para_ok = not quick in
-  let pairs = match terms t_t' with
-    | (true, t, t') ->
-        if t' = _true || t' = _false then [(t, t')]
-        else (Eq (t, t'), _true) ::
-          (if para_ok then eq_pairs t t' else [])   (* iii: pre-check *)
-    | (false, t, t') -> [(Eq (t, t'), _false)] in
+  let pairs = eq_pairs para_ok t_t' in  (* iii: pre-check *)
   let+ (t, t') = pairs |> filter (fun (_, t') ->
     super_cost quick dp cp (is_bool_const t') false <= avail) in
   let+ (u, parent_eq) = green_subterms c1 |>
@@ -549,11 +551,7 @@ let update p rewriting f =
  *)
 let rewrite quick dp cp : pformula list =
   if dp.id = cp.id then [] else
-  let pairs = match remove_universal dp.formula with
-    | Eq (t, t') -> eq_pairs t t' (* i: pre-check *)
-    | App (Const ("¬", _), Eq _) as neq -> [(neq, _true)]
-    | _ -> [] in
-  let+ (t, t') = pairs in
+  let+ (t, t') = eq_pairs true (remove_universal dp.formula) in
   let t, t' = prefix_vars t, prefix_vars t' in
   let c = cp.formula in
   let+ u = blue_subterms c in

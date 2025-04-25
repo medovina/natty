@@ -480,7 +480,7 @@ let expand_multi_eq f : (formula list * formula) option =
 
 let next_var x avoid =
   let rec next x =
-    if mem x avoid then
+    if mem x avoid || mem (x ^ "0") avoid then
       let wrap c = sprintf "%c'" c in  (* add prime mark *)
       let t = match x.[0] with
         | 'o' -> wrap 'a'  (* constants a .. o *)
