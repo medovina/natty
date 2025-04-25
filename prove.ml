@@ -466,26 +466,24 @@ let all_super quick dp cp : pformula list =
   profile "all_super" @@ fun () ->
   let no_induct d c = is_inductive c &&
     (not (orig_goal d) && not (orig_hyp d) || inducted d) in
-  let avail = cost_limit quick -. merge_cost [dp; cp] in
-  let num_clauses p = length (mini_clausify (remove_universal p.formula)) in
-  let nd, nc = num_clauses dp, num_clauses cp in
-  let delta = nd + nc - 2 - max nd nc in
-  let ok_delta = if dp.goal || cp.goal || orig_hyp dp && orig_hyp cp then 0 else -1 in
-  if avail < super_cost quick dp cp true false ||
-    no_induct dp cp || no_induct cp dp || delta > ok_delta 
-  then []
-  else
-    let d_steps, c_steps = clausify_steps dp, clausify_steps cp in
-    let+ (dp, d_steps, cp, c_steps) =
-      [(dp, d_steps, cp, c_steps); (cp, c_steps, dp, d_steps)] in
-    if in_support dp || in_support cp then
+  if not (in_support dp || in_support cp) || no_induct dp cp || no_induct cp dp
+  then [] else
+    let avail = cost_limit quick -. merge_cost [dp; cp] in
+    let num_clauses p = length (mini_clausify (remove_universal p.formula)) in
+    let nd, nc = num_clauses dp, num_clauses cp in
+    let delta = nd + nc - 2 - max nd nc in
+    let ok_delta = if dp.goal || cp.goal || orig_hyp dp && orig_hyp cp then 0 else -1 in
+    if avail < super_cost quick dp cp true false || delta > ok_delta
+    then [] else
+      let d_steps, c_steps = clausify_steps dp, clausify_steps cp in
+      let+ (dp, d_steps, cp, c_steps) =
+        [(dp, d_steps, cp, c_steps); (cp, c_steps, dp, d_steps)] in
       let+ (d_lits, new_lits, _) = d_steps in
       let d_lits, new_lits = map prefix_vars d_lits, map prefix_vars new_lits in
       let+ d_lit = new_lits in
       let+ (c_lits, _, exposed_lits) = c_steps in
       let+ c_lit = exposed_lits in
       super quick avail dp (remove1 d_lit d_lits) d_lit cp c_lits c_lit
-    else []
 
 (*      C' ∨ u ≠ u'
  *     ────────────   eres
