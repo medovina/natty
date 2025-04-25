@@ -320,6 +320,14 @@ let all_vars = find_vars false
 let free_vars = find_vars true
 let free_vars_types f = unique (find_vars_types true f)
 
+let is_var_in v =
+  let rec find_var = function
+    | Const _ -> false
+    | Var (x, _) -> x = v
+    | App (f, g) | Eq (f, g) -> find_var f || find_var g
+    | Lambda (x, _typ, f) -> x = v || find_var f
+  in find_var
+
 let is_free_in x f = mem x (free_vars f)
 let any_free_in xs f = overlap xs (free_vars f)
 

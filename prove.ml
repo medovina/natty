@@ -143,18 +143,32 @@ let rec term_weight = function
   | App (f, g) | Eq (f, g) -> term_weight f + term_weight g
   | Lambda (_, _, f) -> term_weight f
 
-(* lexicographic path ordering on first-order terms *)
+(* Lexicographic path ordering on first-order terms.  We use
+ * the optimized version lpo_4 described in Lochner, "Things to Know
+ * When Implementing LPO". *)
 let rec lpo_gt s t =
   match t with
-    | Var (t1, _) -> s <> t && mem t1 (all_vars s)
+    | Var (y, _) -> s <> t && is_var_in y s
     | _ ->
         is_app_or_const s && is_app_or_const t &&
           let (f, ss), (g, ts) = collect_args s, collect_args t in
-          exists (fun x -> x = t || lpo_gt x t) ss ||
-          for_all (fun x -> lpo_gt s x) ts &&
-            let (ns, nt) = length ss, length ts in
-            (const_gt f g || f = g && (ns > nt || ns = nt && lex_gt lpo_gt ss ts))
+          let (nf, ng) = length ss, length ts in
+          if const_gt f g || f = g && nf > ng then majo s ts
+          else if f = g && nf = ng then lex_ma s t ss ts
+          else alpha ss t
 
+and alpha ss t = exists (fun s -> s = t || lpo_gt s t) ss
+
+and majo s ts = for_all (lpo_gt s) ts
+
+and lex_ma s t ss ts = match ss, ts with
+  | [], [] -> false
+  | s_i :: ss, t_i :: ts ->
+      if s_i = t_i then lex_ma s t ss ts
+      else if lpo_gt s_i t_i then majo s ts
+      else alpha ss t
+  | _ -> failwith "lex_ma"
+            
 let get_index x map =
   match index_of_opt x !map with
     | Some i -> length !map - 1 - i
