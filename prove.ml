@@ -59,7 +59,7 @@ let orig_hyp p = p.hypothesis && not p.derived
 
 let in_support p = p.hypothesis || p.goal
 
-let super_cost quick dp cp res _size_incr =
+let super_cost quick dp cp res =
   if quick && (orig_goal dp || orig_goal cp) && res then 0.0 else
   if res then (if is_inductive dp || is_inductive cp then 0.02 else cost_incr) else 0.03
 
@@ -435,13 +435,13 @@ let eq_pairs para_ok f = match terms f with
  *     (vii) if t'σ = ⊥, u is a literal
              if t'σ = ⊤, ¬u is a literal *)
 
-let super quick avail dp d' t_t' cp c c1 : pformula list =
+let super quick avail only_res dp d' t_t' cp c c1 : pformula list =
   profile "super" @@ fun () ->
   let dbg = (dp.id, cp.id) = !debug_super in
   if dbg then printf "super\n";
-  let pairs = eq_pairs (not quick) t_t' in  (* iii: pre-check *)
+  let pairs = eq_pairs (not quick && not only_res) t_t' in  (* iii: pre-check *)
   let+ (t, t') = pairs |> filter (fun (_, t') ->
-    super_cost quick dp cp (is_bool_const t') false <= avail) in
+    super_cost quick dp cp (is_bool_const t') <= avail) in
   let+ (u, parent_eq) = green_subterms c1 |>
     filter (fun (u, _) -> not (is_var u || is_fluid u)) in  (* i, ii *)
   match unify t u with
@@ -473,12 +473,13 @@ let super quick avail dp d' t_t' cp c c1 : pformula list =
           let res = is_bool_const t' in
           let rule = sprintf "%s: %s / %s" (if res then "res" else "para")
             tt'_show u_show in
-          let w, cw = term_weight e, term_weight cp.formula in
-          let cost = super_cost quick dp cp res (w > cw) in
+          let cost = super_cost quick dp cp res in
           [mk_pformula rule [dp; cp] true (unprefix_vars e) cost])
 
 let all_super quick dp cp : pformula list =
   profile "all_super" @@ fun () ->
+  let dbg = (dp.id, cp.id) = !debug_super in
+  if dbg then printf "all_super\n";
   let no_induct d c = is_inductive c &&
     (not (orig_goal d) && not (orig_hyp d) || inducted d) in
   if not (in_support dp || in_support cp) || no_induct dp cp || no_induct cp dp
@@ -488,7 +489,7 @@ let all_super quick dp cp : pformula list =
     let nd, nc = num_clauses dp, num_clauses cp in
     let delta = nd + nc - 2 - max nd nc in
     let ok_delta = if dp.goal || cp.goal || orig_hyp dp && orig_hyp cp then 0 else -1 in
-    if avail < super_cost quick dp cp true false || delta > ok_delta
+    if avail < super_cost quick dp cp true || delta > ok_delta
     then [] else
       let d_steps, c_steps = clausify_steps dp, clausify_steps cp in
       let+ (dp, d_steps, cp, c_steps) =
@@ -498,7 +499,7 @@ let all_super quick dp cp : pformula list =
       let+ d_lit = new_lits in
       let+ (c_lits, _, exposed_lits) = c_steps in
       let+ c_lit = exposed_lits in
-      super quick avail dp (remove1 d_lit d_lits) d_lit cp c_lits c_lit
+      super quick avail false dp (remove1 d_lit d_lits) d_lit cp c_lits c_lit
 
 (*      C' ∨ u ≠ u'
  *     ────────────   eres
