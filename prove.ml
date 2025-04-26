@@ -456,9 +456,9 @@ let super quick avail dp d' t_t' cp c c1 : pformula list =
         let c1_s = rsubst sub c1 in
         let fail n = if dbg then printf "super: failed check %d\n" n; true in
         if is_higher sub && (quick || not (orig_goal dp)) ||
-            not (is_maximal lit_gt (simp_eq t_eq_t'_s) d'_s) && fail 6 ||  (* vi *)
-            (t'_s = _false || t'_s = _true) &&
+            is_bool_const t'_s &&
               not (top_level (t'_s = _false) u c1 sub (is_inductive cp)) && fail 7 || (* vii *)
+            not (is_maximal lit_gt (simp_eq t_eq_t'_s) d'_s) && fail 6 ||  (* vi *)
             term_ge t'_s t_s && fail 3 ||  (* iii *)
             not (is_maximal lit_gt c1_s c_s) && fail 4 ||  (* iv *)
             not (is_eligible sub parent_eq) && fail 4 ||  (* iv *)
