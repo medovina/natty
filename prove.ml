@@ -797,25 +797,6 @@ let rw_simplify quick src queue used found p =
               | None ->
                   Some (finish p f found)
 
-let rw_simplify_all quick queue used found ps =
-  let simplify (p: pformula) =
-    let p = rw_simplify quick "generated" queue used found p in
-    p |> Option.iter (fun p -> queue := PFQueue.add p (queue_cost p) !queue);
-    p in
-  filter_map simplify ps
-
-let back_simplify from used =
-  let rec loop = function
-    | [] -> ([], [])
-    | p :: ps ->
-        let (ps', rewritten) = loop ps in
-        match rewrite_from [from] p with
-          | Some p' -> (ps', p' :: rewritten)
-          | None -> (p :: ps', rewritten) in
-  let (new_used, rewritten) = loop !used in
-  used := new_used;
-  rewritten
-
 type result = Proof of pformula * int | Timeout | GaveUp | Stopped
 
 let szs = function
@@ -823,8 +804,39 @@ let szs = function
   | Timeout -> "Timeout"
   | GaveUp -> "GaveUp"
   | Stopped -> "Stopped"
+                  
+let forward_simplify quick queue used found p =
+  profile "forward_simplify" @@ fun () ->
+  rw_simplify quick "given is" queue used found p
+  
+let back_simplify from used =
+  profile "back_simplify" @@ fun () ->
+  let rec loop = function
+  | [] -> ([], [])
+  | p :: ps ->
+      let (ps', rewritten) = loop ps in
+      match rewrite_from [from] p with
+        | Some p' -> (ps', p' :: rewritten)
+        | None -> (p :: ps', rewritten) in
+  let (new_used, rewritten) = loop !used in
+  used := new_used;
+  rewritten
 
+let generate quick p used =
+  profile "generate" @@ fun () ->
+  concat_map (all_super quick p) !used @
+  concat_map (all_rewrite quick p) !used @ all_eres p @ all_split p
+
+let rw_simplify_all quick queue used found ps =
+  profile "rw_simplify_all" @@ fun () ->
+  let simplify (p: pformula) =
+    let p = rw_simplify quick "generated" queue used found p in
+    p |> Option.iter (fun p -> queue := PFQueue.add p (queue_cost p) !queue);
+    p in
+  filter_map simplify ps
+  
 let refute quick timeout pformulas cancel_check =
+  profile "refute" @@ fun () ->
   let found = ref @@ FormulaMap.of_list (pformulas |> map (fun p -> (canonical p, p))) in
   let used = ref [] in
   let queue = ref PFQueue.empty in
@@ -841,7 +853,7 @@ let refute quick timeout pformulas cancel_check =
           let count = if count = 0 then (if p.goal then 1 else 0) else count + 1 in
           let prefix = if count = 0 then "" else sprintf "#%d, " count in
           dbg_print_formula false (sprintf "[%s%.3f s] given: " prefix elapsed) p;
-          match rw_simplify quick "given is" queue used found p with
+          match forward_simplify quick queue used found p with
             | None ->
                 if !debug > 0 then print_newline ();
                 loop count
@@ -849,10 +861,8 @@ let refute quick timeout pformulas cancel_check =
                 if p.formula = _false then Proof (p, count) else
                   let rewritten = if quick then [] else back_simplify p used in
                   used := p :: !used;
-                  let generated =
-                    concat_map (all_super quick p) !used @
-                    concat_map (all_rewrite quick p) !used @ all_eres p @ all_split p in 
-                  let generated = generated |> filter (fun p -> cost_of p <= cost_limit quick) in
+                  let generated = generate quick p used |> filter (fun p ->
+                    cost_of p <= cost_limit quick) in
                   let new_pformulas =
                     rw_simplify_all quick queue used found (rev (rewritten @ generated)) in
                   dbg_newline ();
@@ -931,9 +941,10 @@ let prove timeout known_stmts thm invert cancel_check =
   let all = known @ [{goal with goal = true}] in
   let run_refute quick = refute quick timeout all cancel_check in
   let start = Sys.time () in
-  let result = match run_refute true with
+  let result = if !(opts.no_quick) then run_refute false
+  else match run_refute true with
     | Proof _ as p -> p
-    | r -> if !(opts.quick) then r else (
+    | r -> if !(opts.only_quick) then r else (
         if !debug > 0 then
           printf "no quick refutation in %.2f s; beginning main loop\n\n" (Sys.time () -. start);
         run_refute false) in

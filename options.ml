@@ -4,8 +4,9 @@ type options = {
   disprove: bool ref;
   export: bool ref;
   keep_going: bool ref;
+  no_quick: bool ref;
+  only_quick: bool ref;
   pipe: string ref;
-  quick: bool ref;
   server: bool ref;
   show_proofs: bool ref;
   show_proof_of: int ref;
@@ -18,8 +19,9 @@ let opts = {
   disprove = ref false;
   export = ref false;
   keep_going = ref false;
+  no_quick = ref false;
+  only_quick = ref false;
   pipe = ref "";
-  quick = ref false;
   server = ref false;
   show_proofs = ref false;
   show_proof_of = ref 0;
@@ -48,7 +50,7 @@ let parse_args args =
             | 'n' -> opts.only_thm := Some value
             | 'p' -> if arg = "-p" then opts.show_proofs := true
                      else opts.show_proof_of := int_val ()
-            | 'q' -> opts.quick := true
+            | 'q' -> opts.only_quick := true
             | 'r' -> profiling := true
             | 's' -> (
               match String.split_on_char ',' value with
@@ -56,6 +58,7 @@ let parse_args args =
                 | _ -> failwith "expected formula ids")
             | 't' -> opts.timeout := float_of_int (int_val ())
             | 'v' -> opts.verbose := true
+            | 'w' -> opts.no_quick := true
             | 'x' -> opts.export := true
             | '-' -> (match opt_remove_prefix "--pipe=" arg with
                         | Some name -> opts.pipe := name
@@ -83,6 +86,7 @@ let parse_args args =
       -s<id>,<id>     debug superposition of given formulas
       -t<num>         time limit in seconds
       -v              verbose output
+      -w              skip quick refute
       -x              export theorems to THF files
       |};
     exit 1
