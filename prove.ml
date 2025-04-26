@@ -61,7 +61,7 @@ let in_support p = p.hypothesis || p.goal
 
 let super_cost quick dp cp res _size_incr =
   if quick && (orig_goal dp || orig_goal cp) && res then 0.0 else
-  if res then cost_incr else 0.03
+  if res then (if is_inductive dp || is_inductive cp then 0.02 else cost_incr) else 0.03
 
 let merge_cost parents = match unique parents with
     | [] -> 0.0
