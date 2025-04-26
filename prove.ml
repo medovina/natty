@@ -569,12 +569,12 @@ let update p rewriting f =
  *   (ii) (t = t')σ ≯ C
  *
  *)
-let rewrite quick dp cp : pformula list =
+let rewrite quick dp cp c_subterms : pformula list =
   if dp.id = cp.id then [] else
   let+ (t, t') = eq_pairs true (remove_universal dp.formula) in
   let t, t' = prefix_vars t, prefix_vars t' in
   let c = cp.formula in
-  let+ u = blue_subterms c in
+  let+ u = c_subterms in
   match try_match t u with
     | Some sub ->
         let t_s, t'_s = u, rsubst sub t' in
@@ -586,13 +586,15 @@ let rewrite quick dp cp : pformula list =
         else []
     | _ -> []
 
+let rewrite1 quick dp cp = rewrite quick dp cp (blue_subterms cp.formula)
+
 (* non-destructive rewrites for quick refute *)
 let all_rewrite quick dp cp : pformula list =
   if quick then
     let avail = cost_limit quick -. merge_cost [dp; cp] in
     if avail < cost_incr then []
     else
-      (rewrite quick dp cp @ rewrite quick cp dp) |> map (fun p ->
+      (rewrite1 quick dp cp @ rewrite1 quick cp dp) |> map (fun p ->
         { p with delta = cost_incr; cost = ref (!(p.cost) +. cost_incr) })
   else []
 
@@ -739,9 +741,11 @@ let queue_add queue pformulas =
 let dbg_newline () =
   if !debug > 0 then print_newline ()
 
-let rewrite_opt dp cp = head_opt (rewrite false dp cp)
+let rewrite_opt dp cp c_subterms = head_opt (rewrite false dp cp c_subterms)
 
-let rewrite_from ps q = find_map (fun p -> rewrite_opt p q) ps
+let rewrite_from ps q =
+  let q_subterms = blue_subterms q.formula in
+  find_map (fun p -> rewrite_opt p q q_subterms) ps
 
 let repeat_rewrite used p : pformula =
   profile "repeat_rewrite" @@ fun () ->
