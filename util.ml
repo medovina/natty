@@ -304,11 +304,12 @@ let measure_cost () =
 
 type prof_node = {
   name: string;
+  calls: int ref;
   time: float ref;
   children: prof_node list ref
 }
 
-let cur_prof = ref { name = ""; time = ref 0.0; children = ref [] }
+let cur_prof = ref { name = ""; calls = ref 0; time = ref 0.0; children = ref [] }
 
 let profile name f =
   if !profiling then (
@@ -318,13 +319,14 @@ let profile name f =
     let cur = match find_opt (fun n -> n.name = name) !(parent.children) with
       | Some child -> child
       | None ->
-          let node = { name; time = ref 0.0; children = ref [] } in
+          let node = { name; calls = ref 0; time = ref 0.0; children = ref [] } in
           parent.children := node :: !(parent.children);
           node in
     cur_prof := cur;
     let start = Sys.time () -. !profiling_cost in
     profiling_cost := !profiling_cost +. !sys_time_cost;
     let ret = f () in
+    incr cur.calls;
     cur.time := !(cur.time) +. (Sys.time () -. !profiling_cost) -. start;
     profiling_cost := !profiling_cost +. !sys_time_cost;
     cur_prof := parent;
@@ -334,8 +336,9 @@ let profile name f =
 let profile_report () =
   if !profiling then (
     let rec print_node indent node =
-      if node.name <> "" then
-        printf "%s%s: %.2f\n" indent node.name !(node.time);
+      (if node.name <> "" then
+        let calls = str_replace "_" "," (sprintf "%#d" !(node.calls)) in
+        printf "%s%s (%s): %.2f\n" indent node.name calls !(node.time));
       let children = sort_by (fun n -> -. !(n.time)) !(node.children) in
       let indent = if node.name = "" then "" else indent ^ "  " in
       iter (print_node indent) children in
