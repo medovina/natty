@@ -803,7 +803,7 @@ let rw_simplify quick src queue used found p =
               | None ->
                   Some (finish p f found)
 
-type result = Proof of pformula * int | Timeout | GaveUp | Stopped
+type result = Proof of pformula * int * float | Timeout | GaveUp | Stopped
 
 let szs = function
   | Proof _ -> "Theorem"
@@ -848,7 +848,7 @@ let refute quick timeout pformulas cancel_check =
   let queue = ref PFQueue.empty in
   queue_add queue pformulas;
   let start = Sys.time () in
-  let rec loop count =
+  let rec loop count max_cost =
     let elapsed = Sys.time () -. start in
     if timeout > 0.0 && elapsed > timeout then Timeout
     else if cancel_check () then Stopped
@@ -856,15 +856,16 @@ let refute quick timeout pformulas cancel_check =
       | None -> GaveUp
       | Some ((p, _cost), q) ->
           queue := q;
+          let max_cost = max (cost_of p) max_cost in
           let count = if count = 0 then (if p.goal then 1 else 0) else count + 1 in
           let prefix = if count = 0 then "" else sprintf "#%d, " count in
           dbg_print_formula false (sprintf "[%s%.3f s] given: " prefix elapsed) p;
           match forward_simplify quick queue used found p with
             | None ->
                 if !debug > 0 then print_newline ();
-                loop count
+                loop count max_cost
             | Some p ->
-                if p.formula = _false then Proof (p, count) else
+                if p.formula = _false then Proof (p, count, max_cost) else
                   let rewritten = if quick then [] else back_simplify p used in
                   used := p :: !used;
                   let generated = generate quick p used |> filter (fun p ->
@@ -873,11 +874,11 @@ let refute quick timeout pformulas cancel_check =
                     rw_simplify_all quick queue used found (rev (rewritten @ generated)) in
                   dbg_newline ();
                   match find_opt (fun p -> p.formula = _false) new_pformulas with
-                    | Some p -> Proof (p, count)
+                    | Some p -> Proof (p, count, max_cost)
                     | None ->
                         queue_add queue new_pformulas;
-                        loop count
-  in loop 0
+                        loop count max_cost
+  in loop 0 0.0
 
 (* Given an associative/commutative operator *, construct the axiom
  *     x * (y * z) = y * (x * z)
@@ -1008,11 +1009,12 @@ let prove_all thf prog =
               let (result, elapsed) =
                 prove !(opts.timeout) known thm !(opts.disprove) (Fun.const false) in
               let b = match result with
-                  | Proof (pformula, given) ->
-                      printf "%sproved in %.2f s (given clauses: %d)\n" dis elapsed given;
+                  | Proof (pf, given, cost) ->
+                      printf "%sproved in %.2f s (given clauses: %d; cost: %.2f)\n"
+                        dis elapsed given cost;
                       if !(opts.show_proofs) then (
                         print_newline ();
-                        output_proof pformula);
+                        output_proof pf);
                       true
                   | GaveUp -> printf "Not %sproved.\n" dis; false
                   | Timeout -> printf "Time limit exceeded.\n"; false
