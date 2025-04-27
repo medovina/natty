@@ -67,8 +67,8 @@ let merge_cost parents = match unique parents with
     | [] -> 0.0
     | [p] -> cost_of p
     | parents ->
-      let ancestors = search parents (fun p -> p.parents) in
-      sum (ancestors |> map (fun p -> p.delta))
+        let ancestors = search parents (fun p -> p.parents) in
+        sum (ancestors |> map (fun p -> p.delta))
 
 let inducted p =
   search [p] (fun p -> p.parents) |> exists (fun p -> is_inductive p)
@@ -729,11 +729,14 @@ module PFQueue = Psq.Make (struct
   type t = pformula
   let compare = Stdlib.compare
 end) (struct
-  type t = float * bool
+  type t = float * float * int
   let compare = Stdlib.compare
 end)
 
-let queue_cost p = (cost_of p, orig_goal p && cost_of p = 0.0)
+let queue_delta p =
+  if p.parents = [] || p.rule = "negate" then 0.1 else p.delta
+
+let queue_cost p = (cost_of p, queue_delta p, p.id)
 
 let queue_add queue pformulas =
   let queue_element p = (p, queue_cost p) in
