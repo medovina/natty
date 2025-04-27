@@ -16,13 +16,11 @@ type pformula = {
   simp: bool;
   formula: formula;
   delta: float;
-  cost: float ref;
+  cost: float;
   hypothesis: bool;
   goal: bool;
   derived: bool
 }
-
-let cost_of p = !(p.cost)
 
 let print_formula with_origin prefix pf =
   let prefix =
@@ -42,7 +40,7 @@ let print_formula with_origin prefix pf =
   let annotate = (mark pf.goal "g") ^ (mark pf.hypothesis "h") in
   printf "%s%s {%.2f%s}\n"
     (indent_with_prefix prefix (show_multi pf.formula))
-    origin (cost_of pf) annotate
+    origin pf.cost annotate
 
 let dbg_print_formula with_origin prefix pformula =
   if !debug > 0 then print_formula with_origin prefix pformula
@@ -65,7 +63,7 @@ let super_cost quick dp cp res =
 
 let merge_cost parents = match unique parents with
     | [] -> 0.0
-    | [p] -> cost_of p
+    | [p] -> p.cost
     | parents ->
         let ancestors = search parents (fun p -> p.parents) in
         sum (ancestors |> map (fun p -> p.delta))
@@ -83,7 +81,7 @@ let mk_pformula rule parents step formula delta =
   { id = 0; rule; rewrites = []; simp = false; parents; formula;
     goal = exists (fun p -> p.goal) parents;
     delta;
-    cost = ref (merge_cost parents +. delta);
+    cost = merge_cost parents +. delta;
     hypothesis = exists (fun p -> p.hypothesis) parents;
     derived = step || exists (fun p -> p.derived) parents }
 
@@ -597,7 +595,7 @@ let all_rewrite quick dp cp : pformula list =
     if avail < cost_incr then []
     else
       (rewrite1 quick dp cp @ rewrite1 quick cp dp) |> map (fun p ->
-        { p with delta = cost_incr; cost = ref (!(p.cost) +. cost_incr) })
+        { p with delta = cost_incr; cost = p.cost +. cost_incr })
   else []
 
 (*     C    Cσ ∨ R
@@ -736,7 +734,7 @@ end)
 let queue_delta p =
   if p.parents = [] || p.rule = "negate" then 0.1 else p.delta
 
-let queue_cost p = (cost_of p, queue_delta p, p.id)
+let queue_cost p = (p.cost, queue_delta p, p.id)
 
 let queue_add queue pformulas =
   let queue_element p = (p, queue_cost p) in
@@ -786,11 +784,11 @@ let rw_simplify quick src queue used found p =
             let f = canonical p in
             match FormulaMap.find_opt f !found with
               | Some pf ->
-                  if cost_of p < cost_of pf then (
+                  if p.cost < pf.cost then (
                     let p = finish p f found in
                     if !debug > 0 then
                       printf "(%d is a duplicate of %d; replacing with lower cost of %.2f)\n"
-                        p.id pf.id (cost_of p);
+                        p.id pf.id p.cost;
                     if PFQueue.mem pf !queue then
                       queue := PFQueue.add p (queue_cost p) (PFQueue.remove pf !queue)
                     else
@@ -859,7 +857,7 @@ let refute quick timeout pformulas cancel_check =
       | None -> GaveUp
       | Some ((p, _cost), q) ->
           queue := q;
-          let max_cost = max (cost_of p) max_cost in
+          let max_cost = max p.cost max_cost in
           let count = if count = 0 then (if p.goal then 1 else 0) else count + 1 in
           let prefix = if count = 0 then "" else sprintf "#%d, " count in
           dbg_print_formula false (sprintf "[%s%.3f s] given: " prefix elapsed) p;
@@ -872,7 +870,7 @@ let refute quick timeout pformulas cancel_check =
                   let rewritten = if quick then [] else back_simplify p used in
                   used := p :: !used;
                   let generated = generate quick p used |> filter (fun p ->
-                    cost_of p <= cost_limit quick) in
+                    p.cost <= cost_limit quick) in
                   let new_pformulas =
                     rw_simplify_all quick queue used found (rev (rewritten @ generated)) in
                   dbg_newline ();
