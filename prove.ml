@@ -22,6 +22,15 @@ type pformula = {
   derived: bool
 }
 
+let weight f =
+  let rec weigh f = match f with
+    | Const _ -> if f = _false then 0 else 1
+    | Var _ -> 1
+    | App (f, g) -> weigh f + weigh g
+    | Eq (f, g) -> 1 + weigh f + weigh g
+    | Lambda (_, _, f) -> weigh f in
+  weigh (remove_quantifiers f)
+    
 let print_formula with_origin prefix pf =
   let prefix =
     if pf.id > 0 then prefix ^ sprintf "%d. " (pf.id) else prefix in
@@ -37,10 +46,10 @@ let print_formula with_origin prefix pf =
       sprintf " [%s]" (comma_join all)
     else "" in
   let mark b c = if b then " " ^ (if pf.derived then c else to_upper c) else "" in
-  let annotate = (mark pf.goal "g") ^ (mark pf.hypothesis "h") in
-  printf "%s%s {%.2f%s}\n"
+  let annotate = mark pf.goal "g" ^ mark pf.hypothesis "h" in
+  printf "%s%s {%d, %.2f%s}\n"
     (indent_with_prefix prefix (show_multi pf.formula))
-    origin pf.cost annotate
+    origin (weight pf.formula) pf.cost annotate
 
 let dbg_print_formula with_origin prefix pformula =
   if !debug > 0 then print_formula with_origin prefix pformula
@@ -49,17 +58,11 @@ let is_inductive pformula = match kind pformula.formula with
   | Quant ("∀", _, Fun (_, Bool), _) -> true
   | _ -> false
 
-let cost_incr = 0.01
-
 let orig_goal p = p.goal && not p.derived
 
 let orig_hyp p = p.hypothesis && not p.derived
 
 let in_support p = p.hypothesis || p.goal
-
-let super_cost quick dp cp res =
-  if quick && (orig_goal dp || orig_goal cp) && res then 0.0 else
-  if res then (if is_inductive dp || is_inductive cp then 0.02 else cost_incr) else 0.03
 
 let merge_cost parents = match unique parents with
     | [] -> 0.0
@@ -71,32 +74,26 @@ let merge_cost parents = match unique parents with
 let inducted p =
   search [p] (fun p -> p.parents) |> exists (fun p -> is_inductive p)
 
-let from_para p =
-  search [p] (fun p -> p.parents) |>
-    exists (fun p -> starts_with "para:" p.rule)
-
 let cost_limit quick = if quick then 0.01 else 1.0
 
-let mk_pformula rule parents step formula delta =
+let mk_pformula rule parents step formula =
   { id = 0; rule; rewrites = []; simp = false; parents; formula;
     goal = exists (fun p -> p.goal) parents;
-    delta;
-    cost = merge_cost parents +. delta;
+    delta = 0.0; cost = 0.0;
     hypothesis = exists (fun p -> p.hypothesis) parents;
     derived = step || exists (fun p -> p.derived) parents }
 
-let rec number_formula pformula =
+let number_formula pformula =
   if pformula.id > 0 then pformula
-  else
-    let parents = map number_formula pformula.parents in
-    let rewrites = map number_formula pformula.rewrites in
+  else (
+    assert ((pformula.parents @ pformula.rewrites) |> for_all (fun p -> p.id > 0));
     incr formula_counter;
-    let p = { pformula with parents; rewrites; id = !formula_counter } in
-    dbg_print_formula true "" p;
-    p
+    { pformula with id = !formula_counter } )
 
-let create_pformula rule parents formula delta =
-  number_formula (mk_pformula rule parents false formula delta)
+let create_pformula rule parents formula =
+  let p = number_formula (mk_pformula rule parents false formula) in
+  dbg_print_formula true "" p;
+  p
 
 let is_skolem s = is_letter s.[0] && is_digit s.[strlen s - 1]
 
@@ -134,12 +131,6 @@ let rec lex_gt gt ss ts = match ss, ts with
   | _ -> failwith "lex_gt"
 
 let lookup_var v vars = opt_default (assoc_opt v vars) 0
-
-let rec term_weight = function
-  | Const _ -> 1
-  | Var _ -> 1
-  | App (f, g) | Eq (f, g) -> term_weight f + term_weight g
-  | Lambda (_, _, f) -> term_weight f
 
 (* Lexicographic path ordering on first-order terms.  We use
  * the optimized version lpo_4 described in Lochner, "Things to Know
@@ -420,6 +411,21 @@ let eq_pairs para_ok f = match terms f with
         (if para_ok then oriented t t' else [])   (* iii: pre-check *)
   | (false, t, t') -> [(Eq (t, t'), _false)]
 
+let cost quick p =
+  match p.parents with
+    | [_; _] ->
+        let parents = p.parents in
+        let parent_weight = maximum (parents |> map (fun q -> weight q.formula)) in
+        let diff = weight p.formula - parent_weight in
+        if quick then
+          if diff < 0 && exists orig_goal parents then 0.0 else 0.01
+        else if starts_with "para:" p.rule then
+          if diff < 0 then 0.02 else 10.0
+        else
+          if diff < 0 then 0.0 else if diff = 0 then 0.01 else 0.03
+    | _ ->
+        if quick && p.rewrites <> [] then 0.01 else 0.0
+
 (*      D:[D' ∨ t = t']    C⟨u⟩
  *    ───────────────────────────   sup
  *          (D' ∨ C⟨t'⟩)σ             σ ∈ csu(t, u)
@@ -438,8 +444,7 @@ let super quick avail only_res dp d' t_t' cp c c1 : pformula list =
   let dbg = (dp.id, cp.id) = !debug_super in
   if dbg then printf "super\n";
   let pairs = eq_pairs (not quick && not only_res) t_t' in  (* iii: pre-check *)
-  let+ (t, t') = pairs |> filter (fun (_, t') ->
-    super_cost quick dp cp (is_bool_const t') <= avail) in
+  let+ (t, t') = pairs |> filter (fun (_, t') -> is_bool_const t' || avail >= 0.01) in
   let+ (u, parent_eq) = green_subterms c1 |>
     filter (fun (u, _) -> not (is_var u || is_fluid u)) in  (* i, ii *)
   match unify t u with
@@ -462,17 +467,15 @@ let super quick avail only_res dp d' t_t' cp c c1 : pformula list =
             not (is_eligible sub parent_eq) && fail 4 ||  (* iv *)
             t'_s <> _false && clause_gt d_s c_s && fail 5  (* v *)
         then [] else (
-          if dbg then printf "super: passed checks\n";
           let c1_t' = replace_in_formula t' u c1 in
           let c_s = replace1 (rsubst sub c1_t') c1_s c_s in
-          let e = multi_or (d'_s @ c_s) in
+          let e = unprefix_vars (multi_or (d'_s @ c_s)) in
           let tt'_show = str_replace "\\$" "" (show_formula (Eq (t, t'))) in
           let u_show = show_formula u in
           let res = is_bool_const t' in
-          let rule = sprintf "%s: %s / %s" (if res then "res" else "para")
-            tt'_show u_show in
-          let cost = super_cost quick dp cp res in
-          [mk_pformula rule [dp; cp] true (unprefix_vars e) cost])
+          let rule = sprintf "%s: %s / %s" (if res then "res" else "para") tt'_show u_show in
+          if dbg then printf "super: passed checks, produced %s\n" (show_formula e);
+          [mk_pformula rule [dp; cp] true e])
 
 let all_super quick dp cp : pformula list =
   profile "all_super" @@ fun () ->
@@ -483,21 +486,15 @@ let all_super quick dp cp : pformula list =
   if not (in_support dp || in_support cp) || no_induct dp cp || no_induct cp dp
   then [] else
     let avail = cost_limit quick -. merge_cost [dp; cp] in
-    let num_clauses p = length (mini_clausify (remove_universal p.formula)) in
-    let nd, nc = num_clauses dp, num_clauses cp in
-    let delta = nd + nc - 2 - max nd nc in
-    let ok_delta = if dp.goal || cp.goal || orig_hyp dp && orig_hyp cp then 0 else -1 in
-    if avail < super_cost quick dp cp true || delta > ok_delta
-    then [] else
-      let d_steps, c_steps = clausify_steps dp, clausify_steps cp in
-      let+ (dp, d_steps, cp, c_steps) =
-        [(dp, d_steps, cp, c_steps); (cp, c_steps, dp, d_steps)] in
-      let+ (d_lits, new_lits, _) = d_steps in
-      let d_lits, new_lits = map prefix_vars d_lits, map prefix_vars new_lits in
-      let+ d_lit = new_lits in
-      let+ (c_lits, _, exposed_lits) = c_steps in
-      let+ c_lit = exposed_lits in
-      super quick avail false dp (remove1 d_lit d_lits) d_lit cp c_lits c_lit
+    let d_steps, c_steps = clausify_steps dp, clausify_steps cp in
+    let+ (dp, d_steps, cp, c_steps) =
+      [(dp, d_steps, cp, c_steps); (cp, c_steps, dp, d_steps)] in
+    let+ (d_lits, new_lits, _) = d_steps in
+    let d_lits, new_lits = map prefix_vars d_lits, map prefix_vars new_lits in
+    let+ d_lit = new_lits in
+    let+ (c_lits, _, exposed_lits) = c_steps in
+    let+ c_lit = exposed_lits in
+    super quick avail false dp (remove1 d_lit d_lits) d_lit cp c_lits c_lit
 
 (*      C' ∨ u ≠ u'
  *     ────────────   eres
@@ -511,7 +508,7 @@ let eres cp c' c_lit =
           | None -> []
           | Some sub ->
               let c1 = map (rsubst sub) c' in
-              [mk_pformula "eres" [cp] true (multi_or c1) 0.01]
+              [mk_pformula "eres" [cp] true (multi_or c1)]
 
 let all_eres cp = run_clausify cp eres
 
@@ -548,7 +545,7 @@ let all_split p =
   else
     let splits = remove [p.formula] (run [p.formula]) in
     rev splits |> map (fun lits ->
-      mk_pformula "split" [p] false (multi_or lits) 0.0)
+      mk_pformula "split" [p] false (multi_or lits))
 
 let update p rewriting f =
   let (r, simp) = match rewriting with
@@ -592,10 +589,10 @@ let rewrite1 quick dp cp = rewrite quick dp cp (blue_subterms cp.formula)
 let all_rewrite quick dp cp : pformula list =
   if quick then
     let avail = cost_limit quick -. merge_cost [dp; cp] in
-    if avail < cost_incr then []
+    if avail < 0.01 then []
     else
       (rewrite1 quick dp cp @ rewrite1 quick cp dp) |> map (fun p ->
-        { p with delta = cost_incr; cost = p.cost +. cost_incr })
+        { p with delta = 0.01; cost = p.cost +. 0.01 })
   else []
 
 (*     C    Cσ ∨ R
@@ -757,8 +754,9 @@ let repeat_rewrite used p : pformula =
     | Some p -> loop p in
   loop p
 
-let finish p f found =
-  let p = number_formula p in
+let finish p f found delta cost =
+  let p = { (number_formula p) with delta; cost } in
+  dbg_print_formula true "" p;
   found := FormulaMap.add f p !found;
   if p.id = !(opts.show_proof_of) then output_proof p;
   p
@@ -781,28 +779,36 @@ let rw_simplify quick src queue used found p =
           None
       | None ->
           if p.id > 0 then Some p else
-            let f = canonical p in
-            match FormulaMap.find_opt f !found with
-              | Some pf ->
-                  if p.cost < pf.cost then (
-                    let p = finish p f found in
-                    if !debug > 0 then
-                      printf "(%d is a duplicate of %d; replacing with lower cost of %.2f)\n"
-                        p.id pf.id p.cost;
-                    if PFQueue.mem pf !queue then
-                      queue := PFQueue.add p (queue_cost p) (PFQueue.remove pf !queue)
-                    else
-                      used := p :: remove1 pf !used;
-                    found := FormulaMap.add f p !found;
-                    (* Ideally we would also update descendents of pf
-                       to have p as an ancestor instead. *)
-                    Some p
-                  ) else (
-                      let prefix = sprintf "%s duplicate of #%d: " src pf.id in
-                      dbg_print_formula true prefix p;
-                    None)
-              | None ->
-                  Some (finish p f found)
+            let delta = cost quick p in
+            let cost = merge_cost p.parents +. delta in
+            if cost > cost_limit quick then (
+              if !debug > 1 then
+                print_formula true "dropping (over cost limit):" {p with cost};
+              None)
+            else
+              let f = canonical p in
+              let final () = finish p f found delta cost in
+              match FormulaMap.find_opt f !found with
+                | Some pf ->
+                    if cost < pf.cost then (
+                      let p = final () in
+                      if !debug > 0 then
+                        printf "(%d is a duplicate of %d; replacing with lower cost of %.2f)\n"
+                          p.id pf.id p.cost;
+                      if PFQueue.mem pf !queue then
+                        queue := PFQueue.add p (queue_cost p) (PFQueue.remove pf !queue)
+                      else
+                        used := p :: remove1 pf !used;
+                      found := FormulaMap.add f p !found;
+                      (* Ideally we would also update descendents of pf
+                        to have p as an ancestor instead. *)
+                      Some p
+                    ) else (
+                        let prefix = sprintf "%s duplicate of #%d: " src pf.id in
+                        dbg_print_formula true prefix p;
+                      None)
+                | None ->
+                    Some (final ())
 
 type result = Proof of pformula * int * float | Timeout | GaveUp | Stopped
 
@@ -869,8 +875,7 @@ let refute quick timeout pformulas cancel_check =
                 if p.formula = _false then Proof (p, count, max_cost) else
                   let rewritten = if quick then [] else back_simplify p used in
                   used := p :: !used;
-                  let generated = generate quick p used |> filter (fun p ->
-                    p.cost <= cost_limit quick) in
+                  let generated = generate quick p used in
                   let new_pformulas =
                     rw_simplify_all quick queue used found (rev (rewritten @ generated)) in
                   dbg_newline ();
@@ -928,7 +933,7 @@ let lower = function
         _iff (apply (c :: map mk_var' vars_typs)) g)
   | f -> f
 
-let to_pformula name f = create_pformula name [] (rename_vars (lower f)) 0.0
+let to_pformula name f = create_pformula name [] (rename_vars (lower f))
 
 let prove timeout known_stmts thm invert cancel_check =
   let known_stmts = rev known_stmts in
@@ -938,13 +943,13 @@ let prove timeout known_stmts thm invert cancel_check =
       (stmt_name stmt, f, is_hypothesis stmt))) in
   formula_counter := 0;
   let formulas = ac_complete formulas in
+  let _n_formulas = length formulas in
   let known = formulas |> map (fun (name, f, is_hyp) ->
-    let p = {(to_pformula name f) with
-                hypothesis = is_hyp } in
+    let p = {(to_pformula name f) with hypothesis = is_hyp } in
     dbg_newline (); p) in
   let pformula = to_pformula (stmt_name thm) (Option.get (stmt_formula thm)) in
   let goal = if invert then pformula else
-    create_pformula "negate" [pformula] (_not pformula.formula) (0.00) in
+    create_pformula "negate" [pformula] (_not pformula.formula) in
   dbg_newline ();
   let all = known @ [{goal with goal = true}] in
   let run_refute quick = refute quick timeout all cancel_check in
