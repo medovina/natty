@@ -415,14 +415,16 @@ let cost quick p =
   match p.parents with
     | [_; _] ->
         let parents = p.parents in
-        let parent_weight = maximum (parents |> map (fun q -> weight q.formula)) in
-        let diff = weight p.formula - parent_weight in
+        let min_parent = minimum (parents |> map (fun q -> weight q.formula)) in
+        let max_parent = maximum (parents |> map (fun q -> weight q.formula)) in
+        let w = weight p.formula in
         if quick then
-          if diff < 0 && exists orig_goal parents then 0.0 else 0.01
+          if w < max_parent && exists orig_goal parents then 0.0 else 0.01
+        else if w < min_parent then 0.0
         else if starts_with "para:" p.rule then
-          if diff < 0 then 0.02 else 10.0
+          if w < max_parent then 0.02 else 10.0
         else
-          if diff < 0 then 0.0 else if diff = 0 then 0.01 else 0.03
+          if w < max_parent then 0.005 else if w = max_parent then 0.01 else 0.03
     | _ ->
         if quick && p.rewrites <> [] then 0.01 else 0.0
 

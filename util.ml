@@ -194,6 +194,8 @@ let sort_by f = sort (fun x y -> Stdlib.compare (f x) (f y))
 
 let unique l = sort_uniq Stdlib.compare l
 
+let minimum xs = fold_left1 min xs
+
 let maximum xs = fold_left1 max xs
 
 let is_maximal gt x ys =
