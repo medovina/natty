@@ -19,8 +19,16 @@ type pformula = {
   cost: float;
   hypothesis: bool;
   goal: bool;
-  derived: bool
+  derived: bool;
+  definition: bool
 }
+
+let rec num_literals f = match bool_kind f with
+  | True | False -> 0
+  | Not f -> num_literals f
+  | Binary (_, _, t, u) -> num_literals t + num_literals u
+  | Quant (_, _, _, u) -> num_literals u
+  | Other _ -> 1
 
 let weight f =
   let rec weigh f = match f with
@@ -46,10 +54,10 @@ let print_formula with_origin prefix pf =
       sprintf " [%s]" (comma_join all)
     else "" in
   let mark b c = if b then " " ^ (if pf.derived then c else to_upper c) else "" in
-  let annotate = mark pf.goal "g" ^ mark pf.hypothesis "h" in
-  printf "%s%s {%d: %.2f%s}\n"
+  let annotate = mark pf.definition "d" ^ mark pf.goal "g" ^ mark pf.hypothesis "h" in
+  printf "%s%s {%d/%d: %.2f%s}\n"
     (indent_with_prefix prefix (show_multi pf.formula))
-    origin (weight pf.formula) pf.cost annotate
+    origin (num_literals pf.formula) (weight pf.formula) pf.cost annotate
 
 let dbg_print_formula with_origin prefix pformula =
   if !debug > 0 then print_formula with_origin prefix pformula
@@ -81,7 +89,8 @@ let mk_pformula rule parents step formula =
     goal = exists (fun p -> p.goal) parents;
     delta = 0.0; cost = 0.0;
     hypothesis = exists (fun p -> p.hypothesis) parents;
-    derived = step || exists (fun p -> p.derived) parents }
+    derived = step || exists (fun p -> p.derived) parents;
+    definition = not step && exists (fun p -> p.definition) parents }
 
 let number_formula pformula =
   if pformula.id > 0 then pformula
@@ -249,13 +258,6 @@ let rec mini_clausify f = match or_split f with
     | Some (f, g) -> mini_clausify f @ mini_clausify g
     | _ -> [f]
 
-let rec num_literals f = match bool_kind f with
-  | True | False -> 0
-  | Not f -> num_literals f
-  | Binary (_, _, t, u) -> num_literals t + num_literals u
-  | Quant (_, _, _, u) -> num_literals u
-  | Other _ -> 1
-
 (*      s = ⊤ ∨ C                 s = ⊥ ∨ C
       ═════════════   oc       ══════════════   oc
         oc(s) ∨ C                oc(¬s) ∨ C
@@ -422,6 +424,7 @@ let cost p =
   match p.parents with
     | [_; _] ->
         let goal = p.parents |> exists (fun q -> q.goal) in
+        let definition = p.parents |> exists (fun q -> q.definition) in
         let parent_lits = p.parents |> map (fun q -> num_literals q.formula) in
         let parent_weights = p.parents |> map (fun q -> weight q.formula) in
         let _min_lits, max_lits = minimum parent_lits, maximum parent_lits in
@@ -430,7 +433,7 @@ let cost p =
 
         if exists is_inductive p.parents then 0.03
         else if starts_with "res:" p.rule then
-          if lits >= max_lits && not goal then 10.0 else
+          if lits >= max_lits && not (goal || definition) then 10.0 else
           if w < min_weight then 0.0 else if w < max_weight then 0.005
             else if w = max_weight then 0.01 else 0.03
         else
@@ -496,7 +499,8 @@ let all_super quick dp cp : pformula list =
   if dbg then printf "all_super\n";
   let no_induct d c = is_inductive c &&
     (not (orig_goal d) && not (orig_hyp d) || inducted d) in
-  if not (in_support dp || in_support cp) || no_induct dp cp || no_induct cp dp
+  if not (in_support dp || in_support cp || dp.definition || cp.definition) ||
+    no_induct dp cp || no_induct cp dp
   then [] else
     let d_steps, c_steps = clausify_steps dp, clausify_steps cp in
     let+ (dp, d_steps, cp, c_steps) =
@@ -568,7 +572,7 @@ let update p rewriting f =
   else
     { id = 0; rule = ""; rewrites = r; simp; parents = [p];
       goal = p.goal; delta = 0.0; cost = p.cost; formula = f;
-      hypothesis = p.hypothesis; derived = p.derived }
+      hypothesis = p.hypothesis; derived = p.derived; definition = p.definition }
 
 (*     t = t'    C⟪tσ⟫
  *   ═══════════════════   rw
@@ -926,15 +930,19 @@ let lower = function
       Lambda (x, x_typ, Lambda (y, y_typ,
         App (App ((Const _ as d), (Var (y', _) as vy)), (Var (x', _) as vx)))))
         when (x, y) = (x', y') ->
-          for_all_vars_typs [(x, x_typ); (y, y_typ)]
-            (Eq (apply [c; vx; vy], apply [d; vy; vx]))
+          let f = for_all_vars_typs [(x, x_typ); (y, y_typ)]
+                    (Eq (apply [c; vx; vy], apply [d; vy; vx])) in
+          (f, false)
   | Eq ((Const (_, typ) as c), (Lambda _ as l)) when target_type typ = Bool ->
       let (vars_typs, g) = gather_lambdas l in
-      for_all_vars_typs vars_typs (
-        _iff (apply (c :: map mk_var' vars_typs)) g)
-  | f -> f
+      let f = for_all_vars_typs vars_typs (
+                _iff (apply (c :: map mk_var' vars_typs)) g) in
+      (f, true)
+  | f -> (f, false)
 
-let to_pformula name f = create_pformula name [] (rename_vars (lower f))
+let to_pformula name f =
+  let (f, is_def) = lower f in
+  { (create_pformula name [] (rename_vars f)) with definition = is_def }
 
 let goal_resolve r goal =
   let p = all_super true r goal |> find_map (fun q ->
@@ -943,6 +951,7 @@ let goal_resolve r goal =
   Option.get p
 
 let quick_refute all =
+  profile "quick_refute" @@ fun () ->
   let proof p = Some (Proof (p, -1, 0.0)) in
   let goal = last all in
   all |> find_map (fun p ->
