@@ -74,7 +74,7 @@ let merge_cost parents = match unique parents with
 let inducted p =
   search [p] (fun p -> p.parents) |> exists (fun p -> is_inductive p)
 
-let cost_limit quick = if quick then 0.01 else 1.0
+let cost_limit = 1.0
 
 let mk_pformula rule parents step formula =
   { id = 0; rule; rewrites = []; simp = false; parents; formula;
@@ -411,22 +411,18 @@ let eq_pairs para_ok f = match terms f with
         (if para_ok then oriented t t' else [])   (* iii: pre-check *)
   | (false, t, t') -> [(Eq (t, t'), _false)]
 
-let cost quick p =
+let cost p =
   match p.parents with
     | [_; _] ->
-        let parents = p.parents in
-        let min_parent = minimum (parents |> map (fun q -> weight q.formula)) in
-        let max_parent = maximum (parents |> map (fun q -> weight q.formula)) in
+        let parent_weights = p.parents |> map (fun q -> weight q.formula) in
+        let min_parent, max_parent = minimum parent_weights, maximum parent_weights in
         let w = weight p.formula in
-        if quick then
-          if w < max_parent && exists orig_goal parents then 0.0 else 0.01
-        else if w < min_parent then 0.0
-        else if starts_with "para:" p.rule then
-          if w < max_parent then 0.02 else 10.0
+        if starts_with "res:" p.rule then
+          if w < min_parent then 0.0 else if w < max_parent then 0.005
+            else if w = max_parent then 0.01 else 0.03
         else
-          if w < max_parent then 0.005 else if w = max_parent then 0.01 else 0.03
-    | _ ->
-        if quick && p.rewrites <> [] then 0.01 else 0.0
+          if w < min_parent then 0.0 else if w < max_parent then 0.02 else 10.0
+    | _ -> 0.0
 
 (*      D:[D' ∨ t = t']    C⟨u⟩
  *    ───────────────────────────   sup
@@ -441,12 +437,12 @@ let cost quick p =
  *     (vii) if t'σ = ⊥, u is a literal
              if t'σ = ⊤, ¬u is a literal *)
 
-let super quick avail only_res dp d' t_t' cp c c1 : pformula list =
+let super only_res dp d' t_t' cp c c1 : pformula list =
   profile "super" @@ fun () ->
   let dbg = (dp.id, cp.id) = !debug_super in
   if dbg then printf "super\n";
-  let pairs = eq_pairs (not quick && not only_res) t_t' in  (* iii: pre-check *)
-  let+ (t, t') = pairs |> filter (fun (_, t') -> is_bool_const t' || avail >= 0.01) in
+  let pairs = eq_pairs (not only_res) t_t' in  (* iii: pre-check *)
+  let+ (t, t') = pairs in
   let+ (u, parent_eq) = green_subterms c1 |>
     filter (fun (u, _) -> not (is_var u || is_fluid u)) in  (* i, ii *)
   match unify t u with
@@ -460,7 +456,7 @@ let super quick avail only_res dp d' t_t' cp c c1 : pformula list =
         let c_s = map (rsubst sub) c in
         let c1_s = rsubst sub c1 in
         let fail n = if dbg then printf "super: failed check %d\n" n; true in
-        if is_higher sub && (quick || not (orig_goal dp)) ||
+        if is_higher sub && (only_res || not (orig_goal dp)) ||
             is_bool_const t'_s &&
               not (top_level (t'_s = _false) u c1 sub (is_inductive cp)) && fail 7 || (* vii *)
             not (is_maximal lit_gt (simp_eq t_eq_t'_s) d'_s) && fail 6 ||  (* vi *)
@@ -487,7 +483,6 @@ let all_super quick dp cp : pformula list =
     (not (orig_goal d) && not (orig_hyp d) || inducted d) in
   if not (in_support dp || in_support cp) || no_induct dp cp || no_induct cp dp
   then [] else
-    let avail = cost_limit quick -. merge_cost [dp; cp] in
     let d_steps, c_steps = clausify_steps dp, clausify_steps cp in
     let+ (dp, d_steps, cp, c_steps) =
       [(dp, d_steps, cp, c_steps); (cp, c_steps, dp, d_steps)] in
@@ -496,7 +491,7 @@ let all_super quick dp cp : pformula list =
     let+ d_lit = new_lits in
     let+ (c_lits, _, exposed_lits) = c_steps in
     let+ c_lit = exposed_lits in
-    super quick avail false dp (remove1 d_lit d_lits) d_lit cp c_lits c_lit
+    super quick dp (remove1 d_lit d_lits) d_lit cp c_lits c_lit
 
 (*      C' ∨ u ≠ u'
  *     ────────────   eres
@@ -586,16 +581,6 @@ let rewrite quick dp cp c_subterms : pformula list =
     | _ -> []
 
 let rewrite1 quick dp cp = rewrite quick dp cp (blue_subterms cp.formula)
-
-(* non-destructive rewrites for quick refute *)
-let all_rewrite quick dp cp : pformula list =
-  if quick then
-    let avail = cost_limit quick -. merge_cost [dp; cp] in
-    if avail < 0.01 then []
-    else
-      (rewrite1 quick dp cp @ rewrite1 quick cp dp) |> map (fun p ->
-        { p with delta = 0.01; cost = p.cost +. 0.01 })
-  else []
 
 (*     C    Cσ ∨ R
  *   ═══════════════   subsume
@@ -763,8 +748,8 @@ let finish p f found delta cost =
   if p.id = !(opts.show_proof_of) then output_proof p;
   p
 
-let rw_simplify quick src queue used found p =
-  let p1 = if quick then p else repeat_rewrite used p in
+let rw_simplify src queue used found p =
+  let p1 = repeat_rewrite used p in
   let p = simplify p1 in
   if is_tautology p.formula then (
     if !debug > 1 || !debug = 1 && src <> "generated" then (
@@ -773,7 +758,7 @@ let rw_simplify quick src queue used found p =
     );
     None)
   else
-    match (if quick then None else any_subsumes !used p) with
+    match any_subsumes !used p with
       | Some pf ->
           if !debug > 0 then (
             let prefix = sprintf "%s subsumed by #%d: " src pf.id in
@@ -781,9 +766,9 @@ let rw_simplify quick src queue used found p =
           None
       | None ->
           if p.id > 0 then Some p else
-            let delta = cost quick p in
+            let delta = cost p in
             let cost = merge_cost p.parents +. delta in
-            if cost > cost_limit quick then (
+            if cost > cost_limit then (
               if !debug > 1 then
                 print_formula true "dropping (over cost limit):" {p with cost};
               None)
@@ -820,9 +805,9 @@ let szs = function
   | GaveUp -> "GaveUp"
   | Stopped -> "Stopped"
                   
-let forward_simplify quick queue used found p =
+let forward_simplify queue used found p =
   profile "forward_simplify" @@ fun () ->
-  rw_simplify quick "given is" queue used found p
+  rw_simplify "given is" queue used found p
   
 let back_simplify from used =
   profile "back_simplify" @@ fun () ->
@@ -837,20 +822,19 @@ let back_simplify from used =
   used := new_used;
   rewritten
 
-let generate quick p used =
+let generate p used =
   profile "generate" @@ fun () ->
-  concat_map (all_super quick p) !used @
-  concat_map (all_rewrite quick p) !used @ all_eres p @ all_split p
+  concat_map (all_super false p) !used @ all_eres p @ all_split p
 
-let rw_simplify_all quick queue used found ps =
+let rw_simplify_all queue used found ps =
   profile "rw_simplify_all" @@ fun () ->
   let simplify (p: pformula) =
-    let p = rw_simplify quick "generated" queue used found p in
+    let p = rw_simplify "generated" queue used found p in
     p |> Option.iter (fun p -> queue := PFQueue.add p (queue_cost p) !queue);
     p in
   filter_map simplify ps
   
-let refute quick timeout pformulas cancel_check =
+let refute timeout pformulas cancel_check =
   profile "refute" @@ fun () ->
   let found = ref @@ FormulaMap.of_list (pformulas |> map (fun p -> (canonical p, p))) in
   let used = ref [] in
@@ -869,17 +853,17 @@ let refute quick timeout pformulas cancel_check =
           let count = if count = 0 then (if p.goal then 1 else 0) else count + 1 in
           let prefix = if count = 0 then "" else sprintf "#%d, " count in
           dbg_print_formula false (sprintf "[%s%.3f s] given: " prefix elapsed) p;
-          match forward_simplify quick queue used found p with
+          match forward_simplify queue used found p with
             | None ->
                 if !debug > 0 then print_newline ();
                 loop count max_cost
             | Some p ->
                 if p.formula = _false then Proof (p, count, max_cost) else
-                  let rewritten = if quick then [] else back_simplify p used in
+                  let rewritten = back_simplify p used in
                   used := p :: !used;
-                  let generated = generate quick p used in
+                  let generated = generate p used in
                   let new_pformulas =
-                    rw_simplify_all quick queue used found (rev (rewritten @ generated)) in
+                    rw_simplify_all queue used found (rev (rewritten @ generated)) in
                   dbg_newline ();
                   match find_opt (fun p -> p.formula = _false) new_pformulas with
                     | Some p -> Proof (p, count, max_cost)
@@ -937,6 +921,24 @@ let lower = function
 
 let to_pformula name f = create_pformula name [] (rename_vars (lower f))
 
+let goal_resolve r goal =
+  let p = all_super true r goal |> find_map (fun q ->
+    let q = simplify q in
+    if q.formula = _false then Some q else None) in
+  Option.get p
+
+let quick_refute all =
+  let proof p = Some (Proof (p, -1, 0.0)) in
+  let goal = last all in
+  all |> find_map (fun p ->
+    all |> find_map (fun q ->
+      rewrite1 true p q @ rewrite1 true q p @ all_super true p q |> find_map (fun r ->
+        let r = simplify r in
+        if r.formula = _false then proof r
+        else if r.formula = negate (goal.formula) then proof (goal_resolve r goal)
+        else None
+      )))
+
 let prove timeout known_stmts thm invert cancel_check =
   let known_stmts = rev known_stmts in
   consts := filter_map decl_var known_stmts;
@@ -954,15 +956,14 @@ let prove timeout known_stmts thm invert cancel_check =
     create_pformula "negate" [pformula] (_not pformula.formula) in
   dbg_newline ();
   let all = known @ [{goal with goal = true}] in
-  let run_refute quick = refute quick timeout all cancel_check in
   let start = Sys.time () in
-  let result = if !(opts.no_quick) then run_refute false
-  else match run_refute true with
-    | Proof _ as p -> p
-    | r -> if !(opts.only_quick) then r else (
+  let result = if !(opts.no_quick) then None else quick_refute all in
+  let result = match result with
+    | Some p -> p
+    | None -> if !(opts.only_quick) then GaveUp else (
         if !debug > 0 then
           printf "no quick refutation in %.2f s; beginning main loop\n\n" (Sys.time () -. start);
-        run_refute false) in
+          refute timeout all cancel_check) in
   (result, Sys.time () -. start)
 
 let number_hypotheses name stmts =
@@ -1018,8 +1019,9 @@ let prove_all thf prog =
                 prove !(opts.timeout) known thm !(opts.disprove) (Fun.const false) in
               let b = match result with
                   | Proof (pf, given, cost) ->
-                      printf "%sproved in %.2f s (given clauses: %d; cost: %.2f)\n"
-                        dis elapsed given cost;
+                      let stats = if given < 0 then "quick" else
+                        sprintf "given clauses: %d; cost: %.2f" given cost in
+                      printf "%sproved in %.2f s (%s)\n" dis elapsed stats;
                       if !(opts.show_proofs) then (
                         print_newline ();
                         output_proof pf);
