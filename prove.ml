@@ -438,7 +438,7 @@ let cost p =
             else if w = max_weight then 0.01 else 0.03
         else
           if lits > 1 then 10.0 else
-          if w < min_weight then 0.0 else if w < max_weight then 0.02 else 10.0
+          if w < max_weight then 0.02 else 10.0
 
     | _ -> 0.0
 
