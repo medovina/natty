@@ -47,7 +47,7 @@ let print_formula with_origin prefix pf =
     else "" in
   let mark b c = if b then " " ^ (if pf.derived then c else to_upper c) else "" in
   let annotate = mark pf.goal "g" ^ mark pf.hypothesis "h" in
-  printf "%s%s {%d, %.2f%s}\n"
+  printf "%s%s {%d: %.2f%s}\n"
     (indent_with_prefix prefix (show_multi pf.formula))
     origin (weight pf.formula) pf.cost annotate
 
@@ -249,6 +249,13 @@ let rec mini_clausify f = match or_split f with
     | Some (f, g) -> mini_clausify f @ mini_clausify g
     | _ -> [f]
 
+let rec num_literals f = match bool_kind f with
+  | True | False -> 0
+  | Not f -> num_literals f
+  | Binary (_, _, t, u) -> num_literals t + num_literals u
+  | Quant (_, _, _, u) -> num_literals u
+  | Other _ -> 1
+
 (*      s = ⊤ ∨ C                 s = ⊥ ∨ C
       ═════════════   oc       ══════════════   oc
         oc(s) ∨ C                oc(¬s) ∨ C
@@ -414,14 +421,22 @@ let eq_pairs para_ok f = match terms f with
 let cost p =
   match p.parents with
     | [_; _] ->
+        let goal = p.parents |> exists (fun q -> q.goal) in
+        let parent_lits = p.parents |> map (fun q -> num_literals q.formula) in
         let parent_weights = p.parents |> map (fun q -> weight q.formula) in
-        let min_parent, max_parent = minimum parent_weights, maximum parent_weights in
-        let w = weight p.formula in
-        if starts_with "res:" p.rule then
-          if w < min_parent then 0.0 else if w < max_parent then 0.005
-            else if w = max_parent then 0.01 else 0.03
+        let _min_lits, max_lits = minimum parent_lits, maximum parent_lits in
+        let min_weight, max_weight = minimum parent_weights, maximum parent_weights in
+        let lits, w = num_literals p.formula, weight p.formula in
+
+        if exists is_inductive p.parents then 0.03
+        else if starts_with "res:" p.rule then
+          if lits >= max_lits && not goal then 10.0 else
+          if w < min_weight then 0.0 else if w < max_weight then 0.005
+            else if w = max_weight then 0.01 else 0.03
         else
-          if w < min_parent then 0.0 else if w < max_parent then 0.02 else 10.0
+          if lits > 1 then 10.0 else
+          if w < min_weight then 0.0 else if w < max_weight then 0.02 else 10.0
+
     | _ -> 0.0
 
 (*      D:[D' ∨ t = t']    C⟨u⟩
