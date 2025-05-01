@@ -2,6 +2,7 @@ open Util
 
 type options = {
   disprove: bool ref;
+  e_proof: bool ref;
   export: bool ref;
   keep_going: bool ref;
   no_quick: bool ref;
@@ -17,6 +18,7 @@ type options = {
 
 let opts = {
   disprove = ref false;
+  e_proof = ref false;
   export = ref false;
   keep_going = ref false;
   no_quick = ref false;
@@ -46,6 +48,7 @@ let parse_args args =
             | 'c' -> opts.disprove := true
             | 'd' -> let level = if arg = "-d" then 1 else int_val () in
                      debug := level
+            | 'e' -> opts.e_proof := true
             | 'l' -> opts.server := true
             | 'n' -> opts.only_thm := Some value
             | 'p' -> if arg = "-p" then opts.show_proofs := true
@@ -77,6 +80,7 @@ let parse_args args =
       -a              continue proof attempts even if one or more proofs fail
       -c              try to disprove all theorems
       -d<level>       debug level
+      -e              reformat proof from E
       -l              run as language server
       -n<name>        only prove/export theorem with given name
       -p[<id>]        output proof of theorems, or only of given formula

@@ -4,7 +4,7 @@ open Logic
 open Statement
 open Util
 
-let comment = char '%' << skip_many_until any_char newline
+let comment = any_of "%#" << skip_many_until any_char newline
 
 let empty = skip_many (space <|> comment)
 
@@ -102,3 +102,28 @@ let thf_formula = empty >>?
   << str "."
 
 let parse text = MParser.parse_string (many thf_formula |>> fun f -> (f, [])) text ()
+
+type derivation =
+  | Step of id
+  | Inference of id * derivation list
+  | File
+
+let rec derivation s = choice [
+  str "inference" >> parens (
+    pipe2
+      (id << char ',' << brackets (str "status" >> parens id) << char ',')
+      (brackets (comma_sep1 derivation))
+      (fun id derivs -> Inference (id, derivs)));
+  str "file" >> parens (quoted_id << str "," << id) >>$ File;
+  (id |>> fun id -> Step id)
+] s
+
+let proof_formula = empty >>?
+  str "thf" >> char '(' >> (
+    pair (id << str ",") (id << str ",") >>= fun (id, role) ->
+      if role = "type" then return []
+      else pipe2 (formula << str ",") derivation (fun f deriv -> [(id, f, deriv)])
+  ) << skip_many_until any_char newline
+
+let parse_proof source =
+  MParser.parse_channel (many proof_formula |>> concat) (open_in source) ()
