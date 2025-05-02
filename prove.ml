@@ -813,9 +813,9 @@ let rw_simplify src queue used found p =
                 print_formula true "dropping (over cost limit): " {p with cost};
               None)
             else
-              let f = canonical p in
-              let final () = finish p f found delta cost in
-              match FormulaMap.find_opt f !found with
+              let f_canonical = canonical p in
+              let final () = finish p f_canonical found delta cost in
+              match FormulaMap.find_opt f_canonical !found with
                 | Some pf ->
                     if cost < pf.cost then (
                       let p = final () in
@@ -826,7 +826,7 @@ let rw_simplify src queue used found p =
                         queue := PFQueue.add p (queue_cost p) (PFQueue.remove pf !queue)
                       else
                         used := p :: remove1 pf !used;
-                      found := FormulaMap.add f p !found;
+                      found := FormulaMap.add f_canonical p !found;
                       (* Ideally we would also update descendents of pf
                         to have p as an ancestor instead. *)
                       Some p
@@ -967,23 +967,24 @@ let to_pformula name f =
   let (f, is_def) = lower f in
   { (create_pformula name [] (rename_vars f)) with definition = is_def }
 
-let goal_resolve r goal =
-  let p = all_super true r goal |> find_map (fun q ->
+let goal_resolve r p =
+  let p = all_super true r p |> find_map (fun q ->
     let q = simplify q in
     if q.formula = _false then Some q else None) in
   Option.get p
 
 let quick_refute all =
   profile "quick_refute" @@ fun () ->
-  let proof p = Some (Proof (p, -1, 0.0)) in
-  let goal = last all in
+  let index = FormulaMap.of_list (all |> map (fun p -> (canonical p, p))) in
+  let proof p = Proof (p, -1, 0.0) in
   all |> find_map (fun p ->
     all |> find_map (fun q ->
+      if p.id >= q.id then None else
       rewrite1 true p q @ rewrite1 true q p @ all_super true p q |> find_map (fun r ->
         let r = simplify r in
-        if r.formula = _false then proof r
-        else if r.formula = negate (goal.formula) then proof (goal_resolve r goal)
-        else None
+        if r.formula = _false then Some (proof r)
+        else FormulaMap.find_opt (negate (canonical r)) index |> Option.map
+          (fun p -> proof (goal_resolve r p))
       )))
 
 let prove timeout known_stmts thm invert cancel_check =
