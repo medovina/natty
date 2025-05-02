@@ -6,7 +6,8 @@ open Statement
 open Util
 
 let formula_counter = ref 0
-let consts = ref []
+let consts = ref ([] : (id * typ) list)
+let ac_ops = ref ([] : (id * typ) list)
 
 type pformula = {
   id: int;
@@ -22,6 +23,8 @@ type pformula = {
   derived: bool;
   definition: bool
 }
+
+let ac_axioms = ref ([] : pformula list)
 
 let rec num_literals f = match bool_kind f with
   | True | False -> 0
@@ -65,7 +68,30 @@ let dbg_print_formula with_origin prefix pformula =
 let is_inductive pformula = match kind pformula.formula with
   | Quant ("∀", _, Fun (_, Bool), _) -> true
   | _ -> false
+  
+let associative_axiom f =
+  let is_assoc (f, g) = match kind f, kind g with
+    | Binary (op, _, f1, Var (z, typ)), Binary (op3, _, Var (x', _), g1) -> (
+        match kind f1, kind g1 with
+          | Binary (op2, _, Var (x, _), Var (y, _)),
+            Binary (op4, _, Var (y', _), Var (z', _))
+              when op = op2 && op2 = op3 && op3 = op4 &&
+                  (x, y, z) = (x', y', z') -> Some (op, typ)
+          | _ -> None)
+    | _ -> None in
+  remove_universal f |> function
+    | Eq (f, g) -> find_map is_assoc [(f, g); (g, f)]
+    | _ -> None
 
+let commutative_axiom f = remove_universal f |> function
+    | Eq (f, g) -> (match kind f, kind g with
+        | Binary (op, _, Var (x, typ), Var (y, _)), Binary (op', _, Var (y', _), Var (x', _))
+            when (op, x, y) = (op', x', y') -> Some (op, typ)
+        | _ -> None)
+    | _ -> None
+
+let is_commutative_axiom p = Option.is_some (commutative_axiom p.formula)
+  
 let orig_goal p = p.goal && not p.derived
 
 let orig_hyp p = p.hypothesis && not p.derived
@@ -425,6 +451,7 @@ let cost p =
     | [_; _] ->
         let goal = p.parents |> exists (fun q -> q.goal) in
         let definition = p.parents |> exists (fun q -> q.definition) in
+        let commutative = p.parents |> exists (fun q -> is_commutative_axiom q) in
         let parent_lits = p.parents |> map (fun q -> num_literals q.formula) in
         let parent_weights = p.parents |> map (fun q -> weight q.formula) in
         let _min_lits, max_lits = minimum parent_lits, maximum parent_lits in
@@ -437,6 +464,7 @@ let cost p =
           if w < min_weight then 0.0 else
           if w <= max_weight then 0.01 else 0.03
         else
+          if commutative then 0.01 else
           if lits > 1 then 10.0 else
           if w < max_weight then 0.02 else 10.0
 
@@ -499,8 +527,9 @@ let all_super quick dp cp : pformula list =
   if dbg then printf "all_super\n";
   let no_induct d c = is_inductive c &&
     (not (orig_goal d) && not (orig_hyp d) || inducted d) in
-  if not (in_support dp || in_support cp || dp.definition || cp.definition) ||
-    no_induct dp cp || no_induct cp dp
+  let allow p =
+    in_support p || p.definition || is_commutative_axiom p in
+  if not (allow dp || allow cp) || no_induct dp cp || no_induct cp dp
   then [] else
     let d_steps, c_steps = clausify_steps dp, clausify_steps cp in
     let+ (dp, d_steps, cp, c_steps) =
@@ -688,33 +717,23 @@ let is_tautology f =
   let (pos, neg) = pos_neg (map canonical_lit (map simp (expand f))) in
   exists taut_lit pos || intersect pos neg <> []
 
-let associative_axiom f =
-  let is_assoc (f, g) = match kind f, kind g with
-    | Binary (op, _, f1, Var (z, typ)), Binary (op3, _, Var (x', _), g1) -> (
-        match kind f1, kind g1 with
-          | Binary (op2, _, Var (x, _), Var (y, _)),
-            Binary (op4, _, Var (y', _), Var (z', _))
-              when op = op2 && op2 = op3 && op3 = op4 &&
-                  (x, y, z) = (x', y', z') -> Some (op, typ)
-          | _ -> None)
-    | _ -> None in
-  remove_universal f |> function
-    | Eq (f, g) -> find_map is_assoc [(f, g); (g, f)]
-    | _ -> None
-
-let commutative_axiom f = remove_universal f |> function
-    | Eq (f, g) -> (match kind f, kind g with
-        | Binary (op, _, Var (x, typ), Var (y, _)), Binary (op', _, Var (y', _), Var (x', _))
-            when (op, x, y) = (op', x', y') -> Some (op, typ)
-        | _ -> None)
-    | _ -> None
-
 let output_proof pformula =
   let steps =
     search [pformula] (fun p -> unique (p.parents @ p.rewrites)) in
   let id_compare p q = Int.compare p.id q.id in
   List.sort id_compare steps |> iter (print_formula true "");
   print_newline ()
+
+let is_ac_tautology f =
+  let rec ac_reduce f = match kind f with
+    | Binary (op, (Fun (typ, Fun (_, _)) as op_typ), _, _) 
+        when mem (op, typ) !ac_ops ->
+          let terms = std_sort (map ac_reduce (gather_associative op f)) in
+          fold_right1 (binop op op_typ) terms
+    | _ -> map_formula ac_reduce f in
+  match f with
+    | Eq (t, u) -> ac_reduce t = ac_reduce u
+    | _ -> false
 
 (* approximate: equivalent formulas could possibly have different canonical forms *)
 let canonical pformula =
@@ -770,9 +789,11 @@ let finish p f found delta cost =
 let rw_simplify src queue used found p =
   let p1 = repeat_rewrite used p in
   let p = simplify p1 in
-  if is_tautology p.formula then (
+  let taut = is_tautology p.formula in
+  if taut || not (memq p !ac_axioms) && is_ac_tautology p.formula then (
     if !debug > 1 || !debug = 1 && src <> "generated" then (
-      printf "%s tautology: %s ==> " src (show_formula p1.formula);
+      printf "%s %stautology: " src (if taut then "" else "ac ");
+      if p1.formula <> p.formula then printf "%s ==> " (show_formula p1.formula);
       print_formula true "" p
     );
     None)
@@ -789,7 +810,7 @@ let rw_simplify src queue used found p =
             let cost = merge_cost p.parents +. delta in
             if cost > cost_limit then (
               if !debug > 1 then
-                print_formula true "dropping (over cost limit):" {p with cost};
+                print_formula true "dropping (over cost limit): " {p with cost};
               None)
             else
               let f = canonical p in
@@ -904,21 +925,23 @@ let ac_axiom (op, typ) =
 
 type ac_type = Assoc | Comm
 
-let ac_complete formulas =
+let ac_complete formulas : (id * formula * bool * bool) list =
   let rec scan ops = function
-    | (name, f, is_hyp) :: rest -> (name, f, is_hyp) ::
+    | (name, f, is_hyp) :: rest -> 
         let kind = match associative_axiom f with
           | Some op_typ -> Some (Assoc, op_typ)
           | None -> match commutative_axiom f with
             | Some op_typ -> Some (Comm, op_typ)
             | None -> None in
+        (name, f, is_hyp, Option.is_some kind) ::
         (match kind with
           | Some (kind, ((op, _typ) as op_typ)) ->
               let other = match kind with Assoc -> Comm | Comm -> Assoc in
               if mem (other, op_typ) ops then (
                 if !debug > 0 then printf "AC operator: %s\n\n" op;
+                ac_ops := op_typ :: !ac_ops;
                 let axiom =
-                  ("AC completion: " ^ without_type_suffix op, ac_axiom op_typ, false) in
+                  ("AC completion: " ^ without_type_suffix op, ac_axiom op_typ, false, true) in
                 axiom :: scan (remove (kind, op_typ) ops) rest
               ) else scan ((kind, op_typ) :: ops) rest
           | None -> scan ops rest)
@@ -966,14 +989,15 @@ let quick_refute all =
 let prove timeout known_stmts thm invert cancel_check =
   let known_stmts = rev known_stmts in
   consts := filter_map decl_var known_stmts;
+  ac_ops := [];
   let formulas = known_stmts |> filter_map (fun stmt ->
     stmt_formula stmt |> Option.map (fun f ->
       (stmt_name stmt, f, is_hypothesis stmt))) in
   formula_counter := 0;
   let formulas = ac_complete formulas in
-  let _n_formulas = length formulas in
-  let known = formulas |> map (fun (name, f, is_hyp) ->
+  let known = formulas |> map (fun (name, f, is_hyp, is_ac_axiom) ->
     let p = {(to_pformula name f) with hypothesis = is_hyp } in
+    if is_ac_axiom then ac_axioms := p :: !ac_axioms;
     dbg_newline (); p) in
   let pformula = to_pformula (stmt_name thm) (Option.get (stmt_formula thm)) in
   let goal = if invert then pformula else
