@@ -428,7 +428,7 @@ let unify_or_match is_unify =
           if c = c' && typ = typ' then Some subst else None
       | Var (x, typ), f ->
           if f = Var (x, typ) then Some subst
-          else if typ = type_of f then
+          else if typ = type_of f || typ = unknown_type then
             match assoc_opt x subst with
               | Some g ->
                   if is_unify then unify' subst f g

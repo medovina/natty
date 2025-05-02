@@ -78,7 +78,7 @@ and possible_app env dot_types vars formula f g with_dot =
 
 let tuple_cons_type t u = Fun (t, Fun (u, Product (t, u)))
 
-let check_formula env formula as_type =
+let check_formula env formula as_type : formula =
   let dot_types = const_types1 env "·" in
   let rec check vars formula as_type =
     let possible = possible_types env dot_types vars in

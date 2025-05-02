@@ -170,7 +170,7 @@ let rec term s = (record_formula @@ choice [
 
 and next_term s = (not_followed_by space "" >>? term) s
 
-and terms s = (term >>= fun t -> many_fold_left (binop_unknown "·") t next_term) s
+and terms s = (term >>= fun t -> many_fold_left mk_app t next_term) s
 
 (* expressions *)
 
@@ -436,3 +436,7 @@ let program =
 let get_syntax_map = get_user_state |>> fun state -> state.syntax_map
 
 let parse text = MParser.parse_string (pair program get_syntax_map) text empty_state
+
+let parse_formula text = match MParser.parse_string expr text empty_state with
+  | Success f -> f
+  | Failed _ -> failwith "parse_formula" 
