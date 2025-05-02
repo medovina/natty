@@ -454,19 +454,19 @@ let cost p =
         let commutative = p.parents |> exists (fun q -> is_commutative_axiom q) in
         let parent_lits = p.parents |> map (fun q -> num_literals q.formula) in
         let parent_weights = p.parents |> map (fun q -> weight q.formula) in
-        let _min_lits, max_lits = minimum parent_lits, maximum parent_lits in
+        let min_lits, max_lits = minimum parent_lits, maximum parent_lits in
         let min_weight, max_weight = minimum parent_weights, maximum parent_weights in
         let lits, w = num_literals p.formula, weight p.formula in
 
         if exists is_inductive p.parents then 0.03
+        else if lits < min_lits then 0.0
         else if starts_with "res:" p.rule then
           if lits >= max_lits && not (goal || definition) then 10.0 else
           if w < min_weight then 0.0 else
           if w <= max_weight then 0.01 else 0.03
         else
           if commutative then 0.01 else
-          if lits > 1 then 10.0 else
-          if w < max_weight then 0.02 else 10.0
+          if lits <= 1 && w < max_weight then 0.02 else 10.0
 
     | _ -> 0.0
 

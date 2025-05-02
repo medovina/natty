@@ -179,7 +179,7 @@ Lemma 10.  Let a, b, c, d ∈ ℕ.  If a < b and c < d, then bc + ad < ac + bd.
 
 Proof.
 
-  Let a, b, c, d ∈ ℕ, and suppose that a < b and c < d.  Then there exist g, h ∈ ℕ with g > 0 and h > 0 such that b = a + g and d = c + h.  Then
+  Let a, b, c, d ∈ ℕ, and suppose that a < b and c < d.  Then there exist g, h ∈ ℕ with g ≠ 0 and h ≠ 0 such that b = a + g and d = c + h.  Then
 
     ac + bd = ac + (a + g)(c + h)
                 = ac + ac + ah + gc + gh
@@ -187,7 +187,7 @@ Proof.
                 = (a + g)c + a(c + h) + gh
                 = (bc + ad) + gh.
 
-   We must have gh > 0, and so ac + bd < bc + ad.
+   We must have gh ≠ 0, and so ac + bd < bc + ad.
 
 # Integers: definition
 
@@ -348,7 +348,7 @@ Proof.
 
   3. Let i, j, k ∈ ℤ, and suppose that i < j.  There are some a, b, c, d, e, f ∈ ℕ such that i = z(a, b) and j = z(c, d) and k = z(e, f).  Then z(a, b) < z(c, d), and therefore a + d < b + c.  Hence (a + d) + (e + f) < (b + c) + (e + f), and therefore (a + e) + (d + f) < (b + f) + (c + e).  It follows by Axiom 8 that z(a + e, b + f) < z(c + e, d + f), and hence z(a, b) + z(e, f) < z(c, d) + z(e, f), which means that i + k < j + k.
 
-  4. Let i, j, k ∈ ℤ, and suppose that i < j and k > 0.  There are some a, b, c, d, e, f ∈ ℕ such that i = z(a, b) and j = z(c, d) and k = z(e, f). So z(a, b) < z(c, d) and z(e, f) > 0, which means that a + d < b + c and f < e.  So by Lemma 8 we have
+  4. Let i, j, k ∈ ℤ, and suppose that i < j and k > 0.  There are some a, b, c, d, e, f ∈ ℕ such that i = z(a, b) and j = z(c, d) and k = z(e, f). So z(a, b) < z(c, d) and z(e, f) > 0, which means that a + d < b + c and f < e.  So by Lemma 10 we have
   
     (b + c)f + (a + d)e < (a + d)f + (b + c)e.
 
