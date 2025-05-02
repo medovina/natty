@@ -109,9 +109,6 @@ Theorem 7.  Let a, b ∈ ℕ.
   1. Precisely one of a < b or a = b or a > b holds.
   2. a ≤ b or b ≤ a.
   3. If a ≤ b and b ≤ a, then a = b.
-  4. It cannot be that b < a < b + 1.
-  5. a ≤ b if and only if a < b + 1.
-  6. a < b if and only if a + 1 ≤ b.
 
 Proof.
 
@@ -130,8 +127,6 @@ Proof.
   Next suppose that x = y.  Then by Theorem 6.1 it follows that s(x) > x = y.  Finally, suppose that x > y.  We know that s(x) > x, and by Theorem 6.6 it follows that s(x) > y.
 
   Putting the cases together, we see that s(x) < y or s(x) = y or s(x) > y always holds.  Hence s(x) ∈ G, and we conclude that x ∈ G for all x ∈ ℕ.
-
-  4. Let a, b ∈ ℕ.  Suppose that b < a < b + 1.  Then there are g, h ∈ ℕ such that b + g = a and a + h = b + 1.  Then (b + g) + h = b + 1, so (g + h) + b = 1 + b, so g + h = 1.  If g = 0 then b = a, which is a contradiction.  So there is some j ∈ ℕ such that g = s(j).  Similarly, if h = 0 then a = b + 1, which is a contradiction.  So there is some k ∈ ℕ such that h = s(k).  Therefore s(j) + s(k) = 1.  This is a contradiction to Theorem 2.8.
 
 # More identities involving inequalities
 
@@ -161,11 +156,21 @@ Proof.
 
     G = { c ∈ ℕ | if c ≠ 0, then ac < bc }.
 
-  Clearly 0 ∈ G.  Let c ∈ ℕ, and suppose that c ∈ G.  We will show that s(c) ∈ G.  We know that a · 1 < b · 1.  Suppose that c = 0. Then a · s(c) < b · s(c), so s(c) ∈ G.  Conversely, suppose that c ≠ 0.  By hypothesis we know that ac < bc.  Then by Theorem 8.2 we have ac + a < bc + a < bc + b.  So a · s(c) < b · s(c), so s(c) ∈ G.
+  Clearly 0 ∈ G.  Let c ∈ ℕ, and suppose that c ∈ G.  We will show that s(c) ∈ G.  We know that a · 1 < b · 1.  Suppose that c = 0. Then a · s(c) < b · s(c), so s(c) ∈ G.  Conversely, suppose that c ≠ 0.  By hypothesis we know that ac < bc.  Then by Theorem 8.2 we have ac + a < bc + a < bc + b.  So a · s(c) < b · s(c), so s(c) ∈ G.  And so for all x ∈ ℕ, x ∈ G.
 
   5. Let a, b, c ∈ ℕ, and suppose that ac < bc.  If c = 0 then 0 < 0, which is a contradiction.  So c ≠ 0.  If a = b then bc < bc, a contradiction.  If b < a then bc < ac by part (4) of this theorem, so bc < ac < bc, also a contradiction.  By Theorem 7.1, the only alternative is a < b.
 
-Lemma 9.  Let a, b, c, d ∈ ℕ.  If a < b and c < d, then bc + ad < ac + bd.
+Theorem 9.  Let a, b ∈ ℕ.
+
+  1. It cannot be that b < a < b + 1.
+  2. a ≤ b if and only if a < b + 1.
+  3. a < b if and only if a + 1 ≤ b.
+
+Proof.
+
+  1. Let a, b ∈ ℕ.  Suppose that b < a < b + 1.  Then there are g, h ∈ ℕ such that b + g = a and a + h = b + 1.  Then (b + g) + h = b + 1, so (g + h) + b = 1 + b, so g + h = 1.  If g = 0 then b = a, which is a contradiction.  So there is some j ∈ ℕ such that g = s(j).  Similarly, if h = 0 then a = b + 1, which is a contradiction.  So there is some k ∈ ℕ such that h = s(k).  Therefore s(j) + s(k) = 1.  This is a contradiction to Theorem 2.8.
+
+Lemma 10.  Let a, b, c, d ∈ ℕ.  If a < b and c < d, then bc + ad < ac + bd.
 
 Proof.
 
@@ -188,9 +193,9 @@ Axiom 4.  There exists a type ℤ with a function z : ℕ ⨯ ℕ → ℤ such t
 
 Definition.  Let 0 : ℤ = z(0, 0).  Let 1 : ℤ = z(1, 0).
 
-Lemma 10.  For all a, b ∈ ℕ, z(a, b) = 0 if and only if a = b.
+Lemma 11.  For all a, b ∈ ℕ, z(a, b) = 0 if and only if a = b.
 
-Lemma 11.  0 : ℤ ≠ 1 : ℤ.
+Lemma 12.  0 : ℤ ≠ 1 : ℤ.
 
 # Integers: addition
 
@@ -202,7 +207,7 @@ Axiom 6.  There is a unary operation − : ℤ → ℤ such that for all a, b �
 
   −z(a, b) = z(b, a).
 
-Theorem 12.  Let i, j, k ∈ ℤ.
+Theorem 13.  Let i, j, k ∈ ℤ.
 
   1. (i + j) + k = i + (j + k).
   2. i + j = j + i.
@@ -244,7 +249,7 @@ Proof.
                 = z(0, 0)     by Axiom 4(a)
                 = 0.
 
-Theorem 13.  Let x, y, z ∈ ℤ.
+Theorem 14.  Let x, y, z ∈ ℤ.
 
   1. If x + z = y + z, then x = y.
   2. −(−x) = x.
@@ -256,7 +261,7 @@ Axiom 7.  There is a binary operation · : ℤ → ℤ → ℤ such that for all
 
     z(a, b) · z(c, d) = z(ac + bd, ad + bc).
 
-Theorem 14.  Let i, j, k ∈ ℤ.
+Theorem 15.  Let i, j, k ∈ ℤ.
 
   1. (ij)k = i(jk).
   2. ij = ji.
@@ -296,7 +301,7 @@ Proof.
                 = z(a, b) · z(c, d) + z(a, b) · z(e, f)
                 = ij + ik.
 
-Theorem 15.  Let i, j ∈ ℤ.  If ij = 0, then i = 0 or j = 0.
+Theorem 16.  Let i, j ∈ ℤ.  If ij = 0, then i = 0 or j = 0.
 
 Proof.
 
@@ -308,7 +313,7 @@ Proof.
 
   In either case c = d.  Then j = 0 by Lemma 8.
 
-Theorem 16.  Let i, j, k ∈ ℤ.
+Theorem 17.  Let i, j, k ∈ ℤ.
 
   1. i · 0 = 0.
   2. If k ≠ 0 and ik = jk, then i = j.
@@ -323,7 +328,7 @@ Axiom 8.  There is a relation < : ℤ → ℤ → 𝔹 such that for all a, b, c
 
 Definition.  For all i, j ∈ ℤ, we write i > j iff j < i.
 
-Theorem 17.  Let i, j, k ∈ ℤ.
+Theorem 18.  Let i, j, k ∈ ℤ.
 
   1. Precisely one of i < j or i = j or i > j holds.
   2. If i < j and j < k, then i < k.
