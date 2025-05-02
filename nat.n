@@ -107,8 +107,9 @@ Proof.
 Theorem 7.  Let a, b ∈ ℕ.
 
   1. Precisely one of a < b or a = b or a > b holds.
-  2. a ≤ b or b ≤ a.
-  3. If a ≤ b and b ≤ a, then a = b.
+  2. a ≤ b if and only if a ≯ b.
+  3. a ≤ b or b ≤ a.
+  4. If a ≤ b and b ≤ a, then a = b.
 
 Proof.
 

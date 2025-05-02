@@ -41,7 +41,7 @@ let id = var <|> any_str ["𝔹"; "ℕ"; "ℤ"]
 
 let sym = choice [
   empty >>? (digit <|> any_of "+-<>") |>> char_to_string;
-  any_str ["·"; "≤"; "≥"; "≮"];
+  any_str ["·"; "≤"; "≥"; "≮"; "≯"];
   str "−" >>$ "-"]
 
 let minus = any_str ["-"; "−"]
@@ -150,6 +150,7 @@ let prop_operators = [
 let compare_op op = infix op (binop_unknown op) Assoc_right
 
 let mk_not_less f g = _not (binop_unknown "<" f g)
+let mk_not_greater f g = _not (binop_unknown ">" f g)
 
 let var_term = var |>> (fun v -> Var (v, unknown_type))
 
@@ -188,7 +189,8 @@ and base_expr s = expression operators terms s
 and eq_op s = choice ([
   str "=" >>$ mk_eq;
   str "≠" >>$ mk_neq;
-  str "≮" >>$ mk_not_less] @
+  str "≮" >>$ mk_not_less;
+  str "≯" >>$ mk_not_greater] @
   map (fun op -> const_op (str op) op) ["<"; "≤"; ">"; "≥"]) s
 
 and eq_expr s = pair eq_op (base_expr << optional reason) s
