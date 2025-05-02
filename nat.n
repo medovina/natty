@@ -170,6 +170,8 @@ Proof.
 
   1. Let a, b ∈ ℕ.  Suppose that b < a < b + 1.  Then there are g, h ∈ ℕ such that b + g = a and a + h = b + 1.  Then (b + g) + h = b + 1, so (g + h) + b = 1 + b, so g + h = 1.  If g = 0 then b = a, which is a contradiction.  So there is some j ∈ ℕ such that g = s(j).  Similarly, if h = 0 then a = b + 1, which is a contradiction.  So there is some k ∈ ℕ such that h = s(k).  Therefore s(j) + s(k) = 1.  This is a contradiction to Theorem 2.8.
 
+  2. Let a, b ∈ ℕ.  First suppose that a ≤ b.  Suppose further that a ≥ b + 1.  Then by Theorem 6.3 we deduce that b + 1 ≤ b, which is a contradiction to Theorem 6.1.  Second, suppose that a < b + 1.  Suppose further that a > b.  It follows that b < a < b + 1, which is a contradiction to part (1) of this theorem.
+
 Lemma 10.  Let a, b, c, d ∈ ℕ.  If a < b and c < d, then bc + ad < ac + bd.
 
 Proof.

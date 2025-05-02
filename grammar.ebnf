@@ -83,7 +83,7 @@ proposition =
 
 let_prop = 'Let' id_type '.' top_prop
 
-suppose = 'Suppose that' proposition {[','] 'and that' proposition}
+suppose = 'Suppose' ['further'] 'that' proposition {[','] 'and that' proposition}
 
 suppose_then = suppose '.' 'Then' proposition
 
@@ -161,7 +161,7 @@ assert_step =
 
 assert_steps = assert_step {',' and_or_so proof_prop}
 
-now = 'Conversely' | 'First' | 'Finally' | 'Next' | 'Now' |
+now = 'Conversely' | 'First' | 'Finally' | 'Next' | 'Now' | 'Second' |
     'In either case' | 'Putting the cases together'
 
 let_step = 'let' ids_type ['with' small_prop]

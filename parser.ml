@@ -250,7 +250,7 @@ and proposition s = choice [
 
 let rec let_prop s = pipe2 (str "Let" >> id_type << str ".") top_prop _for_all' s
 
-and suppose s = (str "Suppose that" >>
+and suppose s = (str "Suppose" >> opt_str "further" >> str "that" >>
       sep_by1 proposition (opt_str "," >> str "and that")) s
 
 and suppose_then s = pipe2 (suppose << str ".") (str "Then" >> proposition)
@@ -374,7 +374,7 @@ let assert_steps =
   pipe2 assert_step (many (join >> proof_prop |>> map_fst mk_step) |>> concat) (@)
 
 let now = (str "First" >>$ false) <|>
-  (any_str ["Conversely"; "Finally"; "Next"; "Now";
+  (any_str ["Conversely"; "Finally"; "Next"; "Now"; "Second";
             "In either case"; "Putting the cases together"] >>$ true)
 
 let let_step = pipe2 
