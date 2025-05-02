@@ -173,6 +173,8 @@ Proof.
 
   2. Let a, b ∈ ℕ.  First suppose that a ≤ b.  Suppose further that a ≥ b + 1.  Then by Theorem 6.3 we deduce that b + 1 ≤ b, which is a contradiction to Theorem 6.1.  Second, suppose that a < b + 1.  Suppose further that a > b.  It follows that b < a < b + 1, which is a contradiction to part (1) of this theorem.
 
+  3. Let a, b ∈ ℕ.  First suppose that a < b.  Suppose further that a + 1 > b.  It follows that a < b < a + 1, which is a contradiction to part (1) of this theorem.  Second, suppose that a + 1 ≤ b.  Suppose further that a ≥ b.  Then by Theorem 6.3 we deduce that a + 1 ≤ a, which is a contradiction to Theorem 6.1.
+
 Lemma 10.  Let a, b, c, d ∈ ℕ.  If a < b and c < d, then bc + ad < ac + bd.
 
 Proof.
