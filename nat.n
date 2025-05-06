@@ -182,6 +182,8 @@ Proof.
   Let a, b, c, d ∈ ℕ, and suppose that a < b and c < d.  Then there exist g, h ∈ ℕ with g ≠ 0 and h ≠ 0 such that b = a + g and d = c + h.  Then
 
     ac + bd = ac + (a + g)(c + h)
+                = ac + a(c + h) + g(c + h)
+                = ac + ac + ah + g(c + h)
                 = ac + ac + ah + gc + gh
                 = ac + gc + ac + ah + gh
                 = (a + g)c + a(c + h) + gh
