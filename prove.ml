@@ -446,6 +446,8 @@ let eq_pairs para_ok f = match terms f with
         (if para_ok then oriented t t' else [])   (* iii: pre-check *)
   | (false, t, t') -> [(Eq (t, t'), _false)]
 
+let is_resolution p = starts_with "res:" p.rule
+
 let cost p =
   match p.parents with
     | [_; _] ->
@@ -460,11 +462,11 @@ let cost p =
 
         if exists is_inductive p.parents then 0.03
         else if lits < min_lits then 0.0
-        else if starts_with "res:" p.rule then
+        else if is_resolution p then
           if lits >= max_lits && not (goal || definition) then 10.0 else
           if w < min_weight then 0.0 else
           if w <= max_weight then 0.01 else 0.03
-        else
+        else (* paramodulation *)
           if commutative then 0.01 else
           if lits <= 1 && w < max_weight then 0.02 else 10.0
 
