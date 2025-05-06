@@ -25,9 +25,11 @@ all_provers = {
         { 'cmd': 'eprover-ho --auto -s --cpu-limit={timeout}',
           'stats': '--print-statistics', 'given': r'# Processed clauses +: (\d+)' },
     'Vampire' :
-        { 'cmd': 'vampire -t {timeout}' },
+        { 'cmd': 'vampire -t {timeout}',
+          'stats': '-stat full', 'given': r'% Activations started: (\d+)' },
     'Zipperposition' :
-        { 'cmd': 'zipperposition --mode best --input tptp --timeout {timeout}' }
+        { 'cmd': 'zipperposition --mode best --input tptp --timeout {timeout}',
+          'given' : r'^# done (\d+) iterations'}
 }
 all_prover_names = list(all_provers.keys())
 
@@ -124,9 +126,11 @@ def prove(prover, file):
         else:
             status = 'Error'
 
+    success = False
     match status:
         case 'Theorem' | 'ContradictoryAxioms':  # contradictory axioms are still a proof
             time = f'{elapsed:.2f}'
+            success = True
         case 'GaveUp':
             time = 'gave up'
         case 'ResourceOut' | 'Timeout':
@@ -138,11 +142,14 @@ def prove(prover, file):
             assert False
 
     res = {'time' : time }
-    if given_regex != None:
+    if success and given_regex != None:
         for line in lines:
             if m := re.search(given_regex, line):
                 res['given'] = m[1]
                 break
+        else:
+            if prover.startswith('Vampire'):
+                res['given'] = 0
 
     with lock:
         print(clear_line + cmd)
