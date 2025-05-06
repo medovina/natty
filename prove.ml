@@ -976,7 +976,7 @@ let goal_resolve r p =
 let quick_refute all =
   profile "quick_refute" @@ fun () ->
   let index = FormulaMap.of_list (all |> map (fun p -> (canonical p, p))) in
-  let proof p = Proof (p, -1, 0.0) in
+  let proof p = Proof (number_formula p, -1, 0.0) in
   all |> find_map (fun p ->
     all |> find_map (fun q ->
       if p.id >= q.id then None else
@@ -984,7 +984,7 @@ let quick_refute all =
         let r = simplify r in
         if r.formula = _false then Some (proof r)
         else FormulaMap.find_opt (negate (canonical r)) index |> Option.map
-          (fun p -> proof (goal_resolve r p))
+          (fun p -> proof (goal_resolve (number_formula r) p))
       )))
 
 let prove timeout known_stmts thm invert cancel_check =
