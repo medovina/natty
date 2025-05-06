@@ -164,7 +164,7 @@ def run_prover(theorems, prover, results):
     ids = [id for id in theorems.keys() if id not in results[prover]['time']]
 
     if ids != []:
-        with futures.ThreadPoolExecutor(multiprocessing.cpu_count() // 2) as ex:
+        with futures.ThreadPoolExecutor(multiprocessing.cpu_count() // 4) as ex:
             out = ex.map(lambda id: prove1(prover, id), ids)
         for id, stats in zip(ids, out):
             for stat, val in stats.items():
@@ -175,7 +175,7 @@ def run_prover(theorems, prover, results):
 
 def write_results(theorems, results, results_file):
     proved : defaultdict = defaultdict(int)
-    total_time = defaultdict(float)
+    total_stat = defaultdict(lambda: defaultdict(float)) # prover -> stat -> total
     total_score = defaultdict(float)
 
     for prover, stats in results.items():
@@ -185,8 +185,9 @@ def write_results(theorems, results, results_file):
                 try:
                     time = float(r)
                     proved[prover] += 1
-                    total_time[prover] += time
                     total_score[prover] += time
+                    for stat, d in stats.items():
+                        total_stat[prover][stat] += float(d[id])
                 except ValueError:
                     total_score[prover] += 2 * conf.timeout
 
@@ -212,24 +213,24 @@ def write_results(theorems, results, results_file):
         n = len(theorems)
 
         proved_row = [f'proved (of {n})', '']
-        avg_row = ['average time', '']
+        avg_row = ['average', '']
         par2_row = ['PAR-2 score', '']
         stats_rows = [proved_row, avg_row, par2_row]
 
         for prover, stats in prover_stats:
             for stat in stats:
+                avg = total_stat[prover][stat] / proved[prover]
+                avg_row.append(f'{avg:.2f} sec' if stat == 'time' else f'{avg:.1f}')
+
                 if stat == 'time':
                     percent = proved[prover] / n * 100
                     proved_row.append(f'{proved[prover]} ({percent:.0f}%)')
 
-                    avg_time = total_time[prover] / proved[prover]
-                    avg_row.append(f'{avg_time:.2f}')
-
                     par2 = total_score[prover] / n
                     par2_row.append(f'{par2:.2f}')
                 else:
-                    for row in stats_rows:
-                        row.append('')
+                    proved_row.append('')
+                    par2_row.append('')
 
         for row in stats_rows:
             writer.writerow(row)
@@ -253,7 +254,6 @@ def parse_args():
             conf.stats = True
         elif arg.startswith('-t'):
             conf.timeout = int(arg[2:])
-            # timeout_suffix = f'_{timeout}'
         else:
             break
         i += 1

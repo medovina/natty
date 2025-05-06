@@ -1068,9 +1068,9 @@ let prove_all thf prog =
                 prove !(opts.timeout) known thm !(opts.disprove) (Fun.const false) in
               let b = match result with
                   | Proof (pf, given, cost) ->
-                      let stats = if given < 0 then "quick" else
-                        sprintf "given clauses: %d; cost: %.2f" given cost in
-                      printf "%sproved in %.2f s (%s)\n" dis elapsed stats;
+                      let stats = if given < 0 then "0; quick" else
+                        sprintf "%d; cost: %.2f" given cost in
+                      printf "%sproved in %.2f s (given clauses: %s)\n" dis elapsed stats;
                       if !(opts.show_proofs) then (
                         print_newline ();
                         output_proof pf);
