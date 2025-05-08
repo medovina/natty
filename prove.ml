@@ -756,7 +756,10 @@ end) (struct
 end)
 
 let queue_delta p =
-  if p.parents = [] || p.rule = "negate" then 0.1 else p.delta
+  if orig_goal p && p.rule = "negate1" then 0.1
+  else if orig_hyp p then 0.2
+  else if orig_goal p then 0.3
+  else p.delta
 
 let queue_cost p = (p.cost, queue_delta p, p.id)
 
@@ -1003,10 +1006,12 @@ let prove timeout known_stmts thm invert cancel_check =
     if is_ac_axiom then ac_axioms := p :: !ac_axioms;
     dbg_newline (); p) in
   let pformula = to_pformula (stmt_name thm) (Option.get (stmt_formula thm)) in
-  let goal = if invert then pformula else
-    create_pformula "negate" [pformula] (_not pformula.formula) in
+  let goals = if invert then [pformula] else
+    ["negate1"; "negate"] |> map (fun rule ->
+      create_pformula rule [pformula] (_not pformula.formula)) in
+  let goals = goals |> map (fun g -> {g with goal = true}) in
+  let all = known @ goals in
   dbg_newline ();
-  let all = known @ [{goal with goal = true}] in
   let start = Sys.time () in
   let result = if !(opts.no_quick) then None else quick_refute all in
   let result = match result with

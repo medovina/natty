@@ -189,7 +189,7 @@ Proof.
                 = (a + g)c + a(c + h) + gh
                 = (bc + ad) + gh.
 
-   We must have gh ≠ 0, and so ac + bd < bc + ad.
+   We must have gh ≠ 0, and so bc + ad < ac + bd.
 
 # Integers: definition
 
