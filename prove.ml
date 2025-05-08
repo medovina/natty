@@ -462,8 +462,9 @@ let cost p =
 
         if exists is_inductive p.parents then 0.03
         else if lits < min_lits then 0.0
+        else if lits > max_lits then 10.0
         else if is_resolution p then
-          if lits >= max_lits && not (goal || definition) then 10.0 else
+          if lits = max_lits && not (goal || definition) then 10.0 else
           if w < min_weight then 0.0 else
           if w <= max_weight then 0.01 else 0.03
         else (* paramodulation *)
