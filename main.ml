@@ -48,8 +48,8 @@ let rec show_derivation = function
   | Inference (id, [d]) -> show_derivation d ^ ", " ^ id
   | Inference ("rw", [d; Step id]) ->
       show_derivation d ^ sprintf ", rw(%s)" (id_num id)
-  | Inference ("spm", [d1; d2]) ->
-      sprintf "%s, %s, spm" (show_derivation d1) (show_derivation d2)
+  | Inference (rule, [d1; d2]) ->
+      sprintf "%s, %s, %s" (show_derivation d1) (show_derivation d2) rule
   | Inference _ -> failwith "show_derivation"
   | File -> "file"
 
