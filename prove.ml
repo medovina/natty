@@ -637,13 +637,17 @@ let rewrite1 quick dp cp = rewrite quick dp cp (blue_subterms cp.formula)
  *   ═══════════════   subsume
  *         C                 *)
 
-let any_subsumes cs dp =
-  let d = prefix_vars (remove_quantifiers dp.formula) in
-  let ds = mini_clausify d in
-  let subsumes cp =
-    ds |> exists (fun p ->
-      Option.is_some (try_match (remove_universal cp.formula) p)) in
-  find_opt subsumes cs 
+let subsumes cp d_lits =
+  d_lits |> exists (fun p ->
+    Option.is_some (try_match (remove_universal cp.formula) p))
+
+let prefix_lits dp = mini_clausify (prefix_vars (remove_quantifiers dp.formula))
+
+let subsumes1 cp dp = subsumes cp (prefix_lits dp)
+
+let any_subsumes cs dp : pformula option =
+  let d_lits = prefix_lits dp in
+  cs |> find_opt (fun cp -> subsumes cp d_lits)
 
 let rec expand f = match or_split f with
   | Some (s, t) -> expand s @ expand t
@@ -855,15 +859,20 @@ let forward_simplify queue used found p =
   profile "forward_simplify" @@ fun () ->
   rw_simplify "given is" queue used found p
   
-let back_simplify from used =
+let back_simplify from used : pformula list =
   profile "back_simplify" @@ fun () ->
   let rec loop = function
-  | [] -> ([], [])
-  | p :: ps ->
-      let (ps', rewritten) = loop ps in
-      match rewrite_from [from] p with
-        | Some p' -> (ps', p' :: rewritten)
-        | None -> (p :: ps', rewritten) in
+    | [] -> ([], [])
+    | p :: ps ->
+        let (ps', rewritten) = loop ps in
+        if subsumes1 from p then (
+          if !debug > 1 then
+            printf "%d. %s was back subsumed by %d. %s\n"
+              p.id (show_formula p.formula) from.id (show_formula from.formula);
+          (ps', rewritten))
+        else match rewrite_from [from] p with
+          | Some p' -> (ps', p' :: rewritten)
+          | None -> (p :: ps', rewritten) in
   let (new_used, rewritten) = loop !used in
   used := new_used;
   rewritten
