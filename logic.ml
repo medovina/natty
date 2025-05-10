@@ -363,16 +363,20 @@ let rec gather_lambdas = function
 let remove_quants with_existential =
   let rec remove f = match bool_kind f with
     | Quant ("∀", _x, _typ, g) -> remove g
-    | Quant ("∃", _x, _typ, g) when with_existential -> remove g
+    | Quant ("∃", x, _typ, g) when with_existential ->
+        let (f, ex) = remove g in
+        (f, x :: ex)
     | Not g -> (match bool_kind g with
-        | Quant ("∀", _x, _typ, h) when with_existential -> remove (_not h)
+        | Quant ("∀", x, _typ, h) when with_existential ->
+            let (f, ex) = remove (_not h) in
+            (f, x :: ex)
         | Quant ("∃", _x, _typ, h) -> remove (_not h)
-        | _ -> f)
-    | _ -> f in
+        | _ -> (f, []))
+    | _ -> (f, []) in
   remove
 
-let remove_universal = remove_quants false
-let remove_quantifiers = remove_quants true
+let remove_universal f = fst (remove_quants false f)
+let remove_quantifiers f = fst (remove_quants true f)
 
 let rec rename id avoid =
   if mem id avoid then rename (id ^ "'") avoid else id

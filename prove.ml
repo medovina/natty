@@ -96,8 +96,6 @@ let orig_goal p = p.goal && not p.derived
 
 let orig_hyp p = p.hypothesis && not p.derived
 
-let in_support p = p.hypothesis || p.goal
-
 let merge_cost parents = match unique parents with
     | [] -> 0.0
     | [p] -> p.cost
@@ -365,10 +363,14 @@ let clausify1 id lits in_use =
 
 let clausify p = clausify1 p.id [p.formula] None
 
+let prefix_var var = "$" ^ var
+
+let is_prefixed var = var.[0] = '$'
+
 let prefix_vars f =
   let rec prefix outer = function
     | Var (x, typ) when not (mem x outer) ->
-        Var ("$" ^ x, typ)
+        Var (prefix_var x, typ)
     | Lambda (x, _typ, f) ->
         Lambda (x, _typ, prefix (x :: outer) f)
     | f -> map_formula (prefix outer) f
@@ -378,7 +380,7 @@ let unprefix_vars f =
   let rec build_map all_vars = function
     | [] -> []
     | var :: rest ->
-        if var.[0] = '$' then
+        if is_prefixed var then
           let v = string_from var 1 in
           let w = next_var v all_vars in
           (var, w) :: build_map (w :: all_vars) rest
@@ -386,7 +388,7 @@ let unprefix_vars f =
   let var_map = build_map (all_vars f) (free_vars f) in
   let rec fix outer = function
     | Var (v, typ) as var when not (mem v outer) ->
-        if v.[0] = '$' then Var (assoc v var_map, typ) else var
+        if is_prefixed v then Var (assoc v var_map, typ) else var
     | Lambda (x, _typ, f) ->
       Lambda (x, _typ, fix (x :: outer) f)
     | f -> map_formula (fix outer) f in
@@ -469,7 +471,9 @@ let cost p =
           if w <= max_weight then 0.01 else 0.03
         else (* paramodulation *)
           if commutative then 0.01 else
-          if lits <= 1 && w < max_weight then 0.02 else 10.0
+          if w < max_weight then
+            if lits <= 2 then 0.02 else 10.0
+          else 10.0
 
     | _ -> 0.0
 
@@ -531,7 +535,8 @@ let all_super quick dp cp : pformula list =
   let no_induct d c = is_inductive c &&
     (not (orig_goal d) && not (orig_hyp d) || inducted d) in
   let allow p =
-    in_support p || p.definition || is_commutative_axiom p in
+    p.hypothesis || p.goal || p.definition || is_commutative_axiom p ||
+    num_literals p.formula = 1 in
   if not (allow dp || allow cp) || no_induct dp cp || no_induct cp dp
   then [] else
     let d_steps, c_steps = clausify_steps dp, clausify_steps cp in
@@ -637,21 +642,34 @@ let rewrite1 quick dp cp = rewrite quick dp cp (blue_subterms cp.formula)
  *   ═══════════════   subsume
  *         C                 *)
 
-let subsumes cp d_lits : bool =
-  let rec subsume c_lits d_lits subst : bool = match c_lits with
+let subsumes cp (d_lits, d_exist) : bool =
+  let subsume subst c d =
+    if d_exist = [] then try_match subst c d
+    else
+      (* Existential subsumption, e.g. x + 0 = x subsumes ∃z:ℕ.x + z = x *)
+      let* subst = unify_or_match true subst c d in
+      if subst |> for_all (fun (id, f) ->
+        not (is_prefixed id) || mem id d_exist || 
+          match f with
+            | Var (id, _typ) -> not (is_prefixed id)
+            | _ -> false) then Some subst else None in
+  let rec subsume_lits c_lits d_lits subst : bool = match c_lits with
     | [] -> true
     | c :: c_lits ->
         d_lits |> exists (fun d ->
-          try_match subst c d |> opt_exists (fun subst ->
-            subsume c_lits (remove1q d d_lits) subst)) in
+          subsume subst c d |> opt_exists (fun subst ->
+            subsume_lits c_lits (remove1q d d_lits) subst)) in
   let c_lits = mini_clausify (remove_universal cp.formula) in
-  subsume c_lits d_lits []
+  subsume_lits c_lits d_lits []
 
-let prefix_lits dp = mini_clausify (prefix_vars (remove_quantifiers dp.formula))
+let prefix_lits dp =
+  let (f, exist) = remove_quants true dp.formula in
+  (mini_clausify (prefix_vars f), map prefix_var exist)
 
 let subsumes1 cp dp = subsumes cp (prefix_lits dp)
 
 let any_subsumes cs dp : pformula option =
+  profile "any_subsumes" @@ fun () ->
   let d_lits = prefix_lits dp in
   cs |> find_opt (fun cp -> subsumes cp d_lits)
 
@@ -802,7 +820,7 @@ let finish p f found delta cost =
   if p.id = !(opts.show_proof_of) then output_proof p;
   p
 
-let rw_simplify src queue used found p =
+let rw_simplify cheap src queue used found p =
   let p1 = repeat_rewrite used p in
   let p = simplify p1 in
   let taut = is_tautology p.formula in
@@ -814,7 +832,7 @@ let rw_simplify src queue used found p =
     );
     None)
   else
-    match any_subsumes !used p with
+    match (if cheap then None else any_subsumes !used p) with
       | Some pf ->
           if !debug > 0 then (
             let prefix = sprintf "%s subsumed by #%d: " src pf.id in
@@ -863,7 +881,7 @@ let szs = function
                   
 let forward_simplify queue used found p =
   profile "forward_simplify" @@ fun () ->
-  rw_simplify (sprintf "given (#%d) is" p.id) queue used found p
+  rw_simplify false (sprintf "given (#%d) is" p.id) queue used found p
   
 let back_simplify from used : pformula list =
   profile "back_simplify" @@ fun () ->
@@ -890,7 +908,7 @@ let generate p used =
 let rw_simplify_all queue used found ps =
   profile "rw_simplify_all" @@ fun () ->
   let simplify (p: pformula) =
-    let p = rw_simplify "generated" queue used found p in
+    let p = rw_simplify true "generated" queue used found p in
     p |> Option.iter (fun p -> queue := PFQueue.add p (queue_cost p) !queue);
     p in
   filter_map simplify ps
