@@ -418,7 +418,7 @@ let eta = function
   | Lambda (id, typ, App (f, Var (id', typ'))) when id = id' && typ = typ' -> f  
   | f -> f
 
-let unify_or_match is_unify =
+let unify_or_match is_unify subst =
   let rec unify' subst t u =
     let unify_pairs f g f' g' =
       let* subst = unify' subst f f' in
@@ -457,9 +457,9 @@ let unify_or_match is_unify =
               else Some subst
           else None
       | _, _ -> None
-  in unify' []
+  in unify' subst
 
-let unify = unify_or_match true
+let unify = unify_or_match true []
 let try_match = unify_or_match false
 
 let rec chain_ops (f, ops_exprs) = match ops_exprs with

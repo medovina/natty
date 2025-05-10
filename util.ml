@@ -17,6 +17,10 @@ let opt_for_all f = function
 
 let opt_all_eq x = opt_for_all ((=) x)
 
+let opt_exists f = function
+  | Some x -> f x
+  | None -> false
+
 let opt_fold f opt acc = fold_right f (Option.to_list opt) acc
 
 let opt_or x y = match x with
@@ -168,16 +172,16 @@ let intersect xs ys = filter (fun x -> mem x ys) xs
 let overlap xs ys = intersect xs ys <> []
 
 let subtract xs ys = filter (fun x -> not (mem x ys)) xs
-
 let subtractq xs ys = filter (fun x -> not (memq x ys)) xs
 
 let remove x xs = subtract xs [x]
 
-let removeq x xs = subtractq xs [x]
-
-let rec remove1 x = function
+let rec remove1_by op x = function
   | [] -> failwith "not found"
-  | y :: ys -> if x = y then ys else y :: remove1 x ys
+  | y :: ys -> if op x y then ys else y :: remove1_by op x ys
+
+let remove1 x xs = remove1_by (=) x xs
+let remove1q x xs = remove1_by (==) x xs
 
 let union xs ys = subtract xs ys @ ys
 

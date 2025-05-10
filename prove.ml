@@ -620,7 +620,7 @@ let rewrite quick dp cp c_subterms : pformula list =
   let t, t' = prefix_vars t, prefix_vars t' in
   let c = cp.formula in
   let+ u = c_subterms in
-  match try_match t u with
+  match try_match [] t u with
     | Some sub ->
         let t_s, t'_s = u, rsubst sub t' in
         if term_gt t_s t'_s &&  (* (i) *)
@@ -637,9 +637,15 @@ let rewrite1 quick dp cp = rewrite quick dp cp (blue_subterms cp.formula)
  *   ═══════════════   subsume
  *         C                 *)
 
-let subsumes cp d_lits =
-  d_lits |> exists (fun p ->
-    Option.is_some (try_match (remove_universal cp.formula) p))
+let subsumes cp d_lits : bool =
+  let rec subsume c_lits d_lits subst : bool = match c_lits with
+    | [] -> true
+    | c :: c_lits ->
+        d_lits |> exists (fun d ->
+          try_match subst c d |> opt_exists (fun subst ->
+            subsume c_lits (remove1q d d_lits) subst)) in
+  let c_lits = mini_clausify (remove_universal cp.formula) in
+  subsume c_lits d_lits []
 
 let prefix_lits dp = mini_clausify (prefix_vars (remove_quantifiers dp.formula))
 
