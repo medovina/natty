@@ -23,7 +23,8 @@ all_provers = {
         { 'cmd': './natty -t{timeout}', 'given': r'given clauses: (\d+)' },
     'E' :   # -s: silent
         { 'cmd': 'eprover-ho --auto -s --cpu-limit={timeout}',
-          'stats': '--print-statistics', 'given': r'# Processed clauses +: (\d+)' },
+          'stats': '--print-statistics',
+          'given': r'# ...remaining for further processing +: (\d+)' },
     'Vampire' :
         { 'cmd': 'vampire -t {timeout}',
           'stats': '-stat full', 'given': r'% Activations started: (\d+)' },
