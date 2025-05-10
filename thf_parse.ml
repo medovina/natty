@@ -4,9 +4,10 @@ open Logic
 open Statement
 open Util
 
-let comment = any_of "%#" << skip_many_until any_char newline
+let comment = (any_of "%#" >> skip_many_until any_char newline)
+  <|> (string "/*" >> skip_many_until any_char (string "*/"))
 
-let empty = skip_many (space <|> comment)
+let empty = skip_many (skip space <|> comment)
 
 let str s = empty >>? string s
 
