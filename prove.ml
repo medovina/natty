@@ -863,7 +863,7 @@ let szs = function
                   
 let forward_simplify queue used found p =
   profile "forward_simplify" @@ fun () ->
-  rw_simplify "given is" queue used found p
+  rw_simplify (sprintf "given (#%d) is" p.id) queue used found p
   
 let back_simplify from used : pformula list =
   profile "back_simplify" @@ fun () ->
@@ -908,17 +908,17 @@ let refute timeout pformulas cancel_check =
     else if cancel_check () then Stopped
     else match PFQueue.pop !queue with
       | None -> GaveUp
-      | Some ((p, _cost), q) ->
+      | Some ((given, _cost), q) ->
           queue := q;
-          let max_cost = max p.cost max_cost in
-          let count = if count = 0 then (if p.goal then 1 else 0) else count + 1 in
-          let prefix = if count = 0 then "" else sprintf "#%d, " count in
-          dbg_print_formula false (sprintf "[%s%.3f s] given: " prefix elapsed) p;
-          match forward_simplify queue used found p with
+          let max_cost = max given.cost max_cost in
+          match forward_simplify queue used found given with
             | None ->
                 if !debug > 0 then print_newline ();
                 loop count max_cost
             | Some p ->
+                let count = if count = 0 then (if p.goal then 1 else 0) else count + 1 in
+                let prefix = if count = 0 then "" else sprintf "#%d, " count in
+                dbg_print_formula false (sprintf "[%s%.3f s] given: " prefix elapsed) given;
                 if p.formula = _false then Proof (p, count, max_cost) else
                   let rewritten = back_simplify p used in
                   used := p :: !used;
