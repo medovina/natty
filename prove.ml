@@ -621,20 +621,22 @@ let update p rewriting f =
  *)
 let rewrite quick dp cp c_subterms : pformula list =
   if dp.id = cp.id then [] else
-  let+ (t, t') = eq_pairs true (remove_universal dp.formula) in
-  let t, t' = prefix_vars t, prefix_vars t' in
-  let c = cp.formula in
-  let+ u = c_subterms in
-  match try_match [] t u with
-    | Some sub ->
-        let t_s, t'_s = u, rsubst sub t' in
-        if term_gt t_s t'_s &&  (* (i) *)
-           (quick || type_of t = Bool ||
-              not (clause_gt [Eq (t_s, t'_s)] [cp.formula])) then (* (ii) *)
-          let e = b_reduce (replace_in_formula t'_s t_s c) in
-          [update cp (Some dp) e]
-        else []
-    | _ -> []
+  let d = remove_universal dp.formula in
+  if num_literals d > 1 then [] else
+    let+ (t, t') = eq_pairs true d in
+    let t, t' = prefix_vars t, prefix_vars t' in
+    let c = cp.formula in
+    let+ u = c_subterms in
+    match try_match [] t u with
+      | Some sub ->
+          let t_s, t'_s = u, rsubst sub t' in
+          if term_gt t_s t'_s &&  (* (i) *)
+            (quick || type_of t = Bool ||
+                not (clause_gt [Eq (t_s, t'_s)] [cp.formula])) then (* (ii) *)
+            let e = b_reduce (replace_in_formula t'_s t_s c) in
+            [update cp (Some dp) e]
+          else []
+      | _ -> []
 
 let rewrite1 quick dp cp = rewrite quick dp cp (blue_subterms cp.formula)
 
