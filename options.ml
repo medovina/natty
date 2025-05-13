@@ -7,11 +7,12 @@ type options = {
   keep_going: bool ref;
   no_quick: bool ref;
   only_quick: bool ref;
+  only_thm: string option ref;
+  onward: bool ref;
   pipe: string ref;
   server: bool ref;
   show_proofs: bool ref;
   show_proof_of: int ref;
-  only_thm: string option ref;
   timeout: float ref;
   verbose: bool ref
 }
@@ -23,11 +24,12 @@ let opts = {
   keep_going = ref false;
   no_quick = ref false;
   only_quick = ref false;
+  only_thm = ref None;
+  onward = ref false;
   pipe = ref "";
   server = ref false;
   show_proofs = ref false;
   show_proof_of = ref 0;
-  only_thm = ref None;
   timeout = ref 5.0;
   verbose = ref false
 }
@@ -49,8 +51,9 @@ let parse_args args =
             | 'd' -> let level = if arg = "-d" then 1 else int_val () in
                      debug := level
             | 'e' -> opts.e_proof := true
+            | 'f' -> opts.only_thm := Some value; opts.onward := true
             | 'l' -> opts.server := true
-            | 'n' -> opts.only_thm := Some value
+            | 'o' -> opts.only_thm := Some value
             | 'p' -> if arg = "-p" then opts.show_proofs := true
                      else opts.show_proof_of := int_val ()
             | 'q' -> opts.only_quick := true
@@ -81,8 +84,9 @@ let parse_args args =
       -c              try to disprove all theorems
       -d<level>       debug level
       -e              reformat proof from E
+      -f<name>        prove/export given theorem and following theorems
       -l              run as language server
-      -n<name>        only prove/export theorem with given name
+      -o<name>        only prove/export given theorem or proof step
       -p[<id>]        output proof of theorems, or only of given formula
       --pipe=<name>   pipe name for language server
       -q              only use quick refute

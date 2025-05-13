@@ -156,16 +156,20 @@ let number_hypotheses name stmts =
 
 let expand_proofs stmts : (statement * statement list) list =
   let only_thm = !(opts.only_thm) in
+  let active = ref false in
   let rec expand known = function
     | stmt :: stmts ->
         let thms = match stmt with
           | Theorem (name, _, proof, _) as thm -> (
-            (if (opt_all_eq name only_thm) then [(thm, known)] else []) @
-              match proof with
+            let thm_known =
+              if !active || (opt_all_eq name only_thm)
+                then (active := !(opts.onward); [(thm, known)]) else [] in
+            thm_known @ match proof with
                 | Some (ExpandedSteps fs) ->
                     fs |> filter_mapi (fun j stmts ->
                       let step_name = sprintf "%s.s%d" name (j + 1) in
-                      if (only_thm |> opt_for_all (fun o -> o = name || o = step_name)) then
+                      if !active || (only_thm |>
+                            opt_for_all (fun o -> o = name || o = step_name)) then
                         let (hypotheses, conjecture) = split_last stmts in
                         Some (set_stmt_id step_name conjecture,
                               rev (number_hypotheses name hypotheses) @ known)
