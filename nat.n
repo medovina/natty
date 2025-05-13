@@ -272,8 +272,9 @@ Theorem 15.  Let i, j, k ∈ ℤ.
 
   1. (ij)k = i(jk).
   2. ij = ji.
-  3. i · 1 = i.
-  4. i(j + k) = ij + ik.
+  3. i · 0 = 0.
+  4. i · 1 = i.
+  5. i(j + k) = ij + ik.
   
 Proof.
 
@@ -297,7 +298,7 @@ Proof.
       = z(c, d) · z(a, b)
       = ji.
 
-  4. Let i, j, k ∈ ℤ.  There are some a, b, c, d, e, f ∈ ℕ such that i = z(a, b) and j = z(c, d) and k = z(e, f).  Then
+  5. Let i, j, k ∈ ℤ.  There are some a, b, c, d, e, f ∈ ℕ such that i = z(a, b) and j = z(c, d) and k = z(e, f).  Then
 
     i(j + k) = z(a, b) · (z(c, d) + z(e, f))
                 = z(a, b) · z(c + e, d + f)
@@ -322,10 +323,8 @@ Proof.
 
 Theorem 17.  Let i, j, k ∈ ℤ.
 
-  1. i · 0 = 0.
-  2. If k ≠ 0 and ik = jk, then i = j.
-  3. (−i)j = −(ij) = i(−j).
-  4. ij = 1 if and only if i = j = 1 or i = j = −1.
+  1. If k ≠ 0 and ik = jk, then i = j.
+  2. (−i)j = −(ij) = i(−j).
 
 # Integers: inequalities
 
@@ -333,7 +332,9 @@ Axiom 8.  There is a relation < : ℤ → ℤ → 𝔹 such that for all a, b, c
 
     z(a, b) < z(c, d) if and only if a + d < b + c.
 
-Definition.  For all i, j ∈ ℤ, we write i > j iff j < i.
+Definition.  For all i, j ∈ ℤ, i ≤ j iff i < j or i = j.
+
+Definition.  For all i, j ∈ ℤ, we write i > j iff j < i.  We write i ≥ j iff j ≤ i.
 
 Theorem 18.  Let i, j, k ∈ ℤ.
 
@@ -359,3 +360,11 @@ Proof.
     (ae + bf) + (cf + de) < (af + be) + (ce + df).
     
   So z(ae + bf, af + be) < z(ce + df, cf + de) by Axiom 8.  And so z(a, b) · z(e, f) < z(c, d) · z(e, f), so we have ik < jk.
+
+Theorem 19.  Let i, j ∈ ℤ.
+
+  1. i > 0 if and only if -i < 0, and i < 0 if and only if -i > 0.
+  2. 0 : ℤ < 1 : ℤ.
+  3. If i ≤ j and j ≤ i, then i = j.
+  4. If i > 0 and j > 0, then ij > 0.
+  5. If i > 0 and j < 0, then ij < 0. 
