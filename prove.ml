@@ -313,7 +313,7 @@ let clausify_step id lits in_use =
           Some ([f], [f])
       | Quant ("∃", x, typ, g) ->
           let vars_types = free_vars_types f in
-          let skolem_type = fold_right1 mk_fun_type (typ :: map snd vars_types) in
+          let skolem_type = fold_right1 mk_fun_type (map snd vars_types @ [typ]) in
           let c = sprintf "%s%d" x id in
           let c = match in_use with
             | Some names ->
