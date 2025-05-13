@@ -396,20 +396,21 @@ let unprefix_vars f =
 
 (* Gather green or blue subterms.  *)
 let subterms is_blue t =
-  let rec gather parent_eq acc t = (t, parent_eq) :: match t with
-    | App _ ->
-        let (head, args) = collect_args t in
-        if head = c_for_all || head = c_exists then
-          if is_blue then match args with
-            | [Lambda (_x, _typ, f)] -> gather parent_eq acc f
-            | _ -> acc
-          else acc
-        else fold_left (gather parent_eq) acc
-                (if is_blue then head :: args else args)
-    | Eq (f, g) ->
-        let acc = gather ((f, g) :: parent_eq) acc f in
-        gather ((g, f) :: parent_eq) acc g
-    | _-> acc in
+  let rec gather parent_eq acc t =
+    (if is_var t then [] else [(t, parent_eq)]) @ match t with
+      | App _ ->
+          let (head, args) = collect_args t in
+          if head = c_for_all || head = c_exists then
+            if is_blue then match args with
+              | [Lambda (_x, _typ, f)] -> gather parent_eq acc f
+              | _ -> acc
+            else acc
+          else fold_left (gather parent_eq) acc
+                  (if is_blue then head :: args else args)
+      | Eq (f, g) ->
+          let acc = gather ((f, g) :: parent_eq) acc f in
+          gather ((g, f) :: parent_eq) acc g
+      | _-> acc in
   gather [] [] t
 
 let green_subterms = subterms false
