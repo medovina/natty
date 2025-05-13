@@ -1,6 +1,7 @@
 open Printf
 
 open Logic
+open Options
 open Util
 
 type pos = int * int   (* line number, colum number *)
@@ -144,3 +145,37 @@ let show_statement multi s =
           sprintf "definition %s: %s = " (without_type_suffix id) (show_type typ) in
         show prefix f
     | Theorem (_, f, _, _) -> show (name ^ ": ") f
+
+let number_hypotheses name stmts =
+  let f n = function
+    | (Hypothesis _) as hyp ->
+        let hyp_name = sprintf "%s.h%d" name n in
+        (n + 1, set_stmt_id hyp_name hyp)
+    | stmt -> (n, stmt) in
+  snd (fold_left_map f 1 stmts)
+
+let expand_proofs stmts : (statement * statement list) list =
+  let only_thm = !(opts.only_thm) in
+  let rec expand known = function
+    | stmt :: stmts ->
+        let thms = match stmt with
+          | Theorem (name, _, proof, _) as thm -> (
+            (if (opt_all_eq name only_thm) then [(thm, known)] else []) @
+              match proof with
+                | Some (ExpandedSteps fs) ->
+                    fs |> filter_mapi (fun j stmts ->
+                      let step_name = sprintf "%s.s%d" name (j + 1) in
+                      if (only_thm |> opt_for_all (fun o -> o = name || o = step_name)) then
+                        let (hypotheses, conjecture) = split_last stmts in
+                        Some (set_stmt_id step_name conjecture,
+                              rev (number_hypotheses name hypotheses) @ known)
+                      else None)
+                | Some (Steps _) -> assert false
+                | None -> [])
+          | _ -> [] in
+        thms @ expand (stmt :: known) stmts
+    | [] -> [] in
+  let res = expand [] stmts in
+  only_thm |> Option.iter (fun only_thm ->
+    if res = [] then failwith (sprintf "theorem %s not found" only_thm));
+  res
