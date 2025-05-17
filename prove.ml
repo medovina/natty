@@ -751,11 +751,11 @@ let is_tautology f =
   let (pos, neg) = pos_neg (map canonical_lit (map simp (expand f))) in
   exists taut_lit pos || intersect pos neg <> []
 
+let all_steps pformula =
+  search [pformula] (fun p -> unique (p.parents @ p.rewrites))
+
 let output_proof pformula =
-  let steps =
-    search [pformula] (fun p -> unique (p.parents @ p.rewrites)) in
-  let id_compare p q = Int.compare p.id q.id in
-  List.sort id_compare steps |> iter (print_formula true "");
+  sort_by (fun pf -> pf.id) (all_steps pformula) |> iter (print_formula true "");
   print_newline ()
 
 let is_ac_tautology f =
@@ -915,14 +915,36 @@ let rw_simplify_all queue used found ps =
     p |> Option.iter (fun p -> queue := PFQueue.add p (queue_cost p) !queue);
     p in
   filter_map simplify ps
-  
-let refute timeout pformulas cancel_check =
+
+let trim_rule rule =
+  match String.index_opt rule ':' with
+    | Some i -> String.sub rule 0 i
+    | None -> rule
+
+let step_rule pf =
+  if pf.parents = [] then "axiom"
+  else if pf.rule = "negate" || pf.rule = "negate1" then "goal"
+  else trim_rule pf.rule
+
+let csv_header = "theorem,id,rule,in_proof,formula"
+
+let write_generated thm_name all proof out =
+  let thm_name = str_replace "theorem" "thm" thm_name in
+  let in_proof = all_steps proof in
+  sort_by (fun pf -> pf.id) all |> iter (fun pf ->
+    fprintf out "\"%s\",%d,%s,%d,%s\n"
+      thm_name pf.id (step_rule pf)
+      (int_of_bool (memq pf in_proof)) (show_formula pf.formula)
+  )
+
+let refute thm_name timeout pformulas cancel_check gen_out : result =
   profile "refute" @@ fun () ->
   let found = ref @@ FormulaMap.of_list (pformulas |> map (fun p -> (canonical p, p))) in
   let used = ref [] in
   let queue = ref PFQueue.empty in
   queue_add queue pformulas;
   let start = Sys.time () in
+  let all_generated = ref pformulas in
   let rec loop count max_cost =
     let elapsed = Sys.time () -. start in
     if timeout > 0.0 && elapsed > timeout then Timeout
@@ -950,9 +972,16 @@ let refute timeout pformulas cancel_check =
                   match find_opt (fun p -> p.formula = _false) new_pformulas with
                     | Some p -> Proof (p, count, max_cost)
                     | None ->
+                        if !(opts.record_generated) then
+                          all_generated := new_pformulas @ !all_generated;
                         queue_add queue new_pformulas;
-                        loop count max_cost
-  in loop 0 0.0
+                        loop count max_cost in
+  let res = loop 0 0.0 in (
+  match res with
+    | Proof (proof, _, _) ->
+        gen_out |> Option.iter (write_generated thm_name !all_generated proof);
+    | _ -> ());
+  res
 
 (* Given an associative/commutative operator *, construct the axiom
  *     x * (y * z) = y * (x * z)
@@ -1029,7 +1058,7 @@ let quick_refute all =
           (fun p -> proof (goal_resolve (number_formula r) p))
       )))
 
-let prove timeout known_stmts thm invert cancel_check =
+let prove timeout known_stmts thm cancel_check gen_out =
   let known_stmts = rev known_stmts in
   consts := filter_map decl_var known_stmts;
   ac_ops := [];
@@ -1043,7 +1072,7 @@ let prove timeout known_stmts thm invert cancel_check =
     if is_ac_axiom then ac_axioms := p :: !ac_axioms;
     dbg_newline (); p) in
   let pformula = to_pformula (stmt_name thm) (Option.get (stmt_formula thm)) in
-  let goals = if invert then [pformula] else
+  let goals = if !(opts.disprove) then [pformula] else
     ["negate1"; "negate"] |> map (fun rule ->
       create_pformula rule [pformula] (_not pformula.formula)) in
   let goals = goals |> map (fun g -> {g with goal = true}) in
@@ -1056,11 +1085,16 @@ let prove timeout known_stmts thm invert cancel_check =
     | None -> if !(opts.only_quick) then GaveUp else (
         if !debug > 0 then
           printf "no quick refutation in %.2f s; beginning main loop\n\n" (Sys.time () -. start);
-          refute timeout all cancel_check) in
+          refute (stmt_name thm) timeout all cancel_check gen_out) in
   (result, Sys.time () -. start)
 
 let prove_all thf prog =
   profile "prove_all" @@ fun () ->
+  let gen_out = if !(opts.record_generated) then
+    let out = open_out "generated.csv" in
+    fprintf out "%s\n" csv_header;
+    Some out
+  else None in
   let dis = if !(opts.disprove) then "dis" else "" in
   let rec prove_stmts all_success = function
     | [] ->
@@ -1075,7 +1109,7 @@ let prove_all thf prog =
           | Theorem (_, _, None, _) ->
               print_endline (show_statement true thm ^ "\n");
               let (result, elapsed) =
-                prove !(opts.timeout) known thm !(opts.disprove) (Fun.const false) in
+                prove !(opts.timeout) known thm (Fun.const false) gen_out in
               let b = match result with
                   | Proof (pf, given, cost) ->
                       let stats = if given < 0 then "0; quick" else
@@ -1095,4 +1129,5 @@ let prove_all thf prog =
           | _ -> assert false in
         if success || !(opts.keep_going) then
           prove_stmts (all_success && success) rest in
-  prove_stmts true (expand_proofs prog)
+  prove_stmts true (expand_proofs prog);
+  Option.iter Out_channel.close gen_out

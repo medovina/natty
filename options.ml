@@ -10,6 +10,7 @@ type options = {
   only_thm: string option ref;
   onward: bool ref;
   pipe: string ref;
+  record_generated: bool ref;
   server: bool ref;
   show_proofs: bool ref;
   show_proof_of: int ref;
@@ -27,6 +28,7 @@ let opts = {
   only_thm = ref None;
   onward = ref false;
   pipe = ref "";
+  record_generated = ref false;
   server = ref false;
   show_proofs = ref false;
   show_proof_of = ref 0;
@@ -52,6 +54,7 @@ let parse_args args =
                      debug := level
             | 'e' -> opts.e_proof := true
             | 'f' -> opts.only_thm := Some value; opts.onward := true
+            | 'g' -> opts.record_generated := true
             | 'l' -> opts.server := true
             | 'o' -> opts.only_thm := Some value
             | 'p' -> if arg = "-p" then opts.show_proofs := true
@@ -85,6 +88,7 @@ let parse_args args =
       -d<level>       debug level
       -e              reformat proof from E
       -f<name>        prove/export given theorem and following theorems
+      -g              record generated formulas
       -l              run as language server
       -o<name>        only prove/export given theorem or proof step
       -p[<id>]        output proof of theorems, or only of given formula

@@ -38,7 +38,7 @@ let prove_stmts data stmts =
         let success =
           printf "proving %s\n%!" (stmt_name thm);
           let (proof, _elapsed) =
-            prove !(opts.timeout) known thm false (cancel_check data stmts) in
+            prove !(opts.timeout) known thm (cancel_check data stmts) None in
           match proof with
             | Proof _ -> true
             | _ -> false in

@@ -5,6 +5,10 @@ open List
 open Printf
 open MParser
 
+(* booleans *)
+
+let int_of_bool b = if b then 1 else 0
+
 (* options *)
 
 let (let*) = Option.bind
