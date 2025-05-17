@@ -538,7 +538,7 @@ let all_super quick dp cp : pformula list =
   let allow p =
     p.hypothesis || p.goal || p.definition || is_commutative_axiom p ||
     num_literals p.formula = 1 in
-  if not (allow dp || allow cp) || no_induct dp cp || no_induct cp dp
+  if dp.id = cp.id || not (allow dp || allow cp) || no_induct dp cp || no_induct cp dp
   then [] else
     let d_steps, c_steps = clausify_steps dp, clausify_steps cp in
     let+ (dp, d_steps, cp, c_steps) =
@@ -926,14 +926,15 @@ let step_rule pf =
   else if pf.rule = "negate" || pf.rule = "negate1" then "goal"
   else trim_rule pf.rule
 
-let csv_header = "theorem,id,rule,in_proof,formula"
+let csv_header = "theorem,id,rule,lits,weight,in_proof,formula"
 
 let write_generated thm_name all proof out =
   let thm_name = str_replace "theorem" "thm" thm_name in
   let in_proof = all_steps proof in
   sort_by (fun pf -> pf.id) all |> iter (fun pf ->
-    fprintf out "\"%s\",%d,%s,%d,%s\n"
+    fprintf out "\"%s\",%d,%s,%d,%d,%d,%s\n"
       thm_name pf.id (step_rule pf)
+      (num_literals pf.formula) (weight pf.formula)
       (int_of_bool (memq pf in_proof)) (show_formula pf.formula)
   )
 
