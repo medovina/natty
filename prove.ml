@@ -451,10 +451,11 @@ let eq_pairs para_ok f = match terms f with
 
 let is_resolution p = starts_with "res:" p.rule
 
+let is_induction p = exists is_inductive p.parents
+
 let cost p =
   match p.parents with
     | [_; _] ->
-        let goal = p.parents |> exists (fun q -> q.goal) in
         let definition = p.parents |> exists (fun q -> q.definition) in
         let commutative = p.parents |> exists (fun q -> is_commutative_axiom q) in
         let parent_lits = p.parents |> map (fun q -> num_literals q.formula) in
@@ -463,11 +464,11 @@ let cost p =
         let min_weight, max_weight = minimum parent_weights, maximum parent_weights in
         let lits, w = num_literals p.formula, weight p.formula in
 
-        if exists is_inductive p.parents then 0.03
+        if is_induction p then 0.03
         else if lits < min_lits then 0.0
         else if lits > max_lits then 10.0
         else if is_resolution p then
-          if lits = max_lits && not (goal || definition) then 10.0 else
+          if lits = max_lits && not (p.goal || definition) then 10.0 else
           if w < min_weight then 0.0 else
           if w <= max_weight then 0.01 else 0.03
         else (* paramodulation *)
@@ -926,14 +927,15 @@ let step_rule pf =
   else if pf.rule = "negate" || pf.rule = "negate1" then "goal"
   else trim_rule pf.rule
 
-let csv_header = "theorem,id,rule,lits,weight,in_proof,formula"
+let csv_header = "theorem,id,rule,induction,lits,weight,in_proof,formula"
 
 let write_generated thm_name all proof out =
   let thm_name = str_replace "theorem" "thm" thm_name in
   let in_proof = all_steps proof in
   sort_by (fun pf -> pf.id) all |> iter (fun pf ->
-    fprintf out "\"%s\",%d,%s,%d,%d,%d,%s\n"
+    fprintf out "\"%s\",%d,%s,%d,%d,%d,%d,%s\n"
       thm_name pf.id (step_rule pf)
+      (int_of_bool (is_induction pf))
       (num_literals pf.formula) (weight pf.formula)
       (int_of_bool (memq pf in_proof)) (show_formula pf.formula)
   )
