@@ -251,7 +251,7 @@ let rec expand_proof stmt env f range proof : proof option = match proof with
   | Steps steps ->
       let thm_name = stmt_id stmt in
       let only_thm = !(opts.only_thm) in
-      if not (!(opts.onward) || only_thm |> opt_for_all (fun o ->
+      if not (only_thm |> opt_for_all (fun o ->
           thm_name = o || starts_with (thm_name ^ ".") o)) then None else (
         if !debug > 0 then (
           printf "%s:\n\n" (stmt_name stmt);
