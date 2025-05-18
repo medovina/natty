@@ -1,6 +1,16 @@
+import sys
 import numpy as np
 import pandas as pd
 from sklearn.linear_model import LogisticRegression
+
+verbose = 0
+
+for arg in sys.argv[1:]:
+    if arg == '-v':
+        verbose = 1
+    else:
+        print(f'usage: {sys.argv[0]} [-v]')
+        exit()
 
 def geo_mean(xs, weights):
     return np.exp((np.log(xs) * weights).sum() / weights.sum())
@@ -17,7 +27,8 @@ features = formulas.drop(columns = ['theorem', 'orig', 'in_proof', 'formula'])
 orig = pd.get_dummies(formulas.orig, prefix = 'is')
 X = pd.concat([orig, features], axis = 1)
 
-log_reg = LogisticRegression(solver = 'liblinear', penalty = 'l1', C = 0.2)
+log_reg = LogisticRegression(
+    solver = 'liblinear', penalty = 'l1', C = 0.2, verbose = verbose)
 log_reg.fit(X, formulas.in_proof, sample_weights)
 
 print(f'penalty = {log_reg.penalty}, regularization constant = {log_reg.C}, ' +
@@ -36,9 +47,9 @@ print()
 feature_coefs = list(zip(log_reg.feature_names_in_, log_reg.coef_[0]))
 for feature, coef in feature_coefs:
     print(f'{feature}: {coef:.3f}')
-print()
+
 intercept = log_reg.intercept_[0]
-print(f'intercept: {intercept:.3f}')
+print(f'\nintercept: {intercept:.3f}')
 
 def format_num(n):
     return f'+ {n:.2f}' if n >= 0 else f'- {-n:.2f}'
