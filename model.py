@@ -13,11 +13,11 @@ thm_weights.name = 'sample_weight'
 sample_weights = \
     pd.merge(formulas.theorem, thm_weights, left_on = 'theorem', right_index = True).sample_weight
 
-features = formulas.drop(columns = ['theorem', 'id', 'rule', 'in_proof', 'formula'])
+features = formulas.drop(columns = ['theorem', 'rule', 'in_proof', 'formula'])
 rule = pd.get_dummies(formulas.rule, prefix = 'is')
 X = pd.concat([rule, features], axis = 1)
 
-log_reg = LogisticRegression()
+log_reg = LogisticRegression(solver = 'liblinear', penalty = 'l1', C = 0.4)
 log_reg.fit(X, formulas.in_proof, sample_weights)
 
 print(f'penalty = {log_reg.penalty}, regularization constant = {log_reg.C}, ' +

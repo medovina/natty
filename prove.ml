@@ -451,7 +451,7 @@ let eq_pairs para_ok f = match terms f with
 
 let is_resolution p = starts_with "res:" p.rule
 
-let is_induction p = exists is_inductive p.parents
+let is_induction p = is_inductive p || exists is_inductive p.parents
 
 let cost p =
   match p.parents with
@@ -929,6 +929,8 @@ let step_rule pf =
 
 let csv_header = "theorem,id,rule,induction,lits,fweight,in_proof,formula"
 
+let noinduct_literals p = if is_induction p then 0 else num_literals p.formula
+
 let write_generated thm_name all proof out =
   let thm_name = str_replace "theorem" "thm" thm_name in
   let in_proof = all_steps proof in
@@ -936,7 +938,7 @@ let write_generated thm_name all proof out =
     fprintf out "\"%s\",%d,%s,%d,%d,%d,%d,%s\n"
       thm_name pf.id (step_rule pf)
       (int_of_bool (is_induction pf))
-      (num_literals pf.formula) (weight pf.formula)
+      (noinduct_literals pf) (weight pf.formula)
       (int_of_bool (memq pf in_proof)) (show_formula pf.formula)
   )
 
