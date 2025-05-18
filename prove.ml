@@ -451,7 +451,28 @@ let eq_pairs para_ok f = match terms f with
 
 let is_resolution p = starts_with "res:" p.rule
 
+let trim_rule rule =
+  match String.index_opt rule ':' with
+    | Some i -> String.sub rule 0 i
+    | None -> rule
+
+let origin pf =
+  if pf.parents = [] then "axiom"
+  else if pf.rule = "negate" || pf.rule = "negate1" then "goal"
+  else trim_rule pf.rule
+
 let is_induction p = is_inductive p || exists is_inductive p.parents
+
+let noinduct_literals p = if is_induction p then 0 else num_literals p.formula
+
+type features = {
+  orig: string; induction: bool; lits: int; fweight: float
+}
+
+let features p = {
+  orig = origin p; induction = is_induction p; lits = noinduct_literals p;
+  fweight = float_of_int (weight p.formula) /. 10.0
+}
 
 let cost p =
   match p.parents with
@@ -917,28 +938,15 @@ let rw_simplify_all queue used found ps =
     p in
   filter_map simplify ps
 
-let trim_rule rule =
-  match String.index_opt rule ':' with
-    | Some i -> String.sub rule 0 i
-    | None -> rule
-
-let step_rule pf =
-  if pf.parents = [] then "axiom"
-  else if pf.rule = "negate" || pf.rule = "negate1" then "goal"
-  else trim_rule pf.rule
-
-let csv_header = "theorem,id,rule,induction,lits,fweight,in_proof,formula"
-
-let noinduct_literals p = if is_induction p then 0 else num_literals p.formula
+let csv_header = "theorem,id,orig,induction,lits,fweight,in_proof,formula"
 
 let write_generated thm_name all proof out =
   let thm_name = str_replace "theorem" "thm" thm_name in
   let in_proof = all_steps proof in
   sort_by (fun pf -> pf.id) all |> iter (fun pf ->
-    fprintf out "\"%s\",%d,%s,%d,%d,%d,%d,%s\n"
-      thm_name pf.id (step_rule pf)
-      (int_of_bool (is_induction pf))
-      (noinduct_literals pf) (weight pf.formula)
+    let f = features pf in
+    fprintf out "\"%s\",%d,%s,%d,%d,%.1f,%d,%s\n"
+      thm_name pf.id f.orig (int_of_bool f.induction) f.lits f.fweight
       (int_of_bool (memq pf in_proof)) (show_formula pf.formula)
   )
 

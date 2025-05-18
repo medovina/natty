@@ -13,9 +13,9 @@ thm_weights.name = 'sample_weight'
 sample_weights = \
     pd.merge(formulas.theorem, thm_weights, left_on = 'theorem', right_index = True).sample_weight
 
-features = formulas.drop(columns = ['theorem', 'rule', 'in_proof', 'formula'])
-rule = pd.get_dummies(formulas.rule, prefix = 'is')
-X = pd.concat([rule, features], axis = 1)
+features = formulas.drop(columns = ['theorem', 'orig', 'in_proof', 'formula'])
+orig = pd.get_dummies(formulas.orig, prefix = 'is')
+X = pd.concat([orig, features], axis = 1)
 
 log_reg = LogisticRegression(solver = 'liblinear', penalty = 'l1', C = 0.2)
 log_reg.fit(X, formulas.in_proof, sample_weights)
@@ -43,9 +43,15 @@ print(f'intercept: {intercept:.3f}')
 def format_num(n):
     return f'+ {n:.2f}' if n >= 0 else f'- {-n:.2f}'
 
+def format_feature(f):
+    if f.startswith('is_'):
+        return f'b(f.orig = "{f.removeprefix('is_')}")'
+    else:
+        return f'f.{f}'
+
 factor = 10
 cost = ([f'{- intercept / factor:.2f}'] +
-        [format_num(- coef / factor) + f' * {feature}'
+        [format_num(- coef / factor) + ' * ' + format_feature(feature)
             for feature, coef in feature_coefs if feature != 'id' and coef != 0.0])
 print('\ncost = ' + '\n      '.join(cost))
 
