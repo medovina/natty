@@ -461,40 +461,67 @@ let origin pf =
   else if pf.rule = "negate" || pf.rule = "negate1" then "goal"
   else trim_rule pf.rule
 
-let is_induction p = is_inductive p || exists is_inductive p.parents
-
-let noinduct_literals p = if is_induction p then 0 else num_literals p.formula
+let by_induction p = exists is_inductive p.parents
 
 type features = {
-  orig: string; induction: bool; lits: int; fweight: float
+  orig: string;
+  by_induction: bool; by_commutative: bool;
+  lits: int; lits_lt_min: bool; lits_gt_max: bool; lits_eq_max: bool;
+  weight: int; weight_lt_min: bool; weight_lt_max: bool; weight_le_max: bool
 }
 
-let features p = {
-  orig = origin p; induction = is_induction p; lits = noinduct_literals p;
-  fweight = float_of_int (weight p.formula) /. 10.0
-}
+let features p =
+  let parent_lits = p.parents |> map (fun q -> num_literals q.formula) in
+  let parent_weights = p.parents |> map (fun q -> weight q.formula) in
+  let lits, w = num_literals p.formula, weight p.formula in
+  let min_lits, max_lits = minimum parent_lits, maximum parent_lits in
+  let min_weight, max_weight = minimum parent_weights, maximum parent_weights in {
+    orig = origin p;
+    by_induction = by_induction p;
+    by_commutative = p.parents |> exists (fun q -> is_commutative_axiom q);
+    lits; lits_lt_min = lits < min_lits; lits_gt_max = lits > max_lits;
+    lits_eq_max = lits = max_lits;
+    weight = w; weight_lt_min = w < min_weight; weight_lt_max = w < max_weight;
+      weight_le_max = w <= max_weight
+  }
+
+let csv_header =
+  "theorem,id,orig,by_induction,by_commutative," ^
+  "lits,lits_lt_min,lits_gt_max,lits_eq_max," ^
+  "weight,weight_lt_min,weight_lt_max,weight_le_max,in_proof,formula"
+
+let all_steps pformula =
+  search [pformula] (fun p -> unique (p.parents @ p.rewrites))
+
+let write_generated thm_name all proof out =
+  let thm_name = str_replace "theorem" "thm" thm_name in
+  let in_proof = all_steps proof in
+  all |> filter (fun pf -> length pf.parents = 2)
+      |> sort_by (fun pf -> pf.id) |> iter (fun pf ->
+    let f = features pf in
+    fprintf out "\"%s\",%d,%s,%b,%b," thm_name pf.id f.orig f.by_induction f.by_commutative;
+    fprintf out "%d,%b,%b,%b," f.lits f.lits_lt_min f.lits_gt_max f.lits_eq_max;
+    fprintf out "%d,%b,%b,%b," f.weight f.weight_lt_min f.weight_lt_max f.weight_le_max;
+    fprintf out "%d,%s\n" (int_of_bool (memq pf in_proof)) (show_formula pf.formula)
+  )
 
 let cost p =
   match p.parents with
     | [_; _] ->
+        let f = features p in
         let definition = p.parents |> exists (fun q -> q.definition) in
-        let commutative = p.parents |> exists (fun q -> is_commutative_axiom q) in
-        let parent_lits = p.parents |> map (fun q -> num_literals q.formula) in
-        let parent_weights = p.parents |> map (fun q -> weight q.formula) in
-        let min_lits, max_lits = minimum parent_lits, maximum parent_lits in
-        let min_weight, max_weight = minimum parent_weights, maximum parent_weights in
-        let lits, w = num_literals p.formula, weight p.formula in
+        let lits = num_literals p.formula in
 
-        if is_induction p then 0.03
-        else if lits < min_lits then 0.0
-        else if lits > max_lits then 10.0
+        if f.by_induction then 0.03
+        else if f.lits_lt_min then 0.0
+        else if f.lits_gt_max then 10.0
         else if is_resolution p then
-          if lits = max_lits && not (p.goal || definition) then 10.0 else
-          if w < min_weight then 0.0 else
-          if w <= max_weight then 0.01 else 0.03
+          if f.lits_eq_max && not (p.goal || definition) then 10.0 else
+          if f.weight_lt_min then 0.0 else
+          if f.weight_le_max then 0.01 else 0.03
         else (* paramodulation *)
-          if commutative then 0.01 else
-          if w < max_weight then
+          if f.by_commutative then 0.01 else
+          if f.weight_lt_max then
             if lits <= 2 then 0.02 else 10.0
           else 10.0
 
@@ -773,9 +800,6 @@ let is_tautology f =
   let (pos, neg) = pos_neg (map canonical_lit (map simp (expand f))) in
   exists taut_lit pos || intersect pos neg <> []
 
-let all_steps pformula =
-  search [pformula] (fun p -> unique (p.parents @ p.rewrites))
-
 let output_proof pformula =
   sort_by (fun pf -> pf.id) (all_steps pformula) |> iter (print_formula true "");
   print_newline ()
@@ -937,18 +961,6 @@ let rw_simplify_all queue used found ps =
     p |> Option.iter (fun p -> queue := PFQueue.add p (queue_cost p) !queue);
     p in
   filter_map simplify ps
-
-let csv_header = "theorem,id,orig,induction,lits,fweight,in_proof,formula"
-
-let write_generated thm_name all proof out =
-  let thm_name = str_replace "theorem" "thm" thm_name in
-  let in_proof = all_steps proof in
-  sort_by (fun pf -> pf.id) all |> iter (fun pf ->
-    let f = features pf in
-    fprintf out "\"%s\",%d,%s,%b,%d,%.1f,%d,%s\n"
-      thm_name pf.id f.orig f.induction f.lits f.fweight
-      (int_of_bool (memq pf in_proof)) (show_formula pf.formula)
-  )
 
 let refute thm_name pformulas cancel_check gen_out : result =
   profile "refute" @@ fun () ->

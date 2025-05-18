@@ -60,7 +60,7 @@ for feature, coef in feature_coefs:
 print(f'\nintercept: {intercept:.3f}')
 
 def format_num(n):
-    return f'+ {n:.2f}' if n >= 0 else f'- {-n:.2f}'
+    return f'+ {n:.3f}' if n >= 0 else f'- {-n:.3f}'
 
 def format_feature(f):
     if f.startswith('is_'):
@@ -69,7 +69,7 @@ def format_feature(f):
         return f'f.{f}'
 
 factor = 10
-cost = ([f'{- intercept / factor:.2f}'] +
+cost = ([f'{- intercept / factor:.3f}'] +
         [format_num(- coef / factor) + ' * ' + format_feature(feature)
             for feature, coef in feature_coefs if feature != 'id' and coef != 0.0])
 print('\ncost = ' + '\n      '.join(cost))
