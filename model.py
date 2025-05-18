@@ -17,7 +17,7 @@ features = formulas.drop(columns = ['theorem', 'rule', 'in_proof', 'formula'])
 rule = pd.get_dummies(formulas.rule, prefix = 'is')
 X = pd.concat([rule, features], axis = 1)
 
-log_reg = LogisticRegression(solver = 'liblinear', penalty = 'l1', C = 0.4)
+log_reg = LogisticRegression(solver = 'liblinear', penalty = 'l1', C = 0.2)
 log_reg.fit(X, formulas.in_proof, sample_weights)
 
 print(f'penalty = {log_reg.penalty}, regularization constant = {log_reg.C}, ' +
@@ -33,9 +33,20 @@ for i in range(1, -1, -1):
     print(f'average prob ({s}) = {p:.3f}')
 
 print()
-for feature, coef in zip(log_reg.feature_names_in_, log_reg.coef_[0]):
+feature_coefs = list(zip(log_reg.feature_names_in_, log_reg.coef_[0]))
+for feature, coef in feature_coefs:
     print(f'{feature}: {coef:.3f}')
 print()
-print(f'intercept: {log_reg.intercept_[0]:.3f}')
+intercept = log_reg.intercept_[0]
+print(f'intercept: {intercept:.3f}')
+
+def format_num(n):
+    return f'+ {n:.2f}' if n >= 0 else f'- {-n:.2f}'
+
+factor = 10
+cost = ([f'{- intercept / factor:.2f}'] +
+        [format_num(- coef / factor) + f' * {feature}'
+            for feature, coef in feature_coefs if feature != 'id' and coef != 0.0])
+print('\ncost = ' + '\n      '.join(cost))
 
 formulas.to_csv('generated_out.csv', float_format = '%.3f')
