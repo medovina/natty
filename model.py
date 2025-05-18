@@ -6,15 +6,21 @@ def geo_mean(iterable):
     return np.exp(np.log(iterable).mean())
 
 formulas = pd.read_csv('generated.csv')
+
+counts = formulas.loc[:, 'theorem' : 'id'].groupby('theorem').size()
+weights = 1000 / counts
+weights.name = 'sample_weight'
+formulas = pd.merge(formulas, weights, left_on = 'theorem', right_index = True)
+
 X = formulas.loc[:, 'rule' : 'in_proof'].iloc[:, 1:-1]
-y = formulas.loc[:, 'in_proof']
 
 log_reg = LogisticRegression()
-log_reg.fit(X, y)
+log_reg.fit(X, formulas.in_proof, formulas.sample_weight)
+
 print(f'penalty = {log_reg.penalty}, regularization constant = {log_reg.C}, ' +
       f'solver = {log_reg.solver}')
 
-formulas.insert(len(formulas.columns) - 1, 'prob', log_reg.predict_proba(X)[:, 1])
+formulas.insert(len(formulas.columns) - 2, 'prob', log_reg.predict_proba(X)[:, 1])
 
 print()
 for i in range(1, -1, -1):
@@ -26,6 +32,6 @@ print()
 for feature, coef in zip(log_reg.feature_names_in_, log_reg.coef_[0]):
     print(f'{feature}: {coef:.3f}')
 print()
-print(f'intercept: {log_reg.intercept_[0]}')
+print(f'intercept: {log_reg.intercept_[0]:.3f}')
 
 formulas.to_csv('generated_out.csv', float_format = '%.3f')

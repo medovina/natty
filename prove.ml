@@ -927,7 +927,7 @@ let step_rule pf =
   else if pf.rule = "negate" || pf.rule = "negate1" then "goal"
   else trim_rule pf.rule
 
-let csv_header = "theorem,id,rule,induction,lits,weight,in_proof,formula"
+let csv_header = "theorem,id,rule,induction,lits,fweight,in_proof,formula"
 
 let write_generated thm_name all proof out =
   let thm_name = str_replace "theorem" "thm" thm_name in
