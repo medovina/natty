@@ -12,7 +12,9 @@ weights = 1000 / counts
 weights.name = 'sample_weight'
 formulas = pd.merge(formulas, weights, left_on = 'theorem', right_index = True)
 
-X = formulas.loc[:, 'rule' : 'in_proof'].iloc[:, 1:-1]
+features = formulas.loc[:, 'rule' : 'in_proof'].iloc[:, 1:-1]
+rule = pd.get_dummies(formulas.rule, prefix = 'is')
+X = pd.concat([rule, features], axis = 1)
 
 log_reg = LogisticRegression()
 log_reg.fit(X, formulas.in_proof, formulas.sample_weight)
@@ -34,4 +36,5 @@ for feature, coef in zip(log_reg.feature_names_in_, log_reg.coef_[0]):
 print()
 print(f'intercept: {log_reg.intercept_[0]:.3f}')
 
-formulas.to_csv('generated_out.csv', float_format = '%.3f')
+out_formulas = formulas.drop(columns = ['sample_weight'])
+out_formulas.to_csv('generated_out.csv', float_format = '%.3f')
