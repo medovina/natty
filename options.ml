@@ -72,7 +72,7 @@ let parse_args args =
               match String.split_on_char ',' value with
                 | [i; j] -> debug_super := (int_of_string i, int_of_string j)
                 | _ -> failwith "expected formula ids")
-            | 't' -> opts.timeout := float_of_int (int_val ())
+            | 't' -> opts.timeout := float_of_string value
             | 'v' -> opts.verbose := true
             | 'w' -> opts.no_quick := true
             | 'x' -> opts.export := true

@@ -940,8 +940,9 @@ let write_generated thm_name all proof out =
       (int_of_bool (memq pf in_proof)) (show_formula pf.formula)
   )
 
-let refute thm_name timeout pformulas cancel_check gen_out : result =
+let refute thm_name pformulas cancel_check gen_out : result =
   profile "refute" @@ fun () ->
+  let timeout = !(opts.timeout) in
   let found = ref @@ FormulaMap.of_list (pformulas |> map (fun p -> (canonical p, p))) in
   let used = ref [] in
   let queue = ref PFQueue.empty in
@@ -1061,7 +1062,7 @@ let quick_refute all =
           (fun p -> proof (goal_resolve (number_formula r) p))
       )))
 
-let prove timeout known_stmts thm cancel_check gen_out =
+let prove known_stmts thm cancel_check gen_out =
   let known_stmts = rev known_stmts in
   consts := filter_map decl_var known_stmts;
   ac_ops := [];
@@ -1088,7 +1089,7 @@ let prove timeout known_stmts thm cancel_check gen_out =
     | None -> if !(opts.only_quick) then GaveUp else (
         if !debug > 0 then
           printf "no quick refutation in %.2f s; beginning main loop\n\n" (Sys.time () -. start);
-          refute (stmt_name thm) timeout all cancel_check gen_out) in
+          refute (stmt_name thm) all cancel_check gen_out) in
   (result, Sys.time () -. start)
 
 let prove_all thf prog =
@@ -1112,7 +1113,7 @@ let prove_all thf prog =
           | Theorem (_, _, None, _) ->
               print_endline (show_statement true thm ^ "\n");
               let (result, elapsed) =
-                prove !(opts.timeout) known thm (Fun.const false) gen_out in
+                prove known thm (Fun.const false) gen_out in
               let b = match result with
                   | Proof (pf, given, cost) ->
                       let stats = if given < 0 then "0; quick" else
