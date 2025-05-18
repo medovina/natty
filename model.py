@@ -2,8 +2,8 @@ import numpy as np
 import pandas as pd
 from sklearn.linear_model import LogisticRegression
 
-def geo_mean(iterable):
-    return np.exp(np.log(iterable).mean())
+def geo_mean(xs, weights):
+    return np.exp((np.log(xs) * weights).sum() / weights.sum())
 
 formulas = pd.read_csv('generated.csv')
 
@@ -27,7 +27,8 @@ formulas.insert(len(formulas.columns) - 2, 'prob', log_reg.predict_proba(X)[:, 1
 
 print()
 for i in range(1, -1, -1):
-    p = geo_mean(formulas[formulas.in_proof == i]['prob'])
+    include = formulas.in_proof == i
+    p = geo_mean(formulas[include].prob, sample_weights[include])
     s = 'in proof' if i == 1 else 'not in proof'
     print(f'average prob ({s}) = {p:.3f}')
 
