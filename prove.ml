@@ -945,8 +945,8 @@ let write_generated thm_name all proof out =
   let in_proof = all_steps proof in
   sort_by (fun pf -> pf.id) all |> iter (fun pf ->
     let f = features pf in
-    fprintf out "\"%s\",%d,%s,%d,%d,%.1f,%d,%s\n"
-      thm_name pf.id f.orig (int_of_bool f.induction) f.lits f.fweight
+    fprintf out "\"%s\",%d,%s,%b,%d,%.1f,%d,%s\n"
+      thm_name pf.id f.orig f.induction f.lits f.fweight
       (int_of_bool (memq pf in_proof)) (show_formula pf.formula)
   )
 

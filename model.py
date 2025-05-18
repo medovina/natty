@@ -2,6 +2,8 @@ import sys
 import numpy as np
 import pandas as pd
 from sklearn.linear_model import LogisticRegression
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
 
 verbose = 0
 
@@ -27,14 +29,17 @@ features = formulas.drop(columns = ['theorem', 'orig', 'in_proof', 'formula'])
 orig = pd.get_dummies(formulas.orig, prefix = 'is')
 X = pd.concat([orig, features], axis = 1)
 
+scaler = StandardScaler()
 log_reg = LogisticRegression(
     solver = 'liblinear', penalty = 'l1', C = 0.2, verbose = verbose)
-log_reg.fit(X, formulas.in_proof, sample_weights)
+pipe = make_pipeline(scaler, log_reg)
+
+pipe.fit(X, formulas.in_proof, logisticregression__sample_weight = sample_weights)
 
 print(f'penalty = {log_reg.penalty}, regularization constant = {log_reg.C}, ' +
       f'solver = {log_reg.solver}')
 
-formulas.insert(len(formulas.columns) - 2, 'prob', log_reg.predict_proba(X)[:, 1])
+formulas.insert(len(formulas.columns) - 2, 'prob', pipe.predict_proba(X)[:, 1])
 
 print()
 for i in range(1, -1, -1):
@@ -43,12 +48,15 @@ for i in range(1, -1, -1):
     s = 'in proof' if i == 1 else 'not in proof'
     print(f'average prob ({s}) = {p:.3f}')
 
+# get unnormalized coefficients/intercept
+coefficients = np.true_divide(log_reg.coef_[0],  scaler.scale_)
+intercept = log_reg.intercept_[0] - np.dot(coefficients, scaler.mean_)
+
 print()
-feature_coefs = list(zip(log_reg.feature_names_in_, log_reg.coef_[0]))
+feature_coefs = list(zip(X.columns, coefficients))
 for feature, coef in feature_coefs:
     print(f'{feature}: {coef:.3f}')
 
-intercept = log_reg.intercept_[0]
 print(f'\nintercept: {intercept:.3f}')
 
 def format_num(n):
