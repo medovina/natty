@@ -88,7 +88,7 @@ let merge_cost parents = match unique parents with
 let inducted p =
   search [p] (fun p -> p.parents) |> exists (fun p -> is_inductive p)
 
-let cost_limit = 1.0
+let cost_limit = 1.5
 
 let mk_pformula rule parents step formula =
   { id = 0; rule; rewrites = []; simp = false; parents; formula;
@@ -441,7 +441,7 @@ let origin pf =
 let by_induction p = exists is_inductive p.parents
 
 type features = {
-  orig: string; from_goal: bool;
+  orig: string; from_hyp: bool; from_goal: bool;
   by_definition: bool; by_induction: bool; by_commutative: bool;
   lits: int; lits_lt_min: bool; lits_gt_max: bool; lits_eq_max: bool;
   lits_eq_1: bool; lits_le_2: bool;
@@ -457,7 +457,7 @@ let features p =
   let lits, w = num_literals p.formula, weight p.formula in
   let min_lits, max_lits = minimum parent_lits, maximum parent_lits in
   let min_weight, max_weight = minimum parent_weights, maximum parent_weights in {
-    orig = origin p; from_goal = p.goal;
+    orig = origin p; from_hyp = p.hypothesis; from_goal = p.goal;
     by_definition = p.parents |> exists (fun q -> q.definition);
     by_induction = by_induction p;
     by_commutative = p.parents |> exists (fun q -> is_commutative_axiom q);
@@ -474,7 +474,7 @@ let features p =
   }
 
 let csv_header =
-  "theorem,id,orig,from_goal," ^
+  "theorem,id,orig,from_hyp,from_goal," ^
   "by_definition,by_induction,by_commutative," ^
   "lits,lits_lt_min,lits_gt_max,lits_eq_max," ^
   "lits_eq_1,lits_le_2," ^
@@ -492,7 +492,7 @@ let write_generated thm_name all proof out =
       |> sort_by (fun pf -> pf.id) |> iter (fun pf ->
     let f = features pf in
     let b = function | true -> "T" | false -> "F" in
-    fprintf out "\"%s\",%d,%s,%s," thm_name pf.id f.orig (b f.from_goal);
+    fprintf out "\"%s\",%d,%s,%s,%s," thm_name pf.id f.orig (b f.from_hyp) (b f.from_goal);
     fprintf out "%s,%s,%s," (b f.by_definition) (b f.by_induction) (b f.by_commutative);
     fprintf out "%d,%s,%s,%s,"  
       f.lits (b f.lits_lt_min) (b f.lits_gt_max) (b f.lits_eq_max);

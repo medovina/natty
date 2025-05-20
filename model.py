@@ -21,7 +21,7 @@ def geo_mean(xs, weights):
 formulas = pd.read_csv('generated.csv', true_values = ['T'], false_values = ['F'])
 
 counts = formulas.loc[:, 'theorem' : 'id'].groupby('theorem').size()
-thm_weights = 1000 / counts
+thm_weights = 1000 / np.sqrt(counts)
 thm_weights.name = 'sample_weight'
 sample_weights = \
     pd.merge(formulas.theorem, thm_weights, left_on = 'theorem', right_index = True).sample_weight
@@ -32,7 +32,7 @@ X = pd.concat([orig, features], axis = 1)
 
 scaler = StandardScaler()
 log_reg = LogisticRegression(
-    solver = 'liblinear', penalty = 'l1', C = 0.02, verbose = verbose)
+    solver = 'liblinear', penalty = 'l1', C = 0.0035, verbose = verbose)
 pipe = make_pipeline(scaler, log_reg)
 
 with warnings.catch_warnings():
@@ -44,7 +44,7 @@ with warnings.catch_warnings():
         exit()
 
 print(f'penalty = {log_reg.penalty}, regularization constant = {log_reg.C}, ' +
-      f'solver = {log_reg.solver}')
+      f'solver = {log_reg.solver}, tol = {log_reg.tol}')
 
 formulas.insert(len(formulas.columns) - 2, 'prob', pipe.predict_proba(X)[:, 1])
 
