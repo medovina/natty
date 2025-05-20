@@ -83,7 +83,7 @@ factor = 10
 cost = ([f'{- intercept / factor:.3f}'] +
         [format_num(- coef / factor) + ' *. ' + format_feature(feature)
             for feature, coef in feature_coefs if feature != 'id' and coef != 0.0])
-print('\ncost:        ' + '\n          '.join(cost))
+print('\ncost:  ' + '\n    '.join(cost))
 
 for c in formulas.columns:
     if is_boolean(c):

@@ -47,29 +47,6 @@ let weight1 goal_relative f =
 let weight = weight1 false
 let goal_rel_weight = weight1 true
 
-let print_formula with_origin prefix pf =
-  let prefix =
-    if pf.id > 0 then prefix ^ sprintf "%d. " (pf.id) else prefix in
-  let origin =
-    if with_origin then
-      let parents = pf.parents |> map (fun p -> string_of_int (p.id)) in
-      let rule = if pf.rule <> "" then [pf.rule] else [] in
-      let rewrites = rev pf.rewrites |> map (fun r -> r.id) in
-      let rw = if rewrites = [] then []
-        else [sprintf "rw(%s)" (comma_join (map string_of_int rewrites))] in
-      let simp = if pf.simp then ["simp"] else [] in
-      let all = parents @ rule @ rw @ simp in
-      sprintf " [%s]" (comma_join all)
-    else "" in
-  let mark b c = if b then " " ^ (if pf.derived then c else to_upper c) else "" in
-  let annotate = mark pf.definition "d" ^ mark pf.goal "g" ^ mark pf.hypothesis "h" in
-  printf "%s%s {%d/%d: %.2f%s}\n"
-    (indent_with_prefix prefix (show_multi pf.formula))
-    origin (num_literals pf.formula) (weight pf.formula) pf.cost annotate
-
-let dbg_print_formula with_origin prefix pformula =
-  if !debug > 0 then print_formula with_origin prefix pformula
-
 let is_inductive pformula = match kind pformula.formula with
   | Quant ("∀", _, Fun (_, Bool), _) -> true
   | _ -> false
@@ -127,11 +104,6 @@ let number_formula pformula =
     assert ((pformula.parents @ pformula.rewrites) |> for_all (fun p -> p.id > 0));
     incr formula_counter;
     { pformula with id = !formula_counter } )
-
-let create_pformula rule parents formula =
-  let p = number_formula (mk_pformula rule parents false formula) in
-  dbg_print_formula true "" p;
-  p
 
 let is_skolem s = is_letter s.[0] && is_digit s.[strlen s - 1]
 
@@ -532,23 +504,41 @@ let write_generated thm_name all proof out =
     fprintf out "%d,%s,%s\n" f.goal_rel_weight (b (memq pf in_proof)) (show_formula pf.formula)
   )
 
+let predict_cost p =
+  let b = function | true -> 1.0 | false -> 0.0 in
+  let i = float_of_int in
+  let f = features p in
+  0.413
+    -. 0.775 *. b f.by_induction
+    +. 0.034 *. i f.lits_rel_max
+    +. 0.024 *. i f.weight_rel_min
+    +. 0.002 *. i f.weight_rel_right
+
+let probability p =
+  let logit = -10.0 *. predict_cost p in
+  let odds = exp logit in
+  odds /. (1.0 +. odds)
+
+let heuristic_cost p =
+  let f = features p in
+  if f.by_induction then 0.03
+  else if f.lits_lt_min then 0.0
+  else if f.lits_gt_max then 10.0
+  else if is_resolution p then
+    if f.lits_eq_max && not (f.from_goal || f.by_definition) then 10.0 else
+    if f.weight_lt_min then 0.0 else
+    if f.weight_le_max then 0.01 else 0.03
+  else (* paramodulation *)
+    if f.by_commutative then 0.01 else
+    if f.weight_lt_max then
+      if f.lits_le_2 then 0.02 else 10.0
+    else 10.0
+
 let cost p =
   match p.parents with
     | [_; _] ->
-        let f = features p in
-        if f.by_induction then 0.03
-        else if f.lits_lt_min then 0.0
-        else if f.lits_gt_max then 10.0
-        else if is_resolution p then
-          if f.lits_eq_max && not (f.from_goal || f.by_definition) then 10.0 else
-          if f.weight_lt_min then 0.0 else
-          if f.weight_le_max then 0.01 else 0.03
-        else (* paramodulation *)
-          if f.by_commutative then 0.01 else
-          if f.weight_lt_max then
-            if f.lits_le_2 then 0.02 else 10.0
-          else 10.0
-
+        if !(opts.new_cost) then max 0.0 (predict_cost p)
+        else heuristic_cost p
     | _ -> 0.0
 
 (*      D:[D' ∨ t = t']    C⟨u⟩
@@ -823,6 +813,37 @@ let is_tautology f =
           | _ -> (f :: pos, neg) in
   let (pos, neg) = pos_neg (map canonical_lit (map simp (expand f))) in
   exists taut_lit pos || intersect pos neg <> []
+
+let print_formula with_origin prefix pf =
+  let prefix =
+    if pf.id > 0 then prefix ^ sprintf "%d. " (pf.id) else prefix in
+  let origin =
+    if with_origin then
+      let parents = pf.parents |> map (fun p -> string_of_int (p.id)) in
+      let rule = if pf.rule <> "" then [pf.rule] else [] in
+      let rewrites = rev pf.rewrites |> map (fun r -> r.id) in
+      let rw = if rewrites = [] then []
+        else [sprintf "rw(%s)" (comma_join (map string_of_int rewrites))] in
+      let simp = if pf.simp then ["simp"] else [] in
+      let all = parents @ rule @ rw @ simp in
+      sprintf " [%s]" (comma_join all)
+    else "" in
+  let mark b c = if b then " " ^ (if pf.derived then c else to_upper c) else "" in
+  let annotate = mark pf.definition "d" ^ mark pf.goal "g" ^ mark pf.hypothesis "h" in
+  let prob =
+    if !(opts.new_cost) && length pf.parents = 2 && pf.formula != _false
+    then sprintf "p = %.2f, " (probability pf) else "" in
+  printf "%s%s {%d/%d: %s%.2f%s}\n"
+    (indent_with_prefix prefix (show_multi pf.formula))
+    origin (num_literals pf.formula) (weight pf.formula) prob pf.cost annotate
+
+let dbg_print_formula with_origin prefix pformula =
+  if !debug > 0 then print_formula with_origin prefix pformula
+
+let create_pformula rule parents formula =
+  let p = number_formula (mk_pformula rule parents false formula) in
+  dbg_print_formula true "" p;
+  p
 
 let output_proof pformula =
   sort_by (fun pf -> pf.id) (all_steps pformula) |> iter (print_formula true "");
