@@ -1,4 +1,5 @@
-import sys
+import sys, warnings
+
 import numpy as np
 import pandas as pd
 from sklearn.linear_model import LogisticRegression
@@ -31,10 +32,16 @@ X = pd.concat([orig, features], axis = 1)
 
 scaler = StandardScaler()
 log_reg = LogisticRegression(
-    solver = 'liblinear', penalty = 'l1', C = 0.2, verbose = verbose)
+    solver = 'liblinear', penalty = 'l1', C = 0.04, verbose = verbose)
 pipe = make_pipeline(scaler, log_reg)
 
-pipe.fit(X, formulas.in_proof, logisticregression__sample_weight = sample_weights)
+with warnings.catch_warnings():
+    warnings.filterwarnings('error')
+    try:
+        pipe.fit(X, formulas.in_proof, logisticregression__sample_weight = sample_weights)
+    except Warning as w:
+        print(w)
+        exit()
 
 print(f'penalty = {log_reg.penalty}, regularization constant = {log_reg.C}, ' +
       f'solver = {log_reg.solver}')
