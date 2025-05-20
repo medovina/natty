@@ -17,7 +17,7 @@ for arg in sys.argv[1:]:
 def geo_mean(xs, weights):
     return np.exp((np.log(xs) * weights).sum() / weights.sum())
 
-formulas = pd.read_csv('generated.csv')
+formulas = pd.read_csv('generated.csv', true_values = ['T'], false_values = ['F'])
 
 counts = formulas.loc[:, 'theorem' : 'id'].groupby('theorem').size()
 thm_weights = 1000 / counts
@@ -73,5 +73,9 @@ cost = ([f'{- intercept / factor:.3f}'] +
         [format_num(- coef / factor) + ' * ' + format_feature(feature)
             for feature, coef in feature_coefs if feature != 'id' and coef != 0.0])
 print('\ncost = ' + '\n      '.join(cost))
+
+for c in formulas.columns:
+    if isinstance(formulas.loc[0, c], np.bool_):
+        formulas[c] = np.where(formulas[c], 'T', 'F')
 
 formulas.to_csv('generated_out.csv', float_format = '%.3f')

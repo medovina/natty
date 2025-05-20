@@ -464,9 +464,9 @@ let origin pf =
 let by_induction p = exists is_inductive p.parents
 
 type features = {
-  orig: string;
-  by_induction: bool; by_commutative: bool;
-  lits: int; lits_lt_min: bool; lits_gt_max: bool; lits_eq_max: bool;
+  orig: string; from_goal: bool;
+  by_definition: bool; by_induction: bool; by_commutative: bool;
+  lits: int; lits_lt_min: bool; lits_gt_max: bool; lits_eq_max: bool; lits_le_2: bool;
   weight: int; weight_lt_min: bool; weight_lt_max: bool; weight_le_max: bool
 }
 
@@ -476,18 +476,20 @@ let features p =
   let lits, w = num_literals p.formula, weight p.formula in
   let min_lits, max_lits = minimum parent_lits, maximum parent_lits in
   let min_weight, max_weight = minimum parent_weights, maximum parent_weights in {
-    orig = origin p;
+    orig = origin p; from_goal = p.goal;
+    by_definition = p.parents |> exists (fun q -> q.definition);
     by_induction = by_induction p;
     by_commutative = p.parents |> exists (fun q -> is_commutative_axiom q);
     lits; lits_lt_min = lits < min_lits; lits_gt_max = lits > max_lits;
-    lits_eq_max = lits = max_lits;
+    lits_eq_max = lits = max_lits; lits_le_2 = lits <= 2;
     weight = w; weight_lt_min = w < min_weight; weight_lt_max = w < max_weight;
       weight_le_max = w <= max_weight
   }
 
 let csv_header =
-  "theorem,id,orig,by_induction,by_commutative," ^
-  "lits,lits_lt_min,lits_gt_max,lits_eq_max," ^
+  "theorem,id,orig,from_goal," ^
+  "by_definition,by_induction,by_commutative," ^
+  "lits,lits_lt_min,lits_gt_max,lits_eq_max,lits_le_2," ^
   "weight,weight_lt_min,weight_lt_max,weight_le_max,in_proof,formula"
 
 let all_steps pformula =
@@ -499,30 +501,30 @@ let write_generated thm_name all proof out =
   all |> filter (fun pf -> length pf.parents = 2)
       |> sort_by (fun pf -> pf.id) |> iter (fun pf ->
     let f = features pf in
-    fprintf out "\"%s\",%d,%s,%b,%b," thm_name pf.id f.orig f.by_induction f.by_commutative;
-    fprintf out "%d,%b,%b,%b," f.lits f.lits_lt_min f.lits_gt_max f.lits_eq_max;
-    fprintf out "%d,%b,%b,%b," f.weight f.weight_lt_min f.weight_lt_max f.weight_le_max;
-    fprintf out "%d,%s\n" (int_of_bool (memq pf in_proof)) (show_formula pf.formula)
+    let b = function | true -> "T" | false -> "F" in
+    fprintf out "\"%s\",%d,%s,%s," thm_name pf.id f.orig (b f.from_goal);
+    fprintf out "%s,%s,%s," (b f.by_definition) (b f.by_induction) (b f.by_commutative);
+    fprintf out "%d,%s,%s,%s,%s,"
+      f.lits (b f.lits_lt_min) (b f.lits_gt_max) (b f.lits_eq_max) (b f.lits_le_2);
+    fprintf out "%d,%s,%s,%s," f.weight (b f.weight_lt_min) (b f.weight_lt_max) (b f.weight_le_max);
+    fprintf out "%s,%s\n" (b (memq pf in_proof)) (show_formula pf.formula)
   )
 
 let cost p =
   match p.parents with
     | [_; _] ->
         let f = features p in
-        let definition = p.parents |> exists (fun q -> q.definition) in
-        let lits = num_literals p.formula in
-
         if f.by_induction then 0.03
         else if f.lits_lt_min then 0.0
         else if f.lits_gt_max then 10.0
         else if is_resolution p then
-          if f.lits_eq_max && not (p.goal || definition) then 10.0 else
+          if f.lits_eq_max && not (f.from_goal || f.by_definition) then 10.0 else
           if f.weight_lt_min then 0.0 else
           if f.weight_le_max then 0.01 else 0.03
         else (* paramodulation *)
           if f.by_commutative then 0.01 else
           if f.weight_lt_max then
-            if lits <= 2 then 0.02 else 10.0
+            if f.lits_le_2 then 0.02 else 10.0
           else 10.0
 
     | _ -> 0.0
