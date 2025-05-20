@@ -8,6 +8,7 @@ open Util
 let formula_counter = ref 0
 let consts = ref ([] : (id * typ) list)
 let ac_ops = ref ([] : (id * typ) list)
+let goal_consts = ref ([] : id list)
 
 type pformula = {
   id: int;
@@ -33,15 +34,19 @@ let rec num_literals f = match bool_kind f with
   | Quant (_, _, _, u) -> num_literals u
   | Other _ -> 1
 
-let weight f =
+let weight1 goal_relative f =
   let rec weigh f = match f with
-    | Const _ -> if f = _false then 0 else 1
+    | Const (c, _typ) ->
+        if f = _false || goal_relative && mem c !goal_consts then 0 else 1
     | Var _ -> 1
     | App (f, g) -> weigh f + weigh g
     | Eq (f, g) -> 1 + weigh f + weigh g
     | Lambda (_, _, f) -> weigh f in
   weigh (remove_quantifiers f)
-    
+
+let weight = weight1 false
+let goal_rel_weight = weight1 true
+
 let print_formula with_origin prefix pf =
   let prefix =
     if pf.id > 0 then prefix ^ sprintf "%d. " (pf.id) else prefix in
@@ -469,7 +474,8 @@ type features = {
   lits: int; lits_lt_min: bool; lits_gt_max: bool; lits_eq_max: bool; lits_le_2: bool;
   lits_rel_min: int; lits_rel_max: int; lits_rel_right: int;
   weight: int; weight_lt_min: bool; weight_lt_max: bool; weight_le_max: bool;
-  weight_rel_min: int; weight_rel_max: int; weight_rel_right: int
+  weight_rel_min: int; weight_rel_max: int; weight_rel_right: int;
+  goal_rel_weight: int
 }
 
 let features p =
@@ -489,7 +495,8 @@ let features p =
     weight = w; weight_lt_min = w < min_weight; weight_lt_max = w < max_weight;
       weight_le_max = w <= max_weight;
     weight_rel_min = w - min_weight; weight_rel_max = w - max_weight;
-      weight_rel_right = w - nth parent_weights 1
+      weight_rel_right = w - nth parent_weights 1;
+    goal_rel_weight = goal_rel_weight p.formula
   }
 
 let csv_header =
@@ -497,7 +504,7 @@ let csv_header =
   "by_definition,by_induction,by_commutative," ^
   "lits,lits_lt_min,lits_gt_max,lits_eq_max,lits_le_2,lits_rel_min,lits_rel_max,lits_rel_right," ^
   "weight,weight_lt_min,weight_lt_max,weight_le_max,weight_rel_min,weight_rel_max,weight_rel_right," ^
-  "in_proof,formula"
+  "goal_rel_weight,in_proof,formula"
 
 let all_steps pformula =
   search [pformula] (fun p -> unique (p.parents @ p.rewrites))
@@ -517,7 +524,7 @@ let write_generated thm_name all proof out =
     fprintf out "%d,%s,%s,%s,%d,%d,%d," f.weight
       (b f.weight_lt_min) (b f.weight_lt_max) (b f.weight_le_max)
       f.weight_rel_min f.weight_rel_max f.weight_rel_right;
-    fprintf out "%s,%s\n" (b (memq pf in_proof)) (show_formula pf.formula)
+    fprintf out "%d,%s,%s\n" f.goal_rel_weight (b (memq pf in_proof)) (show_formula pf.formula)
   )
 
 let cost p =
@@ -1109,10 +1116,11 @@ let prove known_stmts thm cancel_check gen_out =
     let p = {(to_pformula name f) with hypothesis = is_hyp } in
     if is_ac_axiom then ac_axioms := p :: !ac_axioms;
     dbg_newline (); p) in
-  let pformula = to_pformula (stmt_name thm) (Option.get (stmt_formula thm)) in
-  let goals = if !(opts.disprove) then [pformula] else
+  let goal = to_pformula (stmt_name thm) (Option.get (stmt_formula thm)) in
+  goal_consts := subtract (all_consts (goal.formula)) logical_ops;
+  let goals = if !(opts.disprove) then [goal] else
     ["negate1"; "negate"] |> map (fun rule ->
-      create_pformula rule [pformula] (_not pformula.formula)) in
+      create_pformula rule [goal] (_not goal.formula)) in
   let goals = goals |> map (fun g -> {g with goal = true}) in
   let all = known @ goals in
   dbg_newline ();
