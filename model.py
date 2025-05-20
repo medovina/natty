@@ -67,22 +67,26 @@ for feature, coef in feature_coefs:
 print(f'\nintercept: {intercept:.3f}')
 
 def format_num(n):
-    return f'+ {n:.3f}' if n >= 0 else f'- {-n:.3f}'
+    return f'+. {n:.3f}' if n >= 0 else f'-. {-n:.3f}'
+
+def is_boolean(f):
+    return isinstance(formulas.loc[0, f], np.bool_)
 
 def format_feature(f):
     if f.startswith('is_'):
         return f'b(f.orig = "{f.removeprefix('is_')}")'
     else:
-        return f'f.{f}'
+        conv = 'b' if is_boolean(f) else 'i'
+        return f'{conv} f.{f}'
 
 factor = 10
 cost = ([f'{- intercept / factor:.3f}'] +
-        [format_num(- coef / factor) + ' * ' + format_feature(feature)
+        [format_num(- coef / factor) + ' *. ' + format_feature(feature)
             for feature, coef in feature_coefs if feature != 'id' and coef != 0.0])
-print('\ncost = ' + '\n      '.join(cost))
+print('\ncost:        ' + '\n          '.join(cost))
 
 for c in formulas.columns:
-    if isinstance(formulas.loc[0, c], np.bool_):
+    if is_boolean(c):
         formulas[c] = np.where(formulas[c], 'T', 'F')
 
 formulas.to_csv('generated_out.csv', float_format = '%.3f')

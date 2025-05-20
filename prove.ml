@@ -530,20 +530,16 @@ let write_generated thm_name all proof out =
 let cost p =
   match p.parents with
     | [_; _] ->
+        let b = function | true -> 1.0 | false -> 0.0 in
+        let i = float_of_int in
         let f = features p in
-        if f.by_induction then 0.03
-        else if f.lits_lt_min then 0.0
-        else if f.lits_gt_max then 10.0
-        else if is_resolution p then
-          if f.lits_eq_max && not (f.from_goal || f.by_definition) then 10.0 else
-          if f.weight_lt_min then 0.0 else
-          if f.weight_le_max then 0.01 else 0.03
-        else (* paramodulation *)
-          if f.by_commutative then 0.01 else
-          if f.weight_lt_max then
-            if f.lits_le_2 then 0.02 else 10.0
-          else 10.0
-
+        let c = 0.398
+          -. 0.928 *. b f.by_induction
+          +. 0.074 *. i f.lits_rel_min
+          +. 0.030 *. b f.weight_lt_min
+          +. 0.027 *. i f.weight_rel_min in
+        max c 0.0
+        
     | _ -> 0.0
 
 (*      D:[D' ∨ t = t']    C⟨u⟩
