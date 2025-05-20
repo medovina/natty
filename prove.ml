@@ -471,7 +471,8 @@ let by_induction p = exists is_inductive p.parents
 type features = {
   orig: string; from_goal: bool;
   by_definition: bool; by_induction: bool; by_commutative: bool;
-  lits: int; lits_lt_min: bool; lits_gt_max: bool; lits_eq_max: bool; lits_le_2: bool;
+  lits: int; lits_lt_min: bool; lits_gt_max: bool; lits_eq_max: bool;
+  lits_eq_1: bool; lits_le_2: bool;
   lits_rel_min: int; lits_rel_max: int; lits_rel_right: int;
   weight: int; weight_lt_min: bool; weight_lt_max: bool; weight_le_max: bool;
   weight_rel_min: int; weight_rel_max: int; weight_rel_right: int;
@@ -489,7 +490,8 @@ let features p =
     by_induction = by_induction p;
     by_commutative = p.parents |> exists (fun q -> is_commutative_axiom q);
     lits; lits_lt_min = lits < min_lits; lits_gt_max = lits > max_lits;
-    lits_eq_max = lits = max_lits; lits_le_2 = lits <= 2;
+    lits_eq_max = lits = max_lits;
+    lits_eq_1 = lits = 1; lits_le_2 = lits <= 2;
     lits_rel_min = lits - min_lits; lits_rel_max = lits - max_lits;
       lits_rel_right = lits - nth parent_lits 1;
     weight = w; weight_lt_min = w < min_weight; weight_lt_max = w < max_weight;
@@ -502,7 +504,9 @@ let features p =
 let csv_header =
   "theorem,id,orig,from_goal," ^
   "by_definition,by_induction,by_commutative," ^
-  "lits,lits_lt_min,lits_gt_max,lits_eq_max,lits_le_2,lits_rel_min,lits_rel_max,lits_rel_right," ^
+  "lits,lits_lt_min,lits_gt_max,lits_eq_max," ^
+  "lits_eq_1,lits_le_2," ^
+  "lits_rel_min,lits_rel_max,lits_rel_right," ^
   "weight,weight_lt_min,weight_lt_max,weight_le_max,weight_rel_min,weight_rel_max,weight_rel_right," ^
   "goal_rel_weight,in_proof,formula"
 
@@ -518,9 +522,10 @@ let write_generated thm_name all proof out =
     let b = function | true -> "T" | false -> "F" in
     fprintf out "\"%s\",%d,%s,%s," thm_name pf.id f.orig (b f.from_goal);
     fprintf out "%s,%s,%s," (b f.by_definition) (b f.by_induction) (b f.by_commutative);
-    fprintf out "%d,%s,%s,%s,%s,%d,%d,%d,"
-      f.lits (b f.lits_lt_min) (b f.lits_gt_max) (b f.lits_eq_max) (b f.lits_le_2)
-      f.lits_rel_min f.lits_rel_max f.lits_rel_right;
+    fprintf out "%d,%s,%s,%s,"  
+      f.lits (b f.lits_lt_min) (b f.lits_gt_max) (b f.lits_eq_max);
+    fprintf out "%s,%s," (b f.lits_eq_1) (b f.lits_le_2);
+    fprintf out "%d,%d,%d,"f.lits_rel_min f.lits_rel_max f.lits_rel_right;
     fprintf out "%d,%s,%s,%s,%d,%d,%d," f.weight
       (b f.weight_lt_min) (b f.weight_lt_max) (b f.weight_le_max)
       f.weight_rel_min f.weight_rel_max f.weight_rel_right;
@@ -533,13 +538,18 @@ let cost p =
         let b = function | true -> 1.0 | false -> 0.0 in
         let i = float_of_int in
         let f = features p in
-        let c = 0.398
-          -. 0.928 *. b f.by_induction
-          +. 0.074 *. i f.lits_rel_min
-          +. 0.030 *. b f.weight_lt_min
-          +. 0.027 *. i f.weight_rel_min in
+        let c = 0.361
+          +. 0.193 *. b (f.orig = "para")
+          -. 0.047 *. b (f.orig = "res")
+          -. 0.001 *. b f.by_definition
+          -. 0.660 *. b f.by_induction
+          +. 0.033 *. b f.lits_le_2
+          +. 0.024 *. i f.lits_rel_max
+          +. 0.012 *. i f.lits_rel_right
+          +. 0.015 *. i f.weight_rel_min
+          +. 0.009 *. i f.weight_rel_right in
         max c 0.0
-        
+
     | _ -> 0.0
 
 (*      D:[D' ∨ t = t']    C⟨u⟩

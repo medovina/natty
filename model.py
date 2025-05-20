@@ -32,7 +32,7 @@ X = pd.concat([orig, features], axis = 1)
 
 scaler = StandardScaler()
 log_reg = LogisticRegression(
-    solver = 'liblinear', penalty = 'l1', C = 0.04, verbose = verbose)
+    solver = 'liblinear', penalty = 'l1', C = 0.02, verbose = verbose)
 pipe = make_pipeline(scaler, log_reg)
 
 with warnings.catch_warnings():
@@ -74,7 +74,7 @@ def is_boolean(f):
 
 def format_feature(f):
     if f.startswith('is_'):
-        return f'b(f.orig = "{f.removeprefix('is_')}")'
+        return f'b (f.orig = "{f.removeprefix('is_')}")'
     else:
         conv = 'b' if is_boolean(f) else 'i'
         return f'{conv} f.{f}'
