@@ -444,10 +444,12 @@ type features = {
   orig: string; from_hyp: bool; from_goal: bool;
   by_definition: bool; by_induction: bool; by_commutative: bool;
   lits: int; lits_lt_min: bool; lits_gt_max: bool; lits_eq_max: bool;
-  lits_eq_1: bool; lits_le_2: bool;
+  lits_gt_1: bool; lits_gt_2: bool;
   lits_rel_min: int; lits_rel_max: int; lits_rel_right: int;
-  weight: int; weight_lt_min: bool; weight_lt_max: bool; weight_le_max: bool;
+  res_lits: int; para_lits: int; para_lits_gt_1: bool; para_lits_gt_2: bool;
+  weight: int; weight_lt_min: bool; weight_ge_max: bool; weight_gt_max: bool;
   weight_rel_min: int; weight_rel_max: int; weight_rel_right: int;
+  res_weight: int; para_weight: int; para_weight_ge_max: bool;
   goal_rel_weight: int
 }
 
@@ -456,6 +458,8 @@ let features p =
   let parent_weights = p.parents |> map (fun q -> weight q.formula) in
   let lits, w = num_literals p.formula, weight p.formula in
   let min_lits, max_lits = minimum parent_lits, maximum parent_lits in
+  let select kind v = if origin p = kind then v else 0 in
+  let bselect kind b = origin p = kind && b in
   let min_weight, max_weight = minimum parent_weights, maximum parent_weights in {
     orig = origin p; from_hyp = p.hypothesis; from_goal = p.goal;
     by_definition = p.parents |> exists (fun q -> q.definition);
@@ -463,13 +467,17 @@ let features p =
     by_commutative = p.parents |> exists (fun q -> is_commutative_axiom q);
     lits; lits_lt_min = lits < min_lits; lits_gt_max = lits > max_lits;
     lits_eq_max = lits = max_lits;
-    lits_eq_1 = lits = 1; lits_le_2 = lits <= 2;
+    lits_gt_1 = lits > 1; lits_gt_2 = lits > 2;
     lits_rel_min = lits - min_lits; lits_rel_max = lits - max_lits;
       lits_rel_right = lits - nth parent_lits 1;
-    weight = w; weight_lt_min = w < min_weight; weight_lt_max = w < max_weight;
-      weight_le_max = w <= max_weight;
+    res_lits = select "res" lits; para_lits = select "para" lits;
+    para_lits_gt_1 = bselect "para" (lits > 1); para_lits_gt_2 = bselect "para" (lits > 2);
+    weight = w; weight_lt_min = w < min_weight; weight_ge_max = w >= max_weight;
+      weight_gt_max = w > max_weight;
     weight_rel_min = w - min_weight; weight_rel_max = w - max_weight;
       weight_rel_right = w - nth parent_weights 1;
+    res_weight = select "res" w; para_weight = select "para" w;
+    para_weight_ge_max = bselect "para" (w >= max_weight);
     goal_rel_weight = goal_rel_weight p.formula
   }
 
@@ -477,9 +485,12 @@ let csv_header =
   "theorem,id,orig,from_hyp,from_goal," ^
   "by_definition,by_induction,by_commutative," ^
   "lits,lits_lt_min,lits_gt_max,lits_eq_max," ^
-  "lits_eq_1,lits_le_2," ^
+  "lits_gt_1,lits_gt_2," ^
   "lits_rel_min,lits_rel_max,lits_rel_right," ^
-  "weight,weight_lt_min,weight_lt_max,weight_le_max,weight_rel_min,weight_rel_max,weight_rel_right," ^
+  "res_lits,para_lits,para_lits_gt_1,para_lits_gt_2," ^
+  "weight,weight_lt_min,weight_ge_max,weight_gt_max," ^
+  "weight_rel_min,weight_rel_max,weight_rel_right," ^
+  "res_weight,para_weight,para_weight_ge_max," ^
   "goal_rel_weight,in_proof,formula"
 
 let all_steps pformula =
@@ -496,11 +507,13 @@ let write_generated thm_name all proof out =
     fprintf out "%s,%s,%s," (b f.by_definition) (b f.by_induction) (b f.by_commutative);
     fprintf out "%d,%s,%s,%s,"  
       f.lits (b f.lits_lt_min) (b f.lits_gt_max) (b f.lits_eq_max);
-    fprintf out "%s,%s," (b f.lits_eq_1) (b f.lits_le_2);
-    fprintf out "%d,%d,%d,"f.lits_rel_min f.lits_rel_max f.lits_rel_right;
+    fprintf out "%s,%s," (b f.lits_gt_1) (b f.lits_gt_2);
+    fprintf out "%d,%d,%d," f.lits_rel_min f.lits_rel_max f.lits_rel_right;
+    fprintf out "%d,%d,%s,%s," f.res_lits f.para_lits (b f.para_lits_gt_1) (b f.para_lits_gt_2);
     fprintf out "%d,%s,%s,%s,%d,%d,%d," f.weight
-      (b f.weight_lt_min) (b f.weight_lt_max) (b f.weight_le_max)
+      (b f.weight_lt_min) (b f.weight_ge_max) (b f.weight_gt_max)
       f.weight_rel_min f.weight_rel_max f.weight_rel_right;
+    fprintf out "%d,%d,%s," f.res_weight f.para_weight (b f.para_weight_ge_max);
     fprintf out "%d,%s,%s\n" f.goal_rel_weight (b (memq pf in_proof)) (show_formula pf.formula)
   )
 
@@ -527,12 +540,10 @@ let heuristic_cost p =
   else if is_resolution p then
     if f.lits_eq_max && not (f.from_goal || f.by_definition) then 10.0 else
     if f.weight_lt_min then 0.0 else
-    if f.weight_le_max then 0.01 else 0.03
+    if f.weight_gt_max then 0.03 else 0.01
   else (* paramodulation *)
     if f.by_commutative then 0.01 else
-    if f.weight_lt_max then
-      if f.lits_le_2 then 0.02 else 10.0
-    else 10.0
+    if f.weight_ge_max || f.lits_gt_2 then 10.0 else 0.02
 
 let cost p =
   match p.parents with
