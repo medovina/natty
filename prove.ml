@@ -1195,16 +1195,19 @@ let prove_all thf prog =
     Some out
   else None in
   let dis = if !(opts.disprove) then "dis" else "" in
-  let rec prove_stmts all_success = function
+  let rec prove_stmts succeeded failed = function
     | [] ->
         if (not thf) then
-          if all_success then
+          if failed = 0 then
             printf "%s theorems were %sproved.\n"
               (if !(opts.disprove) then "No" else "All") dis
           else if !(opts.keep_going) then
-            printf "Some theorems were %sproved.\n" dis
+            if !(opts.disprove) then
+              printf "%d theorems/steps disproved.\n" failed
+            else
+              printf "%d theorems/steps proved, %d not proved.\n" succeeded failed
     | (thm, known) :: rest ->
-        let success = match thm with
+        let (succeed, fail) = match thm with
           | Theorem (_, _, None, _) ->
               print_endline (show_statement true thm ^ "\n");
               let (result, elapsed) =
@@ -1223,10 +1226,11 @@ let prove_all thf prog =
                   | Stopped -> assert false in
               if thf then printf "SZS status %s\n" (szs result);
               print_newline ();
-              if !(opts.disprove) then not b else b
-          | Theorem _ -> true
+              if !(opts.disprove) then (not b, b) else (b, not b)
+          | Theorem _ -> (false, false)
           | _ -> assert false in
-        if success || !(opts.keep_going) then
-          prove_stmts (all_success && success) rest in
-  prove_stmts true (expand_proofs prog);
+        let (succeeded, failed) = (succeeded + int_of_bool succeed), (failed + int_of_bool fail) in
+        if failed = 0 || !(opts.keep_going) then
+          prove_stmts succeeded failed rest in
+  prove_stmts 0 0 (expand_proofs prog);
   Option.iter Out_channel.close gen_out
