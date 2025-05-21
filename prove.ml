@@ -521,27 +521,23 @@ let write_generated thm_name all proof out =
       f.weight_rel_min f.weight_rel_max f.weight_rel_right;
     fprintf out "%d,%d,%s,%s,%s," f.res_weight f.para_weight
       (b f.res_weight_lt_min) (b f.res_weight_gt_max) (b f.para_weight_ge_max);
-    fprintf out "%d,%s,%s\n" f.goal_rel_weight (b (memq pf in_proof)) (show_formula pf.formula)
+    fprintf out "%d,%s,\"%s\"\n" f.goal_rel_weight (b (memq pf in_proof)) (show_formula pf.formula)
   )
 
 let predict_cost p =
   let b = function | true -> 1.0 | false -> 0.0 in
   let i = float_of_int in
   let f = features p in
-  0.668
-    -. 0.060 *. b f.from_hyp
-    -. 0.244 *. b f.from_goal
-    -. 0.072 *. b f.by_definition
-    -. 0.498 *. b f.by_induction
-    -. 0.018 *. b f.lits_lt_min
-    +. 0.085 *. i f.lits_rel_right
-    -. 0.007 *. i f.res_lits
-    +. 0.032 *. b f.para_lits_gt_1
-    -. 0.049 *. b f.weight_lt_min
-    +. 0.028 *. b f.weight_ge_max
-    +. 0.010 *. i f.weight_rel_right
-    -. 0.146 *. b f.res_weight_lt_min
-    +. 0.005 *. i f.goal_rel_weight
+  0.667
+    +. 0.031 *. b (f.orig = "para")
+    -. 0.008 *. b (f.orig = "res")
+    -. 0.005 *. b f.from_hyp
+    -. 0.250 *. b f.from_goal
+    -. 0.413 *. b f.by_induction
+    +. 0.004 *. b f.lits_eq_max
+    +. 0.075 *. i f.lits_rel_right
+    +. 0.011 *. i f.weight_rel_right
+    -. 0.167 *. b f.res_weight_lt_min
 
 let probability p =
   let logit = -10.0 *. predict_cost p in

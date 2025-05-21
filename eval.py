@@ -21,6 +21,8 @@ conf = Config('', [], default_timeout, True, False)
 all_provers = {
     'Natty' :
         { 'cmd': './natty -t{timeout}', 'given': r'given clauses: (\d+)' },
+    'Natty_predict' :
+        { 'cmd': './natty -n -t{timeout}', 'given': r'given clauses: (\d+)' },
     'E' :   # -s: silent
         { 'cmd': 'eprover-ho --auto -s --cpu-limit={timeout}',
           'stats': '--print-statistics',
@@ -256,8 +258,8 @@ def parse_args():
             conf.prove_steps = False
         elif arg.startswith('-p'):
             prefix = arg[2:].lower()
-            conf.eval_provers = [p for p in all_prover_names
-                                 if p.lower().startswith(prefix)]
+            provers = [p for p in all_prover_names if p.lower().startswith(prefix)]
+            conf.eval_provers = [] if provers == [] else [provers[0]]
         elif arg == '-s':
             conf.stats = True
         elif arg.startswith('-t'):

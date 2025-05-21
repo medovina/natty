@@ -32,7 +32,7 @@ X = pd.concat([orig, features], axis = 1)
 
 scaler = StandardScaler()
 log_reg = LogisticRegression(
-    solver = 'liblinear', penalty = 'l1', C = 0.001, verbose = verbose)
+    solver = 'liblinear', penalty = 'l1', C = 0.0002, verbose = verbose)
 pipe = make_pipeline(scaler, log_reg)
 
 with warnings.catch_warnings():
