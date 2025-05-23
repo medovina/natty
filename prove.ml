@@ -268,7 +268,7 @@ let rec mini_clausify f = match or_split f with
         oc(∀x.s) = s[y/x] = ⊤  (y not in s or C)
         oc(∃x.s) = s[k(y̅)/x] = ⊤
         oc(¬(s ∧ t)) = s = ⊥ ∨ t = ⊥
-        oc(¬(s ↔ t)) = ¬(s → t) ∨ ¬(t → s)
+        oc(¬(s ↔ t)) = (s → t) = ⊥ ∨ (t → s) = ⊥
         oc(¬(∀x.s)) = s[k(y̅)/x] = ⊥
         oc(¬(∃x.s)) = s[y/x] = ⊥  (y not in s or C)
         
@@ -574,8 +574,8 @@ let cost p =
  *     (iv) the position of u is eligible in C w.r.t. σ
  *     (v) Cσ ≰ Dσ
  *     (vi) t = t' is maximal in D w.r.t. σ
- *     (vii) if t'σ = ⊥, u is a literal
-             if t'σ = ⊤, ¬u is a literal *)
+ *     (vii)  if t'σ = ⊥, u is in a literal of the form u = ⊤
+       (viii) if t'σ = ⊤, u is in a literal of the form u = ⊥ *)
 
 let super only_res dp d' t_t' cp c c1 : pformula list =
   profile "super" @@ fun () ->
@@ -1114,6 +1114,7 @@ let ac_complete formulas : (id * formula * bool * bool) list =
   scan [] formulas
 
 let lower = function
+  (* Transform C = λx.λy.Dyx to ∀x.∀y.Cxy = Dyx. *)
   | Eq (Const _ as c,
       Lambda (x, x_typ, Lambda (y, y_typ,
         App (App ((Const _ as d), (Var (y', _) as vy)), (Var (x', _) as vx)))))
@@ -1121,6 +1122,7 @@ let lower = function
           let f = for_all_vars_typs [(x, x_typ); (y, y_typ)]
                     (Eq (apply [c; vx; vy], apply [d; vy; vx])) in
           (f, false)
+  (* Transform C = λv1...vn.φ to ∀v1...vn (C v1 ... vn ↔ φ). *)
   | Eq ((Const (_, typ) as c), (Lambda _ as l)) when target_type typ = Bool ->
       let (vars_typs, g) = gather_lambdas l in
       let f = for_all_vars_typs vars_typs (
