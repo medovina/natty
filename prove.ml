@@ -528,16 +528,19 @@ let predict_cost p =
   let b = function | true -> 1.0 | false -> 0.0 in
   let i = float_of_int in
   let f = features p in
-  0.667
-    +. 0.031 *. b (f.orig = "para")
-    -. 0.008 *. b (f.orig = "res")
-    -. 0.005 *. b f.from_hyp
-    -. 0.250 *. b f.from_goal
-    -. 0.413 *. b f.by_induction
-    +. 0.004 *. b f.lits_eq_max
-    +. 0.075 *. i f.lits_rel_right
-    +. 0.011 *. i f.weight_rel_right
-    -. 0.167 *. b f.res_weight_lt_min
+    0.668
+    +. 0.041 *. b (f.orig = "para")
+    -. 0.030 *. b f.from_hyp
+    -. 0.251 *. b f.from_goal
+    -. 0.007 *. b f.by_definition
+    -. 0.399 *. b f.by_induction
+    -. 0.009 *. b f.lits_lt_min
+    +. 0.007 *. b f.lits_gt_1
+    +. 0.082 *. i f.lits_rel_right
+    +. 0.008 *. i f.weight_rel_max
+    +. 0.002 *. i f.weight_rel_right
+    -. 0.182 *. b f.res_weight_lt_min
+
 
 let probability p =
   let logit = -10.0 *. predict_cost p in
