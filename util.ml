@@ -209,6 +209,9 @@ let maximum xs = fold_left1 max xs
 let is_maximal gt x ys =
   not (exists (fun y -> y <> x && gt y x) ys)
 
+let maximum_by f xs =
+  snd (maximum (map (fun x -> (f x, x)) xs))
+
 let sum xs = fold_left (+.) 0.0 xs
 
 let group_by key_fun fold init xs =

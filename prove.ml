@@ -25,6 +25,8 @@ type pformula = {
   definition: bool
 }
 
+let id_of pf = pf.id
+
 let ac_axioms = ref ([] : pformula list)
 
 let rec num_literals f = match bool_kind f with
@@ -64,6 +66,8 @@ let associative_axiom f =
   remove_universal f |> function
     | Eq (f, g) -> find_map is_assoc [(f, g); (g, f)]
     | _ -> None
+
+let is_associative_axiom p = Option.is_some (associative_axiom p.formula)
 
 let commutative_axiom f = remove_universal f |> function
     | Eq (f, g) -> (match kind f, kind g with
@@ -426,28 +430,30 @@ let eq_pairs para_ok f = match terms f with
         (if para_ok then oriented t t' else [])   (* iii: pre-check *)
   | (false, t, t') -> [(Eq (t, t'), _false)]
 
-type initial_features = {
-  i_hypothesis: bool; i_goal: bool;
-  i_definition: bool; i_inductive: bool; i_commutative: bool;
-  i_lits: int; i_lits_gt_1: bool; i_lits_gt_2: bool;
-  i_weight: int
-}
-
 let init_csv_header =
-  "theorem,id,hypothesis,goal,definition,inductive,commutative," ^
+  "theorem,id,inv_id,hypothesis,last_hyp,goal," ^
+  "definition,inductive,associative,commutative," ^
   "lits,lits_gt_1,lits_gt_2,weight,in_proof,formula"
 
 let write_initial thm_name all in_proof out =
+  let last_id = maximum (map id_of all) in
+  let hypotheses = filter (fun pf -> pf.hypothesis) all in
+  let last_hyp =
+    if hypotheses = [] then None
+    else Some (maximum_by id_of hypotheses) in
   let (goals, non_goals) = partition (fun pf -> pf.goal) all in
   let goals_in_proof = goals |> filter (fun g -> memq g in_proof) in
   let goals = if goals_in_proof = [] then [hd goals] else goals_in_proof in
   let all = goals @ non_goals in
   let b = function | true -> "T" | false -> "F" in
-  all |> sort_by (fun pf -> pf.id) |> iter (fun pf ->
+  all |> sort_by id_of |> iter (fun pf ->
     let lits, weight = num_literals pf.formula, weight pf.formula in
-    fprintf out "\"%s\",%d," thm_name pf.id;
-    fprintf out "%s,%s,%s," (b pf.hypothesis) (b pf.goal) (b pf.definition);
-    fprintf out "%s,%s," (b (is_inductive pf)) (b (is_commutative_axiom pf));
+    fprintf out "\"%s\",%d,%d," thm_name pf.id (last_id - pf.id);
+    fprintf out "%s,%s,%s,%s,"
+      (b pf.hypothesis) (b (opt_exists ((==) pf) last_hyp))
+      (b pf.goal) (b pf.definition);
+    fprintf out "%s,%s,%s," (b (is_inductive pf))
+      (b (is_associative_axiom pf)) (b (is_commutative_axiom pf));
     fprintf out "%d,%s,%s,%d," lits (b (lits > 1)) (b (lits > 2)) weight;
     fprintf out "%s,\"%s\"\n" (b (memq pf in_proof)) (show_formula pf.formula)
   )
@@ -530,7 +536,7 @@ let all_steps pformula =
 let write_generated thm_name all in_proof out =
   let b = function | true -> "T" | false -> "F" in
   all |> filter (fun pf -> length pf.parents = 2)
-      |> sort_by (fun pf -> pf.id) |> iter (fun pf ->
+      |> sort_by id_of |> iter (fun pf ->
     let f = features pf in
     fprintf out "\"%s\",%d,%s,%s,%s," thm_name pf.id f.orig (b f.from_hyp) (b f.from_goal);
     fprintf out "%s,%s,%s,%s,"
@@ -894,7 +900,7 @@ let create_pformula rule parents formula =
   p
 
 let output_proof pformula =
-  sort_by (fun pf -> pf.id) (all_steps pformula) |> iter (print_formula true "");
+  sort_by id_of (all_steps pformula) |> iter (print_formula true "");
   print_newline ()
 
 let is_ac_tautology f =
