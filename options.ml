@@ -43,6 +43,32 @@ let opts = {
 let debug = ref 0
 let debug_super = ref (0, 0)
 
+let usage () =
+    print_endline
+  {|usage: natty [options] <file>.{n,thf}
+  
+      -a                continue proof attempts even if one or more proofs fail
+      -c                try to disprove all theorems
+      -d<level>         debug level
+      -e                reformat proof from E
+      -f<name>[:<name>] prove/export given theorem and following (optionally up to given theorem)
+      -g                record generated formulas
+      -h                print this help message
+      -l                run as language server
+      -m                use old manual cost heuristic
+      -o<name>          only prove/export given theorem or proof step
+      -p[<id>]          output proof of theorems, or only of given formula
+      --pipe=<name>     pipe name for language server
+      -q                only use quick refute
+      -r                profile performance
+      -s<id>,<id>       debug superposition of given formulas
+      -t<num>           time limit in seconds
+      -v                verbose output
+      -w                skip quick refute
+      -x                export theorems to THF files
+      |};
+    exit 1
+
 let parse_args args =
   let rec parse = function
     | [] -> None
@@ -64,6 +90,7 @@ let parse_args args =
                       opts.from_thm := Some from; opts.to_thm := Some up_to;
                   | _ -> failwith "expected 1 or 2 names")
             | 'g' -> opts.record_generated := true
+            | 'h' -> usage ()
             | 'l' -> opts.server := true
             | 'm' -> opts.manual_cost := true
             | 'o' -> opts.only_thm := Some value
@@ -88,29 +115,3 @@ let parse_args args =
           | Some _ -> failwith "duplicate filename"
           | None -> Some arg in
   parse args
-
-  let usage () =
-    print_endline
-  {|usage: natty [options] <file>.{n,thf}
-  
-      -a                continue proof attempts even if one or more proofs fail
-      -c                try to disprove all theorems
-      -d<level>         debug level
-      -e                reformat proof from E
-      -f<name>[:<name>] prove/export given theorem and following (optionally up to given theorem)
-      -g                record generated formulas
-      -l                run as language server
-      -m                use old manual cost heuristic
-      -o<name>          only prove/export given theorem or proof step
-      -p[<id>]          output proof of theorems, or only of given formula
-      --pipe=<name>     pipe name for language server
-      -q                only use quick refute
-      -r                profile performance
-      -s<id>,<id>       debug superposition of given formulas
-      -t<num>           time limit in seconds
-      -v                verbose output
-      -w                skip quick refute
-      -x                export theorems to THF files
-      |};
-    exit 1
-    

@@ -4,19 +4,19 @@ Natty is a natural-language proof assistant with an embedded automatic prover fo
 
 Natty's automatic prover is based on a subset of the higher-order superposition calculus[^1].
 
-Natty is in an early stage of development, and is currently only able to prove some basic identities about the natural numbers.  As such, in its present form it will probably be of interest only to theorem proving researchers and enthusiasts.
+Natty is in an early stage of development, and is currently only able to prove some basic identities about the natural numbers and integers.  As such, in its present form it will probably be of interest only to theorem proving researchers and enthusiasts.
 
 ### Prerequsities
 
-Natty is written in [OCaml](https://ocaml.org/), using [Dune](https://dune.build/) as its build system.  It depends on two OCaml libraries: [MParser](https://github.com/murmour/mparser) and [psq](https://github.com/pqwy/psq).  You can install these libraries using [opam](https://opam.ocaml.org/):
+Natty is written in [OCaml](https://ocaml.org/), using [Dune](https://dune.build/) as its build system.  It depends on several OCaml libraries: [MParser](https://github.com/murmour/mparser), [psq](https://github.com/pqwy/psq), and [yojson](https://github.com/ocaml-community/yojson).  You can install these libraries using [opam](https://opam.ocaml.org/):
 
 ```
-$ opam install mparser mparser-re psq
+$ opam install mparser mparser-re psq yojson
 ```
 
 ### Running
 
-The included file [`nat.n`](nat.n) defines the natural numbers using the Peano axioms, and contains a number of elementary theorems about the naturals.  To invoke Natty on this file, run
+The included file [`nat.n`](nat.n) defines the natural numbers and integers and contains a number of elementary theorems about them.  To invoke Natty on this file, run
 
 ```
 $ ./natty nat.n
@@ -30,9 +30,9 @@ $ ./natty -p nat.n
 
 The `-d` option will print verbose debug output, showing all inferences that Natty makes as it searches for proofs.
 
-By default, Natty will stop as soon as it fails to prove any theorem.  The `-k` option asks it to keep going and attempt to prove all theorems even if one or more proofs fail.  (At this time Natty is not able to prove all theorems in `nat.n`, so you will need to use this option if you'd like it to try to prove all theorems in that file.)
+By default, Natty will stop as soon as it fails to prove any theorem.  The `-a` option asks it to keep going and attempt to prove all theorems even if one or more proofs fail.  (At this time Natty is not able to prove all theorems in `nat.n`, so you will need to use this option if you'd like it to try to prove all theorems in that file.)
 
-The `-t` option specifies a time limit for searching for a proof.  For example, `-t5` specifies a limit of 5 seconds.
+The `-t` option specifies a time limit for searching for a proof.  For example, `-t2` specifies a limit of 2 seconds.  The default limit is 5 seconds.
 
 The `-x` option will cause Natty to export each theorem from the input to a file in the standard THF format.  The output files will appear in a subdirectory, e.g. in the `nat` directory for theorems from `nat.n`.  In this mode Natty will not attempt to prove any theorems.
 
@@ -65,12 +65,14 @@ $ natty -x nat.n
 After that, run
 
 ```
-$ python eval.py nat
+$ python eval.py -pnatty nat
 ```
 
-That will run all of these provers on all the THF files in the `nat` subdirectory, and generate a results file `nat_results.csv` that you can open in any spreadsheet program.
+That will run Natty on all the THF files in the `nat` subdirectory, and generate a results file `nat_results.csv` that you can open in any spreadsheet program.  After '-p' you may alternately specify the name of a different prover to evaluate, one of 'e', 'vampire' or 'zipperposition'.  Any such prover will need to be in your `PATH`. To evaluate all of these provers at once, run
 
-To use this script, you will need to have E, Vampire, and Zipperposition installed and available in your `PATH`.  To omit any of these provers (or add more), edit `eval.py` and adjust the `provers` list at the top of the file.
+```
+$ python eval.py -a nat
+```
 
 ### References
 
