@@ -541,7 +541,6 @@ let predict_cost p =
     +. 0.002 *. i f.weight_rel_right
     -. 0.182 *. b f.res_weight_lt_min
 
-
 let probability p =
   let logit = -10.0 *. predict_cost p in
   let odds = exp logit in
@@ -563,8 +562,7 @@ let heuristic_cost p =
 let cost p =
   match p.parents with
     | [_; _] ->
-        if !(opts.new_cost) then max 0.0 (predict_cost p)
-        else heuristic_cost p
+        if !(opts.manual_cost) then heuristic_cost p else max 0.0 (predict_cost p)
     | _ -> 0.0
 
 (*      D:[D' ∨ t = t']    C⟨u⟩
@@ -857,7 +855,7 @@ let print_formula with_origin prefix pf =
   let mark b c = if b then " " ^ (if pf.derived then c else to_upper c) else "" in
   let annotate = mark pf.definition "d" ^ mark pf.goal "g" ^ mark pf.hypothesis "h" in
   let prob =
-    if !(opts.new_cost) && length pf.parents = 2 && pf.formula != _false
+    if not !(opts.manual_cost) && length pf.parents = 2 && pf.formula != _false
     then sprintf "p = %.2f, " (probability pf) else "" in
   printf "%s%s {%d/%d: %s%.2f%s}\n"
     (indent_with_prefix prefix (show_multi pf.formula))

@@ -157,7 +157,7 @@ Proof.
 
     G = { c ∈ ℕ | if c ≠ 0, then ac < bc }.
 
-  Clearly 0 ∈ G.  Let c ∈ ℕ, and suppose that c ∈ G.  We will show that s(c) ∈ G.  We know that a · 1 < b · 1.  Suppose that c = 0. Then a · s(c) < b · s(c), so s(c) ∈ G.  Conversely, suppose that c ≠ 0.  By hypothesis we know that ac < bc.  Then by Theorem 8.2 we have ac + a < bc + a < bc + b.  So a · s(c) < b · s(c), so s(c) ∈ G.  And so for all x ∈ ℕ, x ∈ G.
+  Clearly 0 ∈ G.  Let c ∈ ℕ, and suppose that c ∈ G.  We will show that s(c) ∈ G.  We know that a · 1 < b · 1.  Suppose that c = 0. Then a · s(c) < b · s(c), so s(c) ∈ G.  Conversely, suppose that c ≠ 0.  By hypothesis we know that ac < bc.  Then by Theorem 8.2 we have ac + a < bc + a, and also bc + a < bc + b.  So ac + a < bc + b, so a · s(c) < b · s(c), so s(c) ∈ G.  And so for all x ∈ ℕ, x ∈ G.
 
   5. Let a, b, c ∈ ℕ, and suppose that ac < bc.  If c = 0 then 0 < 0, which is a contradiction.  So c ≠ 0.  If a = b then bc < bc, a contradiction.  If b < a then bc < ac by part (4) of this theorem, so bc < ac < bc, also a contradiction.  By Theorem 7.1, the only alternative is a < b.
 

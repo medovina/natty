@@ -6,7 +6,7 @@ type options = {
   export: bool ref;
   keep_going: bool ref;
   from_thm: string option ref;
-  new_cost: bool ref;
+  manual_cost: bool ref;
   no_quick: bool ref;
   only_quick: bool ref;
   only_thm: string option ref;
@@ -26,7 +26,7 @@ let opts = {
   export = ref false;
   from_thm = ref None;
   keep_going = ref false;
-  new_cost = ref false;
+  manual_cost = ref false;
   no_quick = ref false;
   only_quick = ref false;
   only_thm = ref None;
@@ -65,7 +65,7 @@ let parse_args args =
                   | _ -> failwith "expected 1 or 2 names")
             | 'g' -> opts.record_generated := true
             | 'l' -> opts.server := true
-            | 'n' -> opts.new_cost := true
+            | 'm' -> opts.manual_cost := true
             | 'o' -> opts.only_thm := Some value
             | 'p' -> if arg = "-p" then opts.show_proofs := true
                      else opts.show_proof_of := int_val ()
@@ -100,7 +100,7 @@ let parse_args args =
       -f<name>[:<name>] prove/export given theorem and following (optionally up to given theorem)
       -g                record generated formulas
       -l                run as language server
-      -n                use new, experimental cost prediction function
+      -m                use old manual cost heuristic
       -o<name>          only prove/export given theorem or proof step
       -p[<id>]          output proof of theorems, or only of given formula
       --pipe=<name>     pipe name for language server

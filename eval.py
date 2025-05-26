@@ -21,8 +21,8 @@ conf = Config('', [], default_timeout, True, False)
 all_provers = {
     'Natty' :
         { 'cmd': './natty -t{timeout}', 'given': r'given clauses: (\d+)' },
-    'Natty_predict' :
-        { 'cmd': './natty -n -t{timeout}', 'given': r'given clauses: (\d+)' },
+    'Natty_manual' :
+        { 'cmd': './natty -m -t{timeout}', 'given': r'given clauses: (\d+)' },
     'E' :   # -s: silent
         { 'cmd': 'eprover-ho --auto -s --cpu-limit={timeout}',
           'stats': '--print-statistics',
