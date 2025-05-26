@@ -426,6 +426,32 @@ let eq_pairs para_ok f = match terms f with
         (if para_ok then oriented t t' else [])   (* iii: pre-check *)
   | (false, t, t') -> [(Eq (t, t'), _false)]
 
+type initial_features = {
+  i_hypothesis: bool; i_goal: bool;
+  i_definition: bool; i_inductive: bool; i_commutative: bool;
+  i_lits: int; i_lits_gt_1: bool; i_lits_gt_2: bool;
+  i_weight: int
+}
+
+let init_csv_header =
+  "theorem,id,hypothesis,goal,definition,inductive,commutative," ^
+  "lits,lits_gt_1,lits_gt_2,weight,in_proof,formula"
+
+let write_initial thm_name all in_proof out =
+  let (goals, non_goals) = partition (fun pf -> pf.goal) all in
+  let goals_in_proof = goals |> filter (fun g -> memq g in_proof) in
+  let goals = if goals_in_proof = [] then [hd goals] else goals_in_proof in
+  let all = goals @ non_goals in
+  let b = function | true -> "T" | false -> "F" in
+  all |> sort_by (fun pf -> pf.id) |> iter (fun pf ->
+    let lits, weight = num_literals pf.formula, weight pf.formula in
+    fprintf out "\"%s\",%d," thm_name pf.id;
+    fprintf out "%s,%s,%s," (b pf.hypothesis) (b pf.goal) (b pf.definition);
+    fprintf out "%s,%s," (b (is_inductive pf)) (b (is_commutative_axiom pf));
+    fprintf out "%d,%s,%s,%d," lits (b (lits > 1)) (b (lits > 2)) weight;
+    fprintf out "%s,\"%s\"\n" (b (memq pf in_proof)) (show_formula pf.formula)
+  )
+
 let is_resolution p = starts_with "res:" p.rule
 
 let trim_rule rule =
@@ -501,13 +527,11 @@ let csv_header =
 let all_steps pformula =
   search [pformula] (fun p -> unique (p.parents @ p.rewrites))
 
-let write_generated thm_name all proof out =
-  let thm_name = str_replace "theorem" "thm" thm_name in
-  let in_proof = all_steps proof in
+let write_generated thm_name all in_proof out =
+  let b = function | true -> "T" | false -> "F" in
   all |> filter (fun pf -> length pf.parents = 2)
       |> sort_by (fun pf -> pf.id) |> iter (fun pf ->
     let f = features pf in
-    let b = function | true -> "T" | false -> "F" in
     fprintf out "\"%s\",%d,%s,%s,%s," thm_name pf.id f.orig (b f.from_hyp) (b f.from_goal);
     fprintf out "%s,%s,%s,%s,"
       (b f.by_definition) (b f.by_induction) (b f.by_commutative) (b f.para_by_commutative);
@@ -1035,12 +1059,21 @@ let rw_simplify_all queue used found ps =
     p in
   filter_map simplify ps
 
-let refute thm_name pformulas cancel_check gen_out : result =
+let record_formulas thm_name pformulas all_generated init_out gen_out res =
+  (match res with
+    | Proof (proof, _) ->
+        let thm_name = str_replace "theorem" "thm" thm_name in
+        let in_proof = all_steps proof in
+        init_out |> Option.iter (write_initial thm_name pformulas in_proof);
+        gen_out |> Option.iter (write_generated thm_name !all_generated in_proof)
+    | _ -> ());
+  res
+
+let refute thm_name pformulas cancel_check init_out gen_out : result =
   profile "refute" @@ fun () ->
   let timeout = !(opts.timeout) in
   let found = ref @@ FormulaMap.of_list (pformulas |> map (fun p -> (canonical p, p))) in
-  let used = ref [] in
-  let queue = ref PFQueue.empty in
+  let used, queue = ref [], ref PFQueue.empty in
   queue_add queue pformulas;
   let start = Sys.time () in
   let all_generated = ref pformulas in
@@ -1080,12 +1113,7 @@ let refute thm_name pformulas cancel_check gen_out : result =
                           all_generated := new_pformulas @ !all_generated;
                         queue_add queue new_pformulas;
                         loop count in
-  let res = loop 0 in (
-  match res with
-    | Proof (proof, _) ->
-        gen_out |> Option.iter (write_generated thm_name !all_generated proof);
-    | _ -> ());
-  res
+  record_formulas thm_name pformulas all_generated init_out gen_out (loop 0)
 
 (* Given an associative/commutative operator *, construct the axiom
  *     x * (y * z) = y * (x * z)
@@ -1165,7 +1193,7 @@ let quick_refute all =
           (fun p -> proof (goal_resolve (number_formula r) p))
       )))
 
-let prove known_stmts thm cancel_check gen_out =
+let prove known_stmts thm cancel_check init_out gen_out =
   let known_stmts = rev known_stmts in
   consts := filter_map decl_var known_stmts;
   ac_ops := [];
@@ -1193,7 +1221,7 @@ let prove known_stmts thm cancel_check gen_out =
     | None -> if !(opts.only_quick) then GaveUp else (
         if !debug > 0 then
           printf "no quick refutation in %.2f s; beginning main loop\n\n" (Sys.time () -. start);
-          refute (stmt_name thm) all cancel_check gen_out) in
+          refute (stmt_name thm) all cancel_check init_out gen_out) in
   (result, Sys.time () -. start)
 
 let show_proof pf dis elapsed stats =
@@ -1208,11 +1236,13 @@ let show_proof pf dis elapsed stats =
 
 let prove_all thf prog =
   profile "prove_all" @@ fun () ->
-  let gen_out = if !(opts.record_generated) then
-    let out = open_out "generated.csv" in
-    fprintf out "%s\n" csv_header;
-    Some out
-  else None in
+  let init_out, gen_out = if !(opts.record_generated) then
+    let init_out = open_out "initial.csv" in
+    fprintf init_out "%s\n" init_csv_header;
+    let gen_out = open_out "generated.csv" in
+    fprintf gen_out "%s\n" csv_header;
+    (Some init_out, Some gen_out)
+  else (None, None) in
   let dis = if !(opts.disprove) then "dis" else "" in
   let rec prove_stmts succeeded failed = function
     | [] ->
@@ -1230,7 +1260,7 @@ let prove_all thf prog =
           | Theorem (_, _, None, _) ->
               print_endline (show_statement true thm ^ "\n");
               let (result, elapsed) =
-                prove known thm (Fun.const false) gen_out in
+                prove known thm (Fun.const false) init_out gen_out in
               let b = match result with
                   | Proof (pf, stats) -> show_proof pf dis elapsed stats; true
                   | GaveUp -> printf "Not %sproved.\n" dis; false
