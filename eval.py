@@ -20,19 +20,23 @@ conf = Config('', [], default_timeout, True, False)
 
 all_provers = {
     'Natty' :
-        { 'cmd': './natty -t{timeout}', 'given': r'given clauses: (\d+)' },
+        { 'cmd': './natty -t{timeout}',
+          'stats' : { 'given': r'given clauses: (\d+)' } },
     'Natty_manual' :
-        { 'cmd': './natty -m -t{timeout}', 'given': r'given clauses: (\d+)' },
+        { 'cmd': './natty -m -t{timeout}',
+          'stats' : { 'given': r'given clauses: (\d+)' } },
     'E' :   # -s: silent
         { 'cmd': 'eprover-ho --auto -s --cpu-limit={timeout}',
-          'stats': '--print-statistics',
-          'given': r'# ...remaining for further processing +: (\d+)' },
+          'stats_arg': '--print-statistics',
+          'stats' : { 'given': r'# ...remaining for further processing +: (\d+)',
+                      'generated' : r'# Generated clauses +: (\d+)' } },
     'Vampire' :
         { 'cmd': 'vampire -t {timeout}',
-          'stats': '-stat full', 'given': r'% Activations started: (\d+)' },
+          'stats_arg': '-stat full',
+          'stats' : { 'given': r'% Activations started: (\d+)' } },
     'Zipperposition' :
         { 'cmd': 'zipperposition --mode best --input tptp --timeout {timeout}',
-          'given' : r'^# done (\d+) iterations'}
+          'stats' : { 'given' : r'^# done (\d+) iterations'} }
 }
 all_prover_names = list(all_provers.keys())
 
@@ -99,11 +103,11 @@ def prove(prover, file):
     cmd = prover_info['cmd']
     cmd = cmd.replace('{timeout}', str(conf.timeout))
     if conf.stats:
-        if stats := prover_info.get('stats'):
-            cmd += " " + stats
-        given_regex = prover_info.get('given')
+        if stats_arg := prover_info.get('stats_arg'):
+            cmd += " " + stats_arg
+        prover_stats = prover_info.get('stats')
     else:
-        given_regex = None
+        prover_stats = None
 
     filename = path.join(conf.dir, file + '.thf')
     cmd += " " + filename
@@ -145,14 +149,13 @@ def prove(prover, file):
             assert False
 
     res = {'time' : time }
-    if success and given_regex != None:
+    if success and prover_stats != None:
         for line in lines:
-            if m := re.search(given_regex, line):
-                res['given'] = m[1]
-                break
-        else:
-            if prover.startswith('Vampire'):
-                res['given'] = 0
+            for stat, regex in prover_stats.items():
+                if m := re.search(regex, line):
+                    res[stat] = m[1]
+        if prover.startswith('Vampire') and 'given' not in res:
+            res['given'] = 0
 
     with lock:
         print(clear_line + cmd)
