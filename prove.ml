@@ -989,7 +989,11 @@ let rw_simplify cheap src queue used found p =
                 | None ->
                     Some (final ())
 
-type result = Proof of pformula * int * float | Timeout | GaveUp | Stopped
+type proof_stats = {
+  quick: bool; initial: int; given: int; generated: int; max_cost: float
+}
+
+type result = Proof of pformula * proof_stats | Timeout | GaveUp | Stopped
 
 let szs = function
   | Proof _ -> "Theorem"
@@ -1040,7 +1044,11 @@ let refute thm_name pformulas cancel_check gen_out : result =
   queue_add queue pformulas;
   let start = Sys.time () in
   let all_generated = ref pformulas in
-  let rec loop count max_cost =
+  let num_generated, max_cost = ref 0, ref 0.0 in
+  let stats count =
+    { quick = false; initial = length pformulas;
+      given = count; generated = !num_generated; max_cost = !max_cost} in
+  let rec loop count =
     let elapsed = Sys.time () -. start in
     if timeout > 0.0 && elapsed > timeout then Timeout
     else if cancel_check () then Stopped
@@ -1048,32 +1056,33 @@ let refute thm_name pformulas cancel_check gen_out : result =
       | None -> GaveUp
       | Some ((given, _cost), q) ->
           queue := q;
-          let max_cost = max given.cost max_cost in
+          max_cost := max given.cost !max_cost;
           match forward_simplify queue used found given with
             | None ->
                 if !debug > 0 then print_newline ();
-                loop count max_cost
+                loop count
             | Some p ->
                 let count = if count = 0 then (if p.goal then 1 else 0) else count + 1 in
                 let prefix = if count = 0 then "" else sprintf "#%d, " count in
                 dbg_print_formula false (sprintf "[%s%.3f s] given: " prefix elapsed) given;
-                if p.formula = _false then Proof (p, count, max_cost) else
+                if p.formula = _false then Proof (p, stats count) else
                   let rewritten = back_simplify p used in
                   used := p :: !used;
                   let generated = generate p used in
+                  num_generated := !num_generated + length generated;
                   let new_pformulas =
                     rw_simplify_all queue used found (rev (rewritten @ generated)) in
                   dbg_newline ();
                   match find_opt (fun p -> p.formula = _false) new_pformulas with
-                    | Some p -> Proof (p, count, max_cost)
+                    | Some p -> Proof (p, stats count)
                     | None ->
                         if !(opts.record_generated) then
                           all_generated := new_pformulas @ !all_generated;
                         queue_add queue new_pformulas;
-                        loop count max_cost in
-  let res = loop 0 0.0 in (
+                        loop count in
+  let res = loop 0 in (
   match res with
-    | Proof (proof, _, _) ->
+    | Proof (proof, _) ->
         gen_out |> Option.iter (write_generated thm_name !all_generated proof);
     | _ -> ());
   res
@@ -1144,7 +1153,8 @@ let goal_resolve r p =
 let quick_refute all =
   profile "quick_refute" @@ fun () ->
   let index = FormulaMap.of_list (all |> map (fun p -> (canonical p, p))) in
-  let proof p = Proof (number_formula p, -1, 0.0) in
+  let proof p = Proof (number_formula p,
+    { quick = true; initial = length all; given = 0; generated = 0; max_cost = 0.0 }) in
   all |> find_map (fun p ->
     all |> find_map (fun q ->
       if p.id >= q.id then None else
@@ -1186,6 +1196,16 @@ let prove known_stmts thm cancel_check gen_out =
           refute (stmt_name thm) all cancel_check gen_out) in
   (result, Sys.time () -. start)
 
+let show_proof pf dis elapsed stats =
+  printf "%sproved in %.2f s (%s" dis elapsed (if stats.quick then "quick; " else "");
+  if !(opts.stats) then printf "initial: %d; " stats.initial;
+  printf "given: %d; "  stats.given;
+  if !(opts.stats) then printf "generated: %d; " stats.generated;
+  printf "cost: %.2f)\n" stats.max_cost;
+  if !(opts.show_proofs) then (
+    print_newline ();
+    output_proof pf)
+
 let prove_all thf prog =
   profile "prove_all" @@ fun () ->
   let gen_out = if !(opts.record_generated) then
@@ -1212,14 +1232,7 @@ let prove_all thf prog =
               let (result, elapsed) =
                 prove known thm (Fun.const false) gen_out in
               let b = match result with
-                  | Proof (pf, given, cost) ->
-                      let stats = if given < 0 then "0; quick" else
-                        sprintf "%d; cost: %.2f" given cost in
-                      printf "%sproved in %.2f s (given clauses: %s)\n" dis elapsed stats;
-                      if !(opts.show_proofs) then (
-                        print_newline ();
-                        output_proof pf);
-                      true
+                  | Proof (pf, stats) -> show_proof pf dis elapsed stats; true
                   | GaveUp -> printf "Not %sproved.\n" dis; false
                   | Timeout -> printf "Time limit exceeded.\n"; false
                   | Stopped -> assert false in

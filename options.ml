@@ -15,6 +15,7 @@ type options = {
   server: bool ref;
   show_proofs: bool ref;
   show_proof_of: int ref;
+  stats: bool ref;
   timeout: float ref;
   to_thm: string option ref;
   verbose: bool ref
@@ -35,6 +36,7 @@ let opts = {
   server = ref false;
   show_proofs = ref false;
   show_proof_of = ref 0;
+  stats = ref false;
   timeout = ref 5.0;
   to_thm = ref None;
   verbose = ref false
@@ -54,6 +56,7 @@ let usage () =
       -f<name>[:<name>] prove/export given theorem and following (optionally up to given theorem)
       -g                record generated formulas
       -h                print this help message
+      -i                print proof statistics
       -l                run as language server
       -m                use old manual cost heuristic
       -o<name>          only prove/export given theorem or proof step
@@ -91,6 +94,7 @@ let parse_args args =
                   | _ -> failwith "expected 1 or 2 names")
             | 'g' -> opts.record_generated := true
             | 'h' -> usage ()
+            | 'i' -> opts.stats := true
             | 'l' -> opts.server := true
             | 'm' -> opts.manual_cost := true
             | 'o' -> opts.only_thm := Some value
