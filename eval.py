@@ -32,7 +32,8 @@ all_provers = {
     'E' :   # -s: silent
         { 'cmd': 'eprover-ho --auto -s --cpu-limit={timeout}',
           'stats_arg': '--print-statistics',
-          'stats' : { 'given': r'# ...remaining for further processing +: (\d+)',
+          'stats' : { '_initial': r'# Initial clauses in saturation +: (\d+)',
+                      'given': r'# ...remaining for further processing +: (\d+)',
                       'generated' : r'# Generated clauses +: (\d+)' } },
     'Vampire' :
         { 'cmd': 'vampire -t {timeout}',
@@ -157,7 +158,13 @@ def prove(prover, file):
         for line in lines:
             for stat, regex in prover_stats.items():
                 if m := re.search(regex, line):
-                    res[stat] = m[1]
+                    res[stat] = int(m[1])
+        if prover == 'E':
+            # In E the initial clauses enter the main loop twice, one during presaturation
+            # interreduction and then again during the main phase.  We don't want to count
+            # them as given both times.
+            res['given'] = max(0, res['given'] - res['_initial'])
+            del res['_initial']
         if prover.startswith('Vampire') and 'given' not in res:
             res['given'] = 0
 
