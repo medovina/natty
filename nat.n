@@ -157,7 +157,7 @@ Proof.
 
     G = { c ∈ ℕ | if c ≠ 0, then ac < bc }.
 
-  Clearly 0 ∈ G.  Let c ∈ ℕ, and suppose that c ∈ G.  We will show that s(c) ∈ G.  We know that a · 1 < b · 1.  Suppose that c = 0. Then a · s(c) < b · s(c), so s(c) ∈ G.  Conversely, suppose that c ≠ 0.  By hypothesis we know that ac < bc.  Then by Theorem 8.2 we have ac + a < bc + a, and also bc + a < bc + b.  So ac + a < bc + b, so a · s(c) < b · s(c), so s(c) ∈ G.  And so for all x ∈ ℕ, x ∈ G.
+  Clearly 0 ∈ G.  Let c ∈ ℕ, and suppose that c ∈ G.  We will show that s(c) ∈ G.  We know that a · 1 < b · 1.  Suppose that c = 0. Then a · s(c) < b · s(c), so s(c) ∈ G.  Conversely, suppose that c ≠ 0.  By hypothesis we know that ac < bc.  Then by Theorem 8.2 we have ac + a < bc + a < bc + b.  So a · s(c) < b · s(c), so s(c) ∈ G.  And so for all x ∈ ℕ, x ∈ G.
 
   5. Let a, b, c ∈ ℕ, and suppose that ac < bc.  If c = 0 then 0 < 0, which is a contradiction.  So c ≠ 0.  If a = b then bc < bc, a contradiction.  If b < a then bc < ac by part (4) of this theorem, so bc < ac < bc, also a contradiction.  By Theorem 7.1, the only alternative is a < b.
 
@@ -171,9 +171,9 @@ Proof.
 
   1. Let a, b ∈ ℕ.  Suppose that b < a < b + 1.  Then there are g, h ∈ ℕ such that b + g = a and a + h = b + 1.  Then (b + g) + h = b + 1, so (g + h) + b = 1 + b, so g + h = 1.  If g = 0 then b = a, which is a contradiction.  So there is some j ∈ ℕ such that g = s(j).  Similarly, if h = 0 then a = b + 1, which is a contradiction.  So there is some k ∈ ℕ such that h = s(k).  Therefore s(j) + s(k) = 1.  This is a contradiction to Theorem 2.8.
 
-  2. Let a, b ∈ ℕ.  First suppose that a ≤ b.  Suppose further that a ≥ b + 1.  Then by Theorem 6.3 we deduce that b + 1 ≤ b, which is a contradiction to Theorem 6.1.  So it must be that a < b + 1.  Second, suppose that a < b + 1.  Suppose further that a > b.  It follows that b < a < b + 1, which is a contradiction to part (1) of this theorem.  So it must be that a ≤ b.
+  2. Let a, b ∈ ℕ.  First suppose that a ≤ b.  Suppose further that a ≥ b + 1.  Then by Theorem 6.3 we deduce that b + 1 ≤ b, which is a contradiction to Theorem 6.1.  Second, suppose that a < b + 1.  Suppose further that a > b.  It follows that b < a < b + 1, which is a contradiction to part (1) of this theorem.
 
-  3. Let a, b ∈ ℕ.  First suppose that a < b.  Suppose further that a + 1 > b.  It follows that a < b < a + 1, which is a contradiction to part (1) of this theorem.  So it must be that a + 1 ≤ b. Second, suppose that a + 1 ≤ b.  Suppose further that a ≥ b.  Then by Theorem 6.3 we deduce that a + 1 ≤ a, which is a contradiction to Theorem 6.1.  So it must be that a < b.
+  3. Let a, b ∈ ℕ.  First suppose that a < b.  Suppose further that a + 1 > b.  It follows that a < b < a + 1, which is a contradiction to part (1) of this theorem.  Second, suppose that a + 1 ≤ b.  Suppose further that a ≥ b.  Then by Theorem 6.3 we deduce that a + 1 ≤ a, which is a contradiction to Theorem 6.1.
 
 Lemma 10.  Let a, b, c, d ∈ ℕ.  If a < b and c < d, then bc + ad < ac + bd.
 
