@@ -1101,7 +1101,7 @@ let refute thm_name pformulas cancel_check init_out gen_out : result =
                 if !debug > 0 then print_newline ();
                 loop count
             | Some p ->
-                let count = if count = 0 then (if p.goal then 1 else 0) else count + 1 in
+                let count = count + 1 in
                 let prefix = if count = 0 then "" else sprintf "#%d, " count in
                 dbg_print_formula false (sprintf "[%s%.3f s] given: " prefix elapsed) given;
                 if p.formula = _false then Proof (p, stats count) else
