@@ -140,7 +140,7 @@ let prop_operators = [
   [ infix "or" _or Assoc_left ];
   [ infix "implies" implies Assoc_right ];
   [ Postfix (str "for all" >> id_type |>> _for_all') ];
-  [ infix "if and only if" _iff Assoc_right ];
+  [ Infix (any_str ["iff"; "if and only if"] >>$ _iff, Assoc_right) ];
   [ Infix (str "," >>? and_op >>$ _and, Assoc_left) ];
   [ Infix (str "," >>? str "or" >>$ _or, Assoc_left) ];
 ]
@@ -288,7 +288,7 @@ let operation =
 
 let axiom_decl =
   str "a type" >> id |>> (fun id -> TypeDecl id) <|>
-  pipe2 ((any_str ["an element"; "a function"] <|> operation) >> id_or_sym)
+  pipe2 ((any_str ["a constant"; "an element"; "a function"] <|> operation) >> id_or_sym)
     (of_type >> typ)
     (fun c typ -> ConstDecl (c, typ))
 
@@ -299,11 +299,14 @@ let count_label n label =
 let axiom_propositions n = propositions |>>
   map (fun (label, f, name, _range) -> Axiom (count_label n label, f, name))
 
-let axiom_group = (str "Axiom" >> int << str ".") >>= fun n ->
-  there_exists >> pipe2
+let axiom_exists n =
+  there_exists >>? pipe2
   (sep_by1 axiom_decl (any_str ["and"; "with"]))
   ((str "such that" >> axiom_propositions n) <|> (str "." >>$ []))
   (@)
+
+let axiom_group = (str "Axiom" >> int << str ".") >>= fun n ->
+  (axiom_exists n <|> axiom_propositions n)
 
 (* definitions *)
 
