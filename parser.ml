@@ -113,7 +113,8 @@ let reference = choice [
   ]
 
 let reason =
-  (any_str ["by"; "using"] >>? reference) <|> str "by hypothesis"
+  (any_str ["by"; "using"] >>? reference) <|>
+    (str "by" >>? opt_str "the inductive" >>? str "hypothesis")
 
 (* operators for small propositions *)
 

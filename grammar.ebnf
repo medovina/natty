@@ -21,7 +21,7 @@ reference =
     'part (' number ')' ['of this theorem'] |
     'the definition of' var;
 
-reason = (('by' | 'using') reference) | 'by hypothesis';
+reason = (('by' | 'using') reference) | 'by' ['the inductive'] 'hypothesis';
 
 (* terms *)
 
