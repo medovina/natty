@@ -124,6 +124,7 @@ let rec map_stmt_formulas fn stmt = match stmt with
   | TypeDecl _ | ConstDecl _ -> stmt
 
 let decl_var = function
+  | TypeDecl id -> Some (id, Fun (Base id, Bool))   (* universal set for type *)
   | ConstDecl (i, typ) -> Some (i, typ)
   | Definition (i, typ, _f) -> Some (i, typ)
   | _ -> None

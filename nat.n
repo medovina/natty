@@ -4,7 +4,7 @@ Axiom 1.  There exists a type ℕ with an element 0 ∈ ℕ and a function s : �
 
   a. There is no n ∈ ℕ such that s(n) = 0.
   b. For all n, m ∈ ℕ, if s(n) = s(m) then n = m.
-  c. Let P : ℕ → 𝔹.  If P(0) is true, and P(k) implies P(s(k)) for all k ∈ ℕ, then P(n) is true for all n ∈ ℕ.
+  c. Let P : ℕ → 𝔹.  If P(0) is true, and P(k) implies P(s(k)) for all k ∈ ℕ, then P = ℕ.
 
 Definition.  Let 1 : ℕ = s(0).
 
@@ -79,7 +79,7 @@ Proof. Let
 
   Let b, c ∈ ℕ with c ≠ 0 and 0 · c = bc. Then bc = 0.  Since c ≠ 0, we must have b = 0 by Theorem 4.1.  So 0 = b, and hence 0 ∈ G.
 
-  Now let a ∈ ℕ, and suppose that a ∈ G.  Let b, c ∈ ℕ, and suppose that c ≠ 0 and s(a) · c = bc.  Then by Theorem 3.5 we deduce that ca + c = bc.  If b = 0, then either s(a) = 0 or c = 0, which is a contradiction.  Hence b ≠ 0.  By Lemma 1 there is some p ∈ ℕ such that b = s(p).  Therefore ca + c = s(p) · c, and we see that ca + c = cp + c.  It follows by Theorem 2.1 that ca = cp, so ac = pc.  By hypothesis it follows that a = p.  Therefore s(a) = s(p) = b.  Hence s(a) ∈ G, and we deduce that x ∈ G for all x ∈ ℕ.
+  Now let a ∈ ℕ, and suppose that a ∈ G.  Let b, c ∈ ℕ, and suppose that c ≠ 0 and s(a) · c = bc.  Then by Theorem 3.5 we deduce that ca + c = bc.  If b = 0, then either s(a) = 0 or c = 0, which is a contradiction.  Hence b ≠ 0.  By Lemma 1 there is some p ∈ ℕ such that b = s(p).  Therefore ca + c = s(p) · c, and we see that ca + c = cp + c.  It follows by Theorem 2.1 that ca = cp, so ac = pc.  By hypothesis it follows that a = p.  Therefore s(a) = s(p) = b.  Hence s(a) ∈ G, and we deduce that G = ℕ.
 
 # Natural numbers: inequalities
 
@@ -127,7 +127,7 @@ Proof.
 
   Next suppose that x = y.  Then by Theorem 6.1 it follows that s(x) > x = y.  Finally, suppose that x > y.  We know that s(x) > x, and by Theorem 6.6 it follows that s(x) > y.
 
-  Putting the cases together, we see that s(x) < y or s(x) = y or s(x) > y always holds.  Hence s(x) ∈ G, and we conclude that x ∈ G for all x ∈ ℕ.
+  Putting the cases together, we see that s(x) < y or s(x) = y or s(x) > y always holds.  Hence s(x) ∈ G, and we conclude that G = ℕ.
 
 # More identities involving inequalities
 
@@ -149,7 +149,7 @@ Proof.
 
       G = { c ∈ ℕ | a + c < b + c }.
 
-  Clearly 0 ∈ G.  Let c ∈ ℕ, and suppose that c ∈ G.  Then a + c < b + c, so s(a + c) < s(b + c) by part (1) of this theorem.  Then a + s(c) < b + s(c), so s(c) ∈ G.  Hence c ∈ G for all c ∈ ℕ.
+  Clearly 0 ∈ G.  Let c ∈ ℕ, and suppose that c ∈ G.  Then a + c < b + c, so s(a + c) < s(b + c) by part (1) of this theorem.  Then a + s(c) < b + s(c), so s(c) ∈ G.  Hence G = ℕ.
 
   3. Let a, b, c ∈ ℕ, and suppose that a + c < b + c.  If a = b then b + c < b + c, a contradiction. If b < a then b + c < a + c by part (2) of this theorem, so b + c < a + c < b + c, also a contradiction.  By Theorem 7.1, the only alternative is a < b.
 
@@ -157,7 +157,7 @@ Proof.
 
     G = { c ∈ ℕ | if c ≠ 0, then ac < bc }.
 
-  Clearly 0 ∈ G.  Let c ∈ ℕ, and suppose that c ∈ G.  We will show that s(c) ∈ G.  We know that a · 1 < b · 1.  Suppose that c = 0. Then a · s(c) < b · s(c), so s(c) ∈ G.  Conversely, suppose that c ≠ 0.  By hypothesis we know that ac < bc.  Then by Theorem 8.2 we have ac + a < bc + a, and also bc + a < bc + b.  So ac + a < bc + b, so a · s(c) < b · s(c), so s(c) ∈ G.  And so for all x ∈ ℕ, x ∈ G.
+  Clearly 0 ∈ G.  Let c ∈ ℕ, and suppose that c ∈ G.  We will show that s(c) ∈ G.  We know that a · 1 < b · 1.  Suppose that c = 0. Then a · s(c) < b · s(c), so s(c) ∈ G.  Conversely, suppose that c ≠ 0.  By hypothesis we know that ac < bc.  Then by Theorem 8.2 we have ac + a < bc + a, and also bc + a < bc + b.  So ac + a < bc + b, so a · s(c) < b · s(c), so s(c) ∈ G.  And so G = ℕ.
 
   5. Let a, b, c ∈ ℕ, and suppose that ac < bc.  If c = 0 then 0 < 0, which is a contradiction.  So c ≠ 0.  If a = b then bc < bc, a contradiction.  If b < a then bc < ac by part (4) of this theorem, so bc < ac < bc, also a contradiction.  By Theorem 7.1, the only alternative is a < b.
 

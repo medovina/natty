@@ -26,7 +26,7 @@ reason = (('by' | 'using') reference) | 'by hypothesis';
 (* terms *)
 
 term =
-    sym | id '(' expr {, expr} ')' | var | '⊤' | '⊥' | '(' expr ')'
+    sym | id '(' expr {, expr} ')' | id | '⊤' | '⊥' | '(' expr ')'
   | '{' var of_type typ '|' proposition '}';
 
 terms = term+;

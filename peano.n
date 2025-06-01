@@ -1,9 +1,0 @@
-Axiom 1.  There exists a type ℕ with a constant 1 ∈ ℕ and a binary operation + : ℕ → ℕ → ℕ such that
-
-    a. For all a, b ∈ ℕ, a = b iff a + 1 = b + 1.
-    b. For all a ∈ ℕ, a + 1 ≠ 1.
-    c. Let k : ℕ → 𝔹.  If 1 ∈ k, and x ∈ k implies x + 1 ∈ k for all x ∈ ℕ, then x ∈ k for all x ∈ ℕ.
-
-Theorem 17.  Let a, b ∈ ℕ.  If a ≠ b, then a + 1 ≠ b + 1.
-
-Axiom 2. For all a, b ∈ ℕ, a + (b + 1) = (a + b) + 1.

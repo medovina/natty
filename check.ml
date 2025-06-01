@@ -133,7 +133,14 @@ let check_formula env formula as_type : formula =
       | Eq (f, g) ->
           if opt_all_eq Bool as_type then
             match intersect (possible f) (possible g) with
-              | [t] -> Eq (check vars f (Some t), check vars g (Some t))
+              | [t] ->
+                  let f, g = check vars f (Some t), check vars g (Some t) in (
+                  match g with
+                    | Const (id, Fun (Base id', Bool)) when id = id' ->
+                        (* transform e.g. P = ℕ to ∀x:ℕ.P(x) *)
+                        let x = next_var "x" (free_vars f) in
+                        _for_all x (Base id) (App (f, Var (x, Base id)))
+                    | _ -> Eq (f, g))
               | [] -> error "can't compare different types" formula
               | _ -> error "ambiguous" formula
           else error (show_type (Option.get as_type) ^ " expected") formula in

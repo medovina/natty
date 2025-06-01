@@ -152,7 +152,7 @@ let compare_op op = infix op (binop_unknown op) Assoc_right
 let mk_not_less f g = _not (binop_unknown "<" f g)
 let mk_not_greater f g = _not (binop_unknown ">" f g)
 
-let var_term = var |>> (fun v -> Var (v, unknown_type))
+let id_term = id |>> (fun v -> Var (v, unknown_type))
 
 let unary_minus f = App (Const ("-", unknown_type), f)
 
@@ -161,9 +161,9 @@ let ascribe typ f =
 
 let rec term s = (record_formula @@ choice [
   (sym |>> fun c -> Const (c, unknown_type));
-  pipe2 (record_formula var_term <<? str "(")
+  pipe2 (record_formula id_term <<? str "(")
     (sep_by1 expr (str ",") << str ")") tuple_apply;
-  var_term;
+  id_term;
   str "⊤" >>$ _true;
   str "⊥" >>$ _false;
   parens expr;
