@@ -1,157 +1,157 @@
 (* types *)
 
-type_op = '⨯' | '→'
+type_op = '⨯' | '→';
 
-typ = id | (typ) | typ type_op typ
+typ = id | (typ) | typ type_op typ;
 
-of_type = ':' | '∈'
+of_type = ':' | '∈';
 
-id_type = id of_type typ
+id_type = id of_type typ;
 
-id_opt_type = id [of_type typ]
+id_opt_type = id [of_type typ];
 
-ids_type = id {',' id}+ of_type typ
+ids_type = id {',' id}+ of_type typ;
 
 (* reasons *)
 
-theorem_num = number {'.' number} ['(' letter ')']
+theorem_num = number {'.' number} ['(' letter ')'];
 
 reference =
     ('axiom' | 'lemma' | 'theorem') theorem_num |
     'part (' number ')' ['of this theorem'] |
-    'the definition of' var
+    'the definition of' var;
 
-reason = (('by' | 'using') reference) | 'by hypothesis'
+reason = (('by' | 'using') reference) | 'by hypothesis';
 
 (* terms *)
 
 term =
     sym | id '(' expr {, expr} ')' | var | '(' expr ')'
-  | '{' var of_type typ '|' proposition '}'
+  | '{' var of_type typ '|' proposition '}';
 
-terms = term+
+terms = term+;
 
 (* expressions *)
 
-binary_op = '·' | '+' | '-' | '∈'
+binary_op = '·' | '+' | '-' | '∈';
 
 base_expr = terms |
     base_expr binary_op base_expr |
     '-' base_expr |
-    base_expr ':' typ
+    base_expr ':' typ;
 
-eq_op = '=' | '≠' | '<' | '≤' | '>' | '≥' | '≮'
+eq_op = '=' | '≠' | '<' | '≤' | '>' | '≥' | '≮';
 
-expr = base_expr { eq_op base_expr [reason] }
+expr = base_expr { eq_op base_expr [reason] };
 
-atomic = expr ['is true' | 'always holds']
+atomic = expr ['is true' | 'always holds'];
 
 (* small propositions *)
 
-there_exists = 'There' ('is' | 'are' | 'exists' | 'exist')
+there_exists = 'There' ('is' | 'are' | 'exists' | 'exist');
 
 exists_prop =
     there_exists ['some' | 'no'] ids_type ['with' small_prop]
-    'such that' small_prop
+    'such that' small_prop;
 
-prop_op = 'and' | 'or' | 'implies' | 'if and only if' | 'iff' | ', and' | ', or'
+prop_op = 'and' | 'or' | 'implies' | 'if and only if' | 'iff' | ', and' | ', or';
 
 small_prop =
     atomic | exists_prop |
-    small_prop prop_op small_prop | small_prop 'for all' id_type
+    small_prop prop_op small_prop | small_prop 'for all' id_type;
 
 (* propositions *)
 
-if_then_prop = 'if' small_prop 'then' small_prop
+if_then_prop = 'if' small_prop 'then' small_prop;
 
-either_or_prop = 'either' small_prop
+either_or_prop = 'either' small_prop;
 
-for_all_ids = 'For all' ids_type ','
+for_all_ids = 'For all' ids_type ',';
 
-for_all_prop = for_all_ids proposition
+for_all_prop = for_all_ids proposition;
 
-precisely_prop = ('Exactly' | 'Precisely') 'one of' small_prop 'holds'
+precisely_prop = ('Exactly' | 'Precisely') 'one of' small_prop 'holds';
 
-cannot_prop = 'It cannot be that' proposition
+cannot_prop = 'It cannot be that' proposition;
 
 proposition =
     for_all_prop | if_then_prop |
     either_or_prop | precisely_prop | cannot_prop |
-    small_prop
+    small_prop;
 
 (* top propositions *)
 
-let_prop = 'Let' id_type '.' top_prop
+let_prop = 'Let' id_type '.' top_prop;
 
-suppose = 'Suppose' ['further'] 'that' proposition {[','] 'and that' proposition}
+suppose = 'Suppose' ['further'] 'that' proposition {[','] 'and that' proposition};
 
-suppose_then = suppose '.' 'Then' proposition
+suppose_then = suppose '.' 'Then' proposition;
 
-top_prop = let_prop | suppose_then | proposition
+top_prop = let_prop | suppose_then | proposition;
 
 (* proposition lists *)
 
-label = (letter | number) '.'
+label = (letter | number) '.';
 
-top_sentence = top_prop '.'
+top_sentence = top_prop '.';
 
-proposition_item = label top_sentence ['(' word ')']
+proposition_item = label top_sentence ['(' word ')'];
 
-prop_items = proposition_item+
+prop_items = proposition_item+;
 
-top_prop_or_items = prop_items | top_sentence
+top_prop_or_items = prop_items | top_sentence;
 
-propositions = [for_all_ids] top_prop_or_items
+propositions = [for_all_ids] top_prop_or_items;
 
 (* axioms *)
 
-operation = ('a' | 'an') ['binary' | 'unary'] ('operation' | 'relation')
+operation = ('a' | 'an') ['binary' | 'unary'] ('operation' | 'relation');
 
 axiom_decl = 'a type' id |
-    (('a constant' | 'an element' | 'a function' | operation) id_or_sym of_type typ)
+    (('a constant' | 'an element' | 'a function' | operation) id_or_sym of_type typ);
 
 axiom_exists = 
     there_exists axiom_decl {('and' | 'with') axiom_decl}
-    ('such that' propositions | '.')
+    ('such that' propositions | '.');
 
-axiom_group = 'Axiom' int '.' (axiom_exists | propositions)
+axiom_group = 'Axiom' int '.' (axiom_exists | propositions);
 
 (* definitions *)
 
-eq_definition = 'Let' sym ':' typ '=' term '.'
+eq_definition = 'Let' sym ':' typ '=' term '.';
 
-relation_definition = ['we write'] id sym id 'iff' proposition '.'
+relation_definition = ['we write'] id sym id 'iff' proposition '.';
 
 definition = 'Definition.'
-    ({eq_definition}+ | for_all_ids {relation_definition})
+    ({eq_definition}+ | for_all_ids {relation_definition});
 
 (* proofs *)
 
 so = 'also' | 'hence' | 'so' | 'then' | 'therefore' |
-    'which implies' ['that'] | 'which means that'
+    'which implies' ['that'] | 'which means that';
     
 have = 'clearly' |
     'it' ['then'] 'follows' ['from' reference | reason] 'that' |
     'it is clear that' | 'it must be that' | 'similarly' [','] |
     'the only alternative is' |
     'we conclude that' | 'we deduce that' | 'we have' | 'we know that' |
-    'we must have' | 'we see that'
+    'we must have' | 'we see that';
 
-contra = ',' ['which is'] ['again' | 'also' | 'similarly'] 'a contradiction' ['to' theorem_ref]
+contra = ',' ['which is'] ['again' | 'also' | 'similarly'] 'a contradiction' ['to' theorem_ref];
 
 proof_prop = (reason [','] [have] proposition |
-              [have] proposition [reason]) [contra]
+              [have] proposition [reason]) [contra];
 
-proof_if_prop = 'if' small_prop [','] 'then' proof_prop {',' so proof_prop}
+proof_if_prop = 'if' small_prop [','] 'then' proof_prop {',' so proof_prop};
 
-and_or_so = 'and' [so] | so
+and_or_so = 'and' [so] | so;
 
 will_show =
     'We need to show that' |
     'We start by showing that' |
-    'We will' ('show' | 'deduce') 'that'
+    'We will' ('show' | 'deduce') 'that';
 
-to_show = 'To show that' small_prop ','
+to_show = 'To show that' small_prop ',';
 
 assert_step =
     [have] proof_if_prop |
@@ -159,38 +159,38 @@ assert_step =
     [to_show] will_show proposition |
     'The result follows' reason |
     'This is a contradiction to' reference |
-    [and_or_so] proof_prop
+    [and_or_so] proof_prop;
 
-assert_steps = assert_step {',' and_or_so proof_prop}
+assert_steps = assert_step {',' and_or_so proof_prop};
 
 now = 'Conversely' | 'First' | 'Finally' | 'Next' | 'Now' | 'Second' |
-    'In either case' | 'Putting the cases together'
+    'In either case' | 'Putting the cases together';
 
-let_step = 'let' ids_type ['with' small_prop]
+let_step = 'let' ids_type ['with' small_prop];
 
-let_val_step = 'let' id_opt_type '=' term
+let_val_step = 'let' id_opt_type '=' term;
 
-assume_step = suppose
+assume_step = suppose;
 
-let_or_assume = let_val_step | let_step | assume_step
+let_or_assume = let_val_step | let_step | assume_step;
 
-let_or_assumes = let_or_assume {", and" let_or_assume}
+let_or_assumes = let_or_assume {", and" let_or_assume};
 
-proof_clause = [now [,]] (let_or_assumes | assert_steps)
+proof_clause = [now [,]] (let_or_assumes | assert_steps);
 
-proof_sentence = proof_clause {';' proof_clause} '.'
+proof_sentence = proof_clause {';' proof_clause} '.';
 
-proof_steps = proof_sentence+
+proof_steps = proof_sentence+;
 
-proof_item = label proof_steps
+proof_item = label proof_steps;
 
-proofs = 'Proof.' (proof_item+ | proof_steps)
+proofs = 'Proof.' (proof_item+ | proof_steps);
 
 (* theorems *)
 
 theorem_group = ('Lemma' | 'Theorem') int '.' ['Let' ids_type '.']
-    top_prop_or_items [proofs]
+    top_prop_or_items [proofs];
 
 (* program *)
 
-program = {axiom_group | definition | theorem_group}
+program = {axiom_group | definition | theorem_group};
