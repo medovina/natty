@@ -26,19 +26,20 @@ reason = (('by' | 'using') reference) | 'by hypothesis';
 (* terms *)
 
 term =
-    sym | id '(' expr {, expr} ')' | var | '(' expr ')'
+    sym | id '(' expr {, expr} ')' | var | '⊤' | '⊥' | '(' expr ')'
   | '{' var of_type typ '|' proposition '}';
 
 terms = term+;
 
 (* expressions *)
 
-binary_op = '·' | '+' | '-' | '∈';
+binary_op = '·' | '+' | '-' | '∈' | '∧' | '∨' | '→' | '↔';
 
 base_expr = terms |
     base_expr binary_op base_expr |
+    base_expr ':' typ |
     '-' base_expr |
-    base_expr ':' typ;
+    '¬' base_expr;
 
 eq_op = '=' | '≠' | '<' | '≤' | '>' | '≥' | '≮';
 

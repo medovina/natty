@@ -164,6 +164,8 @@ let rec term s = (record_formula @@ choice [
   pipe2 (record_formula var_term <<? str "(")
     (sep_by1 expr (str ",") << str ")") tuple_apply;
   var_term;
+  str "⊤" >>$ _true;
+  str "⊥" >>$ _false;
   parens expr;
   pipe3 (str "{" >> var) (of_type >> typ) (str "|" >> proposition << str "}")
     (fun var typ expr -> Lambda (var, typ, expr))
@@ -178,10 +180,15 @@ and terms s = (term >>= fun t -> many_fold_left mk_app t next_term) s
 and operators = [
   [ Postfix (str ":" >> typ |>> ascribe) ];
   [ Prefix (minus >>$ unary_minus) ];
+  [ Prefix (str "¬" >>$ _not) ];
   [ infix_binop "·" Assoc_left ];
   [ infix_binop "+" Assoc_left;
     infix_binop1 minus "-" Assoc_left ];
-  [ infix_binop "∈" Assoc_none ]
+  [ infix_binop "∈" Assoc_none ];
+  [ infix "∧" _and Assoc_left ];
+  [ infix "∨" _or Assoc_left ];
+  [ infix "→" implies Assoc_right ];
+  [ infix "↔" _iff Assoc_right ]
 ]
 
 and base_expr s = expression operators terms s
