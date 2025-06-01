@@ -179,6 +179,9 @@ let fkind boolean = function
         Binary (op, typ, t, u)
   | App (Const (q, _), Lambda (id, typ, u)) when q = "∀" || q = "∃" ->
       Quant(q, id, typ, u)
+  | Eq (f, g) when boolean && type_of f = Bool -> (
+      assert (type_of g = Bool);
+      Binary ("↔", logical_op_type, f, g))   (* via boolean extensionality *)
   | f -> Other f
 
 let bool_kind = fkind true
