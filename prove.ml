@@ -470,10 +470,15 @@ let origin pf =
   else if pf.rule = "negate" || pf.rule = "negate1" then "goal"
   else trim_rule pf.rule
 
+let is_para pf = match trim_rule pf.rule with
+  | "para" -> true
+  | "res" -> false
+  | _ -> failwith "unexpected rule"
+
 let by_induction p = exists is_inductive p.parents
 
 type features = {
-  orig: string; from_hyp: bool; from_goal: bool;
+  para: bool; from_hyp: bool; from_goal: bool;
   by_definition: bool; by_induction: bool; by_commutative: bool; para_by_commutative: bool;
   lits: int; lits_lt_min: bool; lits_gt_max: bool; lits_eq_max: bool;
   lits_gt_1: bool; lits_gt_2: bool;
@@ -495,7 +500,7 @@ let features p =
   let select kind v = if origin p = kind then v else 0 in
   let bselect kind b = origin p = kind && b in
   let min_weight, max_weight = minimum parent_weights, maximum parent_weights in {
-    orig = origin p; from_hyp = p.hypothesis; from_goal = p.goal;
+    para = is_para p; from_hyp = p.hypothesis; from_goal = p.goal;
     by_definition = p.parents |> exists (fun q -> q.definition);
     by_induction = by_induction p;
     by_commutative; para_by_commutative = bselect "para" by_commutative;
@@ -518,7 +523,7 @@ let features p =
   }
 
 let csv_header =
-  "theorem,id,orig,from_hyp,from_goal," ^
+  "theorem,id,para,from_hyp,from_goal," ^
   "by_definition,by_induction,by_commutative,para_by_commutative," ^
   "lits,lits_lt_min,lits_gt_max,lits_eq_max," ^
   "lits_gt_1,lits_gt_2," ^
@@ -538,7 +543,7 @@ let write_generated thm_name all in_proof out =
   all |> filter (fun pf -> length pf.parents = 2)
       |> sort_by id_of |> iter (fun pf ->
     let f = features pf in
-    fprintf out "\"%s\",%d,%s,%s,%s," thm_name pf.id f.orig (b f.from_hyp) (b f.from_goal);
+    fprintf out "\"%s\",%d,%s,%s,%s," thm_name pf.id (b f.para) (b f.from_hyp) (b f.from_goal);
     fprintf out "%s,%s,%s,%s,"
       (b f.by_definition) (b f.by_induction) (b f.by_commutative) (b f.para_by_commutative);
     fprintf out "%d,%s,%s,%s,"  
@@ -559,7 +564,7 @@ let predict_cost p =
   let i = float_of_int in
   let f = features p in
     0.668
-    +. 0.041 *. b (f.orig = "para")
+    +. 0.041 *. b f.para
     -. 0.030 *. b f.from_hyp
     -. 0.251 *. b f.from_goal
     -. 0.007 *. b f.by_definition

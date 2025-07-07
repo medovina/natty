@@ -7,18 +7,23 @@ from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 
 verbose = 0
+base = None
 
 for arg in sys.argv[1:]:
     if arg == '-v':
         verbose = 1
     else:
-        print(f'usage: {sys.argv[0]} [-v]')
-        exit()
+        base = arg
+        break
+
+if not base or base.startswith('-'):
+    print(f'usage: {sys.argv[0]} [-v] <file>')
+    exit()
 
 def geo_mean(xs, weights):
     return np.exp((np.log(xs) * weights).sum() / weights.sum())
 
-formulas = pd.read_csv('generated.csv', true_values = ['T'], false_values = ['F'])
+formulas = pd.read_csv(f'{base}.csv', true_values = ['T'], false_values = ['F'])
 
 counts = formulas.loc[:, 'theorem' : 'id'].groupby('theorem').size()
 thm_weights = 1000 / counts ** (1/3)
@@ -26,9 +31,7 @@ thm_weights.name = 'sample_weight'
 sample_weights = \
     pd.merge(formulas.theorem, thm_weights, left_on = 'theorem', right_index = True).sample_weight
 
-features = formulas.drop(columns = ['theorem', 'orig', 'in_proof', 'formula'])
-orig = pd.get_dummies(formulas.orig, prefix = 'is')
-X = pd.concat([orig, features], axis = 1)
+X = formulas.drop(columns = ['theorem', 'in_proof', 'formula'])
 
 scaler = StandardScaler()
 log_reg = LogisticRegression(
@@ -89,4 +92,4 @@ for c in formulas.columns:
     if is_boolean(c):
         formulas[c] = np.where(formulas[c], 'T', 'F')
 
-formulas.to_csv('generated_out.csv', float_format = '%.3f')
+formulas.to_csv(f'{base}_out.csv', float_format = '%.3f')
