@@ -653,7 +653,7 @@ let update p rewriting f =
  *
  *)
 let rewrite quick dp cp c_subterms : pformula list =
-  if dp.id = cp.id then [] else
+  if dp.id = cp.id || orig_hyp dp && orig_hyp cp then [] else
   let d = remove_universal dp.formula in
   if num_literals d > 1 then [] else
     let+ (t, t') = eq_pairs true d in

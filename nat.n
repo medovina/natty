@@ -129,6 +129,8 @@ Proof.
 
   Putting the cases together, we see that s(x) < y or s(x) = y or s(x) > y always holds.  Hence s(x) ∈ G, and we conclude that G = ℕ.
 
+  3. Let a, b ∈ ℕ.  We know that a < b or a = b or a > b.  If a < b, then a ≤ b.  If a = b, then a ≤ b.  If a > b, then b ≤ a.  In any case a ≤ b or b ≤ a.
+
 # More identities involving inequalities
 
 Theorem 8.  Let a, b, c ∈ ℕ.
@@ -261,6 +263,10 @@ Theorem 14.  Let x, y, z ∈ ℤ.
   1. If x + z = y + z, then x = y.
   2. −(−x) = x.
   3. −(x + y) = (−x) + (−y).
+
+Proof.
+
+  1. Let x, y, z ∈ ℤ, and suppose that x + z = y + z.  Then (x + z) + (−z) = (y + z) + (−z), so x + (z + −z) = y + (z + −z), so x + 0 = y + 0, so x = y.
 
 # Integers: multiplication
 

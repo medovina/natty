@@ -165,7 +165,7 @@ assert_step =
 assert_steps = assert_step {',' and_or_so proof_prop};
 
 now = 'Conversely' | 'First' | 'Finally' | 'Next' | 'Now' | 'Second' |
-    'In either case' | 'Putting the cases together';
+    'In any case' | 'In either case' | 'Putting the cases together';
 
 let_step = 'let' ids_type ['with' small_prop];
 

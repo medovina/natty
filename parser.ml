@@ -388,7 +388,7 @@ let assert_steps =
 
 let now = (str "First" >>$ false) <|>
   (any_str ["Conversely"; "Finally"; "Next"; "Now"; "Second";
-            "In either case"; "Putting the cases together"] >>$ true)
+            "In any case"; "In either case"; "Putting the cases together"] >>$ true)
 
 let let_step = pipe2 
   (with_range (str "let" >> ids_type) |>>
