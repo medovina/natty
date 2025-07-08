@@ -6,12 +6,10 @@ type options = {
   export: bool ref;
   keep_going: bool ref;
   from_thm: string option ref;
-  manual_cost: bool ref;
   no_quick: bool ref;
   only_quick: bool ref;
   only_thm: string option ref;
   pipe: string ref;
-  record_generated: bool ref;
   server: bool ref;
   show_proofs: bool ref;
   show_proof_of: int ref;
@@ -27,12 +25,10 @@ let opts = {
   export = ref false;
   from_thm = ref None;
   keep_going = ref false;
-  manual_cost = ref false;
   no_quick = ref false;
   only_quick = ref false;
   only_thm = ref None;
   pipe = ref "";
-  record_generated = ref false;
   server = ref false;
   show_proofs = ref false;
   show_proof_of = ref 0;
@@ -54,11 +50,9 @@ let usage () =
       -d<level>         debug level
       -e                reformat proof from E
       -f<name>[:<name>] prove/export given theorem and following (optionally up to given theorem)
-      -g                record generated formulas
       -h                print this help message
       -i                print proof statistics
       -l                run as language server
-      -m                use old manual cost heuristic
       -o<name>          only prove/export given theorem or proof step
       -p[<id>]          output proof of theorems, or only of given formula
       --pipe=<name>     pipe name for language server
@@ -92,11 +86,9 @@ let parse_args args =
                   | [from; up_to] ->
                       opts.from_thm := Some from; opts.to_thm := Some up_to;
                   | _ -> failwith "expected 1 or 2 names")
-            | 'g' -> opts.record_generated := true
             | 'h' -> usage ()
             | 'i' -> opts.stats := true
             | 'l' -> opts.server := true
-            | 'm' -> opts.manual_cost := true
             | 'o' -> opts.only_thm := Some value
             | 'p' -> if arg = "-p" then opts.show_proofs := true
                      else opts.show_proof_of := int_val ()

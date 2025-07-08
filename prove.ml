@@ -477,128 +477,38 @@ let is_para pf = match trim_rule pf.rule with
 
 let by_induction p = exists is_inductive p.parents
 
-type features = {
-  para: bool; from_hyp: bool; from_goal: bool;
-  by_definition: bool; by_induction: bool; by_commutative: bool; para_by_commutative: bool;
-  lits: int; lits_lt_min: bool; lits_gt_max: bool; lits_eq_max: bool;
-  lits_gt_1: bool; lits_gt_2: bool;
-  lits_rel_min: int; lits_rel_max: int; lits_rel_right: int;
-  res_lits: int; para_lits: int; para_lits_gt_1: bool; para_lits_gt_2: bool;
-  weight: int; weight_lt_min: bool; weight_ge_max: bool; weight_gt_max: bool;
-  weight_rel_min: int; weight_rel_max: int; weight_rel_right: int;
-  res_weight: int; para_weight: int;
-  res_weight_lt_min: bool; res_weight_gt_max: bool; para_weight_ge_max: bool;
-  goal_rel_weight: int
-}
-
-let features p =
-  let parent_lits = p.parents |> map (fun q -> num_literals q.formula) in
-  let parent_weights = p.parents |> map (fun q -> weight q.formula) in
-  let lits, w = num_literals p.formula, weight p.formula in
-  let min_lits, max_lits = minimum parent_lits, maximum parent_lits in
-  let by_commutative = p.parents |> exists (fun q -> is_commutative_axiom q) in
-  let select kind v = if origin p = kind then v else 0 in
-  let bselect kind b = origin p = kind && b in
-  let min_weight, max_weight = minimum parent_weights, maximum parent_weights in {
-    para = is_para p; from_hyp = p.hypothesis; from_goal = p.goal;
-    by_definition = p.parents |> exists (fun q -> q.definition);
-    by_induction = by_induction p;
-    by_commutative; para_by_commutative = bselect "para" by_commutative;
-    lits; lits_lt_min = lits < min_lits; lits_gt_max = lits > max_lits;
-    lits_eq_max = lits = max_lits;
-    lits_gt_1 = lits > 1; lits_gt_2 = lits > 2;
-    lits_rel_min = lits - min_lits; lits_rel_max = lits - max_lits;
-      lits_rel_right = lits - nth parent_lits 1;
-    res_lits = select "res" lits; para_lits = select "para" lits;
-    para_lits_gt_1 = bselect "para" (lits > 1); para_lits_gt_2 = bselect "para" (lits > 2);
-    weight = w; weight_lt_min = w < min_weight; weight_ge_max = w >= max_weight;
-      weight_gt_max = w > max_weight;
-    weight_rel_min = w - min_weight; weight_rel_max = w - max_weight;
-      weight_rel_right = w - nth parent_weights 1;
-    res_weight = select "res" w; para_weight = select "para" w;
-    res_weight_lt_min = bselect "res" (w < min_weight);
-    res_weight_gt_max = bselect "res" (w > max_weight);
-    para_weight_ge_max = bselect "para" (w >= max_weight);
-    goal_rel_weight = goal_rel_weight p.formula
-  }
-
-let csv_header =
-  "theorem,id,para,from_hyp,from_goal," ^
-  "by_definition,by_induction,by_commutative,para_by_commutative," ^
-  "lits,lits_lt_min,lits_gt_max,lits_eq_max," ^
-  "lits_gt_1,lits_gt_2," ^
-  "lits_rel_min,lits_rel_max,lits_rel_right," ^
-  "res_lits,para_lits,para_lits_gt_1,para_lits_gt_2," ^
-  "weight,weight_lt_min,weight_ge_max,weight_gt_max," ^
-  "weight_rel_min,weight_rel_max,weight_rel_right," ^
-  "res_weight,para_weight," ^
-  "res_weight_lt_min,res_weight_gt_max,para_weight_ge_max," ^
-  "goal_rel_weight,in_proof,formula"
-
 let all_steps pformula =
   search [pformula] (fun p -> unique (p.parents @ p.rewrites))
 
-let write_generated thm_name all in_proof out =
-  let b = function | true -> "T" | false -> "F" in
-  all |> filter (fun pf -> length pf.parents = 2)
-      |> sort_by id_of |> iter (fun pf ->
-    let f = features pf in
-    fprintf out "\"%s\",%d,%s,%s,%s," thm_name pf.id (b f.para) (b f.from_hyp) (b f.from_goal);
-    fprintf out "%s,%s,%s,%s,"
-      (b f.by_definition) (b f.by_induction) (b f.by_commutative) (b f.para_by_commutative);
-    fprintf out "%d,%s,%s,%s,"  
-      f.lits (b f.lits_lt_min) (b f.lits_gt_max) (b f.lits_eq_max);
-    fprintf out "%s,%s," (b f.lits_gt_1) (b f.lits_gt_2);
-    fprintf out "%d,%d,%d," f.lits_rel_min f.lits_rel_max f.lits_rel_right;
-    fprintf out "%d,%d,%s,%s," f.res_lits f.para_lits (b f.para_lits_gt_1) (b f.para_lits_gt_2);
-    fprintf out "%d,%s,%s,%s,%d,%d,%d," f.weight
-      (b f.weight_lt_min) (b f.weight_ge_max) (b f.weight_gt_max)
-      f.weight_rel_min f.weight_rel_max f.weight_rel_right;
-    fprintf out "%d,%d,%s,%s,%s," f.res_weight f.para_weight
-      (b f.res_weight_lt_min) (b f.res_weight_gt_max) (b f.para_weight_ge_max);
-    fprintf out "%d,%s,\"%s\"\n" f.goal_rel_weight (b (memq pf in_proof)) (show_formula pf.formula)
-  )
-
-let predict_cost p =
-  let b = function | true -> 1.0 | false -> 0.0 in
-  let i = float_of_int in
-  let f = features p in
-    0.668
-    +. 0.041 *. b f.para
-    -. 0.030 *. b f.from_hyp
-    -. 0.251 *. b f.from_goal
-    -. 0.007 *. b f.by_definition
-    -. 0.399 *. b f.by_induction
-    -. 0.009 *. b f.lits_lt_min
-    +. 0.007 *. b f.lits_gt_1
-    +. 0.082 *. i f.lits_rel_right
-    +. 0.008 *. i f.weight_rel_max
-    +. 0.002 *. i f.weight_rel_right
-    -. 0.182 *. b f.res_weight_lt_min
-
-let probability p =
-  let logit = -10.0 *. predict_cost p in
-  let odds = exp logit in
-  odds /. (1.0 +. odds)
-
-let heuristic_cost p =
-  let f = features p in
-  if f.by_induction then 0.03
-  else if f.lits_lt_min then 0.0
-  else if f.lits_gt_max then 10.0
-  else if is_resolution p then
-    if f.lits_eq_max && not (f.from_goal || f.by_definition) then 10.0 else
-    if f.weight_lt_min then 0.0 else
-    if f.weight_gt_max then 0.03 else 0.01
-  else (* paramodulation *)
-    if f.by_commutative then 0.01 else
-    if f.weight_ge_max || f.lits_gt_2 then 10.0 else 0.02
+let step_cost = 0.01
+let big_cost = 0.03
+let inf_cost = 10.0
 
 let cost p =
   match p.parents with
     | [_; _] ->
-        if !(opts.manual_cost) then heuristic_cost p else max 0.0 (predict_cost p)
+        let definition = p.parents |> exists (fun q -> q.definition) in
+        let commutative = p.parents |> exists (fun q -> is_commutative_axiom q) in
+        let parent_lits = p.parents |> map (fun q -> num_literals q.formula) in
+        let parent_weights = p.parents |> map (fun q -> weight q.formula) in
+        let min_lits, max_lits = minimum parent_lits, maximum parent_lits in
+        let min_weight, max_weight = minimum parent_weights, maximum parent_weights in
+        let lits, w = num_literals p.formula, weight p.formula in
+
+        if by_induction p then big_cost
+        else if lits < min_lits then 0.0
+        else if lits > max_lits then inf_cost
+        else if is_resolution p then
+          if lits = max_lits && not (p.goal || definition) then inf_cost else
+          if w < min_weight then 0.0 else
+          if w <= max_weight then step_cost else big_cost
+        else (* paramodulation *)
+          if commutative then step_cost else
+          if w < max_weight then
+            if lits <= 2 then big_cost else inf_cost
+          else inf_cost
     | _ -> 0.0
+
 
 (*      D:[D' ∨ t = t']    C⟨u⟩
  *    ───────────────────────────   sup
@@ -889,12 +799,9 @@ let print_formula with_origin prefix pf =
     else "" in
   let mark b c = if b then " " ^ (if pf.derived then c else to_upper c) else "" in
   let annotate = mark pf.definition "d" ^ mark pf.goal "g" ^ mark pf.hypothesis "h" in
-  let prob =
-    if not !(opts.manual_cost) && length pf.parents = 2 && pf.formula != _false
-    then sprintf "p = %.2f, " (probability pf) else "" in
-  printf "%s%s {%d/%d: %s%.2f%s}\n"
+  printf "%s%s {%d/%d: %.2f%s}\n"
     (indent_with_prefix prefix (show_multi pf.formula))
-    origin (num_literals pf.formula) (weight pf.formula) prob pf.cost annotate
+    origin (num_literals pf.formula) (weight pf.formula) pf.cost annotate
 
 let dbg_print_formula with_origin prefix pformula =
   if !debug > 0 then print_formula with_origin prefix pformula
@@ -1070,24 +977,13 @@ let rw_simplify_all queue used found ps =
     p in
   filter_map simplify ps
 
-let record_formulas thm_name pformulas all_generated init_out gen_out res =
-  (match res with
-    | Proof (proof, _) ->
-        let thm_name = str_replace "theorem" "thm" thm_name in
-        let in_proof = all_steps proof in
-        init_out |> Option.iter (write_initial thm_name pformulas in_proof);
-        gen_out |> Option.iter (write_generated thm_name !all_generated in_proof)
-    | _ -> ());
-  res
-
-let refute thm_name pformulas cancel_check init_out gen_out : result =
+let refute pformulas cancel_check : result =
   profile "refute" @@ fun () ->
   let timeout = !(opts.timeout) in
   let found = ref @@ FormulaMap.of_list (pformulas |> map (fun p -> (canonical p, p))) in
   let used, queue = ref [], ref PFQueue.empty in
   queue_add queue pformulas;
   let start = Sys.time () in
-  let all_generated = ref pformulas in
   let num_generated, max_cost = ref 0, ref 0.0 in
   let stats count =
     { quick = false; initial = length pformulas;
@@ -1120,11 +1016,9 @@ let refute thm_name pformulas cancel_check init_out gen_out : result =
                   match find_opt (fun p -> p.formula = _false) new_pformulas with
                     | Some p -> Proof (p, stats count)
                     | None ->
-                        if !(opts.record_generated) then
-                          all_generated := new_pformulas @ !all_generated;
                         queue_add queue new_pformulas;
                         loop count in
-  record_formulas thm_name pformulas all_generated init_out gen_out (loop 0)
+  loop 0
 
 (* Given an associative/commutative operator *, construct the axiom
  *     x * (y * z) = y * (x * z)
@@ -1204,7 +1098,7 @@ let quick_refute all =
           (fun p -> proof (goal_resolve (number_formula r) p))
       )))
 
-let prove known_stmts thm cancel_check init_out gen_out =
+let prove known_stmts thm cancel_check =
   let known_stmts = rev known_stmts in
   consts := filter_map decl_var known_stmts;
   ac_ops := [];
@@ -1232,7 +1126,7 @@ let prove known_stmts thm cancel_check init_out gen_out =
     | None -> if !(opts.only_quick) then GaveUp else (
         if !debug > 0 then
           printf "no quick refutation in %.2f s; beginning main loop\n\n" (Sys.time () -. start);
-          refute (stmt_name thm) all cancel_check init_out gen_out) in
+          refute all cancel_check) in
   (result, Sys.time () -. start)
 
 let show_proof pf dis elapsed stats =
@@ -1247,13 +1141,6 @@ let show_proof pf dis elapsed stats =
 
 let prove_all thf prog =
   profile "prove_all" @@ fun () ->
-  let init_out, gen_out = if !(opts.record_generated) then
-    let init_out = open_out "initial.csv" in
-    fprintf init_out "%s\n" init_csv_header;
-    let gen_out = open_out "generated.csv" in
-    fprintf gen_out "%s\n" csv_header;
-    (Some init_out, Some gen_out)
-  else (None, None) in
   let dis = if !(opts.disprove) then "dis" else "" in
   let rec prove_stmts succeeded failed = function
     | [] ->
@@ -1271,7 +1158,7 @@ let prove_all thf prog =
           | Theorem (_, _, None, _) ->
               print_endline (show_statement true thm ^ "\n");
               let (result, elapsed) =
-                prove known thm (Fun.const false) init_out gen_out in
+                prove known thm (Fun.const false) in
               let b = match result with
                   | Proof (pf, stats) -> show_proof pf dis elapsed stats; true
                   | GaveUp -> printf "Not %sproved.\n" dis; false
@@ -1285,5 +1172,4 @@ let prove_all thf prog =
         let (succeeded, failed) = (succeeded + int_of_bool succeed), (failed + int_of_bool fail) in
         if failed = 0 || !(opts.keep_going) then
           prove_stmts succeeded failed rest in
-  prove_stmts 0 0 (expand_proofs prog);
-  Option.iter Out_channel.close gen_out
+  prove_stmts 0 0 (expand_proofs prog)
