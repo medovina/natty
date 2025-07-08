@@ -320,6 +320,20 @@ Proof.
       = z(c, d) · z(a, b)
       = ji.
 
+  3. Let i ∈ ℤ.  Then there are some a, b ∈ ℕ such that i = z(a, b).  Then
+
+    i · 0 = z(a, b) · 0
+          = z(a, b) · z(0, 0)
+          = z(0, 0)
+          = 0.
+
+  4. Let i ∈ ℤ.  Then there are some a, b ∈ ℕ such that i = z(a, b).  Then
+
+    i · 1 = z(a, b) · 1
+          = z(a, b) · z(1, 0)
+          = z(a, b)
+          = i.
+
   5. Let i, j, k ∈ ℤ.  There are some a, b, c, d, e, f ∈ ℕ such that i = z(a, b) and j = z(c, d) and k = z(e, f).  Then
 
     i(j + k) = z(a, b) · (z(c, d) + z(e, f))
