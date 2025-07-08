@@ -349,7 +349,7 @@ Theorem 16.  Let i, j ∈ ℤ.  If ij = 0, then i = 0 or j = 0.
 
 Proof.
 
-  Let i, j ∈ ℤ.  Suppose that ij = 0 and that i ≠ 0.  We will deduce that j = 0.  There are some a, b, c, d ∈ ℕ such that i = z(a, b) and j = z(c, d).  So by Axiom 7 we see that ij = z(ac + bd, ad + bc).  It then follows from Lemma 8 that a ≠ b and ac + bd = ad + bc.  By Theorem 7.1 we know that either a < b or a > b.
+  Let i, j ∈ ℤ.  Suppose that ij = 0 and that i ≠ 0.  We will deduce that j = 0.  There are some a, b, c, d ∈ ℕ such that i = z(a, b) and j = z(c, d).  Then a ≠ b by Lemma 11.  By Axiom 7 we see that 0 = ij = z(a, b) · z(c, d) = z(ac + bd, ad + bc).  Then ac + bd = ad + bc by Lemma 11.  By Theorem 7.1 we know that either a < b or a > b.
   
   First, suppose that a < b.  Then there is some g ∈ ℕ such that a + g = b.  Hence ac + (a + g)d = ad + (a + g)c.  So ac + ad + gd = ad + ac + gc, so gd = gc.  Since a ≠ b, we must have g ≠ 0, and we deduce that d = c.
 
