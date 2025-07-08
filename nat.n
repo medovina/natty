@@ -268,6 +268,22 @@ Proof.
 
   1. Let x, y, z ∈ ℤ, and suppose that x + z = y + z.  Then (x + z) + (−z) = (y + z) + (−z), so x + (z + −z) = y + (z + −z), so x + 0 = y + 0, so x = y.
 
+  2. Let x ∈ ℤ.  Then there are some a, b ∈ ℕ such that x = z(a, b).  Then
+
+    −(−x) = −(− z(a, b))
+            = − z(b, a)
+            = z(a, b)
+            = x.
+
+  3. Let x, y ∈ ℤ.  Then there are some a, b, c, d ∈ ℕ such that x = z(a, b) and y = z(c, d).  Then
+
+    −(x + y) = −(z(a, b) + z(c, d))
+                = −(z(a + c, b + d))
+                = z(b + d, a + c)
+                = z(b, a) + z(d, c)
+                = −z(a, b) + −z(c, d)
+                = −x + −y.
+
 # Integers: multiplication
 
 Axiom 7.  There is a binary operation · : ℤ → ℤ → ℤ such that for all a, b, c, d ∈ ℕ,
