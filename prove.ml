@@ -508,7 +508,7 @@ let cost p =
           if w <= max_weight then step_cost else big_cost
         else (* paramodulation *)
           if commutative then step_cost
-          else if w < max_weight && lits <= 2 then big_cost
+          else if w <= max_weight && lits <= 2 then big_cost
           else inf_cost
     | _ -> 0.0
 
@@ -946,7 +946,7 @@ let szs = function
   | GaveUp -> "GaveUp"
   | Stopped -> "Stopped"
                   
-let forward_simplify queue used found p =
+let forward_simplify queue used found p : pformula option =
   profile "forward_simplify" @@ fun () ->
   rw_simplify false (sprintf "given (#%d) is" p.id) queue used found p
   
