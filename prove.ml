@@ -508,7 +508,7 @@ let cost p =
           if w <= max_weight then step_cost else big_cost
         else (* paramodulation *)
           if commutative then step_cost
-          else if w <= max_weight && lits <= 2 then big_cost
+          else if w <= max_weight + 2 && lits <= 2 then big_cost
           else inf_cost
     | _ -> 0.0
 
