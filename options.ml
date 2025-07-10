@@ -6,8 +6,6 @@ type options = {
   export: bool ref;
   keep_going: bool ref;
   from_thm: string option ref;
-  no_quick: bool ref;
-  only_quick: bool ref;
   only_thm: string option ref;
   pipe: string ref;
   server: bool ref;
@@ -25,8 +23,6 @@ let opts = {
   export = ref false;
   from_thm = ref None;
   keep_going = ref false;
-  no_quick = ref false;
-  only_quick = ref false;
   only_thm = ref None;
   pipe = ref "";
   server = ref false;
@@ -56,12 +52,10 @@ let usage () =
       -o<name>          only prove/export given theorem or proof step
       -p[<id>]          output proof of theorems, or only of given formula
       --pipe=<name>     pipe name for language server
-      -q                only use quick refute
       -r                profile performance
       -s<id>,<id>       debug superposition of given formulas
       -t<num>           time limit in seconds
       -v                verbose output
-      -w                skip quick refute
       -x                export theorems to THF files
       |};
     exit 1
@@ -92,7 +86,6 @@ let parse_args args =
             | 'o' -> opts.only_thm := Some value
             | 'p' -> if arg = "-p" then opts.show_proofs := true
                      else opts.show_proof_of := int_val ()
-            | 'q' -> opts.only_quick := true
             | 'r' -> profiling := true
             | 's' -> (
               match String.split_on_char ',' value with
@@ -100,7 +93,6 @@ let parse_args args =
                 | _ -> failwith "expected formula ids")
             | 't' -> opts.timeout := float_of_string value
             | 'v' -> opts.verbose := true
-            | 'w' -> opts.no_quick := true
             | 'x' -> opts.export := true
             | '-' -> (match opt_remove_prefix "--pipe=" arg with
                         | Some name -> opts.pipe := name

@@ -1086,21 +1086,6 @@ let goal_resolve r p =
     if q.formula = _false then Some q else None) in
   Option.get p
 
-let quick_refute all =
-  profile "quick_refute" @@ fun () ->
-  let index = FormulaMap.of_list (all |> map (fun p -> (canonical p, p))) in
-  let proof p = Proof (number_formula p,
-    { quick = true; initial = length all; given = 0; generated = 0; max_cost = 0.0 }) in
-  all |> find_map (fun p ->
-    all |> find_map (fun q ->
-      if p.id >= q.id then None else
-      rewrite1 true p q @ rewrite1 true q p @ all_super true p q |> find_map (fun r ->
-        let r = simplify r in
-        if r.formula = _false then Some (proof r)
-        else FormulaMap.find_opt (negate (canonical r)) index |> Option.map
-          (fun p -> proof (goal_resolve (number_formula r) p))
-      )))
-
 let prove known_stmts thm cancel_check =
   let known_stmts = rev known_stmts in
   consts := filter_map decl_var known_stmts;
@@ -1122,13 +1107,7 @@ let prove known_stmts thm cancel_check =
   let all = known @ goals in
   dbg_newline ();
   let start = Sys.time () in
-  let result = if !(opts.no_quick) then None else quick_refute all in
-  let result = match result with
-    | Some p -> p
-    | None -> if !(opts.only_quick) then GaveUp else (
-        if !debug > 0 then
-          printf "no quick refutation in %.2f s; beginning main loop\n\n" (Sys.time () -. start);
-          refute all cancel_check) in
+  let result = refute all cancel_check in
   (result, Sys.time () -. start)
 
 let show_proof pf dis elapsed stats =
