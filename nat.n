@@ -297,6 +297,7 @@ Theorem 15.  Let i, j, k ∈ ℤ.
   3. i · 0 = 0.
   4. i · 1 = i.
   5. i(j + k) = ij + ik.
+  6. (i + j)k = ik + jk.
   
 Proof.
 
@@ -345,6 +346,8 @@ Proof.
                 = z(a, b) · z(c, d) + z(a, b) · z(e, f)
                 = ij + ik.
 
+  6. Let i, j, k ∈ ℤ.  Then (i + j)k = k(i + j) = ki + kj = ik + jk.
+
 Theorem 16.  Let i, j ∈ ℤ.  If ij = 0, then i = 0 or j = 0.
 
 Proof.
@@ -360,7 +363,20 @@ Proof.
 Theorem 17.  Let i, j, k ∈ ℤ.
 
   1. If k ≠ 0 and ik = jk, then i = j.
-  2. (−i)j = −(ij) = i(−j).
+  2. (−i)j = −(ij).
+  3. i(−j) = −(ij).
+
+Proof.
+
+  1. Let i, j, k ∈ ℤ, and suppose that k ≠ 0 and ik = jk.  Then ik + (−j)k = jk + (−j)k, so (i + −j)k = (j + −j)k = 0 · k = 0.  By Theorem 16 we have i + −j = 0.  Then i + −j + j = 0 + j, so i = j.
+
+  2. Let i, j, k ∈ ℤ.  Then
+  
+    i(−j) = i(−j) + (ij + −(ij))
+          = (i(−j) + ij) + −(ij)
+          = i(−j + j) + −(ij)
+          = i · 0 + −(ij)
+          = −(ij).
 
 # Integers: inequalities
 

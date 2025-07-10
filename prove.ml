@@ -8,7 +8,6 @@ open Util
 let formula_counter = ref 0
 let consts = ref ([] : (id * typ) list)
 let ac_ops = ref ([] : (id * typ) list)
-let goal_consts = ref ([] : id list)
 
 type pformula = {
   id: int;
@@ -36,18 +35,45 @@ let rec num_literals f = match bool_kind f with
   | Quant (_, _, _, u) -> num_literals u
   | Other _ -> 1
 
-let weight1 goal_relative f =
+let weight f =
   let rec weigh f = match f with
-    | Const (c, _typ) ->
-        if f = _false || goal_relative && mem c !goal_consts then 0 else 1
+    | Const (_, _typ) -> if f = _false then 0 else 1
     | Var _ -> 1
     | App (f, g) -> weigh f + weigh g
     | Eq (f, g) -> 1 + weigh f + weigh g
     | Lambda (_, _, f) -> weigh f in
   weigh (remove_quantifiers f)
 
-let weight = weight1 false
-let goal_rel_weight = weight1 true
+let prefix_var var = "$" ^ var
+
+let is_prefixed var = var.[0] = '$'
+
+let prefix_vars f =
+  let rec prefix outer = function
+    | Var (x, typ) when not (mem x outer) ->
+        Var (prefix_var x, typ)
+    | Lambda (x, _typ, f) ->
+        Lambda (x, _typ, prefix (x :: outer) f)
+    | f -> map_formula (prefix outer) f
+  in prefix [] f
+
+let unprefix_vars f =
+  let rec build_map all_vars = function
+    | [] -> []
+    | var :: rest ->
+        if is_prefixed var then
+          let v = string_from var 1 in
+          let w = next_var v all_vars in
+          (var, w) :: build_map (w :: all_vars) rest
+        else build_map all_vars rest in
+  let var_map = build_map (all_vars f) (free_vars f) in
+  let rec fix outer = function
+    | Var (v, typ) as var when not (mem v outer) ->
+        if is_prefixed v then Var (assoc v var_map, typ) else var
+    | Lambda (x, _typ, f) ->
+      Lambda (x, _typ, fix (x :: outer) f)
+    | f -> map_formula (fix outer) f in
+  fix [] f
 
 let is_inductive pformula = match kind pformula.formula with
   | Quant ("∀", _, Fun (_, Bool), _) -> true
@@ -77,7 +103,16 @@ let commutative_axiom f = remove_universal f |> function
     | _ -> None
 
 let is_commutative_axiom p = Option.is_some (commutative_axiom p.formula)
-  
+
+(* a distributive identity, e.g. c · (a + b) = c · a + c · b *)
+let distributive_templates =
+    map (Fun.compose prefix_vars Parser.parse_formula)
+     ["g(c)(f(a)(b)) = f(g(c)(a))(g(c)(b))"; "g(f(a)(b))(c) = f(g(a)(c))(g(b)(c))"]
+
+let is_distributive_axiom p =
+    let f = remove_universal p.formula in
+    distributive_templates |> exists (fun t -> Option.is_some (_match t f))
+
 let orig_goal p = p.goal && not p.derived
 
 let orig_hyp p = p.hypothesis && not p.derived
@@ -344,37 +379,6 @@ let clausify1 id lits in_use =
 
 let clausify p = clausify1 p.id [p.formula] None
 
-let prefix_var var = "$" ^ var
-
-let is_prefixed var = var.[0] = '$'
-
-let prefix_vars f =
-  let rec prefix outer = function
-    | Var (x, typ) when not (mem x outer) ->
-        Var (prefix_var x, typ)
-    | Lambda (x, _typ, f) ->
-        Lambda (x, _typ, prefix (x :: outer) f)
-    | f -> map_formula (prefix outer) f
-  in prefix [] f
-
-let unprefix_vars f =
-  let rec build_map all_vars = function
-    | [] -> []
-    | var :: rest ->
-        if is_prefixed var then
-          let v = string_from var 1 in
-          let w = next_var v all_vars in
-          (var, w) :: build_map (w :: all_vars) rest
-        else build_map all_vars rest in
-  let var_map = build_map (all_vars f) (free_vars f) in
-  let rec fix outer = function
-    | Var (v, typ) as var when not (mem v outer) ->
-        if is_prefixed v then Var (assoc v var_map, typ) else var
-    | Lambda (x, _typ, f) ->
-      Lambda (x, _typ, fix (x :: outer) f)
-    | f -> map_formula (fix outer) f in
-  fix [] f
-
 (* Gather green or blue subterms.  *)
 let subterms is_blue t =
   let rec gather parent_eq acc t =
@@ -503,9 +507,8 @@ let cost p =
           if w < min_weight then 0.0 else
           if w <= max_weight then step_cost else big_cost
         else (* paramodulation *)
-          if commutative then step_cost else
-          if w < max_weight then
-            if lits <= 2 then big_cost else inf_cost
+          if commutative then step_cost
+          else if w < max_weight && lits <= 2 then big_cost
           else inf_cost
     | _ -> 0.0
 
@@ -1112,7 +1115,6 @@ let prove known_stmts thm cancel_check =
     if is_ac_axiom then ac_axioms := p :: !ac_axioms;
     dbg_newline (); p) in
   let goal = to_pformula (stmt_name thm) (Option.get (stmt_formula thm)) in
-  goal_consts := subtract (all_consts (goal.formula)) logical_ops;
   let goals = if !(opts.disprove) then [goal] else
     ["negate1"; "negate"] |> map (fun rule ->
       create_pformula rule [goal] (_not goal.formula)) in

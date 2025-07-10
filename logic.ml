@@ -406,6 +406,8 @@ let rec subst1 t u x = match t with
       else let y' = rename y (x :: free_vars t') in
         Lambda (y', typ, subst1 (subst1 t' (Var (y', typ)) y) u x)
 
+type subst = (id * formula) list
+
 let subst_n subst f =
   fold_left (fun f (x, t) -> subst1 f t x) f subst
   
@@ -425,7 +427,9 @@ let eta = function
   | Lambda (id, typ, App (f, Var (id', typ'))) when id = id' && typ = typ' -> f  
   | f -> f
 
-let unify_or_match is_unify subst =
+(* t and u unify if tσ = uσ for some substitution σ.
+   t matches u if tσ = u for some substitution σ.   *)
+let unify_or_match is_unify subst t u : subst option =
   let rec unify' subst t u =
     let unify_pairs f g f' g' =
       let* subst = unify' subst f f' in
@@ -464,9 +468,10 @@ let unify_or_match is_unify subst =
               else Some subst
           else None
       | _, _ -> None
-  in unify' subst
+  in unify' subst t u
 
 let unify = unify_or_match true []
+let _match = unify_or_match false []
 let try_match = unify_or_match false
 
 let rec chain_ops (f, ops_exprs) = match ops_exprs with
