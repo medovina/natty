@@ -493,6 +493,7 @@ let cost p =
     | [_; _] ->
         let definition = p.parents |> exists (fun q -> q.definition) in
         let commutative = p.parents |> exists (fun q -> is_commutative_axiom q) in
+        let orig_hyp = p.parents |> exists (fun p -> orig_hyp p) in
         let parent_lits = p.parents |> map (fun q -> num_literals q.formula) in
         let parent_weights = p.parents |> map (fun q -> weight q.formula) in
         let min_lits, max_lits = minimum parent_lits, maximum parent_lits in
@@ -505,7 +506,7 @@ let cost p =
         else if is_resolution p then
           if lits = max_lits && not (p.goal || definition) then inf_cost else
           if w < min_weight then 0.0 else
-          if w <= max_weight then step_cost else big_cost
+          if w <= max_weight || orig_hyp then step_cost else big_cost
         else (* paramodulation *)
           if commutative then step_cost
           else if w <= max_weight + 2 && lits <= 2 then big_cost
@@ -652,24 +653,20 @@ let update p rewriting f =
  *     t = t'    C⟪t'σ⟫
  *
  *   (i) tσ > t'σ
- *   (ii) (t = t')σ ≯ C
  *
  *)
 let rewrite _quick dp cp c_subterms : pformula list =
   if dp.id = cp.id || orig_hyp dp && orig_hyp cp then [] else
   let d = remove_universal dp.formula in
   if num_literals d > 1 then [] else
-    let+ (t, t') = eq_pairs true d in
+    let+ (t, t') = eq_pairs true d in  (* i: pre-check *)
     let t, t' = prefix_vars t, prefix_vars t' in
     let c = cp.formula in
     let+ u = c_subterms in
     match try_match [] t u with
       | Some sub ->
           let t_s, t'_s = u, rsubst sub t' in
-          if term_gt t_s t'_s  (* (i) *)
-(*            && (quick || type_of t = Bool ||
-                not (clause_gt [Eq (t_s, t'_s)] [cp.formula]))  (* (ii) *)  *)
-                then
+          if term_gt t_s t'_s  (* (i) *) then
             let e = b_reduce (replace_in_formula t'_s t_s c) in
             [update cp (Some dp) e]
           else []
