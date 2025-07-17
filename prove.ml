@@ -655,7 +655,7 @@ let update p rewriting f =
  *   (ii) (t = t')σ ≯ C
  *
  *)
-let rewrite quick dp cp c_subterms : pformula list =
+let rewrite _quick dp cp c_subterms : pformula list =
   if dp.id = cp.id || orig_hyp dp && orig_hyp cp then [] else
   let d = remove_universal dp.formula in
   if num_literals d > 1 then [] else
@@ -666,9 +666,10 @@ let rewrite quick dp cp c_subterms : pformula list =
     match try_match [] t u with
       | Some sub ->
           let t_s, t'_s = u, rsubst sub t' in
-          if term_gt t_s t'_s &&  (* (i) *)
-            (quick || type_of t = Bool ||
-                not (clause_gt [Eq (t_s, t'_s)] [cp.formula])) then (* (ii) *)
+          if term_gt t_s t'_s  (* (i) *)
+(*            && (quick || type_of t = Bool ||
+                not (clause_gt [Eq (t_s, t'_s)] [cp.formula]))  (* (ii) *)  *)
+                then
             let e = b_reduce (replace_in_formula t'_s t_s c) in
             [update cp (Some dp) e]
           else []
