@@ -117,6 +117,18 @@ let orig_goal p = p.goal && not p.derived
 
 let orig_hyp p = p.hypothesis && not p.derived
 
+type queue_item =
+  | Unprocessed of pformula
+  | Deferred of pformula * pformula
+
+module PFQueue = Psq.Make (struct
+  type t = queue_item
+  let compare = Stdlib.compare
+end) (struct
+  type t = float * float * int
+  let compare = Stdlib.compare
+end)
+
 let merge_cost parents = match unique parents with
     | [] -> 0.0
     | [p] -> p.cost
@@ -565,7 +577,18 @@ let super dp d' t_t' cp c c1 : pformula list =
           if dbg then printf "super: passed checks, produced %s\n" (show_formula e);
           [mk_pformula rule [dp; cp] true e])
 
-let all_super dp cp : pformula list =
+let all_super1 dp cp : pformula list =
+  let d_steps, c_steps = clausify_steps dp, clausify_steps cp in
+  let+ (dp, d_steps, cp, c_steps) =
+    [(dp, d_steps, cp, c_steps); (cp, c_steps, dp, d_steps)] in
+  let+ (d_lits, new_lits, _) = d_steps in
+  let d_lits, new_lits = map prefix_vars d_lits, map prefix_vars new_lits in
+  let+ d_lit = new_lits in
+  let+ (c_lits, _, exposed_lits) = c_steps in
+  let+ c_lit = exposed_lits in
+  super dp (remove1 d_lit d_lits) d_lit cp c_lits c_lit
+
+let all_super queue dp cp : pformula list =
   profile "all_super" @@ fun () ->
   let dbg = (dp.id, cp.id) = !debug_super in
   if dbg then printf "all_super\n";
@@ -576,15 +599,14 @@ let all_super dp cp : pformula list =
     num_literals p.formula = 1 in
   if dp.id = cp.id || not (allow dp || allow cp) || no_induct dp cp || no_induct cp dp
   then [] else
-    let d_steps, c_steps = clausify_steps dp, clausify_steps cp in
-    let+ (dp, d_steps, cp, c_steps) =
-      [(dp, d_steps, cp, c_steps); (cp, c_steps, dp, d_steps)] in
-    let+ (d_lits, new_lits, _) = d_steps in
-    let d_lits, new_lits = map prefix_vars d_lits, map prefix_vars new_lits in
-    let+ d_lit = new_lits in
-    let+ (c_lits, _, exposed_lits) = c_steps in
-    let+ c_lit = exposed_lits in
-    super dp (remove1 d_lit d_lits) d_lit cp c_lits c_lit
+    let cost = match PFQueue.min !queue with
+      | Some (_, (cost, _, _)) -> cost
+      | None -> 10.0 in
+    let min_cost = merge_cost [cp; dp] +. step_cost in
+    if min_cost <= cost then all_super1 dp cp else (
+      queue := PFQueue.add (Deferred (dp, cp)) (min_cost, 0., 0) !queue;
+      []
+    )
 
 (*      C' ∨ u ≠ u'
  *     ────────────   eres
@@ -837,14 +859,6 @@ module FormulaMap = Map.Make (struct
   let compare = Stdlib.compare
 end)
 
-module PFQueue = Psq.Make (struct
-  type t = pformula
-  let compare = Stdlib.compare
-end) (struct
-  type t = float * float * int
-  let compare = Stdlib.compare
-end)
-
 let queue_delta p =
   if orig_goal p && p.rule = "negate1" then 0.1
   else if orig_hyp p then 0.2
@@ -854,7 +868,7 @@ let queue_delta p =
 let queue_cost p = (p.cost, queue_delta p, p.id)
 
 let queue_add queue pformulas =
-  let queue_element p = (p, queue_cost p) in
+  let queue_element p = (Unprocessed p, queue_cost p) in
   let extra = PFQueue.of_list (map queue_element pformulas) in
   queue := PFQueue.(++) !queue extra
 
@@ -917,8 +931,9 @@ let rw_simplify cheap src queue used found p =
                       if !debug > 0 then
                         printf "(%d is a duplicate of %d; replacing with lower cost of %.2f)\n"
                           p.id pf.id p.cost;
-                      if PFQueue.mem pf !queue then
-                        queue := PFQueue.add p (queue_cost p) (PFQueue.remove pf !queue)
+                      if PFQueue.mem (Unprocessed pf) !queue then
+                        queue := PFQueue.add (Unprocessed p) (queue_cost p)
+                          (PFQueue.remove (Unprocessed pf) !queue)
                       else
                         used := p :: remove1 pf !used;
                       found := FormulaMap.add f_canonical p !found;
@@ -966,15 +981,15 @@ let back_simplify from used : pformula list =
   used := new_used;
   rewritten
 
-let generate p used =
+let generate queue p used =
   profile "generate" @@ fun () ->
-  concat_map (all_super p) !used @ all_eres p @ all_split p
+  concat_map (all_super queue p) !used @ all_eres p @ all_split p
 
 let rw_simplify_all queue used found ps =
   profile "rw_simplify_all" @@ fun () ->
   let simplify (p: pformula) =
     let p = rw_simplify true "generated" queue used found p in
-    p |> Option.iter (fun p -> queue := PFQueue.add p (queue_cost p) !queue);
+    p |> Option.iter (fun p -> queue := PFQueue.add (Unprocessed p) (queue_cost p) !queue);
     p in
   filter_map simplify ps
 
@@ -985,41 +1000,48 @@ let refute pformulas cancel_check : result =
   let used, queue = ref [], ref PFQueue.empty in
   queue_add queue pformulas;
   let start = Sys.time () in
-  let num_generated, max_cost = ref 0, ref 0.0 in
-  let stats count =
+  let count, num_generated, max_cost = ref 0, ref 0, ref 0.0 in
+  let stats () =
     { initial = length pformulas;
-      given = count; generated = !num_generated; max_cost = !max_cost} in
-  let rec loop count =
+      given = !count; generated = !num_generated; max_cost = !max_cost} in
+  let rec loop () =
     let elapsed = Sys.time () -. start in
     if timeout > 0.0 && elapsed > timeout then Timeout
     else if cancel_check () then Stopped
     else match PFQueue.pop !queue with
       | None -> GaveUp
-      | Some ((given, _cost), q) ->
+      | Some ((item, (cost, _, _)), q) ->
           queue := q;
-          max_cost := max given.cost !max_cost;
-          match forward_simplify queue used found given with
+          max_cost := max cost !max_cost;
+          let (rewritten, generated) = match item with
+            | Unprocessed given -> (
+                match forward_simplify queue used found given with
+                  | None -> ([], [])
+                  | Some p -> (
+                      incr count;
+                      let prefix = if !count = 0 then "" else sprintf "#%d, " !count in
+                      dbg_print_formula false (sprintf "[%s%.3f s] given: " prefix elapsed) given;
+                      if p.formula = _false then ([], [p]) else
+                        let rewritten = back_simplify p used in
+                        used := p :: !used;
+                        let generated = generate queue p used in
+                        (rewritten, generated)))
+            | Deferred (dp, cp) ->
+                if !debug > 1 then printf "deferred superposition: %d, %d\n" dp.id cp.id;
+                let generated =
+                  if memq dp !used && memq cp !used then all_super1 dp cp
+                  else (if !debug > 1 then printf "  no longer present; ignoring\n"; []) in
+                ([], generated) in
+          num_generated := !num_generated + length generated;
+          let new_pformulas =
+            rw_simplify_all queue used found (rev (rewritten @ generated)) in
+          dbg_newline ();
+          match find_opt (fun p -> p.formula = _false) new_pformulas with
+            | Some p -> Proof (p, stats ())
             | None ->
-                if !debug > 0 then print_newline ();
-                loop count
-            | Some p ->
-                let count = count + 1 in
-                let prefix = if count = 0 then "" else sprintf "#%d, " count in
-                dbg_print_formula false (sprintf "[%s%.3f s] given: " prefix elapsed) given;
-                if p.formula = _false then Proof (p, stats count) else
-                  let rewritten = back_simplify p used in
-                  used := p :: !used;
-                  let generated = generate p used in
-                  num_generated := !num_generated + length generated;
-                  let new_pformulas =
-                    rw_simplify_all queue used found (rev (rewritten @ generated)) in
-                  dbg_newline ();
-                  match find_opt (fun p -> p.formula = _false) new_pformulas with
-                    | Some p -> Proof (p, stats count)
-                    | None ->
-                        queue_add queue new_pformulas;
-                        loop count in
-  loop 0
+                queue_add queue new_pformulas;
+                loop () in
+  loop ()
 
 (* Given an associative/commutative operator *, construct the axiom
  *     x * (y * z) = y * (x * z)
