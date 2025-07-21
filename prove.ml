@@ -527,11 +527,11 @@ let cost p =
  *     (vii)  if t'σ = ⊥, u is in a literal of the form u = ⊤
        (viii) if t'σ = ⊤, u is in a literal of the form u = ⊥ *)
 
-let super only_res dp d' t_t' cp c c1 : pformula list =
+let super dp d' t_t' cp c c1 : pformula list =
   profile "super" @@ fun () ->
   let dbg = (dp.id, cp.id) = !debug_super in
   if dbg then printf "super\n";
-  let pairs = eq_pairs (not only_res) t_t' in  (* iii: pre-check *)
+  let pairs = eq_pairs true t_t' in  (* iii: pre-check *)
   let+ (t, t') = pairs in
   let+ (u, parent_eq) = green_subterms c1 |>
     filter (fun (u, _) -> not (is_var u || is_fluid u)) in  (* i, ii *)
@@ -546,7 +546,7 @@ let super only_res dp d' t_t' cp c c1 : pformula list =
         let c_s = map (rsubst sub) c in
         let c1_s = rsubst sub c1 in
         let fail n = if dbg then printf "super: failed check %d\n" n; true in
-        if is_higher sub && (only_res || not (orig_goal dp)) ||
+        if is_higher sub && not (orig_goal dp) ||
             is_bool_const t'_s &&
               not (top_level (t'_s = _false) u c1 sub (is_inductive cp)) && fail 7 || (* vii *)
             not (is_maximal lit_gt (simp_eq t_eq_t'_s) d'_s) && fail 6 ||  (* vi *)
@@ -565,7 +565,7 @@ let super only_res dp d' t_t' cp c c1 : pformula list =
           if dbg then printf "super: passed checks, produced %s\n" (show_formula e);
           [mk_pformula rule [dp; cp] true e])
 
-let all_super quick dp cp : pformula list =
+let all_super dp cp : pformula list =
   profile "all_super" @@ fun () ->
   let dbg = (dp.id, cp.id) = !debug_super in
   if dbg then printf "all_super\n";
@@ -584,7 +584,7 @@ let all_super quick dp cp : pformula list =
     let+ d_lit = new_lits in
     let+ (c_lits, _, exposed_lits) = c_steps in
     let+ c_lit = exposed_lits in
-    super quick dp (remove1 d_lit d_lits) d_lit cp c_lits c_lit
+    super dp (remove1 d_lit d_lits) d_lit cp c_lits c_lit
 
 (*      C' ∨ u ≠ u'
  *     ────────────   eres
@@ -933,7 +933,7 @@ let rw_simplify cheap src queue used found p =
                     Some (final ())
 
 type proof_stats = {
-  quick: bool; initial: int; given: int; generated: int; max_cost: float
+  initial: int; given: int; generated: int; max_cost: float
 }
 
 type result = Proof of pformula * proof_stats | Timeout | GaveUp | Stopped
@@ -955,7 +955,7 @@ let back_simplify from used : pformula list =
     | p :: ps ->
         let (ps', rewritten) = loop ps in
         if subsumes1 from p then (
-          if !debug > 1 then
+          if !debug > 0 then
             printf "%d. %s was back subsumed by %d. %s\n"
               p.id (show_formula p.formula) from.id (show_formula from.formula);
           (ps', rewritten))
@@ -968,7 +968,7 @@ let back_simplify from used : pformula list =
 
 let generate p used =
   profile "generate" @@ fun () ->
-  concat_map (all_super false p) !used @ all_eres p @ all_split p
+  concat_map (all_super p) !used @ all_eres p @ all_split p
 
 let rw_simplify_all queue used found ps =
   profile "rw_simplify_all" @@ fun () ->
@@ -987,7 +987,7 @@ let refute pformulas cancel_check : result =
   let start = Sys.time () in
   let num_generated, max_cost = ref 0, ref 0.0 in
   let stats count =
-    { quick = false; initial = length pformulas;
+    { initial = length pformulas;
       given = count; generated = !num_generated; max_cost = !max_cost} in
   let rec loop count =
     let elapsed = Sys.time () -. start in
@@ -1078,12 +1078,6 @@ let to_pformula name f =
   let (f, is_def) = lower f in
   { (create_pformula name [] (rename_vars f)) with definition = is_def }
 
-let goal_resolve r p =
-  let p = all_super true r p |> find_map (fun q ->
-    let q = simplify q in
-    if q.formula = _false then Some q else None) in
-  Option.get p
-
 let prove known_stmts thm cancel_check =
   let known_stmts = rev known_stmts in
   consts := filter_map decl_var known_stmts;
@@ -1109,7 +1103,7 @@ let prove known_stmts thm cancel_check =
   (result, Sys.time () -. start)
 
 let show_proof pf dis elapsed stats =
-  printf "%sproved in %.2f s (%s" dis elapsed (if stats.quick then "quick; " else "");
+  printf "%sproved in %.2f s (" dis elapsed;
   if !(opts.stats) then printf "initial: %d; " stats.initial;
   printf "given: %d; "  stats.given;
   if !(opts.stats) then printf "generated: %d; " stats.generated;
