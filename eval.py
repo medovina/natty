@@ -24,11 +24,6 @@ all_provers = {
           'stats_arg': '-i',
           'stats' : { 'given': r'given: (\d+)',
                       'generated': r'generated: (\d+)' } },
-    'Natty_manual' :
-        { 'cmd': './natty -m -t{timeout}',
-          'stats_arg': '-i',
-          'stats' : { 'given': r'given: (\d+)',
-                      'generated': r'generated: (\d+)' } },
     'E' :   # -s: silent
         { 'cmd': 'eprover-ho --auto -s --cpu-limit={timeout}',
           'stats_arg': '--print-statistics',
