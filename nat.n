@@ -4,7 +4,7 @@ Axiom 1.  There exists a type ℕ with an element 0 ∈ ℕ and a function s : �
 
   a. There is no n ∈ ℕ such that s(n) = 0.
   b. For all n, m ∈ ℕ, if s(n) = s(m) then n = m.
-  c. Let P : ℕ → 𝔹.  If P(0) is true, and P(k) implies P(s(k)) for all k ∈ ℕ, then P = ℕ.
+  c. Let P : ℕ → 𝔹.  If 0 ∈ P, and k ∈ P implies s(k) ∈ P for all k ∈ ℕ, then P = ℕ.
 
 Definition.  Let 1 : ℕ = s(0).
 
