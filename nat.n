@@ -420,3 +420,20 @@ Theorem 19.  Let i, j ∈ ℤ.
   3. If i ≤ j and j ≤ i, then i = j.
   4. If i > 0 and j > 0, then ij > 0.
   5. If i > 0 and j < 0, then ij < 0. 
+
+# Divisibility
+
+Definition.  For all a, b ∈ ℤ, a | b iff there is some c ∈ ℤ such that b = ac.
+
+Theorem 20. For all a, b, c ∈ ℤ, if a | b and b | c then a | c.
+
+Proof.  Let a, b, c : ℤ, and suppose that a | b and b | c.  There is some e ∈ ℤ such that ae = b.  Similarly, there is some f ∈ ℤ such that bf = c.  Hence c = bf = (ae)f = a(ef), and we conclude that a | c.
+
+Theorem 21.  For all a, b, m, n, c ∈ ℤ, if c | a and c | b then c | (ma + nb).
+
+Proof.  Let a, b, m, n, c : ℤ, and suppose that c | a and c | b.  There is some e ∈ ℤ such that a = ce.  Similarly, there is some f ∈ ℤ such that b = cf.  Hence ma + nb = mce + ncf = c(me + nf).  We see that c | (ma + nb).
+
+# Prime numbers
+
+Definition.  For all a ∈ ℤ, a is prime iff a > 1 and for all b ∈ ℤ, if b > 0 and b | a then b = 1 or b = a.
+

@@ -40,7 +40,7 @@ let var = empty >>? letter1
 let id = var <|> any_str ["𝔹"; "ℕ"; "ℤ"]
 
 let sym = choice [
-  empty >>? (digit <|> any_of "+-<>") |>> char_to_string;
+  empty >>? (digit <|> any_of "+-<>|") |>> char_to_string;
   any_str ["·"; "≤"; "≥"; "≮"; "≯"];
   str "−" >>$ "-"]
 
@@ -185,7 +185,8 @@ and operators = [
   [ infix_binop "·" Assoc_left ];
   [ infix_binop "+" Assoc_left;
     infix_binop1 minus "-" Assoc_left ];
-  [ infix_binop "∈" Assoc_none ];
+  [ infix_binop "∈" Assoc_none ;
+    infix_binop "|" Assoc_none ];
   [ infix "∧" _and Assoc_left ];
   [ infix "∨" _or Assoc_left ];
   [ infix "→" implies Assoc_right ];
@@ -210,6 +211,15 @@ and atomic s =
 
 (* small propositions *)
 
+and if_then_prop s =
+  pipe2 (str "if" >> small_prop << opt_str ",") (str "then" >> small_prop)
+    implies s
+
+and for_all_ids s = (str "For all" >> ids_type << str ",") s
+
+and for_all_prop s = pipe2
+  for_all_ids small_prop for_all_vars_typ s
+
 and there_exists =
   str "There" >> any_str ["is"; "are"; "exists"; "exist"]
 
@@ -220,23 +230,15 @@ and exists_prop s = pipe4
     let p = opt_fold _and with_prop p in
     (if some then Fun.id else _not) (exists_vars_typ (ids, typ) p)) s
 
-and small_prop s = expression prop_operators (exists_prop <|> atomic) s
+and small_prop s = expression prop_operators
+  (if_then_prop <|> for_all_prop <|> exists_prop <|> atomic) s
 
 (* propositions *)
-
-and if_then_prop s =
-  pipe2 (str "if" >> small_prop << opt_str ",") (str "then" >> small_prop)
-    implies s
 
 and either_or_prop s =
   (str "either" >> small_prop |>> fun f -> match bool_kind f with
     | Binary ("∨", _, _, _) -> f
     | _ -> failwith "either: expected or") s
-
-and for_all_ids s = (str "For all" >> ids_type << str ",") s
-
-and for_all_prop s = pipe2
-  for_all_ids proposition for_all_vars_typ s
 
 and precisely_prop s = (
   any_str ["Exactly"; "Precisely"] >> str "one of" >> small_prop << str "holds" |>>
@@ -251,7 +253,6 @@ and cannot_prop s = (
   str "It cannot be that" >> proposition |>> _not) s
 
 and proposition s = choice [
-  for_all_prop; if_then_prop;
   either_or_prop; precisely_prop; cannot_prop;
   small_prop
 ] s
@@ -329,10 +330,18 @@ let relation_definition (ids, typ) = opt_str "we write" >>?
     Definition (op, Fun (typ, Fun (typ, Bool)),
                 Lambda (x, typ, Lambda (y, typ, prop)))) << str "."
 
+let predicate_definition (ids, typ) = 
+  id >>=? fun x ->
+    pipe2 (str "is" >> word) (str "iff" >> proposition) (fun word prop ->
+      assert (ids = [x]);
+      Definition (word, Fun (typ, Bool),
+                  Lambda (x, typ, prop))) << str "."
+
 let definition = str "Definition." >>
   choice [
     many1 eq_definition;
-    for_all_ids >>= fun ids_typ -> many1 (relation_definition ids_typ)
+    for_all_ids >>= fun ids_typ ->
+      (many1 (relation_definition ids_typ) <|> single (predicate_definition ids_typ))
   ]
 
 (* proofs *)

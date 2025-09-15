@@ -2,7 +2,7 @@
 
 type_op = '⨯' | '→';
 
-typ = id | (typ) | typ type_op typ;
+typ = id | typ type_op typ;
 
 of_type = ':' | '∈';
 
@@ -33,7 +33,7 @@ terms = term+;
 
 (* expressions *)
 
-binary_op = '·' | '+' | '-' | '∈' | '∧' | '∨' | '→' | '↔';
+binary_op = '·' | '+' | '-' | '∈' | '|' | '∧' | '∨' | '→' | '↔';
 
 base_expr = terms |
     base_expr binary_op base_expr |
@@ -49,6 +49,12 @@ atomic = expr ['is true' | 'always holds'];
 
 (* small propositions *)
 
+if_then_prop = 'if' small_prop 'then' small_prop;
+
+for_all_ids = 'For all' ids_type ',';
+
+for_all_prop = for_all_ids small_prop;
+
 there_exists = 'There' ('is' | 'are' | 'exists' | 'exist');
 
 exists_prop =
@@ -58,25 +64,18 @@ exists_prop =
 prop_op = 'and' | 'or' | 'implies' | 'if and only if' | 'iff' | ', and' | ', or';
 
 small_prop =
-    atomic | exists_prop |
+    atomic | if_then_prop | for_all_prop | exists_prop |
     small_prop prop_op small_prop | small_prop 'for all' id_type;
 
 (* propositions *)
 
-if_then_prop = 'if' small_prop 'then' small_prop;
-
 either_or_prop = 'either' small_prop;
-
-for_all_ids = 'For all' ids_type ',';
-
-for_all_prop = for_all_ids proposition;
 
 precisely_prop = ('Exactly' | 'Precisely') 'one of' small_prop 'holds';
 
 cannot_prop = 'It cannot be that' proposition;
 
 proposition =
-    for_all_prop | if_then_prop |
     either_or_prop | precisely_prop | cannot_prop |
     small_prop;
 
@@ -123,12 +122,15 @@ eq_definition = 'Let' sym ':' typ '=' term '.';
 
 relation_definition = ['we write'] id sym id 'iff' proposition '.';
 
+predicate_definition = id 'is' word 'iff' proposition '.';
+
 definition = 'Definition.'
-    ({eq_definition}+ | for_all_ids {relation_definition});
+    ({eq_definition}+ |
+    for_all_ids ({relation_definition} | predicate_definition));
 
 (* proofs *)
 
-so = 'also' | 'hence' | 'so' | 'then' | 'therefore' |
+so = 'also' | 'consequently' | 'hence' | 'so' | 'then' | 'therefore' |
     'which implies' ['that'] | 'which means that';
     
 have = 'clearly' |
