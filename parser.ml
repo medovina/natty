@@ -9,6 +9,8 @@ open Util
 type state = { syntax_map : (syntax * range) list; unique_count : int ref }
 let empty_state = { syntax_map = []; unique_count = ref 0 }
 
+type 'a p = ('a, state) t   (* parser type *)
+
 let (<<?) p q = attempt (p << q)
 let (>>=?) p q = attempt (p >>= q)
 
@@ -276,22 +278,23 @@ and top_prop s = (let_prop <|> suppose_then <|> proposition) s
 
 (* proposition lists *)
 
-let label = 
+let label : id p = 
   ((empty >>? letter |>> char_to_string) <|> number) <<? string "."
 
-let top_sentence = with_range (top_prop << str ".")
+let top_sentence : (formula * range) p = with_range (top_prop << str ".")
 
-let proposition_item = triple
+let proposition_item : (id * (formula * range) * id option) p = triple
   label top_sentence (option (parens word))
 
-let prop_items = many1 proposition_item
+let prop_items : (id * (formula * range) * id option) list p =
+  many1 proposition_item
 
-let top_prop_or_items ids_typ =
+let top_prop_or_items ids_typ : (id * formula * id option * range) list p =
   (prop_items <|> (top_sentence |>> fun fr -> [("", fr, None)])) |>>
     map (fun (label, (f, range), name) ->
       (label, for_all_vars_typ_if_free ids_typ f, name, range))
 
-let propositions =
+let propositions : (id * formula * id option * range) list p =
   (opt ([], unknown_type) for_all_ids) >>= top_prop_or_items
 
 (* axioms *)
@@ -300,7 +303,7 @@ let operation =
   any_str ["a"; "an"] >>? optional (any_str ["binary"; "unary"]) >>
     any_str ["operation"; "relation"]
 
-let axiom_decl =
+let axiom_decl : statement p =
   str "a type" >> id |>> (fun id -> TypeDecl id) <|>
   pipe2 ((any_str ["a constant"; "an element"; "a function"] <|> operation) >> id_or_sym)
     (of_type >> typ)
@@ -310,39 +313,39 @@ let count_label n label =
   if label = "" then sprintf "%d" n
   else sprintf "%d.%s" n label
 
-let axiom_propositions n = propositions |>>
+let axiom_propositions n : statement list p = propositions |>>
   map (fun (label, f, name, _range) -> Axiom (count_label n label, f, name))
 
-let axiom_exists n =
+let axiom_exists n : statement list p =
   there_exists >>? pipe2
   (sep_by1 axiom_decl (any_str ["and"; "with"]))
   ((str "such that" >> axiom_propositions n) <|> (str "." >>$ []))
   (@)
 
-let axiom_group = (str "Axiom" >> int << str ".") >>= fun n ->
+let axiom_group : statement list p = (str "Axiom" >> int << str ".") >>= fun n ->
   (axiom_exists n <|> axiom_propositions n)
 
 (* definitions *)
 
-let eq_definition = pipe3
+let eq_definition : statement p = pipe3
   (str "Let" >> sym) (str ":" >> typ) (str "=" >> term << str ".")
   mk_def
 
-let relation_definition (ids, typ) = opt_str "we write" >>?
+let relation_definition (ids, typ) : statement p = opt_str "we write" >>?
   id >>=? fun x ->
     pipe3 sym id (str "iff" >> proposition) (fun op y prop ->
     assert (ids = [x; y]);
     Definition (op, Fun (typ, Fun (typ, Bool)),
                 Lambda (x, typ, Lambda (y, typ, prop)))) << str "."
 
-let predicate_definition (ids, typ) = 
+let predicate_definition (ids, typ) : statement p = 
   id >>=? fun x ->
     pipe2 (str "is" >> word) (str "iff" >> proposition) (fun word prop ->
       assert (ids = [x]);
       Definition (word, Fun (typ, Bool),
                   Lambda (x, typ, prop))) << str "."
 
-let definition = str "Definition." >>
+let definition : statement list p = str "Definition." >>
   choice [
     many1 eq_definition;
     for_all_ids >>= fun ids_typ ->
@@ -351,26 +354,26 @@ let definition = str "Definition." >>
 
 (* proofs *)
 
-let mk_step f =
+let mk_step f : proof_step =
   match kind f with
     | Quant ("∃", _, typ, _) ->
         let (ids, f) = gather_quant_of_type "∃" typ f in
         IsSome (ids, typ, f)
     | _ -> mk_assert f
 
-let opt_contra = opt []
+let opt_contra : (formula * range) list p = opt []
   (str "," >>? with_range (opt_str "which is " >>?
     optional (any_str ["again"; "also"; "similarly"]) >>?
     str "a contradiction" >>
     (optional (str "to" >> reference))) |>>
       fun (_, range) -> [(_false, range)])
 
-let proof_prop = pipe2 (choice [
+let proof_prop : (formula * range) list p = pipe2 (choice [
   reason >> opt_str "," >> optional have >> with_range proposition;
   optional have >> with_range proposition << optional reason
   ]) opt_contra cons
 
-let proof_if_prop = with_range (triple
+let proof_if_prop : proof_step_r list p = with_range (triple
   (with_range (str "if" >> small_prop))
   (opt_str "," >> str "then" >> proof_prop)
   (many (str "," >> so >> proof_prop) |>> concat)) |>>
@@ -387,7 +390,7 @@ let will_show = choice [
 
 let to_show = str "To show that" >> small_prop << str ","
 
-let assert_step =
+let assert_step : proof_step_r list p =
   (optional have >>? proof_if_prop) <|> (choice [
     pipe2 (any_str ["Because"; "Since"] >> proof_prop) (str "," >> proof_prop) (@);
     optional to_show >> will_show >> proposition >>$ [];
@@ -396,7 +399,7 @@ let assert_step =
     optional and_or_so >> proof_prop
     ] |>> map_fst mk_step)
 
-let assert_steps =
+let assert_steps : proof_step_r list p =
   let join = str "," >> and_or_so in
   pipe2 assert_step (many (join >> proof_prop |>> map_fst mk_step) |>> concat) (@)
 
@@ -404,50 +407,50 @@ let now = (str "First" >>$ false) <|>
   (any_str ["Conversely"; "Finally"; "Next"; "Now"; "Second";
             "In any case"; "In either case"; "Putting the cases together"] >>$ true)
 
-let let_step = pipe2 
+let let_step : proof_step_r list p = pipe2 
   (with_range (str "let" >> ids_type) |>>
     fun ((ids, typ), range) -> [(Let (ids, typ), range)])
   (opt [] (str "with" >> with_range small_prop |>>
               fun (f, range) -> [(Assume f, range)]))
   (@)
 
-let let_val_step = 
+let let_val_step : proof_step_r p = 
   with_range (pair (str "let" >>? id_opt_type <<? str "=") term) |>>
     fun (((id, typ), f), range) -> (LetVal (id, typ, f), range)
 
-let assume_step =
+let assume_step : proof_step_r p =
   with_range suppose |>>
     fun (fs, range) -> (Assume (multi_and fs), range)
 
-let let_or_assume =
+let let_or_assume : proof_step_r list p =
   single let_val_step <|> let_step <|> single assume_step
 
-let let_or_assumes =
+let let_or_assumes : proof_step_r list p =
   sep_by1 let_or_assume (str "," >> str "and") |>> concat
 
-let proof_clause = pipe2
+let proof_clause : proof_step_r list p = pipe2
   (opt false (now << opt_str ","))
   (let_or_assumes <|> assert_steps)
   (fun escape steps -> (if escape then [(Escape, empty_range)] else []) @ steps)
 
-let proof_sentence =
+let proof_sentence : proof_step_r list p =
   (sep_by1 proof_clause (str ";") |>> concat) << str "."
 
-let new_paragraph = empty >>? (any_str keywords <|> label)
+let new_paragraph : id p = empty >>? (any_str keywords <|> label)
 
-let proof_steps =
+let proof_steps : proof p =
   many1 (not_followed_by new_paragraph "" >> proof_sentence) |>>
     (fun steps -> Steps (concat steps))
 
-let proof_item = pair label proof_steps
+let proof_item : (id * proof) p = pair label proof_steps
 
-let proofs = str "Proof." >> choice [
+let proofs : (id * proof) list p = str "Proof." >> choice [
   many1 proof_item;
   proof_steps |>> (fun steps -> [("", steps)])]
 
 (* theorems *)
 
-let theorem_group =
+let theorem_group : statement list p =
   ((str "Lemma" <|> str "Theorem") >> int << str ".") >>= fun n -> 
   opt ([], Bool) (str "Let" >> ids_type << str ".") >>=
   fun ids_typ -> pipe2 (top_prop_or_items ids_typ) (opt [] proofs)
@@ -457,7 +460,7 @@ let theorem_group =
 
 (* program *)
 
-let program =
+let program : statement list p =
   many (axiom_group <|> definition <|> theorem_group) << empty << eof |>> concat
 
 let get_syntax_map = get_user_state |>> fun state -> state.syntax_map

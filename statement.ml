@@ -30,6 +30,8 @@ type proof_step =
   | Escape
   | Group of (proof_step * range) list
 
+type proof_step_r = proof_step * range
+
 let mk_assert f = Assert f
 
 let step_types = function
