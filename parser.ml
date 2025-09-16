@@ -52,6 +52,8 @@ let id_or_sym = id <|> sym
 
 let word = empty >>? many1_chars letter
 
+let adjective = word
+
 let keywords = ["axiom"; "definition"; "lemma"; "proof"; "theorem"]
 
 let with_range p = empty >>?
@@ -125,7 +127,8 @@ let reason =
 (* operators for small propositions *)
 
 let so =
-  any_str ["also"; "hence"; "so"; "then"; "therefore"; "which means that"] <|>
+  any_str ["also"; "but"; "consequently"; "hence"; "so";
+           "then"; "therefore"; "which means that"] <|>
   (str "which implies" << opt_str "that")
 
 let have = any_str 
@@ -142,7 +145,12 @@ let new_phrase = so <|> (optional reason >> have) <|> str "that"
 
 let and_op = str "and" <<? not_followed_by new_phrase ""
 
+let is' neg word f =
+    let g = App (Const (word, unknown_type), f) in
+    if Option.is_some neg then _not g else g
+
 let prop_operators = [
+  [ Postfix (pipe2 (str "is" >> option (str "not")) adjective is') ];
   [ Infix (and_op >>$ _and, Assoc_left) ];
   [ infix "or" _or Assoc_left ];
   [ infix "implies" implies Assoc_right ];
@@ -228,7 +236,7 @@ and for_all_prop s = pipe2
   for_all_ids small_prop for_all_vars_typ s
 
 and there_exists =
-  str "There" >> any_str ["is"; "are"; "exists"; "exist"]
+  str "There" >> any_str ["is"; "are"; "exists"; "exist"; "must exist"]
 
 and exists_prop s = pipe4
   (there_exists >> opt true ((str "some" >>$ true) <|> (str "no" >>$ false)))
@@ -340,7 +348,7 @@ let relation_definition (ids, typ) : statement p = opt_str "we write" >>?
 
 let predicate_definition (ids, typ) : statement p = 
   id >>=? fun x ->
-    pipe2 (str "is" >> word) (str "iff" >> proposition) (fun word prop ->
+    pipe2 (str "is" >> adjective) (str "iff" >> proposition) (fun word prop ->
       assert (ids = [x]);
       Definition (word, Fun (typ, Bool),
                   Lambda (x, typ, prop))) << str "."

@@ -101,7 +101,7 @@ let check_formula env formula as_type : formula =
                     App (App (Const ("·", (Fun (t, Fun (u, typ)))), f), g)
                   else App (f, g)
               | [] -> error (show_type (Option.get as_type) ^ " expected") formula
-              | _ -> error "ambiguous" formula in
+              | _ -> error (sprintf "ambiguous: %s" (show_formula formula)) formula in
     match formula with
       | Const (id, typ) ->
           if is_unknown typ then find_const id

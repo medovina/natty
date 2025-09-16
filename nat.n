@@ -439,16 +439,28 @@ Theorem 20.  Let i, j ∈ ℤ.
 
 # Divisibility
 
-Definition.  For all a, b ∈ ℤ, a | b iff there is some c ∈ ℤ such that b = ac.
+Definition.  For all a, b ∈ ℕ, a | b iff there is some c ∈ ℕ such that b = ac.
 
-Theorem 21. For all a, b, c ∈ ℤ, if a | b and b | c then a | c.
+Lemma 21.  For all a ∈ ℕ, a | a.
 
-Proof.  Let a, b, c : ℤ, and suppose that a | b and b | c.  There is some e ∈ ℤ such that ae = b.  Similarly, there is some f ∈ ℤ such that bf = c.  Hence c = bf = (ae)f = a(ef), and we conclude that a | c.
+Proof.  Let a ∈ ℕ.  a = a · 1, so a | a.
 
-Theorem 22.  For all a, b, m, n, c ∈ ℤ, if c | a and c | b then c | (ma + nb).
+Theorem 22. For all a, b, c ∈ ℕ, if a | b and b | c then a | c.
 
-Proof.  Let a, b, m, n, c : ℤ, and suppose that c | a and c | b.  There is some e ∈ ℤ such that a = ce.  Similarly, there is some f ∈ ℤ such that b = cf.  Hence ma + nb = mce + ncf = c(me + nf).  We see that c | (ma + nb).
+Proof.  Let a, b, c : ℕ, and suppose that a | b and b | c.  There is some e ∈ ℕ such that ae = b.  Similarly, there is some f ∈ ℕ such that bf = c.  Hence c = bf = (ae)f = a(ef), and we conclude that a | c.
+
+Theorem 23.  For all a, b, m, n, c ∈ ℕ, if c | a and c | b then c | (ma + nb).
+
+Proof.  Let a, b, m, n, c : ℕ, and suppose that c | a and c | b.  There is some e ∈ ℕ such that a = ce.  Similarly, there is some f ∈ ℕ such that b = cf.  Hence ma + nb = mce + ncf = c(me + nf).  We see that c | (ma + nb).
 
 # Prime numbers
 
-Definition.  For all a ∈ ℤ, a is prime iff a > 1 and for all b ∈ ℤ, if b > 0 and b | a then b = 1 or b = a.
+Definition.  For all a ∈ ℕ, a is prime iff a > 1 and for all b ∈ ℕ, if b > 0 and b | a then b = 1 or b = a.
+
+Lemma 24.  For all a ∈ ℕ, if a > 1 then there exists p ∈ ℕ such that p is prime and p | a.
+
+Proof.  Suppose that there exists some k ∈ ℕ such that k > 1 and there exists no p ∈ ℕ such that p is prime and p | k.  Let
+
+    G = { a ∈ ℕ | a > 1 and there exists no p ∈ ℕ such that p is prime and p | a }.
+
+There exists some k ∈ ℕ such that k ∈ G.  So by Lemma 11 there exists some n : ℕ such that n ∈ G and for all g ∈ ℕ, if g ∈ G then n ≤ g.  There exists no p ∈ ℕ such that p is prime and p | n, but n | n, so n is not prime.  Hence there exist a, b ∈ ℕ such that n = ab and 1 < a < n and 1 < b < n.  Because a < n, there must exist some p ∈ ℕ such that p is prime and p | a.  By Theorem 21, for all d ∈ ℕ, if d | a then d | n.  So we must have p | n, which is a contradiction.

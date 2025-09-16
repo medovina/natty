@@ -18,6 +18,8 @@ id_or_sym = id | sym;
 
 word = letter {letter};
 
+adjective = word;
+
 (* types *)
 
 type_op = '⨯' | '→';
@@ -75,7 +77,7 @@ for_all_ids = 'For all' ids_type ',';
 
 for_all_prop = for_all_ids small_prop;
 
-there_exists = 'There' ('is' | 'are' | 'exists' | 'exist');
+there_exists = 'There' ('is' | 'are' | 'exists' | ['must'] 'exist');
 
 exists_prop =
     there_exists ['some' | 'no'] ids_type ['with' small_prop]
@@ -85,7 +87,8 @@ prop_op = 'and' | 'or' | 'implies' | 'if and only if' | 'iff' | ', and' | ', or'
 
 small_prop =
     atomic | if_then_prop | for_all_prop | exists_prop |
-    small_prop prop_op small_prop | small_prop 'for all' id_type;
+    small_prop prop_op small_prop |
+    small_prop 'is' ['not'] adjective | small_prop 'for all' id_type;
 
 (* propositions *)
 
@@ -142,7 +145,7 @@ eq_definition = 'Let' sym ':' typ '=' term '.';
 
 relation_definition = ['we write'] id sym id 'iff' proposition '.';
 
-predicate_definition = id 'is' word 'iff' proposition '.';
+predicate_definition = id 'is' adjective 'iff' proposition '.';
 
 definition = 'Definition.'
     (eq_definition {eq_definition} |
@@ -150,7 +153,7 @@ definition = 'Definition.'
 
 (* proofs *)
 
-so = 'also' | 'consequently' | 'hence' | 'so' | 'then' | 'therefore' |
+so = 'also' | 'but' | 'consequently' | 'hence' | 'so' | 'then' | 'therefore' |
     'which implies' ['that'] | 'which means that';
     
 have = 'clearly' |
