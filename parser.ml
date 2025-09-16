@@ -70,7 +70,7 @@ let record_type = record mk_type_syntax
 
 let infix sym f assoc = Infix (str sym >>$ f, assoc)
 
-let const_op p sym =
+let const_op p sym neg =
   record_formula (p >>
     get_user_state |>> fun st ->
     incr st.unique_count;
@@ -78,12 +78,16 @@ let const_op p sym =
      * syntactic occurrences to be distinct objects, so they will have distinct
      * positions for error reporting. *)
     Const (sym, unknown_type_n !(st.unique_count))) |>> fun const ->
-      fun f g -> apply [const; f; g]
+      fun f g ->
+        let e = apply [const; f; g] in
+        if neg then _not e else e
 
 let infix_binop1 p sym assoc =
-  Infix (const_op p sym, assoc)
+  Infix (const_op p sym false, assoc)
 
 let infix_binop sym assoc = infix_binop1 (str sym) sym assoc
+
+let infix_negop sym pos assoc = Infix (const_op (str sym) pos true, assoc)
 
 let type_operators = [
   [ infix "⨯" (fun t u -> Product (t, u)) Assoc_right ];
@@ -186,6 +190,7 @@ and operators = [
   [ infix_binop "+" Assoc_left;
     infix_binop1 minus "-" Assoc_left ];
   [ infix_binop "∈" Assoc_none ;
+    infix_negop "∉" "∈" Assoc_none ;
     infix_binop "|" Assoc_none ];
   [ infix "∧" _and Assoc_left ];
   [ infix "∨" _or Assoc_left ];
@@ -200,7 +205,7 @@ and eq_op s = choice ([
   str "≠" >>$ mk_neq;
   str "≮" >>$ mk_not_less;
   str "≯" >>$ mk_not_greater] @
-  map (fun op -> const_op (str op) op) ["<"; "≤"; ">"; "≥"]) s
+  map (fun op -> const_op (str op) op false) ["<"; "≤"; ">"; "≥"]) s
 
 and eq_expr s = pair eq_op (base_expr << optional reason) s
 
@@ -384,7 +389,7 @@ let to_show = str "To show that" >> small_prop << str ","
 
 let assert_step =
   (optional have >>? proof_if_prop) <|> (choice [
-    pipe2 (str "Since" >> proof_prop) (str "," >> proof_prop) (@);
+    pipe2 (any_str ["Because"; "Since"] >> proof_prop) (str "," >> proof_prop) (@);
     optional to_show >> will_show >> proposition >>$ [];
     str "The result follows" >> reason >>$ [];
     single (with_range (str "This is a contradiction to" >> reference >>$ _false));
