@@ -34,6 +34,10 @@ type proof_step_r = proof_step * range
 
 let mk_assert f = Assert f
 
+let is_assume = function
+  | Assume _ -> true
+  | _ -> false
+
 let step_types = function
   | Let (_, typ) | LetVal (_, typ, _) | IsSome (_, typ, _) -> [typ]
   | _ -> []

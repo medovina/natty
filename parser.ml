@@ -395,7 +395,8 @@ let assert_step : proof_step_r list p =
     pipe2 (any_str ["Because"; "Since"] >> proof_prop) (str "," >> proof_prop) (@);
     optional to_show >> will_show >> proposition >>$ [];
     str "The result follows" >> reason >>$ [];
-    single (with_range (str "This is a contradiction to" >> reference >>$ _false));
+    single (with_range (str "This is a contradiction" >>
+        optional (str "to" >> reference) >>$ _false));
     optional and_or_so >> proof_prop
     ] |>> map_fst mk_step)
 
@@ -403,9 +404,9 @@ let assert_steps : proof_step_r list p =
   let join = str "," >> and_or_so in
   pipe2 assert_step (many (join >> proof_prop |>> map_fst mk_step) |>> concat) (@)
 
-let now = (str "First" >>$ false) <|>
-  (any_str ["Conversely"; "Finally"; "Next"; "Now"; "Second";
-            "In any case"; "In either case"; "Putting the cases together"] >>$ true)
+let now = any_str ["Conversely"; "Finally"; "Next"; "Now"; "Second"]
+
+let any_case = any_str ["In any case"; "In either case"; "Putting the cases together"]
 
 let let_step : proof_step_r list p = pipe2 
   (with_range (str "let" >> ids_type) |>>
@@ -428,10 +429,15 @@ let let_or_assume : proof_step_r list p =
 let let_or_assumes : proof_step_r list p =
   sep_by1 let_or_assume (str "," >> str "and") |>> concat
 
+let clause_intro = choice [ str "First" >>$ 0; now >>$ 1; any_case >>$ 2]
+
 let proof_clause : proof_step_r list p = pipe2
-  (opt false (now << opt_str ","))
+  (opt 0 (clause_intro << opt_str ","))
   (let_or_assumes <|> assert_steps)
-  (fun escape steps -> (if escape then [(Escape, empty_range)] else []) @ steps)
+  (fun now steps ->
+    let esc = if now = 1 && is_assume (fst (hd steps)) || now = 2
+                then [(Escape, empty_range)] else []
+    in esc @ steps)
 
 let proof_sentence : proof_step_r list p =
   (sep_by1 proof_clause (str ";") |>> concat) << str "."

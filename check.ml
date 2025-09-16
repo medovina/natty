@@ -286,7 +286,7 @@ and check_stmt env stmt =
         Theorem (name, f1, Option.bind proof (expand_proof stmt env f range), range)
     | TypeDecl _ | ConstDecl _ -> stmt
 
-and check_stmts initial_env stmts =
+and check_stmts initial_env stmts : statement list =
   let check env stmt =
     let stmt = check_stmt env stmt in
     (stmt :: env, stmt) in
