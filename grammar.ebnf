@@ -2,7 +2,7 @@
 
 digit = '0' .. '9';
 
-number = digit {digit};
+number = {digit}+;
 
 letter = 'a' .. 'z';
 
@@ -32,7 +32,7 @@ id_type = id of_type typ;
 
 id_opt_type = id [of_type typ];
 
-ids_type = id ',' id {',' id} of_type typ;
+ids_type = id {',' id}+ of_type typ;
 
 (* reasons *)
 
@@ -51,7 +51,7 @@ term =
     sym | id '(' expr {',' expr} ')' | id | '⊤' | '⊥' | '(' expr ')'
   | '{' var of_type typ '|' proposition '}';
 
-terms = term {term};
+terms = term+;
 
 (* expressions *)
 
@@ -120,7 +120,7 @@ top_sentence = top_prop '.';
 
 proposition_item = label top_sentence ['(' word ')'];
 
-prop_items = proposition_item {proposition_item};
+prop_items = proposition_item+;
 
 top_prop_or_items = prop_items | top_sentence;
 
@@ -148,8 +148,8 @@ relation_definition = ['we write'] id sym id 'iff' proposition '.';
 predicate_definition = id 'is' adjective 'iff' proposition '.';
 
 definition = 'Definition.'
-    (eq_definition {eq_definition} |
-    for_all_ids ({relation_definition} | predicate_definition));
+    ({eq_definition}+ |
+    for_all_ids ({relation_definition} | {predicate_definition}));
 
 (* proofs *)
 
@@ -209,11 +209,11 @@ proof_clause = [clause_intro [',']] (let_or_assumes | assert_steps);
 
 proof_sentence = proof_clause {';' proof_clause} '.';
 
-proof_steps = proof_sentence {proof_sentence};
+proof_steps = proof_sentence+;
 
 proof_item = label proof_steps;
 
-proofs = 'Proof.' (proof_item {proof_item} | proof_steps);
+proofs = 'Proof.' (proof_item+ | proof_steps);
 
 (* theorems *)
 

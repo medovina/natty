@@ -357,7 +357,7 @@ let definition : statement list p = str "Definition." >>
   choice [
     many1 eq_definition;
     for_all_ids >>= fun ids_typ ->
-      (many1 (relation_definition ids_typ) <|> single (predicate_definition ids_typ))
+      (many1 (relation_definition ids_typ) <|> many1 (predicate_definition ids_typ))
   ]
 
 (* proofs *)
