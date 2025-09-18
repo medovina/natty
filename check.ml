@@ -8,6 +8,8 @@ open Util
 exception Check_error of string * syntax
 
 let error s f = raise (Check_error (s, Formula f))
+let errorf s f = error (sprintf "%s: %s" s (show_formula f)) f
+
 let type_error s typ = raise (Check_error (s, Type typ))
 
 let rec check_type env typ = match typ with
@@ -73,7 +75,7 @@ and possible_app env dot_types vars formula f g with_dot =
       else [] in
     app @ prod in
   match all with
-    | [] -> error "can't apply" formula
+    | [] -> errorf "can't apply" formula
     | all -> all
 
 let tuple_cons_type t u = Fun (t, Fun (u, Product (t, u)))
@@ -90,7 +92,7 @@ let check_formula env formula as_type : formula =
         | _ -> error "ambiguous type" formula in
     let check_app f g with_dot =
       match possible_app env dot_types vars formula f g with_dot with
-        | [] -> error "can't apply" formula
+        | [] -> errorf "can't apply" formula
         | possible ->
             let possible = possible |>
               filter (fun (_t, _u, typ, _kind) -> opt_all_eq typ as_type) in
@@ -101,7 +103,7 @@ let check_formula env formula as_type : formula =
                     App (App (Const ("·", (Fun (t, Fun (u, typ)))), f), g)
                   else App (f, g)
               | [] -> error (show_type (Option.get as_type) ^ " expected") formula
-              | _ -> error (sprintf "ambiguous: %s" (show_formula formula)) formula in
+              | _ -> errorf "ambiguous" formula in
     match formula with
       | Const (id, typ) ->
           if is_unknown typ then find_const id

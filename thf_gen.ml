@@ -21,9 +21,17 @@ let thf_type typ =
 
 let binary = [("∧", "&"); ("∨", "|"); ("→", "=>"); ("↔", "<=>")]
 
-let to_var id = capitalize (str_replace "'" "_" id)
+(* Suffix uppercase identifiers with _ to avoid name clashes e.g. between
+ * variables G and g, since all variable names will be made uppercase. *)
+let suffix_upper s =
+    if is_upper s.[0] then
+        let (s, typ) = split_type_suffix s in
+        s ^ "_" ^ typ
+    else s
 
-let rec thf outer right f =
+let to_var id = capitalize (suffix_upper (str_replace "'" "_" id))
+
+let rec thf outer right f : string =
   let parens b s = if b && outer <> "" then sprintf "(%s)" s else s in
   match bool_kind f with
     | True -> "$true"
@@ -40,7 +48,7 @@ let rec thf outer right f =
         let (ids_typs, f) = gather_quant q u in
         quant (if q = "∀" then "!" else "?") ((id, typ) :: ids_typs) f
     | _ -> match f with
-      | Const (id, _) -> quote id
+      | Const (id, _) -> quote (suffix_upper id)
       | Var (id, _) -> to_var id
       | App (t, u) ->
           let s = sprintf "%s @ %s" (thf "@" false t) (thf "@" true u) in
@@ -56,9 +64,10 @@ and quant q ids_typs f =
 
 and thf_formula f = thf "" false f
 
-let thf_statement is_conjecture f =
+let thf_statement is_conjecture f : string =
   let const id typ =
-    sprintf "%s, type, %s: %s" (quote (id ^ "_decl")) (quote id) (thf_type typ) in
+    sprintf "%s, type, %s: %s"
+      (quote (id ^ "_decl")) (quote (suffix_upper id)) (thf_type typ) in
   let axiom name kind f =
     sprintf "%s, %s, %s" (quote name) kind (thf_formula f) in
   let type_decl t = sprintf "%s, type, %s: $tType" (quote (t ^ "_type")) (quote t) in

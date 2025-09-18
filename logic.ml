@@ -223,10 +223,12 @@ let single_letter = function
   | (Const (id, _) | Var (id, _)) when is_letter id.[0] -> Some id
   | _ -> None
 
-let without_type_suffix id =
+let split_type_suffix id =
   match String.index_opt id ':' with
-    | Some i -> String.sub id 0 i
-    | None -> id
+    | Some i -> (String.sub id 0 i, string_from id i)
+    | None -> (id, "")
+
+let without_type_suffix id = fst (split_type_suffix id)
 
 let show_formula_multi multi f =
   let rec show indent multi outer right f =
@@ -347,7 +349,7 @@ let for_all_vars_typ_if_free (ids, typ) f =
 
 let for_all_vars_typs = fold_right _for_all'
 
-let rec gather_quant q f = match kind f with
+let rec gather_quant q f : (id * typ) list * formula = match kind f with
   | Quant (q', id, typ, u) when q = q' ->
       let (qs, f) = gather_quant q u in ((id, typ) :: qs, f)
   | _ -> ([], f)

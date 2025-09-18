@@ -39,6 +39,8 @@ let or_opt x y = match x with
 
 let is_lower c = 'a' <= c && c <= 'z'
 
+let is_upper c = 'A' <= c && c <= 'Z'
+
 let is_letter c = is_lower c || ('A' <= c && c <= 'Z')
 
 let is_digit c = '0' <= c && c <= '9'
