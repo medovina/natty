@@ -55,6 +55,8 @@ let char_to_string = String.make 1
 
 let string_from s i = String.sub s i (String.length s - i)
 
+let last_char s = s.[strlen s - 1]
+
 let prepend p s = p ^ s
 
 let n_spaces n = String.make n ' '
@@ -281,7 +283,15 @@ let write_file filename text =
 
 (* parsing *)
 
+let (<<?) p q = attempt (p << q)
+let (>>=?) p q = attempt (p >>= q)
+
 let single s = count 1 s
+
+let pipe2a p1 p2 f =
+  p1 >>=? fun x1 ->
+  p2 >>= fun x2 ->
+  return (f x1 x2)
 
 let triple p q r = pipe3 p q r (fun x y z -> (x, y, z))
 

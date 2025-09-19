@@ -10,9 +10,7 @@ type state = { syntax_map : (syntax * range) list; unique_count : int ref }
 let empty_state = { syntax_map = []; unique_count = ref 0 }
 
 type 'a p = ('a, state) t   (* parser type *)
-
-let (<<?) p q = attempt (p << q)
-let (>>=?) p q = attempt (p >>= q)
+type 'a pr = ('a, state) reply
 
 let comment = char '#' << skip_many_until any_char newline
 
@@ -27,7 +25,8 @@ let int = number |>> int_of_string
 let str s =
   let match_first c =
     Char.lowercase_ascii c = Char.lowercase_ascii (s.[0]) in
-  empty >>? satisfy match_first >>? string (string_from s 1) >>$ s
+  (empty >>? satisfy match_first >>? string (string_from s 1) >>=? fun _ ->
+    if is_letter (last_char s) then not_followed_by letter "" else return ()) >>$ s
 
 let opt_str s = optional (str s)
 
@@ -42,7 +41,7 @@ let var = empty >>? letter1
 let id = var <|> any_str ["𝔹"; "ℕ"; "ℤ"]
 
 let sym = choice [
-  empty >>? (digit <|> any_of "+-<>|") |>> char_to_string;
+  empty >>? (digit <|> any_of "+-<>|~") |>> char_to_string;
   any_str ["·"; "≤"; "≥"; "≮"; "≯"];
   str "−" >>$ "-"]
 
@@ -107,7 +106,12 @@ let id_type = pair id (of_type >> typ)
 
 let id_opt_type = pair id (opt unknown_type (of_type >> typ))
 
-let ids_type = pair (sep_by1 id (str ",")) (of_type >> typ)
+let ids_type : (id list * typ) p = pair (sep_by1 id (str ",")) (of_type >> typ)
+
+let ids_types : ((id * typ) list) p =
+  sep_by1 ids_type (str "and") |>> fun ids_typs ->
+    let+ (ids, typ) = ids_typs in
+    let+ id = ids in [(id, typ)]
 
 (* reasons *)
 
@@ -144,21 +148,6 @@ let have = any_str
 let new_phrase = so <|> (optional reason >> have) <|> str "that"
 
 let and_op = str "and" <<? not_followed_by new_phrase ""
-
-let is' neg word f =
-    let g = App (Const (word, unknown_type), f) in
-    if Option.is_some neg then _not g else g
-
-let prop_operators = [
-  [ Postfix (pipe2 (str "is" >> option (str "not")) adjective is') ];
-  [ Infix (and_op >>$ _and, Assoc_left) ];
-  [ infix "or" _or Assoc_left ];
-  [ infix "implies" implies Assoc_right ];
-  [ Postfix (str "for all" >> id_type |>> _for_all') ];
-  [ Infix (any_str ["iff"; "if and only if"] >>$ _iff, Assoc_right) ];
-  [ Infix (str "," >>? and_op >>$ _and, Assoc_left) ];
-  [ Infix (str "," >>? str "or" >>$ _or, Assoc_left) ];
-]
 
 (* terms *)
 
@@ -201,12 +190,21 @@ and operators = [
     infix_binop1 minus "-" Assoc_left ];
   [ infix_binop "∈" Assoc_none ;
     infix_negop "∉" "∈" Assoc_none ;
-    infix_binop "|" Assoc_none ];
+    infix_binop "|" Assoc_none;
+    infix_binop "~" Assoc_none ];
   [ infix "∧" _and Assoc_left ];
   [ infix "∨" _or Assoc_left ];
   [ infix "→" implies Assoc_right ];
   [ infix "↔" _iff Assoc_right ]
 ]
+
+and predicate s = choice [
+  pipe3 (any_str ["a"; "an"] >> word) (str "from" >> atomic) (str "to" >> atomic)
+    (fun word y z f -> apply [Const ("is_" ^ word, unknown_type); f; y; z]);
+  pipe2 (option (str "not")) adjective (fun neg word f ->
+    let g = App (Const (word, unknown_type), f) in
+    if Option.is_some neg then _not g else g)
+] s
 
 and base_expr s = expression operators terms s
 
@@ -221,41 +219,55 @@ and eq_expr s = pair eq_op (base_expr << optional reason) s
 
 and expr s = record_formula (pair base_expr (many eq_expr) |>> chain_ops) s
 
-and atomic s =
-  (expr << optional (any_str ["is true"; "always holds"])) s
+and atomic s = (
+  pipe2 expr (choice [
+    any_str ["is true"; "always holds"] >>$ Fun.id;
+    str "is" >> predicate;
+    return Fun.id
+   ]) (fun e f -> f e)) s
 
 (* small propositions *)
 
-and if_then_prop s =
+and prop_operators = [
+  [ Infix (and_op >>$ _and, Assoc_left) ];
+  [ infix "or" _or Assoc_left ];
+  [ infix "implies" implies Assoc_right ];
+  [ Postfix (str "for all" >> id_type |>> _for_all') ];
+  [ Infix (any_str ["iff"; "if and only if"] >>$ _iff, Assoc_right) ];
+  [ Infix (str "," >>? and_op >>$ _and, Assoc_left) ];
+  [ Infix (str "," >>? str "or" >>$ _or, Assoc_left) ];
+]
+
+and if_then_prop s : formula pr =
   pipe2 (str "if" >> small_prop << opt_str ",") (str "then" >> small_prop)
     implies s
 
-and for_all_ids s = (str "For all" >> ids_type << str ",") s
+and for_all_ids s : (id * typ) list pr = (str "For all" >> ids_types << str ",") s
 
-and for_all_prop s = pipe2
-  for_all_ids small_prop for_all_vars_typ s
+and for_all_prop s : formula pr = pipe2
+  for_all_ids small_prop for_all_vars_typs s
 
 and there_exists =
   str "There" >> any_str ["is"; "are"; "exists"; "exist"; "must exist"]
 
-and exists_prop s = pipe4
+and exists_prop s : formula pr = pipe4
   (there_exists >> opt true ((str "some" >>$ true) <|> (str "no" >>$ false)))
   ids_type (option (str "with" >> small_prop)) (str "such that" >> small_prop)
   (fun some (ids, typ) with_prop p ->
     let p = opt_fold _and with_prop p in
     (if some then Fun.id else _not) (exists_vars_typ (ids, typ) p)) s
 
-and small_prop s = expression prop_operators
+and small_prop s : formula pr = expression prop_operators
   (if_then_prop <|> for_all_prop <|> exists_prop <|> atomic) s
 
 (* propositions *)
 
-and either_or_prop s =
+and either_or_prop s : formula pr =
   (str "either" >> small_prop |>> fun f -> match bool_kind f with
     | Binary ("∨", _, _, _) -> f
     | _ -> failwith "either: expected or") s
 
-and precisely_prop s = (
+and precisely_prop s : formula pr = (
   any_str ["Exactly"; "Precisely"] >> str "one of" >> small_prop << str "holds" |>>
     fun f ->
       let gs = gather_or f in
@@ -264,10 +276,10 @@ and precisely_prop s = (
       multi_and (f :: ns)
   ) s
 
-and cannot_prop s = (
+and cannot_prop s : formula pr = (
   str "It cannot be that" >> proposition |>> _not) s
 
-and proposition s = choice [
+and proposition s : formula pr = choice [
   either_or_prop; precisely_prop; cannot_prop;
   small_prop
 ] s
@@ -300,10 +312,10 @@ let prop_items : (id * (formula * range) * id option) list p =
 let top_prop_or_items ids_typ : (id * formula * id option * range) list p =
   (prop_items <|> (top_sentence |>> fun fr -> [("", fr, None)])) |>>
     map (fun (label, (f, range), name) ->
-      (label, for_all_vars_typ_if_free ids_typ f, name, range))
+      (label, for_all_vars_typs_if_free ids_typ f, name, range))
 
 let propositions : (id * formula * id option * range) list p =
-  (opt ([], unknown_type) for_all_ids) >>= top_prop_or_items
+  (opt [] for_all_ids) >>= top_prop_or_items
 
 (* axioms *)
 
@@ -339,25 +351,43 @@ let eq_definition : statement p = pipe3
   (str "Let" >> sym) (str ":" >> typ) (str "=" >> term << str ".")
   mk_def
 
-let relation_definition (ids, typ) : statement p = opt_str "we write" >>?
-  id >>=? fun x ->
-    pipe3 sym id (str "iff" >> proposition) (fun op y prop ->
-    assert (ids = [x; y]);
-    Definition (op, Fun (typ, Fun (typ, Bool)),
-                Lambda (x, typ, Lambda (y, typ, prop)))) << str "."
+let relation_definition ids_typs : statement p = opt_str "we write" >>?
+  id >>=? (fun x ->
+    pipe3 sym id (str "iff" >> proposition << str ".") (fun op y prop ->
+      match ids_typs with
+        | [(x', x_typ); (y', y_typ)] when (x', y') = (x, y) ->
+            Definition (op, Fun (x_typ, Fun (y_typ, Bool)),
+                      Lambda (x, x_typ, Lambda (y, y_typ, prop)))
+        | _ -> failwith "syntax error in relation definition"))
 
-let predicate_definition (ids, typ) : statement p = 
-  id >>=? fun x ->
-    pipe2 (str "is" >> adjective) (str "iff" >> proposition) (fun word prop ->
-      assert (ids = [x]);
-      Definition (word, Fun (typ, Bool),
-                  Lambda (x, typ, prop))) << str "."
+let adjective_predicate id ids_typs : (formula -> statement) p = 
+  adjective |>> (fun word prop ->
+    match ids_typs with
+      | [(x, typ)] when x = id ->
+          Definition (word, Fun (typ, Bool), Lambda (x, typ, prop)) 
+      | _ -> failwith "syntax error in predicate definition")
+
+let pred_word = any_str ["a"; "an"] >> word |>> fun w -> "is_" ^ w
+
+let from_to_predicate x ids_typs : (formula -> statement) p = 
+  pipe3 pred_word (str "from" >> id) (str "to" >> id) (fun name y z prop ->
+    match ids_typs with
+      | [(x', x_typ); (y', y_typ); (z', z_typ)] when (x', y', z') = (x, y, z) ->
+          Definition (name, Fun (x_typ, Fun (y_typ, Fun (z_typ, Bool))),
+            Lambda (x, x_typ, Lambda (y, y_typ, Lambda (z, z_typ, prop))))
+      | _ -> failwith "syntax error in predicate definition")
+
+let predicate_definition ids_types : statement p =
+  id <<? str "is" >>= fun id ->
+  pipe2 (from_to_predicate id ids_types <|> adjective_predicate id ids_types)
+    (str "iff" >> proposition << str ".")
+    (fun pred prop -> pred prop)
 
 let definition : statement list p = str "Definition." >>
   choice [
     many1 eq_definition;
-    for_all_ids >>= fun ids_typ ->
-      (many1 (relation_definition ids_typ) <|> many1 (predicate_definition ids_typ))
+    for_all_ids >>= fun ids_types ->
+      (many1 (relation_definition ids_types) <|> many1 (predicate_definition ids_types))
   ]
 
 (* proofs *)
@@ -466,8 +496,8 @@ let proofs : (id * proof) list p = str "Proof." >> choice [
 
 let theorem_group : statement list p =
   ((str "Lemma" <|> str "Theorem") >> int << str ".") >>= fun n -> 
-  opt ([], Bool) (str "Let" >> ids_type << str ".") >>=
-  fun ids_typ -> pipe2 (top_prop_or_items ids_typ) (opt [] proofs)
+  opt [] (str "Let" >> ids_types << str ".") >>=
+  fun ids_types -> pipe2 (top_prop_or_items ids_types) (opt [] proofs)
     (fun props proofs ->
       props |> map (fun (label, f, _name, range) ->
         Theorem (count_label n label, f, assoc_opt label proofs, range)))

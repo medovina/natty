@@ -56,7 +56,7 @@ let mk_var' (id, typ) = Var (id, typ)
 let mk_app f g = App (f, g)
 let mk_eq f g = Eq (f, g)
 
-let apply = fold_left1 mk_app
+let apply : formula list -> formula = fold_left1 mk_app
 
 let _tuple2 = Const ("(,)", unknown_type)
 
@@ -210,7 +210,7 @@ let premises f = split_last (gather_implies f)
 let binary_ops = [
   ("·", 8);
   ("+", 7); ("-", 7);
-  ("∈", 6); ("|", 6);
+  ("∈", 6); ("|", 6); ("~", 6);
   ("<", 5); ("≤", 5); (">", 5); ("≥", 5);
   ("∧", 4); ("∨", 3); ("→", 1); ("↔", 0)
 ]
@@ -341,13 +341,19 @@ let is_free_in_any x fs = exists (fun f -> is_free_in x f) fs
 let quant_vars_typ quant (ids, typ) f =
   fold_right (fun id f -> quant id typ f) ids f
 
-let for_all_vars_typ = quant_vars_typ _for_all
-let exists_vars_typ = quant_vars_typ _exists
+let for_all_vars_typ : (id list * typ) -> formula -> formula =
+  quant_vars_typ _for_all
+let exists_vars_typ : (id list * typ) -> formula -> formula =
+  quant_vars_typ _exists
 
-let for_all_vars_typ_if_free (ids, typ) f =
-  for_all_vars_typ (intersect ids (free_vars f), typ) f
+let for_all_vars_typs : (id * typ) list -> formula -> formula =
+  fold_right _for_all'
 
-let for_all_vars_typs = fold_right _for_all'
+let for_all_vars_typs_if_free ids_typs f : formula =
+  let fv = free_vars f in
+  for_all_vars_typs (ids_typs |> filter (fun (id, _typ) -> mem id fv)) f
+
+  (* for_all_vars_typ (intersect ids (free_vars f), typ) f *)
 
 let rec gather_quant q f : (id * typ) list * formula = match kind f with
   | Quant (q', id, typ, u) when q = q' ->

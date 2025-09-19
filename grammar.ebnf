@@ -34,6 +34,8 @@ id_opt_type = id [of_type typ];
 
 ids_type = id {',' id}+ of_type typ;
 
+ids_types = ids_type {'and' ids_type};
+
 (* reasons *)
 
 theorem_num = number {'.' number} ['(' letter ')'];
@@ -67,13 +69,15 @@ eq_op = '=' | '≠' | '<' | '≤' | '>' | '≥' | '≮';
 
 expr = base_expr { eq_op base_expr [reason] };
 
-atomic = expr ['is true' | 'always holds'];
+predicate = ['not'] adjective | ('a' | 'an') word 'from' atomic 'to' atomic;
+
+atomic = expr ['is true' | 'always holds' | 'is' predicate];
 
 (* small propositions *)
 
 if_then_prop = 'if' small_prop 'then' small_prop;
 
-for_all_ids = 'For all' ids_type ',';
+for_all_ids = 'For all' ids_types ',';
 
 for_all_prop = for_all_ids small_prop;
 
@@ -88,7 +92,8 @@ prop_op = 'and' | 'or' | 'implies' | 'if and only if' | 'iff' | ', and' | ', or'
 small_prop =
     atomic | if_then_prop | for_all_prop | exists_prop |
     small_prop prop_op small_prop |
-    small_prop 'is' ['not'] adjective | small_prop 'for all' id_type;
+    small_prop 'is' predicate |
+    small_prop 'for all' id_type;
 
 (* propositions *)
 
@@ -145,7 +150,13 @@ eq_definition = 'Let' sym ':' typ '=' term '.';
 
 relation_definition = ['we write'] id sym id 'iff' proposition '.';
 
-predicate_definition = id 'is' adjective 'iff' proposition '.';
+adjective_predicate = adjective;
+
+from_to_predicate =
+    ('a' | 'an') word 'from' id 'to' id;
+
+predicate_definition =
+    id 'is' (adjective_predicate | from_to_predicate) 'iff' proposition '.';
 
 definition = 'Definition.'
     ({eq_definition}+ |
@@ -217,7 +228,7 @@ proofs = 'Proof.' (proof_item+ | proof_steps);
 
 (* theorems *)
 
-theorem_group = ('Lemma' | 'Theorem') number '.' ['Let' ids_type '.']
+theorem_group = ('Lemma' | 'Theorem') number '.' ['Let' ids_types '.']
     top_prop_or_items [proofs];
 
 (* program *)
