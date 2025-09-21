@@ -431,7 +431,7 @@ Proof.
 
 Theorem 20.  Let i, j ∈ ℤ.
 
-  1. i > 0 if and only if -i < 0, and i < 0 if and only if -i > 0.
+  1. i > 0 if and only if −i < 0, and i < 0 if and only if −i > 0.
   2. 0 : ℤ < 1 : ℤ.
   3. If i ≤ j and j ≤ i, then i = j.
   4. If i > 0 and j > 0, then ij > 0.
@@ -439,46 +439,51 @@ Theorem 20.  Let i, j ∈ ℤ.
 
 # Functions
 
-Definition. For all f : ℕ → ℕ and S, T : ℕ → 𝔹, f is a mapping from S to T iff for all x : ℕ, if x ∈ S then f(x) ∈ T. 
+Definition. For all f : ℤ → ℤ and S, T : ℤ → 𝔹, f is a mapping from S to T iff for all x : ℤ, if x ∈ S then f(x) ∈ T. 
 
-Definition. For all f : ℕ → ℕ and S, T : ℕ → 𝔹, f is an injection from S to T iff f is a mapping from S to T and for all x, y : ℕ, if x ∈ S and y ∈ S and f(x) = f(y) then x = y.
+Definition. For all f : ℤ → ℤ and S, T : ℤ → 𝔹, f is an injection from S to T iff f is a mapping from S to T and for all x, y : ℤ, if x ∈ S and y ∈ S and f(x) = f(y) then x = y.
 
-Definition. For all f : ℕ → ℕ and S, T : ℕ → 𝔹, f is a surjection from S to T iff f is a mapping from S to T and for all y : ℕ, if y ∈ T then there exists some x : ℕ such that x ∈ S and f(x) = y.
+Definition. For all f : ℤ → ℤ and S, T : ℤ → 𝔹, f is a surjection from S to T iff f is a mapping from S to T and for all y : ℤ, if y ∈ T then there exists some x : ℤ such that x ∈ S and f(x) = y.
 
-Definition. For all f : ℕ → ℕ and S, T : ℕ → 𝔹, f is a bijection from S to T iff f is an injection from S to T and f is a surjection from S to T.
+Definition. For all f : ℤ → ℤ and S, T : ℤ → 𝔹, f is a bijection from S to T iff f is an injection from S to T and f is a surjection from S to T.
 
 # Finite and infinite sets
 
-Definition.  For all S, T : ℕ → 𝔹, S ~ T iff there exists some f : ℕ → ℕ such that f is a bijection from S to T.
+Definition.  For all S, T : ℤ → 𝔹, S ~ T iff there exists some f : ℤ → ℤ such that f is a bijection from S to T.
 
-Definition.  For all S : ℕ → 𝔹, S is finite iff there exists n : ℕ such that S ~ { x ∈ ℕ | x < n }.   S is infinite iff S is not finite.
+Definition.  For all S : ℤ → 𝔹, S is finite iff there exists n : ℤ such that S ~ { x ∈ ℤ | x < n }.   S is infinite iff S is not finite.
+
+# Subtraction
+
+Definition.  For all i, j ∈ ℤ, i − j = i + (−j).
 
 # Divisibility
 
-Definition.  For all a, b ∈ ℕ, a | b iff there is some c ∈ ℕ such that b = ac.
+Definition.  For all a, b ∈ ℤ, a | b iff there is some c ∈ ℤ such that b = ac.
 
-Lemma 21.  For all a ∈ ℕ, a | a.
+Lemma 21.  For all a ∈ ℤ, a | a.
 
-Proof.  Let a ∈ ℕ.  a = a · 1, so a | a.
+Proof.  Let a ∈ ℤ.  a = a · 1, so a | a.
 
-Theorem 22. For all a, b, c ∈ ℕ, if a | b and b | c then a | c.
+Theorem 22. For all a, b, c ∈ ℤ, if a | b and b | c then a | c.
 
-Proof.  Let a, b, c : ℕ, and suppose that a | b and b | c.  There is some e ∈ ℕ such that ae = b.  Similarly, there is some f ∈ ℕ such that bf = c.  Hence c = bf = (ae)f = a(ef), and we conclude that a | c.
+Proof.  Let a, b, c : ℤ, and suppose that a | b and b | c.  There is some e ∈ ℤ such that ae = b.  Similarly, there is some f ∈ ℤ such that bf = c.  Hence c = bf = (ae)f = a(ef), and we conclude that a | c.
 
-Theorem 23.  For all a, b, m, n, c ∈ ℕ, if c | a and c | b then c | (ma + nb).
+Theorem 23.  For all a, b, m, n, c ∈ ℤ, if c | a and c | b then c | (ma + nb).
 
-Proof.  Let a, b, m, n, c : ℕ, and suppose that c | a and c | b.  There is some e ∈ ℕ such that a = ce.  Similarly, there is some f ∈ ℕ such that b = cf.  Hence ma + nb = mce + ncf = c(me + nf).  We see that c | (ma + nb).
+Proof.  Let a, b, m, n, c : ℤ, and suppose that c | a and c | b.  There is some e ∈ ℤ such that a = ce.  Similarly, there is some f ∈ ℤ such that b = cf.  Hence ma + nb = mce + ncf = c(me + nf).  We see that c | (ma + nb).
 
 # Prime numbers
 
-Definition.  For all a ∈ ℕ, a is prime iff a > 1 and for all b ∈ ℕ, if b > 0 and b | a then b = 1 or b = a.
+Definition.  For all a ∈ ℤ, a is prime iff a > 1 and for all b ∈ ℤ, if b > 0 and b | a then b = 1 or b = a.
 
-Lemma 24.  For all a ∈ ℕ, if a > 1 then there exists p ∈ ℕ such that p is prime and p | a.
+Lemma 24.  For all a ∈ ℤ, if a > 1 then there exists p ∈ ℤ such that p is prime and p | a.
 
-Proof.  Suppose that there exists some k ∈ ℕ such that k > 1 and there exists no p ∈ ℕ such that p is prime and p | k.  Let
+Proof.  Suppose that there exists some k ∈ ℤ such that k > 1 and there exists no p ∈ ℤ such that p is prime and p | k.  Let
 
-    G = { a ∈ ℕ | a > 1 and there exists no p ∈ ℕ such that p is prime and p | a }.
+    G = { a ∈ ℤ | a > 1 and there exists no p ∈ ℤ such that p is prime and p | a }.
 
-There exists some k ∈ ℕ such that k ∈ G.  So by Lemma 11 there exists some n : ℕ such that n ∈ G and for all g ∈ ℕ, if g ∈ G then n ≤ g.  There exists no p ∈ ℕ such that p is prime and p | n, but n | n, so n is not prime.  Hence there exist a, b ∈ ℕ such that n = ab and 1 < a < n and 1 < b < n.  Because a < n, there must exist some p ∈ ℕ such that p is prime and p | a.  By Theorem 21, for all d ∈ ℕ, if d | a then d | n.  So we must have p | n, which is a contradiction.
+There exists some k ∈ ℤ such that k ∈ G.  So by Lemma 11 there exists some n : ℤ such that n ∈ G and for all g ∈ ℤ, if g ∈ G then n ≤ g.  There exists no p ∈ ℤ such that p is prime and p | n, but n | n, so n is not prime.  Hence there exist a, b ∈ ℤ such that n = ab and 1 < a < n and 1 < b < n.  Because a < n, there must exist some p ∈ ℤ such that p is prime and p | a.  By Theorem 21, for all d ∈ ℤ, if d | a then d | n.  So we must have p | n, which is a contradiction.
 
-Theorem 25.  { x ∈ ℕ | x is prime } is infinite.
+# Euclid's theorem, Wiedjik #11
+Theorem 25.  { x ∈ ℤ | x is prime } is infinite.

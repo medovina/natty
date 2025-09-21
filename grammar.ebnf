@@ -8,7 +8,7 @@ letter = 'a' .. 'z';
 
 var = letter;
 
-id = var | '𝔹' | 'ℕ' | 'ℤ';
+id = var | '𝔹' | 'ℕ' | 'ℤ' | '∏';
 
 sym = digit |
     '+' | '-' | '<' | '>' | '|' |
@@ -84,7 +84,7 @@ for_all_prop = for_all_ids small_prop;
 there_exists = 'There' ('is' | 'are' | 'exists' | ['must'] 'exist');
 
 exists_prop =
-    there_exists ['some' | 'no'] ids_type ['with' small_prop]
+    there_exists ['some' | 'no'] ids_types ['with' small_prop]
     'such that' small_prop;
 
 prop_op = 'and' | 'or' | 'implies' | 'if and only if' | 'iff' | ', and' | ', or';
@@ -148,19 +148,9 @@ axiom_group = 'Axiom' number '.' (axiom_exists | propositions);
 
 eq_definition = 'Let' sym ':' typ '=' term '.';
 
-relation_definition = ['we write'] id sym id 'iff' proposition '.';
+def_prop = ['we write'] proposition '.';
 
-adjective_predicate = adjective;
-
-from_to_predicate =
-    ('a' | 'an') word 'from' id 'to' id;
-
-predicate_definition =
-    id 'is' (adjective_predicate | from_to_predicate) 'iff' proposition '.';
-
-definition = 'Definition.'
-    ({eq_definition}+ |
-    for_all_ids ({relation_definition} | {predicate_definition}));
+definition = 'Definition.' ({eq_definition}+ | {def_prop});
 
 (* proofs *)
 

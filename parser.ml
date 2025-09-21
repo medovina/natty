@@ -38,7 +38,7 @@ let letter1 = letter |>> char_to_string
 
 let var = empty >>? letter1
 
-let id = var <|> any_str ["𝔹"; "ℕ"; "ℤ"]
+let id = var <|> any_str ["𝔹"; "ℕ"; "ℤ"; "∏"]
 
 let sym = choice [
   empty >>? (digit <|> any_of "+-<>|~") |>> char_to_string;
@@ -97,8 +97,10 @@ let type_operators = [
   [ infix "→" mk_fun_type Assoc_right ]
 ]
 
-let typ = expression type_operators
-  (record_type (id |>> fun id -> mk_base_type id))
+let rec typ s = (expression type_operators (choice [
+  record_type (id |>> fun id -> mk_base_type id);
+  parens typ
+])) s
 
 let of_type = any_str [":"; "∈"]
 
@@ -245,17 +247,17 @@ and if_then_prop s : formula pr =
 and for_all_ids s : (id * typ) list pr = (str "For all" >> ids_types << str ",") s
 
 and for_all_prop s : formula pr = pipe2
-  for_all_ids small_prop for_all_vars_typs s
+  for_all_ids small_prop for_all_vars_types s
 
 and there_exists =
   str "There" >> any_str ["is"; "are"; "exists"; "exist"; "must exist"]
 
 and exists_prop s : formula pr = pipe4
   (there_exists >> opt true ((str "some" >>$ true) <|> (str "no" >>$ false)))
-  ids_type (option (str "with" >> small_prop)) (str "such that" >> small_prop)
-  (fun some (ids, typ) with_prop p ->
+  ids_types (option (str "with" >> small_prop)) (str "such that" >> small_prop)
+  (fun some ids_types with_prop p ->
     let p = opt_fold _and with_prop p in
-    (if some then Fun.id else _not) (exists_vars_typ (ids, typ) p)) s
+    (if some then Fun.id else _not) (exists_vars_types ids_types p)) s
 
 and small_prop s : formula pr = expression prop_operators
   (if_then_prop <|> for_all_prop <|> exists_prop <|> atomic) s
@@ -351,43 +353,27 @@ let eq_definition : statement p = pipe3
   (str "Let" >> sym) (str ":" >> typ) (str "=" >> term << str ".")
   mk_def
 
-let relation_definition ids_typs : statement p = opt_str "we write" >>?
-  id >>=? (fun x ->
-    pipe3 sym id (str "iff" >> proposition << str ".") (fun op y prop ->
-      match ids_typs with
-        | [(x', x_typ); (y', y_typ)] when (x', y') = (x, y) ->
-            Definition (op, Fun (x_typ, Fun (y_typ, Bool)),
-                      Lambda (x, x_typ, Lambda (y, y_typ, prop)))
-        | _ -> failwith "syntax error in relation definition"))
+let new_paragraph : id p = empty >>? (any_str keywords <|> label)
 
-let adjective_predicate id ids_typs : (formula -> statement) p = 
-  adjective |>> (fun word prop ->
-    match ids_typs with
-      | [(x, typ)] when x = id ->
-          Definition (word, Fun (typ, Bool), Lambda (x, typ, prop)) 
-      | _ -> failwith "syntax error in predicate definition")
+let define ids_types prop : statement =
+    match prop with
+    | App (App (Const ("↔", _), term), definition)
+    | Eq (term, definition) ->
+        let (t, args) = collect_args term in (
+        assert (map fst ids_types = map get_var args);
+        let arg_type = if is_eq prop then unknown_type else Bool in
+        let typ = fold_right1 mk_fun_type (map snd ids_types @ [arg_type]) in
+        Definition (get_const_or_var t, typ, fold_right lambda' ids_types definition))
+    | _ -> failwith "syntax error in definition"
 
-let pred_word = any_str ["a"; "an"] >> word |>> fun w -> "is_" ^ w
-
-let from_to_predicate x ids_typs : (formula -> statement) p = 
-  pipe3 pred_word (str "from" >> id) (str "to" >> id) (fun name y z prop ->
-    match ids_typs with
-      | [(x', x_typ); (y', y_typ); (z', z_typ)] when (x', y', z') = (x, y, z) ->
-          Definition (name, Fun (x_typ, Fun (y_typ, Fun (z_typ, Bool))),
-            Lambda (x, x_typ, Lambda (y, y_typ, Lambda (z, z_typ, prop))))
-      | _ -> failwith "syntax error in predicate definition")
-
-let predicate_definition ids_types : statement p =
-  id <<? str "is" >>= fun id ->
-  pipe2 (from_to_predicate id ids_types <|> adjective_predicate id ids_types)
-    (str "iff" >> proposition << str ".")
-    (fun pred prop -> pred prop)
+let def_prop = 
+    not_followed_by new_paragraph "" >> opt_str "we write" >> proposition << str "."
 
 let definition : statement list p = str "Definition." >>
   choice [
     many1 eq_definition;
-    for_all_ids >>= fun ids_types ->
-      (many1 (relation_definition ids_types) <|> many1 (predicate_definition ids_types))
+    pipe2 for_all_ids (many1 def_prop)
+      (fun ids_types props -> map (define ids_types) props)
   ]
 
 (* proofs *)
@@ -479,8 +465,6 @@ let proof_clause : proof_step_r list p = pipe2
 
 let proof_sentence : proof_step_r list p =
   (sep_by1 proof_clause (str ";") |>> concat) << str "."
-
-let new_paragraph : id p = empty >>? (any_str keywords <|> label)
 
 let proof_steps : proof p =
   many1 (not_followed_by new_paragraph "" >> proof_sentence) |>>

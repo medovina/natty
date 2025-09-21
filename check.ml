@@ -23,7 +23,7 @@ let rec check_type env typ = match typ with
 
 let const_types1 env id = filter_map (is_const id) env
 
-let const_types formula env id =
+let const_types formula env id : typ list =
   match const_types1 env id with
     | [] -> error (sprintf "undefined: %s\n" id) formula
     | types -> types
@@ -33,7 +33,7 @@ let rec subtype t u = t = u || match t, u with
   | _, Base "_" -> true
   | _ -> false
 
-let rec possible_types env dot_types vars =
+let rec possible_types env dot_types vars : formula -> typ list =
   let rec possible formula = match formula with
     | Const (id, typ) ->
         if is_unknown typ then const_types formula env id
@@ -58,7 +58,8 @@ let rec possible_types env dot_types vars =
     | Eq (_, _) -> [Bool] in
   possible
 
-and possible_app env dot_types vars formula f g with_dot =
+(* returns list of (f type, g type, return type, is dot) *)
+and possible_app env dot_types vars formula f g with_dot : (typ * typ * typ * bool) list =
   let possible = possible_types env dot_types vars in
   let all =
     let+ t = possible f in
@@ -82,15 +83,16 @@ let tuple_cons_type t u = Fun (t, Fun (u, Product (t, u)))
 
 let check_formula env formula as_type : formula =
   let dot_types = const_types1 env "·" in
-  let rec check vars formula as_type =
+  let type_opt t = if is_unknown t then None else Some t in
+  let rec check vars formula as_type : formula =
     let possible = possible_types env dot_types vars in
-    let find_const id =
+    let find_const id : formula =
       let types = const_types formula env id in
       match (types |> filter (fun typ -> opt_all_eq typ as_type)) with
         | [typ] -> Const (id, typ)
         | [] -> error ("expected " ^ show_type (Option.get as_type)) formula
         | _ -> error "ambiguous type" formula in
-    let check_app f g with_dot =
+    let check_app f g with_dot : formula =
       match possible_app env dot_types vars formula f g with_dot with
         | [] -> errorf "can't apply" formula
         | possible ->
@@ -103,7 +105,11 @@ let check_formula env formula as_type : formula =
                     App (App (Const ("·", (Fun (t, Fun (u, typ)))), f), g)
                   else App (f, g)
               | [] -> error (show_type (Option.get as_type) ^ " expected") formula
-              | _ -> errorf "ambiguous" formula in
+              | _ ->
+                  possible |> iter (fun (t, u, ret, dot) ->
+                    printf "t = %s, u = %s, ret = %s, dot = %b\n"
+                      (show_type t) (show_type u) (show_type ret) dot);
+                  errorf "ambiguous" formula in
     match formula with
       | Const (id, typ) ->
           if is_unknown typ then find_const id
@@ -128,7 +134,7 @@ let check_formula env formula as_type : formula =
       | App (f, g) -> check_app f g true
       | Lambda (id, typ, f) ->
           let u = match as_type with
-            | Some (Fun (t, u)) when t = typ -> Some u
+            | Some (Fun (t, u)) when t = typ -> type_opt u
             | Some __ -> error "type mismatch" formula
             | None -> None in
           Lambda (id, typ, check ((id, typ) :: vars) f u)
@@ -146,7 +152,7 @@ let check_formula env formula as_type : formula =
               | [] -> error "can't compare different types" formula
               | _ -> error "ambiguous" formula
           else error (show_type (Option.get as_type) ^ " expected") formula in
-  check [] formula (if is_unknown as_type then None else Some as_type)
+  check [] formula (type_opt as_type)
 
 let top_check env f = b_reduce (check_formula env f Bool)
 

@@ -1085,13 +1085,13 @@ let lower = function
       Lambda (x, x_typ, Lambda (y, y_typ,
         App (App ((Const _ as d), (Var (y', _) as vy)), (Var (x', _) as vx)))))
         when (x, y) = (x', y') ->
-          let f = for_all_vars_typs [(x, x_typ); (y, y_typ)]
+          let f = for_all_vars_types [(x, x_typ); (y, y_typ)]
                     (Eq (apply [c; vx; vy], apply [d; vy; vx])) in
           (f, false)
   (* Transform C = λv1...vn.φ to ∀v1...vn (C v1 ... vn ↔ φ). *)
   | Eq ((Const (_, typ) as c), (Lambda _ as l)) when target_type typ = Bool ->
       let (vars_typs, g) = gather_lambdas l in
-      let f = for_all_vars_typs vars_typs (
+      let f = for_all_vars_types vars_typs (
                 _iff (apply (c :: map mk_var' vars_typs)) g) in
       (f, true)
   | f -> (f, false)

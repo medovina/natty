@@ -54,6 +54,8 @@ let _const c = Const (c, unknown_type)
 let _var v = Var (v, unknown_type)
 let mk_var' (id, typ) = Var (id, typ)
 let mk_app f g = App (f, g)
+let lambda id typ f = Lambda (id, typ, f)
+let lambda' (id, typ) f = Lambda (id, typ, f)
 let mk_eq f g = Eq (f, g)
 
 let apply : formula list -> formula = fold_left1 mk_app
@@ -70,6 +72,14 @@ let tuple_apply f = function
 let is_var = function
   | Var _ -> true
   | _ -> false
+
+let get_var = function
+  | Var (v, _) -> v
+  | _ -> failwith "variable expected"
+
+let get_const_or_var = function
+  | Const (id, _) | Var (id, _) -> id
+  | _ -> failwith "const or var expected"
 
 let is_lambda = function
   | Lambda _ -> true
@@ -142,8 +152,6 @@ let multi_or = function
   | [] -> _false
   | xs -> fold_left1 _or xs
 
-let lambda id typ f = Lambda (id, typ, f)
-
 let quant_type = Fun (Fun (Base "_", Bool), Bool)
 
 let quant q id typ f =
@@ -154,6 +162,7 @@ let quant' q (id, typ) f = quant q id typ f
 let _for_all = quant "∀"
 let _for_all' = quant' "∀"
 let _exists = quant "∃"
+let _exists' = quant' "∃"
 
 let c_and = Const("∧", logical_op_type)
 let c_for_all = Const("∀", quant_type)
@@ -346,14 +355,14 @@ let for_all_vars_typ : (id list * typ) -> formula -> formula =
 let exists_vars_typ : (id list * typ) -> formula -> formula =
   quant_vars_typ _exists
 
-let for_all_vars_typs : (id * typ) list -> formula -> formula =
+let for_all_vars_types : (id * typ) list -> formula -> formula =
   fold_right _for_all'
+let exists_vars_types : (id * typ) list -> formula -> formula =
+  fold_right _exists'
 
 let for_all_vars_typs_if_free ids_typs f : formula =
   let fv = free_vars f in
-  for_all_vars_typs (ids_typs |> filter (fun (id, _typ) -> mem id fv)) f
-
-  (* for_all_vars_typ (intersect ids (free_vars f), typ) f *)
+  for_all_vars_types (ids_typs |> filter (fun (id, _typ) -> mem id fv)) f
 
 let rec gather_quant q f : (id * typ) list * formula = match kind f with
   | Quant (q', id, typ, u) when q = q' ->
@@ -370,6 +379,15 @@ let rec gather_lambdas = function
       let (vars, g) = gather_lambdas f in
       ((x, typ) :: vars, g)
   | f -> ([], f)
+
+let collect_args t : formula * formula list =
+  let rec collect = function
+    | App (f, g) ->
+        let (head, args) = collect f in
+        (head, g :: args)
+    | head -> (head, []) in
+  let (head, args) = collect t in
+  (head, rev args)
 
 let remove_quants with_existential =
   let rec remove f = match bool_kind f with
@@ -557,12 +575,3 @@ let rename_vars f =
           (Lambda (x, typ, f), remove_assoc id name_map, used) in
   let (f, _map, _used) = rename [] (consts @ free) f in
   f
-
-let collect_args t =
-  let rec collect = function
-    | App (f, g) ->
-        let (head, args) = collect f in
-        (head, g :: args)
-    | head -> (head, []) in
-  let (head, args) = collect t in
-  (head, rev args)
