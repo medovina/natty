@@ -312,7 +312,9 @@ let encode_id id typ =
       | _ -> failwith
           (sprintf "encode_id: %s does not construct a tuple" (show_type typ))
   else if String.contains id ':' then failwith "encode_id: double encode"
-  else sprintf "%s:%s" id (type_as_id typ)
+  else
+    let id' = if id = "u-" then "-" else id in  (* 'u' prefix is unnecessary with explicit type *)
+    sprintf "%s:%s" id' (type_as_id typ)
 
 let rec encode_type tuple_types typ = match typ with
   | Product (t, u) ->

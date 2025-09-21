@@ -160,7 +160,9 @@ let mk_not_greater f g = _not (binop_unknown ">" f g)
 
 let id_term = id |>> (fun v -> Var (v, unknown_type))
 
-let unary_minus f = App (Const ("-", unknown_type), f)
+(* We use separate constant names for unary and binary minus so that
+ * a - b cannot be interpreted as (-a)(b) using implicit multiplication. *)
+let unary_minus f = App (Const ("u-", unknown_type), f)
 
 let ascribe typ f =
   App (Const (":", Fun (typ, typ)), f)
@@ -325,11 +327,14 @@ let operation =
   any_str ["a"; "an"] >>? optional (any_str ["binary"; "unary"]) >>
     any_str ["operation"; "relation"]
 
+let unary_prefix id typ =
+  if arity typ = 1 && id = "-" then "u-" else id
+
 let axiom_decl : statement p =
   str "a type" >> id |>> (fun id -> TypeDecl id) <|>
   pipe2 ((any_str ["a constant"; "an element"; "a function"] <|> operation) >> id_or_sym)
     (of_type >> typ)
-    (fun c typ -> ConstDecl (c, typ))
+    (fun c typ -> ConstDecl (unary_prefix c typ, typ))
 
 let count_label n label =
   if label = "" then sprintf "%d" n

@@ -485,5 +485,10 @@ Proof.  Suppose that there exists some k ∈ ℤ such that k > 1 and there exist
 
 There exists some k ∈ ℤ such that k ∈ G.  So by Lemma 11 there exists some n : ℤ such that n ∈ G and for all g ∈ ℤ, if g ∈ G then n ≤ g.  There exists no p ∈ ℤ such that p is prime and p | n, but n | n, so n is not prime.  Hence there exist a, b ∈ ℤ such that n = ab and 1 < a < n and 1 < b < n.  Because a < n, there must exist some p ∈ ℤ such that p is prime and p | a.  By Theorem 21, for all d ∈ ℤ, if d | a then d | n.  So we must have p | n, which is a contradiction.
 
+Axiom 9. There is a function ∏ : ℤ ⨯ (ℤ → ℤ) → ℤ such that for all P : ℤ → ℤ,
+
+ a. ∏(0, P) = 1.
+ b. For all n : ℤ, if n > 0 then ∏(n, P) = P(n) · ∏(n − 1, P).
+
 # Euclid's theorem, Wiedjik #11
 Theorem 25.  { x ∈ ℤ | x is prime } is infinite.
