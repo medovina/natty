@@ -202,9 +202,16 @@ and operators = [
   [ infix "↔" _iff Assoc_right ]
 ]
 
-and predicate s = choice [
-  pipe3 (any_str ["a"; "an"] >> word) (str "from" >> atomic) (str "to" >> atomic)
-    (fun word y z f -> apply [Const ("is_" ^ word, unknown_type); f; y; z]);
+and predicate_target word =
+  let app xs f = apply ([Const ("is_" ^ word, unknown_type); f] @ xs) in
+  choice [
+    str "of" >> atomic |>> (fun x -> app [x]);
+    pipe2 (str "from" >> atomic) (str "to" >> atomic) (fun y z -> app [y; z])
+  ]
+
+and predicate s : (formula -> formula) pr = choice [
+  any_str ["a"; "an"] >> word >>= (fun w ->
+    predicate_target w <|> (word >>= fun x -> predicate_target (w ^ "_" ^ x)));
   pipe2 (option (str "not")) adjective (fun neg word f ->
     let g = App (Const (word, unknown_type), f) in
     if Option.is_some neg then _not g else g)
@@ -360,12 +367,15 @@ let eq_definition : statement p = pipe3
 
 let new_paragraph : id p = empty >>? (any_str keywords <|> label)
 
-let define ids_types prop : statement =
+let define env_ids_types prop : statement =
     match prop with
     | App (App (Const ("↔", _), term), definition)
     | Eq (term, definition) ->
         let (t, args) = collect_args term in (
-        assert (map fst ids_types = map get_var args);
+        assert (length env_ids_types = length args);
+        let ids_types = args |> map (fun e ->
+          let v = get_var e in
+          (v, assoc v env_ids_types)) in
         let arg_type = if is_eq prop then unknown_type else Bool in
         let typ = fold_right1 mk_fun_type (map snd ids_types @ [arg_type]) in
         Definition (get_const_or_var t, typ, fold_right lambda' ids_types definition))

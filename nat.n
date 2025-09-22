@@ -232,6 +232,8 @@ Axiom 6.  There is a unary operation − : ℤ → ℤ such that for all a, b �
 
   −z(a, b) = z(b, a).
 
+Definition.  For all i, j ∈ ℤ, i − j = i + (−j).
+
 Theorem 14.  Let i, j, k ∈ ℤ.
 
   1. (i + j) + k = i + (j + k).
@@ -453,9 +455,9 @@ Definition.  For all S, T : ℤ → 𝔹, S ~ T iff there exists some f : ℤ �
 
 Definition.  For all S : ℤ → 𝔹, S is finite iff there exists n : ℤ such that S ~ { x ∈ ℤ | x < n }.   S is infinite iff S is not finite.
 
-# Subtraction
+# Least elements
 
-Definition.  For all i, j ∈ ℤ, i − j = i + (−j).
+Definition.  For all A : ℤ → 𝔹 and a : ℤ, a is a least element of A iff a ∈ A and for all x : ℤ, if x ∈ A then a ≤ x.
 
 # Divisibility
 
