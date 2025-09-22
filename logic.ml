@@ -389,7 +389,13 @@ let collect_args t : formula * formula list =
   let (head, args) = collect t in
   (head, rev args)
 
-let remove_quants with_existential =
+let rec remove_exists f : (id * typ) list * formula = match kind f with
+  | Quant ("∃", x, typ, g) ->
+      let (xs, h) = remove_exists g in
+      ((x, typ) :: xs, h)
+  | _ -> ([], f)
+
+let remove_quants with_existential : formula -> formula * id list =
   let rec remove f = match bool_kind f with
     | Quant ("∀", _x, _typ, g) -> remove g
     | Quant ("∃", x, _typ, g) when with_existential ->
@@ -404,8 +410,8 @@ let remove_quants with_existential =
     | _ -> (f, []) in
   remove
 
-let remove_universal f = fst (remove_quants false f)
-let remove_quantifiers f = fst (remove_quants true f)
+let remove_universal f : formula = fst (remove_quants false f)
+let remove_quantifiers f : formula = fst (remove_quants true f)
 
 let rec rename id avoid =
   if mem id avoid then rename (id ^ "'") avoid else id

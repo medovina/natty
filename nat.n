@@ -207,7 +207,7 @@ Suppose that 0 ∉ H.  Then there is some q ∈ ℕ such that q ≤ 0 and q ∈ 
 
 Now let a : ℕ, and suppose that a ∈ H.  Suppose further that a + 1 ∉ H.  Then there is some p ∈ ℕ such that p ≤ a + 1 and p ∈ G.  If p ≤ a, then we have p ∉ G, which is a contradiction.  Hence by Theorem 7.1 we deduce that a < p.  Therefore a < p ≤ a + 1, and it follows from Theorem 9.1 that p = a + 1.  Hence a + 1 ∈ G.  Now let x : ℕ, and suppose that x ∈ G.  Suppose that x < a + 1.  Then x ≤ a by Theorem 9.2.  Because a ∈ H, it follows that x ∉ G, which is a contradiction.  Hence a + 1 ≤ x by Theorem 7.1.  So for all g : ℕ, if g ∈ G then a + 1 ≤ g.  This is a contradiction.  It follows that a + 1 ∈ H, and hence H = ℕ.
 
-There is some b : ℕ such that b ∈ G.  Now we have b ∈ H. Since b ≤ b, we have b ∉ G, a contradiction.
+Now we have b ∈ H. Since b ≤ b, we have b ∉ G, a contradiction.
 
 # Integers: definition
 
@@ -483,7 +483,7 @@ Proof.  Suppose that there exists some k ∈ ℤ such that k > 1 and there exist
 
     G = { a ∈ ℤ | a > 1 and there exists no p ∈ ℤ such that p is prime and p | a }.
 
-There exists some k ∈ ℤ such that k ∈ G.  So by Lemma 11 there exists some n : ℤ such that n ∈ G and for all g ∈ ℤ, if g ∈ G then n ≤ g.  There exists no p ∈ ℤ such that p is prime and p | n, but n | n, so n is not prime.  Hence there exist a, b ∈ ℤ such that n = ab and 1 < a < n and 1 < b < n.  Because a < n, there must exist some p ∈ ℤ such that p is prime and p | a.  By Theorem 21, for all d ∈ ℤ, if d | a then d | n.  So we must have p | n, which is a contradiction.
+We have k ∈ G.  So by Lemma 11 there exists some n : ℤ such that n ∈ G and for all g ∈ ℤ, if g ∈ G then n ≤ g.  There exists no p ∈ ℤ such that p is prime and p | n, but n | n, so n is not prime.  Hence there exist a, b ∈ ℤ such that n = ab and 1 < a < n and 1 < b < n.  Because a < n, there must exist some p ∈ ℤ such that p is prime and p | a.  By Theorem 21, for all d ∈ ℤ, if d | a then d | n.  So we must have p | n, which is a contradiction.
 
 Axiom 9. There is a function ∏ : ℤ ⨯ (ℤ → ℤ) → ℤ such that for all P : ℤ → ℤ,
 

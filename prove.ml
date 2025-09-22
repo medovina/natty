@@ -612,7 +612,7 @@ let all_super queue dp cp : pformula list =
  *     ────────────   eres
  *         C'σ          σ ∈ csu(s, t)  *)
 
-let eres cp c' c_lit =
+let eres cp c' c_lit : pformula list =
   match terms c_lit with
     | (true, _, _) -> []
     | (false, u, u') ->
@@ -634,7 +634,7 @@ let all_eres cp = run_clausify cp eres
  *  sp(¬(s → t), C) = { s = ⊤ ∨ C, t = ⊥ ∨ C }
  *)
 
-let all_split p =
+let all_split p : pformula list =
   let skolem_names = ref [] in
   let rec run lits : formula list list =
     let lits1 = clausify1 p.id lits (Some skolem_names) in
@@ -659,7 +659,7 @@ let all_split p =
     rev splits |> map (fun lits ->
       mk_pformula "split" [p] false (multi_or lits))
 
-let update p rewriting f =
+let update p rewriting f : pformula =
   let (r, simp) = match rewriting with
     | Some p -> ([p], false)
     | None -> ([], true) in
@@ -694,7 +694,8 @@ let rewrite _quick dp cp c_subterms : pformula list =
           else []
       | _ -> []
 
-let rewrite1 quick dp cp = rewrite quick dp cp (blue_subterms cp.formula)
+let rewrite1 quick dp cp : pformula list =
+  rewrite quick dp cp (blue_subterms cp.formula)
 
 (*     C    Cσ ∨ R
  *   ═══════════════   subsume
@@ -720,7 +721,7 @@ let subsumes cp (d_lits, d_exist) : bool =
   let c_lits = mini_clausify (remove_universal cp.formula) in
   subsume_lits c_lits d_lits []
 
-let prefix_lits dp =
+let prefix_lits dp : formula list * id list =
   let (f, exist) = remove_quants true dp.formula in
   (mini_clausify (prefix_vars f), map prefix_var exist)
 
@@ -731,7 +732,7 @@ let any_subsumes cs dp : pformula option =
   let d_lits = prefix_lits dp in
   cs |> find_opt (fun cp -> subsumes cp d_lits)
 
-let rec expand f = match or_split f with
+let rec expand f : formula list = match or_split f with
   | Some (s, t) -> expand s @ expand t
   | None -> [f]
 
@@ -783,7 +784,7 @@ let simplify pformula =
   if f = pformula.formula then pformula
   else update pformula None f
 
-let rec canonical_lit = function
+let rec canonical_lit : formula -> formula = function
   | Eq (f, g) ->
       let f, g = canonical_lit f, canonical_lit g in
       if f < g then Eq (f, g) else Eq (g, f)

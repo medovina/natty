@@ -167,7 +167,7 @@ let print_blocks blocks =
   print_newline ()
 
 let infer_blocks steps : block list =
-  let rec all_vars = function
+  let rec all_vars : proof_step list -> id list = function
     | [] -> []
     | step :: steps ->
         subtract (step_free_vars step @ all_vars steps) (step_decl_vars step) in
@@ -238,6 +238,11 @@ let rec blocks_steps blocks : statement list list * formula =
 
 and block_steps (Block (step, range, children)) : statement list list * formula =
   let (fs, concl) = blocks_steps children in
+  let const_decls ids_typs : statement list * statement list list =
+    if ids_typs = [] then ([], fs) else
+    let decls = map (fun (id, typ) -> ConstDecl (skolem_name id, typ)) ids_typs in
+    let fs = map (map (stmt_with_skolem_names (map fst ids_typs))) fs in
+    (decls, fs) in
   match step with
     | Assert f -> (
         match expand_multi_eq f with
@@ -245,13 +250,16 @@ and block_steps (Block (step, range, children)) : statement list list * formula 
               (map (fun eq -> [Theorem ("", eq, None, range)]) eqs, concl)
           | None -> ([[Theorem ("", f, None, range)]], f)  )
     | Let (ids, typ) ->
-        let decls = map (fun id -> ConstDecl (skolem_name id, typ)) ids in
-        let fs = map (map (stmt_with_skolem_names ids)) fs in
+        let ids_typs = ids |> map (fun id -> (id, typ)) in
+        let (decls, fs) = const_decls ids_typs in
         (map (append decls) fs, for_all_vars_typ (ids, typ) concl)
     | LetVal (id, typ, value) ->
         (map (cons (Definition (id, typ, value))) fs, rsubst1 concl value id)
     | Assume a ->
-        (map (cons (Hypothesis ("hyp", a))) fs, implies a concl)
+        let (ids_typs, f) = remove_exists a in
+        let (decls, fs) = const_decls ids_typs in
+        let decls = decls @ [Hypothesis ("hyp", f)] in
+        (map (append decls) fs, implies a concl)
     | IsSome (ids, typ, g) ->
         let ex = exists_vars_typ (ids, typ) g in
         let stmts =
