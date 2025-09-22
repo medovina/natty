@@ -139,7 +139,7 @@ let is_const id def =
   let* (i, typ) = decl_var def in
   if i = id then Some typ else None
 
-let show_statement multi s =
+let show_statement multi s : string =
   let name = stmt_name s in
   let show prefix f = indent_with_prefix prefix (show_formula_multi multi f) in
   match s with

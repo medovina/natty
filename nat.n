@@ -492,3 +492,5 @@ Axiom 9. There is a function ∏ : ℤ ⨯ (ℤ → ℤ) → ℤ such that for a
 
 # Euclid's theorem, Wiedjik #11
 Theorem 25.  { x ∈ ℤ | x is prime } is infinite.
+
+Proof.  Suppose that there exists n : ℤ and P : ℤ → ℤ with n > 0 such that for all x : ℤ, x is prime iff there exists i : ℤ such that 0 ≤ i < n and P(i) = x.  Let Q : ℤ, and suppose that Q = ∏(n, P) + 1.  By Lemma 24, there exists q : ℤ such that q is prime and q | Q.  Suppose that there is some j : ℤ such that 0 ≤ j < n and q = P(j).  We know that Q - ∏(n, P) = 1. q | Q and q | ∏(n, P), so by Theorem 23 it follows that q | 1.  This is a contradiction.  So q is prime, but there is no j : ℤ such that j < n and q = P(j).  This is a contradiction, so { x ∈ ℤ | x is prime } is infinite.

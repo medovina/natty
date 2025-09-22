@@ -259,7 +259,7 @@ and block_steps (Block (step, range, children)) : statement list list * formula 
         let (ids_typs, f) = remove_exists a in
         let (decls, fs) = const_decls ids_typs in
         let decls = decls @ [Hypothesis ("hyp", f)] in
-        (map (append decls) fs, implies a concl)
+        (map (append decls) fs, if concl = _true then _true else implies a concl)
     | IsSome (ids, typ, g) ->
         let ex = exists_vars_typ (ids, typ) g in
         let stmts =
