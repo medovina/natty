@@ -8,7 +8,7 @@ letter = 'a' .. 'z';
 
 var = letter;
 
-id = var | '𝔹' | 'ℕ' | 'ℤ' | '∏';
+id = 'gcd' | var | '𝔹' | 'ℕ' | 'ℤ' | 'π' | '∏';
 
 sym = digit |
     '+' | '-' | '<' | '>' | '|' |
@@ -41,7 +41,7 @@ ids_types = ids_type {'and' ids_type};
 theorem_num = number {'.' number} ['(' letter ')'];
 
 reference =
-    ('axiom' | 'lemma' | 'theorem') theorem_num |
+    ('axiom' | 'corollary' | 'lemma' | 'theorem') theorem_num |
     'part (' number ')' ['of this theorem'] |
     'the definition of' var;
 
@@ -222,7 +222,7 @@ proofs = 'Proof.' (proof_item+ | proof_steps);
 
 (* theorems *)
 
-theorem_group = ('Lemma' | 'Theorem') number '.' ['Let' ids_types '.']
+theorem_group = ('Corollary' | 'Lemma' | 'Theorem') number '.' ['Let' ids_types '.']
     top_prop_or_items [proofs];
 
 (* program *)

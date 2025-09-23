@@ -38,7 +38,7 @@ let letter1 = letter |>> char_to_string
 
 let var = empty >>? letter1
 
-let id = var <|> any_str ["𝔹"; "ℕ"; "ℤ"; "∏"]
+let id = str "gcd" <|> var <|> any_str ["𝔹"; "ℕ"; "ℤ"; "π"; "∏"]
 
 let sym = choice [
   empty >>? (digit <|> any_of "+-<>|~") |>> char_to_string;
@@ -53,7 +53,7 @@ let word = empty >>? many1_chars letter
 
 let adjective = word
 
-let keywords = ["axiom"; "definition"; "lemma"; "proof"; "theorem"]
+let keywords = ["axiom"; "corollary"; "definition"; "lemma"; "proof"; "theorem"]
 
 let with_range p = empty >>?
   (get_pos >>= fun (_index, line1, col1) ->
@@ -121,7 +121,7 @@ let theorem_num =
   number >> (many (char '.' >>? raw_number)) >> optional (parens letter) >>$ "" 
 
 let reference = choice [
-  any_str ["axiom"; "lemma"; "theorem"] >> theorem_num;
+  any_str ["axiom"; "corollary"; "lemma"; "theorem"] >> theorem_num;
   str "part" >> parens number << opt_str "of this theorem";
   str "the definition of" >> var
   ]
@@ -494,7 +494,7 @@ let proofs : (id * proof) list p = str "Proof." >> choice [
 (* theorems *)
 
 let theorem_group : statement list p =
-  ((str "Lemma" <|> str "Theorem") >> int << str ".") >>= fun n -> 
+  any_str ["Corollary"; "Lemma"; "Theorem"] >> int << str "." >>= fun n -> 
   opt [] (str "Let" >> ids_types << str ".") >>=
   fun ids_types -> pipe2 (top_prop_or_items ids_types) (opt [] proofs)
     (fun props proofs ->
