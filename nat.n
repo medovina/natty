@@ -418,8 +418,11 @@ Theorem 28.  Let i, j, k ∈ ℤ.
 
   1. Precisely one of i < j or i = j or i > j holds.
   2. If i < j and j < k, then i < k.
-  3. If i < j then i + k < j + k.
-  4. If i < j and k > 0, then ik < jk.
+  3. If i ≤ j and j < k, then i < k.
+  4. If i < j and j ≤ k, then i < k.
+  5. If i ≤ j and j ≤ k, then i ≤ k.
+  6. If i < j then i + k < j + k.
+  7. If i < j and k > 0, then ik < jk.
 
 Proof.
 
@@ -427,9 +430,9 @@ Proof.
 
   2. Let i, j, k ∈ ℤ, and suppose that i < j and j < k.  There are some a, b, c, d, e, f ∈ ℕ such that i = z(a, b) and j = z(c, d) and k = z(e, f).  Then z(a, b) < z(c, d) and z(c, d) < z(e, f), so a + d < b + c and c + f < d + e.  It follows that a + d + f < b + c + f and b + c + f < b + d + e, so a + d + f < b + d + e.  Then a + f < b + e by Theorem 8.3, so i < k.
 
-  3. Let i, j, k ∈ ℤ, and suppose that i < j.  There are some a, b, c, d, e, f ∈ ℕ such that i = z(a, b) and j = z(c, d) and k = z(e, f).  Then z(a, b) < z(c, d), and therefore a + d < b + c.  Hence (a + d) + (e + f) < (b + c) + (e + f), and therefore (a + e) + (d + f) < (b + f) + (c + e).  It follows by Axiom 24 that z(a + e, b + f) < z(c + e, d + f), and hence z(a, b) + z(e, f) < z(c, d) + z(e, f), which means that i + k < j + k.
+  6. Let i, j, k ∈ ℤ, and suppose that i < j.  There are some a, b, c, d, e, f ∈ ℕ such that i = z(a, b) and j = z(c, d) and k = z(e, f).  Then z(a, b) < z(c, d), and therefore a + d < b + c.  Hence (a + d) + (e + f) < (b + c) + (e + f), and therefore (a + e) + (d + f) < (b + f) + (c + e).  It follows by Axiom 24 that z(a + e, b + f) < z(c + e, d + f), and hence z(a, b) + z(e, f) < z(c, d) + z(e, f), which means that i + k < j + k.
 
-  4. Let i, j, k ∈ ℤ, and suppose that i < j and k > 0.  There are some a, b, c, d, e, f ∈ ℕ such that i = z(a, b) and j = z(c, d) and k = z(e, f). So z(a, b) < z(c, d) and z(e, f) > 0, which means that a + d < b + c and f < e.  So by Lemma 10 we have
+  7. Let i, j, k ∈ ℤ, and suppose that i < j and k > 0.  There are some a, b, c, d, e, f ∈ ℕ such that i = z(a, b) and j = z(c, d) and k = z(e, f). So z(a, b) < z(c, d) and z(e, f) > 0, which means that a + d < b + c and f < e.  So by Lemma 10 we have
   
     (b + c)f + (a + d)e < (a + d)f + (b + c)e.
 
@@ -445,15 +448,28 @@ Theorem 29.  Let i, j ∈ ℤ.
   2. 0 : ℤ < 1 : ℤ.
   3. If i ≤ j and j ≤ i, then i = j.
   4. If i > 0 and j > 0, then ij > 0.
-  5. If i > 0 and j < 0, then ij < 0. 
+  5. If i > 0 and j < 0, then ij < 0.
+  6. If i < 0 and j < 0, then ij > 0.
+  7. If i ≤ 0 and j ≤ 0, then ij ≥ 0.
 
-# Bijection between naturals and positive integers
+# Bijection between naturals and non-negative integers
 
-Axiom 25. There is a function π : ℤ → ℕ such that for all i ∈ ℤ, if i > 0 then i = z(π(i), 0).
+Axiom 25. There is a function π : ℤ → ℕ such that for all i ∈ ℤ, if i ≥ 0 then i = z(π(i), 0).
 
-Theorem 30.  For all i, j ∈ ℤ, if i > 0 and j > 0 and π(i) ≤ π(j) then i ≤ j.
+Theorem 30.  Let i, j ∈ ℤ.  If i ≥ 0 and j ≥ 0, then i ≤ j iff π(i) ≤ π(j).
 
-Proof.  Let i, j ∈ ℤ, and suppose that i > 0 and j > 0 and π(i) ≤ π(j).  Then π(i) + 0 ≤ 0 + π(j), so z(π(i), 0) ≤ z(π(j), 0) by Corollary 27.  Then i ≤ j by Axiom 25.
+Proof.  Let i, j ∈ ℤ, and suppose that i ≥ 0 and j ≥ 0.  Suppose that π(i) ≤ π(j).  Then π(i) + 0 ≤ 0 + π(j), so z(π(i), 0) ≤ z(π(j), 0) by Corollary 27.  Then i ≤ j by Axiom 25.  Conversely, suppose that i ≤ j.  Then z(π(i), 0) ≤ z(π(j), 0) by Axiom 25.  Then π(i) + 0 ≤ 0 + π(j) by Corollary 27, so π(i) ≤ π(j).
+
+Theorem 31.  Let x, y ∈ ℤ.
+
+    1. It cannot be that x < y < x + 1.
+    2. x < y if and only if x + 1 ≤ y.
+
+Proof.
+
+    1. Let x, y ∈ ℤ.  Suppose that x < y < x + 1.  Then x − x < y − x < (x + 1) − x, and we deduce that 0 < y − x < 1.  By Theorem 28.2 we know that y − x ≥ 0, and also 1 : ℤ ≥ 0.  Then by Theorem 30 π(0) < π(y − x) < π(1), which is a contradiction to Theorem 9.1.
+
+    2. Let x, y ∈ ℤ.  First suppose that x < y.  Suppose further that x + 1 > y.  Then x < y < x + 1, which is a contradiction to part (1) of this theorem.  So it must be that x + 1 ≤ y.  Second, suppose that x + 1 ≤ y.  Then by Theorem 28.5 we deduce that x + 1 ≤ x.  However 1 : ℤ > 0, so by Theorem 28.6 we have x + 1 > x + 0 = x.  This is a contradiction.
 
 # Well-ordering principle on integers
 
@@ -461,9 +477,9 @@ Definition.  For all S : ℤ → 𝔹, S is empty iff there is no n : ℤ such t
 
 Definition.  For all A : ℤ → 𝔹 and a : ℤ, a is a least element of A iff a ∈ A and for all x : ℤ, if x ∈ A then a ≤ x.  a is a greatest element of A iff a ∈ A and for all x : ℤ, if x ∈ A then x ≤ a.
 
-Theorem 31. Let S : ℤ → 𝔹.  Suppose that S is nonempty, and for all i ∈ ℤ, if i ∈ S then i > 0.  Then there exists some m : ℤ such that m is a least element of S.
+Theorem 32. Let S : ℤ → 𝔹.  Suppose that S is nonempty, and for all i ∈ ℤ, if i ∈ S then i ≥ 0.  Then there exists some m : ℤ such that m is a least element of S.
 
-Proof.  Let S : ℤ → 𝔹, and suppose that S is nonempty and for all i ∈ ℤ, if i ∈ S then i > 0.  Then there exists some j : ℤ such that j ∈ S and j > 0.  Let T = { n ∈ ℕ | there exists i ∈ ℤ such that i > 0 and n = π(i) }.  By Theorem 11 there is some a : ℕ such that a is a least element of T.  Since a ∈ T, there is some m : ℤ such that a = π(m) and m > 0.  We will show that m is a least element of S.  Let x : ℤ, and suppose that x ∈ S.  Then x > 0.  Then π(x) ∈ T.  Since a is a least element of T, we know that a ≤ π(x).  So π(m) ≤ π(x), and then m ≤ x by Theorem 30.
+Proof.  Let S : ℤ → 𝔹, and suppose that S is nonempty and for all i ∈ ℤ, if i ∈ S then i ≥ 0.  Then there exists some j : ℤ such that j ∈ S and j ≥ 0.  Let T = { n ∈ ℕ | there exists i ∈ ℤ such that i ≥ 0 and n = π(i) }.  By Theorem 11 there is some a : ℕ such that a is a least element of T.  Since a ∈ T, there is some m : ℤ such that a = π(m) and m ≥ 0.  We will show that m is a least element of S.  Let x : ℤ, and suppose that x ∈ S.  Then x ≥ 0.  Then π(x) ∈ T.  Since a is a least element of T, we know that a ≤ π(x).  So π(m) ≤ π(x), and then m ≤ x by Theorem 30.
 
 # Functions
 
@@ -497,7 +513,11 @@ Theorem 42.  For all a, b, m, n, c ∈ ℤ, if c | a and c | b then c | (ma + nb
 
 Proof.  Let a, b, m, n, c : ℤ, and suppose that c | a and c | b.  There is some e ∈ ℤ such that a = ce.  Similarly, there is some f ∈ ℤ such that b = cf.  Hence ma + nb = mce + ncf = c(me + nf).  We see that c | (ma + nb).
 
-Axiom 40.  There is a function gcd : ℤ ⨯ ℤ → ℤ such that for all a, b ∈ ℤ, if a ≠ 0 or b ≠ 0 then gcd(a, b) is a greatest element of { x ∈ ℤ | x | a and x | b }.
+Theorem 43.  For all a, b ∈ ℤ, if b > 0 then there exist q, r ∈ ℤ such that a = bq + r and 0 ≤ r < b.
+
+Proof.  Let a, b ∈ ℤ, and suppose that b > 0.  Let S = { i ∈ ℤ | i ≥ 0 and there exists k ∈ ℤ such that i = a − bk }.  We will show that S is nonempty.  Suppose that a ≥ 0.  Then a − b · 0 ≥ 0, so a − b · 0 ∈ S.  Conversely, suppose that a < 0.  There exists d : ℤ such that d = a − b · a.  Then d = a(1 − b).  b > 0, so by Theorem 31.1 b ≥ 1.  Then b − b ≥ 1 − b, so 1 − b ≤ 0.  It follows by Theorem 29.7 that d ≥ 0, so d ∈ S.  In any case S is nonempty.
+
+By Theorem 32, there exists some r : ℤ such that r is a least element of S.  r ∈ S, so r ≥ 0.  We know that there exists q : ℤ such that r = a − bq.  Suppose that r ≥ b.  There exists d : ℤ such that d = a - b(q + 1).  Then d = a - bq - b = r - b.  Since r ≥ b, we have r - b ≥ 0, so d ≥ 0, so d ∈ S.  By Theorem 29 −b < 0, so r > r − b by Theorem 28.6, so d < r.  This is a contradiction.  Hence 0 ≤ r < b and a = bq + r.
 
 # Prime numbers
 
@@ -520,3 +540,8 @@ Axiom 50. There is a function ∏ : ℤ ⨯ (ℤ → ℤ) → ℤ such that for 
 Theorem 51.  { x ∈ ℤ | x is prime } is infinite.
 
 Proof.  Suppose that there exists n : ℤ and P : ℤ → ℤ with n > 0 such that for all x : ℤ, x is prime iff there exists i : ℤ such that 0 ≤ i < n and P(i) = x.  Let Q : ℤ, and suppose that Q = ∏(n, P) + 1.  By Lemma 50, there exists q : ℤ such that q is prime and q | Q.  Suppose that there is some j : ℤ such that 0 ≤ j < n and q = P(j).  We know that Q - ∏(n, P) = 1. q | Q and q | ∏(n, P), so by Theorem 42 it follows that q | 1.  This is a contradiction.  So q is prime, but there is no j : ℤ such that j < n and q = P(j).  This is a contradiction, so { x ∈ ℤ | x is prime } is infinite.
+
+# Greatest common divisors
+
+Axiom 51.  There is a function gcd : ℤ ⨯ ℤ → ℤ such that for all a, b ∈ ℤ, if a ≠ 0 or b ≠ 0 then gcd(a, b) is a greatest element of { x ∈ ℤ | x | a and x | b }.
+

@@ -133,7 +133,7 @@ let reason =
 (* operators for small propositions *)
 
 let so =
-  any_str ["also"; "but"; "consequently"; "hence"; "so";
+  any_str ["also"; "but"; "consequently"; "hence"; "however"; "so";
            "then"; "therefore"; "which means that"] <|>
   (str "which implies" << opt_str "that")
 

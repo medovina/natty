@@ -258,6 +258,7 @@ and block_steps (Block (step, range, children)) : statement list list * formula 
     | Assume a ->
         let (ids_typs, f) = remove_exists a in
         let (decls, fs) = const_decls ids_typs in
+        let f = with_skolem_names (map fst ids_typs) f in
         let decls = decls @ [Hypothesis ("hyp", f)] in
         (map (append decls) fs, if concl = _true then _true else implies a concl)
     | IsSome (ids, typ, g) ->

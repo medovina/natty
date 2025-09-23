@@ -158,7 +158,7 @@ definition = 'Definition.' ({eq_definition}+ | {def_prop});
 
 (* proofs *)
 
-so = 'also' | 'but' | 'consequently' | 'hence' | 'so' | 'then' | 'therefore' |
+so = 'also' | 'but' | 'consequently' | 'hence' | 'however' | 'so' | 'then' | 'therefore' |
     'which implies' ['that'] | 'which means that';
     
 have = 'clearly' |
