@@ -579,3 +579,6 @@ Proof.  Let a, b ∈ ℤ, and suppose that a ≠ 0 or b ≠ 0. Let S = { i ∈ �
 By Lemma 52 d | a and d | b.
 
 We will show that d = gcd(a, b).  Let c : ℤ, and suppose that c | a and c | d.  d is a linear combination of a and b, so by Theorem 42 we know that c | d.  Then by Theorem 32 c ≤ d.  So d = gcd(a, b).
+
+# Bezout's Theorem, Wiedjik #60
+Corollary 54.  For all a, b ∈ ℤ, if a ≠ 0 or b ≠ 0 then there exist m, n ∈ ℤ such that ma + nb = gcd(a, b).
