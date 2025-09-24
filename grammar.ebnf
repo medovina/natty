@@ -69,7 +69,7 @@ eq_op = '=' | '≠' | '<' | '≤' | '>' | '≥' | '≮';
 
 expr = base_expr { eq_op base_expr [reason] };
 
-predicate_target = 'of' atomic | 'from' atomic 'to' atomic;
+predicate_target = 'of' atomic ['and' atomic] | 'from' atomic 'to' atomic;
 
 predicate =
     ['not'] adjective |
@@ -164,7 +164,7 @@ so = 'also' | 'but' | 'consequently' | 'hence' | 'however' | 'so' | 'then' | 'th
 have = 'clearly' |
     'it' ['then'] 'follows' ['from' reference | reason] 'that' |
     'it is clear that' | 'it must be that' | 'similarly' [','] |
-    'the only alternative is' |
+    'the only alternative is' | 'this shows that' |
     'we conclude that' | 'we deduce that' | 'we have' | 'we know that' |
     'we must have' | 'we see that';
 

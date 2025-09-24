@@ -449,8 +449,9 @@ Theorem 29.  Let i, j ∈ ℤ.
   3. If i ≤ j and j ≤ i, then i = j.
   4. If i > 0 and j > 0, then ij > 0.
   5. If i > 0 and j < 0, then ij < 0.
-  6. If i < 0 and j < 0, then ij > 0.
-  7. If i ≤ 0 and j ≤ 0, then ij ≥ 0.
+  6. If i > 0 and j ≤ 0, then ij ≤ 0.
+  7. If i < 0 and j < 0, then ij > 0.
+  8. If i ≤ 0 and j ≤ 0, then ij ≥ 0.
 
 # Bijection between naturals and non-negative integers
 
@@ -470,6 +471,10 @@ Proof.
     1. Let x, y ∈ ℤ.  Suppose that x < y < x + 1.  Then x − x < y − x < (x + 1) − x, and we deduce that 0 < y − x < 1.  By Theorem 28.2 we know that y − x ≥ 0, and also 1 : ℤ ≥ 0.  Then by Theorem 30 π(0) < π(y − x) < π(1), which is a contradiction to Theorem 9.1.
 
     2. Let x, y ∈ ℤ.  First suppose that x < y.  Suppose further that x + 1 > y.  Then x < y < x + 1, which is a contradiction to part (1) of this theorem.  So it must be that x + 1 ≤ y.  Second, suppose that x + 1 ≤ y.  Then by Theorem 28.5 we deduce that x + 1 ≤ x.  However 1 : ℤ > 0, so by Theorem 28.6 we have x + 1 > x + 0 = x.  This is a contradiction.
+
+Theorem 32.  Let a, b, c ∈ ℤ.  If c > 0 and ab = c, then a ≤ c.
+
+Proof.  Let a, b, c ∈ ℤ.  If a < 0 then by Theorem 28.1 we have a < c.  If a = 0 then c = 0, which is a contradiction.  Now suppose that a > 0.  If b ≤ 0 then by Theorem 29.6 we have c ≤ 0, a contradiction.  So b > 0.  By Theorem 31.2 b ≥ 1.  Then by Theorem 28.7 we have b · a ≥ 1 · a, so c ≥ a.
 
 # Well-ordering principle on integers
 
@@ -545,3 +550,32 @@ Proof.  Suppose that there exists n : ℤ and P : ℤ → ℤ with n > 0 such th
 
 Axiom 51.  There is a function gcd : ℤ ⨯ ℤ → ℤ such that for all a, b ∈ ℤ, if a ≠ 0 or b ≠ 0 then gcd(a, b) is a greatest element of { x ∈ ℤ | x | a and x | b }.
 
+Definition.  For all a, b, c : ℤ, c is a linear combination of a and b iff there exist m, n : ℤ such that c = ma + nb.
+
+Lemma 52.  For all d, a, b ∈ ℤ, if d is a least element of { i ∈ ℤ | i > 0 and i is a linear combination of a and b }, then d | a.
+
+Proof.  Let d, a, b ∈ ℤ.  Suppose that d is a least element of { i ∈ ℤ | i > 0 and i is a linear combination of a and b }.
+
+There exist m, n ∈ ℤ such that
+
+    d = ma + nb.
+
+By Theorem 43 there exist q, r ∈ ℤ such that
+
+    a = dq + r and 0 ≤ r < d.
+
+We see that
+
+    r = a - dq = a - q(ma +nb) = (1 - qm)a - qnb.
+
+This shows that r is a linear combination of a and b.  Because 0 ≤ r < d, and d is a least element of { i ∈ ℤ | i > 0 and i is a linear combination of a and b }, we conclude that r = 0.  Hence d | a.
+
+Theorem 53.  For all a, b ∈ ℤ, if a ≠ 0 or b ≠ 0 then gcd(a, b) is a least element of { i ∈ ℤ | i > 0 and i is a linear combination of a and b }.
+
+Proof.  Let a, b ∈ ℤ, and suppose that a ≠ 0 or b ≠ 0. Let S = { i ∈ ℤ | i > 0 and i is a linear combination of a and b }.  If a > 0 then 1 · a + 0 · b ∈ S.  If a < 0 then (−1)a + 0 · b ∈ S.  So S is nonempty, so by Theorem 32 there exists some d ∈ ℤ such that d is a least element of S.  So there exist m, n ∈ ℤ such that
+
+    d = ma + nb.
+
+By Lemma 52 d | a and d | b.
+
+We will show that d = gcd(a, b).  Let c : ℤ, and suppose that c | a and c | d.  d is a linear combination of a and b, so by Theorem 42 we know that c | d.  Then by Theorem 32 c ≤ d.  So d = gcd(a, b).

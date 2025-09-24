@@ -6,6 +6,8 @@ open Logic
 open Statement
 open Util
 
+let (let&) = bind
+
 type state = { syntax_map : (syntax * range) list; unique_count : int ref }
 let empty_state = { syntax_map = []; unique_count = ref 0 }
 
@@ -139,7 +141,7 @@ let so =
 
 let have = any_str 
   ["clearly"; "it is clear that"; "it must be that";
-   "the only alternative is";
+   "the only alternative is"; "this shows that";
    "we conclude that"; "we deduce that"; "we have";
    "we know that"; "we must have"; "we see that"] <|>
    (str "similarly" << opt_str ",") <|>
@@ -205,7 +207,8 @@ and operators = [
 and predicate_target word =
   let app xs f = apply ([Const ("is_" ^ word, unknown_type); f] @ xs) in
   choice [
-    str "of" >> atomic |>> (fun x -> app [x]);
+    pipe2 (str "of" >> atomic) (opt [] (single (str "and" >> atomic)))
+        (fun x y -> (app ([x] @ y)));
     pipe2 (str "from" >> atomic) (str "to" >> atomic) (fun y z -> app [y; z])
   ]
 
@@ -274,9 +277,9 @@ and small_prop s : formula pr = expression prop_operators
 (* propositions *)
 
 and either_or_prop s : formula pr =
-  (str "either" >> small_prop |>> fun f -> match bool_kind f with
-    | Binary ("∨", _, _, _) -> f
-    | _ -> failwith "either: expected or") s
+  (str "either" >> small_prop >>= fun f -> match bool_kind f with
+    | Binary ("∨", _, _, _) -> return f
+    | _ -> fail "either: expected or") s
 
 and precisely_prop s : formula pr = (
   any_str ["Exactly"; "Precisely"] >> str "one of" >> small_prop << str "holds" |>>
@@ -367,7 +370,7 @@ let eq_definition : statement p = pipe3
 
 let new_paragraph : id p = empty >>? (any_str keywords <|> label)
 
-let define env_ids_types prop : statement =
+let define env_ids_types prop : statement p =
     match prop with
     | App (App (Const ("↔", _), term), definition)
     | Eq (term, definition) ->
@@ -378,17 +381,17 @@ let define env_ids_types prop : statement =
           (v, assoc v env_ids_types)) in
         let arg_type = if is_eq prop then unknown_type else Bool in
         let typ = fold_right1 mk_fun_type (map snd ids_types @ [arg_type]) in
-        Definition (get_const_or_var t, typ, fold_right lambda' ids_types definition))
-    | _ -> failwith "syntax error in definition"
+        return @@ Definition (get_const_or_var t, typ, fold_right lambda' ids_types definition))
+    | _ -> fail "syntax error in definition"
 
-let def_prop = 
-    not_followed_by new_paragraph "" >> opt_str "we write" >> proposition << str "."
+let def_prop ids_types : statement p = 
+    (not_followed_by new_paragraph "" >> opt_str "we write" >> proposition << str ".") >>=
+    define ids_types
 
 let definition : statement list p = str "Definition." >>
   choice [
     many1 eq_definition;
-    pipe2 for_all_ids (many1 def_prop)
-      (fun ids_types props -> map (define ids_types) props)
+    for_all_ids >>= fun ids_types -> many1 (def_prop ids_types)
   ]
 
 (* proofs *)
