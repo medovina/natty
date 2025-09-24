@@ -205,7 +205,7 @@ let init opts =
           Some ((expand_proofs prog |> filter_map (
             fun (thm, known) ->
               match thm with
-                | Theorem (_, _, None, _) -> Some (uri, thm, known)
+                | Theorem (_, _, _, None, _) -> Some (uri, thm, known)
                 | _ -> None)) @ ss) in
 
     let stmts =
@@ -267,7 +267,7 @@ let run () =
           notify_progress output n total;
           gather_pairs not_proven |> iter (fun (uri, stmts) ->
             let diags = stmts |> map (function
-              | Theorem (_, _, _, Range (pos1, pos2)) as thm ->
+              | Theorem (_, _, _, _, Range (pos1, pos2)) as thm ->
                   let text = assoc uri !sources in
                   diagnostic (adjust_pos text pos1) (adjust_pos text pos2) Warning
                     ("could not prove " ^ (stmt_name thm))

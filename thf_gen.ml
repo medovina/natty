@@ -82,8 +82,8 @@ let thf_statement is_conjecture f : string =
         const id typ;
         axiom (id ^ "_def") "definition" (Option.get (stmt_formula def))
         ]
-    | Theorem (name, f, _, _) ->
+    | Theorem (num, _, f, _, _) ->
         let kind = if is_conjecture then "conjecture" else "theorem" in
-        thm_or_hyp name kind f in
+        thm_or_hyp num kind f in
   unlines (map (sprintf "thf(%s).") (conv f))
 

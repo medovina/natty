@@ -35,6 +35,10 @@ let or_opt x y = match x with
   | Some x -> Some x
   | None -> y ()
 
+let opt_or_opt x y = match x with
+  | Some x -> Some x
+  | None -> y
+
 (* chars *)
 
 let is_lower c = 'a' <= c && c <= 'z'

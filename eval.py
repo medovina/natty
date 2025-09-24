@@ -40,9 +40,13 @@ all_provers = {
 }
 all_prover_names = list(all_provers.keys())
 
+def sort_key(s):
+    s = re.sub(':.*', '', s)
+    return [int(n) for n in s.replace('s', '').split('_')]
+
 def read_theorems():
     files = [name.removesuffix('.thf') for name in os.listdir(conf.dir) if name.endswith('.thf')]
-    files.sort(key = lambda s: [int(n) for n in s.replace('s', '').split('_')])
+    files.sort(key = sort_key)
 
     theorems = {}
     for file in files:

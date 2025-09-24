@@ -4,6 +4,8 @@ open Logic
 open Options
 open Util
 
+type str = string
+
 type pos = int * int   (* line number, colum number *)
 
 type range = Range of pos * pos
@@ -72,10 +74,10 @@ let rec show_proof_step = function
 type statement =
   | TypeDecl of id
   | ConstDecl of id * typ
-  | Axiom of id * formula * id option (* id, formula, descriptive name *)
+  | Axiom of id * formula * id option (* num, formula, name *)
   | Hypothesis of id * formula
   | Definition of id * typ * formula
-  | Theorem of id * formula * proof option * range
+  | Theorem of id * id option * formula * proof option * range
 
 and proof =
   | Steps of (proof_step * range) list
@@ -97,23 +99,33 @@ let stmt_id = function
   | Axiom (id, _, _) -> id
   | Hypothesis (id, _) -> id
   | Definition (id, _, _) -> id
-  | Theorem (id, _, _, _) -> id
+  | Theorem (id, _, _, _, _) -> id
 
-let set_stmt_id id = function
+let set_stmt_num id = function
   | Hypothesis (_, formula) -> Hypothesis (id, formula)
-  | Theorem (_, formula, proof, range) -> Theorem (id, formula, proof, range)
+  | Theorem (_, name, formula, proof, range) -> Theorem (id, name, formula, proof, range)
   | _ -> assert false
 
-let stmt_name stmt = (match stmt with
+let stmt_kind = function
   | TypeDecl _ -> "type"
   | ConstDecl _ -> "const"
   | Axiom _ -> "axiom"
   | Hypothesis _ -> "hypothesis"
   | Definition _ -> "definition"
-  | Theorem _ -> "theorem") ^ " " ^ stmt_id stmt
+  | Theorem _ -> "theorem"
+
+let stmt_name stmt =
+  let base = stmt_kind stmt ^ " " ^ stmt_id stmt in
+  match stmt with
+  | Axiom (_, _, name)
+  | Theorem (_, name, _, _, _) -> 
+      base ^ (match name with
+        | Some name -> sprintf " (%s)" name
+        | _ -> "")
+  | _ -> base
 
 let stmt_formula = function
-  | Axiom (_, f, _) | Hypothesis (_, f) | Theorem (_, f, _, _) -> Some f
+  | Axiom (_, f, _) | Hypothesis (_, f) | Theorem (_, _, f, _, _) -> Some f
   | Definition (id, typ, f) -> Some (Eq (Const (id, typ), f))
   | _ -> None
 
@@ -121,12 +133,12 @@ let rec map_stmt_formulas fn stmt = match stmt with
   | Axiom (id, f, name) -> Axiom (id, fn f, name)
   | Hypothesis (id, f) -> Hypothesis (id, fn f)
   | Definition (id, typ, f) -> Definition (id, typ, fn f)
-  | Theorem (id, f, proof, range) ->
+  | Theorem (id, name, f, proof, range) ->
       let map_proof = function
         | Steps steps -> Steps steps
         | ExpandedSteps esteps ->
             ExpandedSteps (map (map (map_stmt_formulas fn)) esteps) in
-      Theorem (id, fn f, Option.map map_proof proof, range)
+      Theorem (id, name, fn f, Option.map map_proof proof, range)
   | TypeDecl _ | ConstDecl _ -> stmt
 
 let decl_var = function
@@ -151,13 +163,13 @@ let show_statement multi s : string =
         let prefix =
           sprintf "definition %s: %s = " (without_type_suffix id) (show_type typ) in
         show prefix f
-    | Theorem (_, f, _, _) -> show (name ^ ": ") f
+    | Theorem (_, _, f, _, _) -> show (name ^ ": ") f
 
 let number_hypotheses name stmts =
   let f n = function
     | (Hypothesis _) as hyp ->
         let hyp_name = sprintf "%s.h%d" name n in
-        (n + 1, set_stmt_id hyp_name hyp)
+        (n + 1, set_stmt_num hyp_name hyp)
     | stmt -> (n, stmt) in
   snd (fold_left_map f 1 stmts)
 
@@ -168,20 +180,20 @@ let expand_proofs stmts : (statement * statement list) list =
   let rec expand known = function
     | stmt :: stmts ->
         let thms = match stmt with
-          | Theorem (name, _, proof, _) as thm -> (
+          | Theorem (num, _, _, proof, _) as thm -> (
             let thm_known =
-              if !active || only_thm = Some name || from_thm = Some name then
-                (if from_thm = Some name then active := true;
+              if !active || only_thm = Some num || from_thm = Some num then
+                (if from_thm = Some num then active := true;
                  [(thm, known)])
               else [] in
             thm_known @ match proof with
                 | Some (ExpandedSteps fs) ->
                     fs |> filter_mapi (fun j stmts ->
-                      let step_name = sprintf "%s.s%d" name (j + 1) in
-                      if !active || only_thm = Some name || only_thm = Some step_name then
+                      let step_name = sprintf "%s.s%d" num (j + 1) in
+                      if !active || only_thm = Some num || only_thm = Some step_name then
                         let (hypotheses, conjecture) = split_last stmts in
-                        Some (set_stmt_id step_name conjecture,
-                              rev (number_hypotheses name hypotheses) @ known)
+                        Some (set_stmt_num step_name conjecture,
+                              rev (number_hypotheses num hypotheses) @ known)
                       else None)
                 | Some (Steps _) -> assert false
                 | None -> [])

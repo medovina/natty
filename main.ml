@@ -26,12 +26,16 @@ let write_thf dir name proven stmt =
 
 let write_files dir prog =
   expand_proofs prog |> iter (fun (thm, known) ->
-    write_thf dir (stmt_id thm) (rev known) thm)
+    match thm with
+      | Theorem (num, name, _, _, _) ->
+          let filename = String.concat ":" ([num] @ Option.to_list name) in
+          write_thf dir filename (rev known) thm
+      | _ -> failwith "theorem expected")
 
 let write_thm_info prog =
   let thms = filter is_theorem prog in
   let thm_steps = function
-    | Theorem (_, _, proof, _) -> (match proof with
+    | Theorem (_, _, _, proof, _) -> (match proof with
         | Some (ExpandedSteps steps) -> Some steps
         | Some (Steps _) -> assert false
         | None -> None)

@@ -1151,7 +1151,7 @@ let prove_all thf prog =
               printf "%d theorems/steps proved, %d not proved.\n" succeeded failed
     | (thm, known) :: rest ->
         let (succeed, fail) = match thm with
-          | Theorem (_, _, None, _) ->
+          | Theorem (_, _, _, None, _) ->
               print_endline (show_statement true thm ^ "\n");
               let (result, elapsed) =
                 prove known thm (Fun.const false) in

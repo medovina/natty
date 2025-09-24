@@ -98,7 +98,7 @@ let thf_formula = empty >>?
         | "hypothesis" ->
             formula |>> fun f -> Hypothesis (name, f)
         | "conjecture" ->
-            formula |>> fun f -> Theorem (name, f, None, empty_range)
+            formula |>> fun f -> Theorem (name, None, f, None, empty_range)
         | _ -> failwith "unknown role")
   << str "."
 

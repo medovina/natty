@@ -247,8 +247,8 @@ and block_steps (Block (step, range, children)) : statement list list * formula 
     | Assert f -> (
         match expand_multi_eq f with
           | Some (eqs, concl) ->
-              (map (fun eq -> [Theorem ("", eq, None, range)]) eqs, concl)
-          | None -> ([[Theorem ("", f, None, range)]], f)  )
+              (map (fun eq -> [Theorem ("", None, eq, None, range)]) eqs, concl)
+          | None -> ([[Theorem ("", None, f, None, range)]], f)  )
     | Let (ids, typ) ->
         let ids_typs = ids |> map (fun id -> (id, typ)) in
         let (decls, fs) = const_decls ids_typs in
@@ -267,7 +267,7 @@ and block_steps (Block (step, range, children)) : statement list list * formula 
           map (fun id -> ConstDecl (skolem_name id, typ)) ids @
             [Hypothesis ("hyp", with_skolem_names ids g)] in
         let fs = map (map (stmt_with_skolem_names ids)) fs in
-        ([Theorem ("", ex, None, range)] :: map (append stmts) fs,
+        ([Theorem ("", None, ex, None, range)] :: map (append stmts) fs,
          if any_free_in ids concl then exists_vars_typ (ids, typ) concl else concl)
     | Escape | Group _ -> failwith "block_formulas"
 
@@ -298,9 +298,9 @@ and check_stmt env stmt =
     | Definition (id, typ, f) ->
         let f = check_formula env f typ in
         Definition (id, type_of f, f)
-    | Theorem (name, f, proof, range) ->
+    | Theorem (num, name, f, proof, range) ->
         let f1 = top_check env f in
-        Theorem (name, f1, Option.bind proof (expand_proof stmt env f range), range)
+        Theorem (num, name, f1, Option.bind proof (expand_proof stmt env f range), range)
     | TypeDecl _ | ConstDecl _ -> stmt
 
 and check_stmts initial_env stmts : statement list =
@@ -350,12 +350,12 @@ let rec encode_stmts known_tuple_types = function
             ConstDecl (encode_id id typ, encode_type tuple_types typ)
         | Definition (id, typ, f) ->
             Definition (encode_id id typ, encode_type tuple_types typ, encode f)
-        | Theorem (id, f, proof, range) ->
+        | Theorem (num, name, f, proof, range) ->
             let map_proof = function
               | ExpandedSteps esteps ->
                   ExpandedSteps (map (encode_stmts known_tuple_types) esteps)
               | _ -> assert false in
-            Theorem (id, encode f, Option.map map_proof proof, range)
+            Theorem (num, name, encode f, Option.map map_proof proof, range)
         | _ -> map_stmt_formulas encode stmt in
       let new_tuple_types = subtract !tuple_types known_tuple_types in
       let tuple_defs (t, u) =

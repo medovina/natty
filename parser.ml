@@ -8,8 +8,15 @@ open Util
 
 let (let&) = bind
 
-type state = { syntax_map : (syntax * range) list; unique_count : int ref }
-let empty_state = { syntax_map = []; unique_count = ref 0 }
+type state = {
+    syntax_map : (syntax * range) list;
+    axiom_count : int ref; theorem_count : int ref;
+    unique_count : int ref
+}
+
+let empty_state = {
+    syntax_map = []; axiom_count = ref 0; theorem_count = ref 0; unique_count = ref 0
+}
 
 type 'a p = ('a, state) t   (* parser type *)
 type 'a pr = ('a, state) reply
@@ -36,6 +43,8 @@ let any_str ss = choice (map str ss)
 
 let parens s = str "(" >> s << str ")"
 
+let brackets s = str "[" >> s << str "]"
+
 let letter1 = letter |>> char_to_string
 
 let var = empty >>? letter1
@@ -54,6 +63,8 @@ let id_or_sym = id <|> sym
 let word = empty >>? many1_chars letter
 
 let adjective = word
+
+let name = empty >>? many1_chars (alphanum <|> char '_')
 
 let keywords = ["axiom"; "corollary"; "definition"; "lemma"; "proof"; "theorem"]
 
@@ -119,13 +130,11 @@ let ids_types : ((id * typ) list) p =
 
 (* reasons *)
 
-let theorem_num =
-  number >> (many (char '.' >>? raw_number)) >> optional (parens letter) >>$ "" 
+let theorem_ref = str ":" >> name
 
 let reference = choice [
-  any_str ["axiom"; "corollary"; "lemma"; "theorem"] >> theorem_num;
-  str "part" >> parens number << opt_str "of this theorem";
-  str "the definition of" >> var
+  theorem_ref;
+  str "part" >> parens number << opt_str "of this theorem"
   ]
 
 let reason =
@@ -315,21 +324,26 @@ and top_prop s = (let_prop <|> suppose_then <|> proposition) s
 let label : id p = 
   ((empty >>? letter |>> char_to_string) <|> number) <<? string "."
 
-let top_sentence : (formula * range) p = with_range (top_prop << str ".")
+let stmt_name = brackets name
 
-let proposition_item : (id * (formula * range) * id option) p = triple
-  label top_sentence (option (parens word))
+let top_sentence : ((formula * range) * id option) p =
+    pair (with_range (top_prop << str ".")) (option stmt_name)
 
-let prop_items : (id * (formula * range) * id option) list p =
+let proposition_item : (id * ((formula * range) * id option)) p =
+  pair label top_sentence
+
+let prop_items : (id * ((formula * range) * id option)) list p =
   many1 proposition_item
 
-let top_prop_or_items ids_typ : (id * formula * id option * range) list p =
-  (prop_items <|> (top_sentence |>> fun fr -> [("", fr, None)])) |>>
-    map (fun (label, (f, range), name) ->
+let top_prop_or_items (name: id option) ids_typ : (id * formula * id option * range) list p =
+    choice [
+        prop_items;
+        top_sentence |>> fun (fr, name1) -> [("", (fr, opt_or_opt name1 name))]
+    ] |>> map (fun (label, ((f, range), name)) ->
       (label, for_all_vars_typs_if_free ids_typ f, name, range))
 
-let propositions : (id * formula * id option * range) list p =
-  (opt [] for_all_ids) >>= top_prop_or_items
+let propositions name : (id * formula * id option * range) list p =
+  (opt [] for_all_ids) >>= top_prop_or_items name
 
 (* axioms *)
 
@@ -346,21 +360,25 @@ let axiom_decl : statement p =
     (of_type >> typ)
     (fun c typ -> ConstDecl (unary_prefix c typ, typ))
 
-let count_label n label =
-  if label = "" then sprintf "%d" n
-  else sprintf "%d.%s" n label
+let count_label num label =
+  if label = "" then sprintf "%d" num
+  else sprintf "%d.%s" num label
 
-let axiom_propositions n : statement list p = propositions |>>
-  map (fun (label, f, name, _range) -> Axiom (count_label n label, f, name))
+let axiom_propositions name : statement list p =
+  let& st = get_user_state in
+  incr st.axiom_count;
+  propositions name |>> map (fun (label, f, name, _range) ->
+    Axiom (count_label (!(st.axiom_count)) label, f, name))
 
-let axiom_exists n : statement list p =
+let axiom_exists name : statement list p =
   there_exists >>? pipe2
   (sep_by1 axiom_decl (any_str ["and"; "with"]))
-  ((str "such that" >> axiom_propositions n) <|> (str "." >>$ []))
+  ((str "such that" >> axiom_propositions name) <|> (str "." >>$ []))
   (@)
 
-let axiom_group : statement list p = (str "Axiom" >> int << str ".") >>= fun n ->
-  (axiom_exists n <|> axiom_propositions n)
+let axiom_group : statement list p =
+  (str "Axiom" >> option stmt_name << str ".") >>= fun name ->
+  (axiom_exists name <|> axiom_propositions name)
 
 (* definitions *)
 
@@ -497,12 +515,15 @@ let proofs : (id * proof) list p = str "Proof." >> choice [
 (* theorems *)
 
 let theorem_group : statement list p =
-  any_str ["Corollary"; "Lemma"; "Theorem"] >> int << str "." >>= fun n -> 
+  any_str ["Corollary"; "Lemma"; "Theorem"] >> option stmt_name << str "." >>= fun name -> 
   opt [] (str "Let" >> ids_types << str ".") >>=
-  fun ids_types -> pipe2 (top_prop_or_items ids_types) (opt [] proofs)
+  fun ids_types ->
+    let& st = get_user_state in
+    incr st.theorem_count;
+    pipe2 (top_prop_or_items name ids_types) (opt [] proofs)
     (fun props proofs ->
-      props |> map (fun (label, f, _name, range) ->
-        Theorem (count_label n label, f, assoc_opt label proofs, range)))
+      props |> map (fun (label, f, name, range) ->
+        Theorem (count_label (!(st.theorem_count)) label, name, f, assoc_opt label proofs, range)))
 
 (* program *)
 
