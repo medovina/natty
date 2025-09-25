@@ -548,7 +548,13 @@ Proof.  Suppose that there exists n : ℤ and P : ℤ → ℤ with n > 0 such th
 
 # Greatest common divisors
 
-Axiom.  There is a function gcd : ℤ ⨯ ℤ → ℤ such that for all a, b ∈ ℤ, if a ≠ 0 or b ≠ 0 then gcd(a, b) is a greatest element of { x ∈ ℤ | x | a and x | b }.
+Definition.  For all a, b, c ∈ ℤ, c is a common divisor of a and b iff c | a and c | b.
+
+Axiom.  There is a function gcd : ℤ ⨯ ℤ → ℤ such that for all a, b ∈ ℤ, if a ≠ 0 or b ≠ 0 then gcd(a, b) is a greatest element of { x ∈ ℤ | x is a common divisor of a and b }.
+
+Theorem.  For all a, b, c : ℤ, if a ≠ 0 or b ≠ 0 then gcd(a + cb, b) = gcd(a, b).
+
+Proof.  Let a, b, c : ℤ, and suppose that a ≠ 0 and b ≠ 0.  We will show that for all x : ℤ, x is a common divisor of a and b iff x is a common divisor of a + cb and b.  Let e : ℤ, and suppose that e is a common divisor of a and b.  By :int_divides_linear_combo, we see that e | (a + cb), so e is a common divisor of a + cb and b.  Now let f : ℤ, and suppose that f is a common divisor of a + cb and b.  Then by :int_divides_linear_combo we see that f | ((a + cb) - cb), so f | a.  So f is a common divisor of a and b.  So { x ∈ ℤ | x is a common divisor of a + cb and b } = { x ∈ ℤ | x is a common divisor of a and b }.  Hence gcd(a + cb, b) = gcd(a, b).
 
 Definition.  For all a, b, c : ℤ, c is a linear combination of a and b iff there exist m, n : ℤ such that c = ma + nb.
 
