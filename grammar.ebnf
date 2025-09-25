@@ -124,9 +124,9 @@ top_prop = let_prop | suppose_then | proposition;
 
 label = (letter | number) '.';
 
-top_sentence = top_prop '.' [stmt_name];
+top_sentence = top_prop '.' ['[' name ']'];
 
-stmt_name = '[' name ']';
+stmt_name = '(' name ')';
 
 proposition_item = label top_sentence;
 

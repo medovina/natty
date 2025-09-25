@@ -8,7 +8,7 @@ Axiom.  There exists a type ℕ with an element 0 ∈ ℕ and a function s : ℕ
 
 Definition.  Let 1 : ℕ = s(0).
 
-Lemma [nat_prec].  Let a ∈ ℕ.  Suppose that a ≠ 0.  Then there is some b ∈ ℕ such that a = s(b).
+Lemma (nat_prec).  Let a ∈ ℕ.  Suppose that a ≠ 0.  Then there is some b ∈ ℕ such that a = s(b).
 
 # Natural numbers: addition
 
@@ -177,7 +177,7 @@ Proof.
 
   3. Let a, b ∈ ℕ.  First suppose that a < b.  Suppose further that a + 1 > b.  It follows that a < b < a + 1, which is a contradiction to part (1) of this theorem.  So it must be that a + 1 ≤ b. Second, suppose that a + 1 ≤ b.  Suppose further that a ≥ b.  Then by :nat_le_trans we deduce that a + 1 ≤ a, which is a contradiction to :nat_lt.  So it must be that a < b.
 
-Lemma [nat_add_prod].  Let a, b, c, d ∈ ℕ.  If a < b and c < d, then bc + ad < ac + bd.
+Lemma (nat_add_prod).  Let a, b, c, d ∈ ℕ.  If a < b and c < d, then bc + ad < ac + bd.
 
 Proof.
 
@@ -199,7 +199,7 @@ Definition.  For all S : ℕ → 𝔹, S is empty iff there is no n : ℕ such t
 
 Definition.  For all A : ℕ → 𝔹 and a : ℕ, a is a least element of A iff a ∈ A and for all x : ℕ, if x ∈ A then a ≤ x.
 
-Theorem [nat_well_ordered]. Let G : ℕ → 𝔹.  Suppose that G is nonempty.  Then there exists some m : ℕ such that m is a least element of G.
+Theorem (nat_well_ordered). Let G : ℕ → 𝔹.  Suppose that G is nonempty.  Then there exists some m : ℕ such that m is a least element of G.
 
 Proof.  Let G : ℕ → 𝔹, and suppose that G is nonempty.  Suppose that there is no m : ℕ such that m ∈ G and for all g ∈ ℕ, if g ∈ G then m ≤ g.  Let
 
@@ -222,7 +222,7 @@ Axiom.  There exists a type ℤ with a function z : ℕ ⨯ ℕ → ℤ such tha
 
 Definition.  Let 0 : ℤ = z(0, 0).  Let 1 : ℤ = z(1, 0).
 
-Lemma [int_z_zero].  For all a, b ∈ ℕ, z(a, b) = 0 if and only if a = b.
+Lemma (int_z_zero).  For all a, b ∈ ℕ, z(a, b) = 0 if and only if a = b.
 
 Lemma.  0 : ℤ ≠ 1 : ℤ.
 
@@ -370,7 +370,7 @@ Proof.
 
   6. Let i, j, k ∈ ℤ.  Then (i + j)k = k(i + j) = ki + kj = ik + jk.
 
-Theorem [int_mul_zero].  Let i, j ∈ ℤ.  If ij = 0, then i = 0 or j = 0.
+Theorem (int_mul_zero).  Let i, j ∈ ℤ.  If ij = 0, then i = 0 or j = 0.
 
 Proof.
 
@@ -455,9 +455,9 @@ Theorem.  Let i, j ∈ ℤ.
 
 # Bijection between naturals and non-negative integers
 
-Axiom [int_nat_proj]. There is a function π : ℤ → ℕ such that for all i ∈ ℤ, if i ≥ 0 then i = z(π(i), 0).
+Axiom (int_nat_proj). There is a function π : ℤ → ℕ such that for all i ∈ ℤ, if i ≥ 0 then i = z(π(i), 0).
 
-Theorem [int_proj_lt].  Let i, j ∈ ℤ.  If i ≥ 0 and j ≥ 0, then i ≤ j iff π(i) ≤ π(j).    
+Theorem (int_proj_lt).  Let i, j ∈ ℤ.  If i ≥ 0 and j ≥ 0, then i ≤ j iff π(i) ≤ π(j).    
 
 Proof.  Let i, j ∈ ℤ, and suppose that i ≥ 0 and j ≥ 0.  Suppose that π(i) ≤ π(j).  Then π(i) + 0 ≤ 0 + π(j), so z(π(i), 0) ≤ z(π(j), 0) by :int_le.  Then i ≤ j by :int_nat_proj.  Conversely, suppose that i ≤ j.  Then z(π(i), 0) ≤ z(π(j), 0) by :int_nat_proj.  Then π(i) + 0 ≤ 0 + π(j) by :int_le, so π(i) ≤ π(j).
 
@@ -482,7 +482,7 @@ Definition.  For all S : ℤ → 𝔹, S is empty iff there is no n : ℤ such t
 
 Definition.  For all A : ℤ → 𝔹 and a : ℤ, a is a least element of A iff a ∈ A and for all x : ℤ, if x ∈ A then a ≤ x.  a is a greatest element of A iff a ∈ A and for all x : ℤ, if x ∈ A then x ≤ a.
 
-Theorem [int_well_ordered]. Let S : ℤ → 𝔹.  Suppose that S is nonempty, and for all i ∈ ℤ, if i ∈ S then i ≥ 0.  Then there exists some m : ℤ such that m is a least element of S.
+Theorem (int_well_ordered). Let S : ℤ → 𝔹.  Suppose that S is nonempty, and for all i ∈ ℤ, if i ∈ S then i ≥ 0.  Then there exists some m : ℤ such that m is a least element of S.
 
 Proof.  Let S : ℤ → 𝔹, and suppose that S is nonempty and for all i ∈ ℤ, if i ∈ S then i ≥ 0.  Then there exists some j : ℤ such that j ∈ S and j ≥ 0.  Let T = { n ∈ ℕ | there exists i ∈ ℤ such that i ≥ 0 and n = π(i) }.  By :nat_well_ordered there is some a : ℕ such that a is a least element of T.  Since a ∈ T, there is some m : ℤ such that a = π(m) and m ≥ 0.  We will show that m is a least element of S.  Let x : ℤ, and suppose that x ∈ S.  Then x ≥ 0.  Then π(x) ∈ T.  Since a is a least element of T, we know that a ≤ π(x).  So π(m) ≤ π(x), and then m ≤ x by :int_proj_lt.
 
@@ -510,15 +510,15 @@ Lemma.  For all a ∈ ℤ, a | a.
 
 Proof.  Let a ∈ ℤ.  a = a · 1, so a | a.
 
-Theorem [int_div_trans]. For all a, b, c ∈ ℤ, if a | b and b | c then a | c.
+Theorem (int_div_trans). For all a, b, c ∈ ℤ, if a | b and b | c then a | c.
 
 Proof.  Let a, b, c : ℤ, and suppose that a | b and b | c.  There is some e ∈ ℤ such that ae = b.  Similarly, there is some f ∈ ℤ such that bf = c.  Hence c = bf = (ae)f = a(ef), and we conclude that a | c.
 
-Theorem [int_divides_linear_combo].  For all a, b, m, n, c ∈ ℤ, if c | a and c | b then c | (ma + nb).
+Theorem (int_divides_linear_combo).  For all a, b, m, n, c ∈ ℤ, if c | a and c | b then c | (ma + nb).
 
 Proof.  Let a, b, m, n, c : ℤ, and suppose that c | a and c | b.  There is some e ∈ ℤ such that a = ce.  Similarly, there is some f ∈ ℤ such that b = cf.  Hence ma + nb = mce + ncf = c(me + nf).  We see that c | (ma + nb).
 
-Theorem [int_division_algorithm].  For all a, b ∈ ℤ, if b > 0 then there exist q, r ∈ ℤ such that a = bq + r and 0 ≤ r < b.
+Theorem (int_division_algorithm).  For all a, b ∈ ℤ, if b > 0 then there exist q, r ∈ ℤ such that a = bq + r and 0 ≤ r < b.
 
 Proof.  Let a, b ∈ ℤ, and suppose that b > 0.  Let S = { i ∈ ℤ | i ≥ 0 and there exists k ∈ ℤ such that i = a − bk }.  We will show that S is nonempty.  Suppose that a ≥ 0.  Then a − b · 0 ≥ 0, so a − b · 0 ∈ S.  Conversely, suppose that a < 0.  There exists d : ℤ such that d = a − b · a.  Then d = a(1 − b).  b > 0, so by :int_discrete b ≥ 1.  Then b − b ≥ 1 − b, so 1 − b ≤ 0.  It follows by :int_mul_neg_neg that d ≥ 0, so d ∈ S.  In any case S is nonempty.
 
@@ -528,7 +528,7 @@ By :int_well_ordered, there exists some r : ℤ such that r is a least element o
 
 Definition.  For all a ∈ ℤ, a is prime iff a > 1 and for all b ∈ ℤ, if b > 0 and b | a then b = 1 or b = a.
 
-Lemma [int_has_prime_divisor].  For all a ∈ ℤ, if a > 1 then there exists p ∈ ℤ such that p is prime and p | a.
+Lemma (int_has_prime_divisor).  For all a ∈ ℤ, if a > 1 then there exists p ∈ ℤ such that p is prime and p | a.
 
 Proof.  Suppose that there exists some k ∈ ℤ such that k > 1 and there exists no p ∈ ℤ such that p is prime and p | k.  Let
 
@@ -552,7 +552,7 @@ Axiom.  There is a function gcd : ℤ ⨯ ℤ → ℤ such that for all a, b ∈
 
 Definition.  For all a, b, c : ℤ, c is a linear combination of a and b iff there exist m, n : ℤ such that c = ma + nb.
 
-Lemma [gcd_lemma].  For all d, a, b ∈ ℤ, if d is a least element of { i ∈ ℤ | i > 0 and i is a linear combination of a and b }, then d | a.
+Lemma (gcd_lemma).  For all d, a, b ∈ ℤ, if d is a least element of { i ∈ ℤ | i > 0 and i is a linear combination of a and b }, then d | a.
 
 Proof.  Let d, a, b ∈ ℤ.  Suppose that d is a least element of { i ∈ ℤ | i > 0 and i is a linear combination of a and b }.
 

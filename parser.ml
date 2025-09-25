@@ -324,10 +324,10 @@ and top_prop s = (let_prop <|> suppose_then <|> proposition) s
 let label : id p = 
   ((empty >>? letter |>> char_to_string) <|> number) <<? string "."
 
-let stmt_name = brackets name
+let stmt_name = parens name
 
 let top_sentence : ((formula * range) * id option) p =
-    pair (with_range (top_prop << str ".")) (option stmt_name)
+    pair (with_range (top_prop << str ".")) (option (brackets name))
 
 let proposition_item : (id * ((formula * range) * id option)) p =
   pair label top_sentence
