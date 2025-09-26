@@ -8,10 +8,10 @@ type typ =
   | Bool
   | Fun of typ * typ
   | Base of id
-  | Product of typ * typ
+  | Product of typ list
 
 let show_type t =
-  let rec show outer left typ =
+  let rec show outer left typ : string =
     let op prec sym t u =
       parens_if (outer > prec || outer = prec && left) @@
       sprintf "%s %s %s" (show prec true t) sym (show prec false u) in
@@ -19,10 +19,13 @@ let show_type t =
       | Bool -> "𝔹"
       | Fun (t, u) -> op 0 "→" t u
       | Base id -> id
-      | Product (t, u) -> op 1 "⨯" t u in
+      | Product typs ->
+          parens_if (outer >= 1) @@
+          String.concat " ⨯ " (map (show 1 true) typs) in
   show (-1) false t
 
 let mk_fun_type t u = Fun (t, u)
+let mk_product_type ts = Product ts
 
 let rec target_type = function
   | Fun (_, u) -> target_type u
@@ -43,6 +46,10 @@ let rec arity = function
   | Fun (_, typ) -> 1 + arity typ
   | _ -> 0
 
+let rec collect_arg_types = function
+  | Fun (t, u) -> t :: collect_arg_types u
+  | _ -> []
+
 type formula =
   | Const of id * typ
   | Var of id * typ
@@ -60,14 +67,22 @@ let mk_eq f g = Eq (f, g)
 
 let apply : formula list -> formula = fold_left1 mk_app
 
-let _tuple2 = Const ("(,)", unknown_type)
+let tuple_cons n = sprintf "(%s)" (String.make (n - 1) ',')
 
-let tuple2 f g = App (App (_tuple2, f), g)
+let _tuple n = Const (tuple_cons n, unknown_type)
 
-let tuple_apply f = function
-  | [g] -> App (f, g)
-  | [g; h] ->  App (f, tuple2 g h)
-  | _ -> failwith "tuple_apply"
+let tuple_arity s =
+  let s = match String.index_from_opt s 0 ')' with  (* remove type suffix if present *)
+    | Some i -> String.sub s 0 (i + 1)
+    | None -> s in
+  assert (starts_with "(," s);
+  assert (ends_with ",)" s);
+  strlen s - 1
+
+let mk_tuple = function
+  | [] -> failwith "mk_tuple" 
+  | [g] -> g
+  | vals -> apply (_tuple (length vals) :: vals)
 
 let is_var = function
   | Var _ -> true
@@ -239,6 +254,23 @@ let split_type_suffix id =
 
 let without_type_suffix id = fst (split_type_suffix id)
 
+let collect_args t : formula * formula list =
+  let rec collect = function
+    | App (f, g) ->
+        let (head, args) = collect f in
+        (head, g :: args)
+    | head -> (head, []) in
+  let (head, args) = collect t in
+  (head, rev args)
+
+let is_tuple_apply f =
+  let (head, args) = collect_args f in
+  match head with
+    | Const (s, _) when starts_with "(," s ->
+        assert (tuple_arity s = length args);
+        Some (s, args)
+    | _ -> None
+
 let show_formula_multi multi f =
   let rec show indent multi outer right f =
     let show1 outer right f = show indent multi outer right f in
@@ -279,11 +311,12 @@ let show_formula_multi multi f =
       | _ -> match f with
         | Const (id, _typ) -> without_type_suffix id
         | Var (id, _typ) -> id
-        | App (App (Const (id, _), f), g) when starts_with "(,)" id ->
-            parens_if (outer > -2) @@
-              sprintf "%s, %s" (show1 (-1) false f) (show1 (-1) false g)
-        | App (t, u) ->
-            sprintf "%s(%s)" (show1 10 false t) (show1 (-2) false u)
+        | App (t, u) -> (
+            match is_tuple_apply f with
+              | Some (_, args) ->
+                  parens_if (outer > -2) @@
+                    comma_join (map (show1 (-1) false) args)
+              | _ -> sprintf "%s(%s)" (show1 10 false t) (show1 (-2) false u))
         | Lambda (id, typ, t) ->
             parens_if (quantifier_prec < outer)
               (sprintf "λ%s:%s.%s" id (show_type typ) (show1 quantifier_prec false t))
@@ -379,15 +412,6 @@ let rec gather_lambdas = function
       let (vars, g) = gather_lambdas f in
       ((x, typ) :: vars, g)
   | f -> ([], f)
-
-let collect_args t : formula * formula list =
-  let rec collect = function
-    | App (f, g) ->
-        let (head, args) = collect f in
-        (head, g :: args)
-    | head -> (head, []) in
-  let (head, args) = collect t in
-  (head, rev args)
 
 let rec remove_exists f : (id * typ) list * formula = match kind f with
   | Quant ("∃", x, typ, g) ->

@@ -13,6 +13,8 @@ let int_of_bool b = if b then 1 else 0
 
 let (let*) = Option.bind
 
+let mk_some x = Some x
+
 let opt_default opt def = Option.value opt ~default:def
 
 let opt_for_all f = function

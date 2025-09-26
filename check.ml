@@ -14,14 +14,14 @@ let type_error s typ = raise (Check_error (s, Type typ))
 
 let rec check_type env typ = match typ with
   | Bool -> ()
-  | Fun (t, u) | Product (t, u) ->
-      check_type env t; check_type env u
+  | Fun (t, u) -> check_type env t; check_type env u
+  | Product typs -> iter (check_type env) typs
   | Base id ->
       if not (is_unknown typ) && not (mem (TypeDecl id) env) then
         type_error ("undefined type " ^ id) typ
       else ()
 
-let const_types1 env id = filter_map (is_const id) env
+let const_types1 env id : typ list = filter_map (is_const id) env
 
 let const_types formula env id : typ list =
   match const_types1 env id with
@@ -34,7 +34,7 @@ let rec subtype t u = t = u || match t, u with
   | _ -> false
 
 let rec possible_types env dot_types vars : formula -> typ list =
-  let rec possible formula = match formula with
+  let rec possible formula : typ list = match formula with
     | Const (id, typ) ->
         if is_unknown typ then const_types formula env id
         else [typ]
@@ -42,16 +42,22 @@ let rec possible_types env dot_types vars : formula -> typ list =
         match assoc_opt id vars with
           | Some typ -> [typ]
           | None -> const_types formula env id)
-    | App (App (Const ("(,)", _), f), g) ->
-        let+ t = possible f in
-        let+ u = possible g in
-        [Product (t, u)]
     | App (Const (":", Fun (t, t')), _) ->
         assert (t = t'); [t]
     | App (App (Const ("∈", _), _), _) -> [Bool]
-    | App (f, g) -> unique @@
-        possible_app env dot_types vars formula f g true |>
-          map (fun (_t, _u, typ, _kind) -> typ)
+    | App (f, g) -> (
+        match is_tuple_apply formula with
+          | Some (_, args) ->
+              let rec poss = function
+                | [] -> [[]]
+                | x :: args ->
+                    let+ t = possible x in
+                    let+ u = poss args in
+                    [t :: u] in
+              map mk_product_type (poss args)
+          | _ -> unique @@
+              possible_app env dot_types vars formula f g true |>
+                map (fun (_t, _u, typ, _kind) -> typ))
     | Lambda (id, typ, f) ->
         possible_types env dot_types ((id, typ) :: vars) f |>
           map (fun t -> Fun (typ, t))
@@ -60,7 +66,7 @@ let rec possible_types env dot_types vars : formula -> typ list =
 
 (* returns list of (f type, g type, return type, is dot) *)
 and possible_app env dot_types vars formula f g with_dot : (typ * typ * typ * bool) list =
-  let possible = possible_types env dot_types vars in
+  let possible : formula -> typ list = possible_types env dot_types vars in
   let all =
     let+ t = possible f in
     let+ u = possible g in
@@ -79,7 +85,8 @@ and possible_app env dot_types vars formula f g with_dot : (typ * typ * typ * bo
     | [] -> errorf "can't apply" formula
     | all -> all
 
-let tuple_cons_type t u = Fun (t, Fun (u, Product (t, u)))
+let tuple_cons_type typs : typ =
+  fold_right mk_fun_type typs (Product typs)
 
 let check_formula env formula as_type : formula =
   let dot_types = const_types1 env "·" in
@@ -121,17 +128,19 @@ let check_formula env formula as_type : formula =
                 if opt_all_eq typ as_type then Var (id, typ)
                 else error "type_mismatch" formula
             | None -> find_const id)
-      | App (App (Const ("(,)", _), f), g) ->
-          let (t, u) = match as_type with
-            | Some (Product (t, u)) -> (Some t, Some u)
-            | Some _ -> error "type mismatch" formula
-            | None -> (None, None) in
-          let (f, g) = (check vars f t, check vars g u) in
-          apply [Const ("(,)", tuple_cons_type (type_of f) (type_of g)); f; g]
       | App (Const (":", Fun (t, t')), f) ->
           assert (t = t'); check vars f (Some t)
       | App (App (Const ("∈", _), f), g) -> check_app g f false
-      | App (f, g) -> check_app f g true
+      | App (f, g) -> (
+          match is_tuple_apply formula with 
+            | Some (s, args) ->
+                let args = (match as_type with
+                  | Some (Product arg_types) ->
+                      map2 (check vars) args (map mk_some arg_types)
+                  | Some _ -> error "type mismatch" formula
+                  | None -> map (fun x -> check vars x None) args) in
+                apply (Const (s, tuple_cons_type (map type_of args)) :: args)
+            | _ -> check_app f g true)
       | Lambda (id, typ, f) ->
           let u = match as_type with
             | Some (Fun (t, u)) when t = typ -> type_opt u
@@ -149,7 +158,10 @@ let check_formula env formula as_type : formula =
                         let x = next_var "x" (free_vars f) in
                         _for_all x (Base id) (App (f, Var (x, Base id)))
                     | _ -> Eq (f, g))
-              | [] -> error "can't compare different types" formula
+              | [] ->
+                  printf "left types = %s\n" (comma_join (map show_type (possible f)));
+                  printf "right types = %s\n" (comma_join (map show_type (possible g)));
+                  error "can't compare different types" formula
               | _ -> error "ambiguous" formula
           else error (show_type (Option.get as_type) ^ " expected") formula in
   check [] formula (type_opt as_type)
@@ -291,7 +303,7 @@ let rec expand_proof stmt env f range proof : proof option = match proof with
         Some (ExpandedSteps (map (check_stmts env) fs)))
   | _ -> assert false
 
-and check_stmt env stmt =
+and check_stmt env stmt : statement =
   match stmt with
     | Axiom (id, f, name) -> Axiom (id, top_check env f, name)
     | Hypothesis (id, f) -> Hypothesis (id, top_check env f)
@@ -311,28 +323,28 @@ and check_stmts initial_env stmts : statement list =
     
 let type_as_id typ = str_replace " " "" (show_type typ)
 
-let tuple_constructor t u = sprintf "(,)%s%s" (show_type t) (show_type u)
+let tuple_constructor types : string =
+  String.concat "" (tuple_cons (length types) :: map show_type types)
 
-let encode_id id typ =
+let encode_id id typ : id =
   if mem id logical_ops then id
-  else if id = "(,)" then
-    match typ with
-      | Fun (t, Fun (u, Product _)) -> tuple_constructor t u
-      | _ -> failwith
-          (sprintf "encode_id: %s does not construct a tuple" (show_type typ))
+  else if starts_with "(," id then
+    let types = collect_arg_types typ in
+    assert (length types = tuple_arity id);
+    tuple_constructor types
   else if String.contains id ':' then failwith "encode_id: double encode"
   else
     let id' = if id = "u-" then "-" else id in  (* 'u' prefix is unnecessary with explicit type *)
     sprintf "%s:%s" id' (type_as_id typ)
 
-let rec encode_type tuple_types typ = match typ with
-  | Product (t, u) ->
-      tuple_types := union [(t, u)] !tuple_types;
+let rec encode_type tuple_types typ : typ = match typ with
+  | Product typs ->
+      tuple_types := union [typs] !tuple_types;
       Base (type_as_id typ)
   | Fun (t, u) -> Fun (encode_type tuple_types t, encode_type tuple_types u)
   | _ -> typ
 
-let rec encode_formula tuple_types f =
+let rec encode_formula tuple_types f : formula =
   match f with
     | Const (id, typ) -> Const (encode_id id typ, encode_type tuple_types typ)
     | Var (id, typ) -> Var (id, encode_type tuple_types typ)
@@ -340,10 +352,10 @@ let rec encode_formula tuple_types f =
         Lambda (id, encode_type tuple_types typ, encode_formula tuple_types f)
     | f -> map_formula (encode_formula tuple_types) f
 
-let rec encode_stmts known_tuple_types = function
+let rec encode_stmts known_tuple_types stmts : statement list = match stmts with
   | [] -> []
   | stmt :: stmts ->
-      let tuple_types = ref [] in
+      let tuple_types : typ list list ref = ref [] in
       let encode = encode_formula tuple_types in
       let stmt = match stmt with
         | ConstDecl (id, typ) ->
@@ -358,11 +370,11 @@ let rec encode_stmts known_tuple_types = function
             Theorem (num, name, encode f, Option.map map_proof proof, range)
         | _ -> map_stmt_formulas encode stmt in
       let new_tuple_types = subtract !tuple_types known_tuple_types in
-      let tuple_defs (t, u) =
-        let tuple_type_id = type_as_id (Product (t, u)) in
+      let tuple_defs typs =
+        let tuple_type_id = type_as_id (Product typs) in
         [TypeDecl tuple_type_id;
-         ConstDecl (tuple_constructor t u,
-                    Fun (t, Fun (u, Base tuple_type_id)))] in
+         ConstDecl (tuple_constructor typs,
+                    fold_right mk_fun_type typs (Base tuple_type_id))] in
       concat_map tuple_defs new_tuple_types @ (stmt ::
         encode_stmts (new_tuple_types @ known_tuple_types) stmts)
 

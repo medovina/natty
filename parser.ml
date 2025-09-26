@@ -106,14 +106,20 @@ let infix_binop sym assoc = infix_binop1 (str sym) sym assoc
 let infix_negop sym pos assoc = Infix (const_op (str sym) pos true, assoc)
 
 let type_operators = [
-  [ infix "⨯" (fun t u -> Product (t, u)) Assoc_right ];
   [ infix "→" mk_fun_type Assoc_right ]
 ]
 
-let rec typ s = (expression type_operators (choice [
+let rec typ_term s = choice [
   record_type (id |>> fun id -> mk_base_type id);
   parens typ
-])) s
+] s
+
+and typ_terms s = (sep_by1 typ_term (str "⨯") |>> function
+  | [] -> failwith "type(s) expected"
+  | [t] -> t
+  | ts -> Product ts) s
+
+and typ s = (expression type_operators typ_terms) s
 
 let of_type = any_str [":"; "∈"]
 
@@ -181,7 +187,7 @@ let ascribe typ f =
 let rec term s = (record_formula @@ choice [
   (sym |>> fun c -> Const (c, unknown_type));
   pipe2 (record_formula id_term <<? str "(")
-    (sep_by1 expr (str ",") << str ")") tuple_apply;
+    (sep_by1 expr (str ",") << str ")") (fun f args -> App (f, mk_tuple args));
   id_term;
   str "⊤" >>$ _true;
   str "⊥" >>$ _false;
