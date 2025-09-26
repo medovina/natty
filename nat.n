@@ -6,7 +6,7 @@ Axiom.  There exists a type ℕ with an element 0 ∈ ℕ and a function s : ℕ
   b. For all n, m ∈ ℕ, if s(n) = s(m) then n = m.  [nat_succ_injective]
   c. Let P : ℕ → 𝔹.  If 0 ∈ P, and k ∈ P implies s(k) ∈ P for all k ∈ ℕ, then P = ℕ.
 
-Definition.  Let 1 : ℕ = s(0).
+Definition.  Let 1 : ℕ = s(0).  Let 2 : ℕ = s(1).
 
 Lemma (nat_prec).  Let a ∈ ℕ.  Suppose that a ≠ 0.  Then there is some b ∈ ℕ such that a = s(b).
 
@@ -220,7 +220,7 @@ Axiom.  There exists a type ℤ with a function z : ℕ ⨯ ℕ → ℤ such tha
   a. For all a, b, c, d ∈ ℕ, z(a, b) = z(c, d) if and only if a + d = b + c.  [int_eq_def]
   b. For all x ∈ ℤ, there exist some a, b ∈ ℕ such that x = z(a, b).
 
-Definition.  Let 0 : ℤ = z(0, 0).  Let 1 : ℤ = z(1, 0).
+Definition.  Let 0 : ℤ = z(0, 0).  Let 1 : ℤ = z(1, 0).  Let 2 : ℤ = z(2, 0).
 
 Lemma (int_z_zero).  For all a, b ∈ ℕ, z(a, b) = 0 if and only if a = b.
 
@@ -588,3 +588,11 @@ We will show that d = gcd(a, b).  Let c : ℤ, and suppose that c | a and c | d.
 
 # Bezout's Theorem, Wiedjik #60
 Corollary.  For all a, b ∈ ℤ, if a ≠ 0 or b ≠ 0 then there exist m, n ∈ ℤ such that ma + nb = gcd(a, b).
+
+# The Euclidean algorithm
+
+Axiom.  There exists a function r : ℤ ⨯ ℤ ⨯ ℤ → ℤ such that for all a, b ∈ ℤ,
+
+    a. r(a, b, 0) = a.
+    b. r(a, b, 1) = b.
+    c. For all j : ℤ, if j ≥ 0 and r(a, b, j + 1) > 0 then r(a, b, j) = r(a, b, j + 1) · q + r(a, b, j + 2) for some q ∈ ℤ and 0 < r(a, b, j + 2) < r(a, b, j + 1).

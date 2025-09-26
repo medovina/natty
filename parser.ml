@@ -262,6 +262,7 @@ and prop_operators = [
   [ infix "or" _or Assoc_left ];
   [ infix "implies" implies Assoc_right ];
   [ Postfix (str "for all" >> id_type |>> _for_all') ];
+  [ Postfix (str "for some" >> id_type |>> _exists') ];
   [ Infix (any_str ["iff"; "if and only if"] >>$ _iff, Assoc_right) ];
   [ Infix (str "," >>? and_op >>$ _and, Assoc_left) ];
   [ Infix (str "," >>? str "or" >>$ _or, Assoc_left) ];

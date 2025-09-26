@@ -96,7 +96,7 @@ small_prop =
     atomic | if_then_prop | for_all_prop | exists_prop |
     small_prop prop_op small_prop |
     small_prop 'is' predicate |
-    small_prop 'for all' id_type;
+    small_prop 'for' ('all' | 'some') id_type;
 
 (* propositions *)
 
