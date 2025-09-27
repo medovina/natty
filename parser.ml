@@ -157,8 +157,9 @@ let so =
 let have = any_str 
   ["clearly"; "it is clear that"; "it must be that";
    "the only alternative is"; "this shows that";
-   "we conclude that"; "we deduce that"; "we have";
+   "we conclude that"; "we deduce that";
    "we know that"; "we must have"; "we see that"] <|>
+   (str "we have" << opt_str "shown that") <|>
    (str "similarly" << opt_str ",") <|>
    (any_str ["it follows"; "it then follows"] >>
       optional ((str "from" >> reference) <|> reason) >>
@@ -272,7 +273,8 @@ and if_then_prop s : formula pr =
   pipe2 (str "if" >> small_prop << opt_str ",") (str "then" >> small_prop)
     implies s
 
-and for_all_ids s : (id * typ) list pr = (str "For all" >> ids_types << str ",") s
+and for_all_ids s : (id * typ) list pr =
+    (str "For all" >> ids_types << optional (str ",")) s
 
 and for_all_prop s : formula pr = pipe2
   for_all_ids small_prop for_all_vars_types s
