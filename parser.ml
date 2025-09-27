@@ -143,9 +143,11 @@ let reference = choice [
   str "part" >> parens number << opt_str "of this theorem"
   ]
 
-let reason =
-  (any_str ["by"; "using"] >>? reference) <|>
-    (str "by" >>? opt_str "the inductive" >>? any_str ["assumption"; "hypothesis"])
+let reason = choice [
+  any_str ["by"; "using"] >>? reference;
+  str "by" >>? optional (any_str ["the inductive"; "the induction"]) >>?
+    any_str ["assumption"; "hypothesis"];
+  str "by definition" ]
 
 (* operators for small propositions *)
 
@@ -161,7 +163,7 @@ let have = any_str
    "we conclude that"; "we deduce that";
    "we know that"; "we must have"; "we see that"] <|>
    (str "we have" << opt_str "shown that") <|>
-   (str "similarly" << opt_str ",") <|>
+   (any_str ["on the other hand"; "similarly"] << opt_str ",") <|>
    (any_str ["it follows"; "it then follows"] >>
       optional ((str "from" >> reference) <|> reason) >>
       str "that")
@@ -214,6 +216,7 @@ and operators = [
   [ infix_binop "∈" Assoc_none ;
     infix_negop "∉" "∈" Assoc_none ;
     infix_binop "|" Assoc_none;
+    infix_negop "∤" "|" Assoc_none ;  (* does not divide *)
     infix_binop "~" Assoc_none ];
   [ infix "∧" _and Assoc_left ];
   [ infix "∨" _or Assoc_left ];

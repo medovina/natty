@@ -45,7 +45,8 @@ theorem_ref = ':' name;
 reference = theorem_ref | 'part (' number ')' ['of this theorem'];
 
 reason = (('by' | 'using') reference) |
-            'by' ['the inductive'] ('assumption' | 'hypothesis');
+          'by' ['the' ('inductive' | 'induction')] ('assumption' | 'hypothesis') |
+          'by definition';
 
 (* terms *)
 
@@ -57,7 +58,7 @@ terms = term+;
 
 (* expressions *)
 
-binary_op = '·' | '+' | '-' | '∈' | '∉' | '|' | '∧' | '∨' | '→' | '↔';
+binary_op = '·' | '+' | '-' | '∈' | '∉' | '|' | '∤' | '∧' | '∨' | '→' | '↔';
 
 base_expr = terms |
     base_expr binary_op base_expr |
@@ -167,7 +168,8 @@ so = 'also' | 'but' ['then'] | 'consequently' | 'hence' | 'however' | 'so' | 'th
     
 have = 'clearly' |
     'it' ['then'] 'follows' ['from' reference | reason] 'that' |
-    'it is clear that' | 'it must be that' | 'similarly' [','] |
+    'it is clear that' | 'it must be that' |
+    'on the other hand' [','] | 'similarly' [','] |
     'the only alternative is' | 'this shows that' | 'trivially' |
     'we conclude that' | 'we deduce that' | 'we have' ['shown that'] |
     'we know that' | 'we must have' | 'we see that';

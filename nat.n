@@ -563,6 +563,10 @@ By :int_well_ordered, there exists some r : ℤ such that r is a least element o
 
 Definition.  For all a ∈ ℤ, a is prime iff a > 1 and for all b ∈ ℤ, if b > 0 and b | a then b = 1 or b = a.
 
+Lemma.  For all p ∈ ℤ, if p is prime then p ∤ 1.
+
+Proof.  Let p : ℤ, and suppose that p is prime.  Suppose that p | 1.  Then p ≤ 1 by :divisor_le, however p > 1 by definition.  This is a contradiction, so p ∤ 1.
+
 Lemma (int_has_prime_divisor).  For all a ∈ ℤ, if a > 1 then there exists p ∈ ℤ such that p is prime and p | a.
 
 Proof.  Suppose that there exists some k ∈ ℤ such that k > 1 and there exists no p ∈ ℤ such that p is prime and p | k.  Let
@@ -574,7 +578,7 @@ We have k ∈ G.  So by :int_well_ordered there exists some n : ℤ such that n 
 Axiom. There is a function ∏ : ℤ ⨯ (ℤ → ℤ) → ℤ such that for all P : ℤ → ℤ,
 
  a. ∏(0, P) = 1.
- b. For all n : ℤ, if n > 0 then ∏(n, P) = P(n) · ∏(n − 1, P).
+ b. For all n : ℤ, if n > 0 then ∏(n, P) = P(n − 1) · ∏(n − 1, P).
 
 # Euclid's theorem, Wiedjik #11
 Theorem.  { x ∈ ℤ | x is prime } is infinite.
@@ -630,7 +634,7 @@ By :gcd_lemma d | a and d | b.
 We will show that d = gcd(a, b).  Let c : ℤ, and suppose that c | a and c | d.  d is a linear combination of a and b, so by :int_divides_linear_combo we know that c | d.  Then by :divisor_le c ≤ d.  So d = gcd(a, b).
 
 # Bezout's Theorem, Wiedjik #60
-Corollary.  For all a, b ∈ ℤ, if a ≠ 0 or b ≠ 0 then there exist m, n ∈ ℤ such that ma + nb = gcd(a, b).
+Corollary (bezout).  For all a, b ∈ ℤ, if a ≠ 0 or b ≠ 0 then there exist m, n ∈ ℤ such that ma + nb = gcd(a, b).
 
 # Euclid's algorithm
 
@@ -665,3 +669,15 @@ Now let i ∈ ℤ, and suppose that i ≥ 0 and i ∈ T.  If i + 1 ≥ j then tr
 So i + 1 ∈ T.  Then by :int_induction we know that for all i ∈ ℤ, i ≥ 0 implies i ∈ T.
 
 j > 0, so j − 1 ≥ 0 by :int_discrete_lt.  Then j − 1 ∈ T, so gcd(r(a, b, j − 1), r(a, b, j)) = gcd(a, b).  But j ∈ S, so r(a, b, j) = 0.  Now we have gcd(a, b) = gcd(r(a, b, j − 1), 0) = r(a, b, j − 1) by :gcd_zero.
+
+Lemma (divides_other_factor).  For all a, b, c ∈ ℤ, if a > 0 and b > 0 and c > 0 and gcd(a, b) = 1 and a | bc, then a | c.
+
+Proof.  Let a, b, c ∈ ℤ, and suppose that a > 0 and b > 0 and c > 0 and gcd(a, b) = 1 and a | bc.  Then by :bezout there exist x, y : ℤ such that ax + by = 1.  So acx + bcy = c.  acx + bcy is a linear combination of a and bc, and a | a and a | bc.  So by :int_divides_linear_combo a | acx + bcy.  Hence a | c.
+
+Lemma.  For all p ∈ ℤ and A ∈ ℤ → ℤ and n ∈ ℤ, if p is prime and n ≥ 0 and p | ∏(n, A), then there exists i ∈ ℤ such that 0 ≤ i < n and p | A(i).
+
+Proof.  Let p ∈ ℤ, and suppose that p is prime.  Let A ∈ ℤ → ℤ.  Let
+
+    S = { n ∈ ℤ | if p | ∏(n, A), then there exists i ∈ ℤ such that 0 ≤ i < n and p | A(i) }.
+
+∏(0, A) = 1 by definition, so p ∤ ∏(0, A), so 0 ∈ S.  Now let n ∈ ℤ, and suppose that n ∈ S.  Suppose that p | ∏(n + 1, A).  We must have ∏(n + 1, A) = A(n) · ∏(n, A).  We know that either gcd(p, ∏(n, A)) = 1 or gcd(p, ∏(n, A)) = p.  If gcd(p, ∏(n, A)) = 1, then by :divides_other_factor p | ∏(n, A).  On the other hand, if gcd(p, ∏(n, A)) = p, then p | ∏(n, A), so by the induction hypothesis there exists i ∈ ℤ such that 0 ≤ i < n and p | A(i).  In either case there exists some i ∈ ℤ such that 0 ≤ i < n + 1 and p | A(i).  And so n + 1 ∈ S.  Then by :int_induction for all i ∈ ℤ if i ≥ 0 then i ∈ S.

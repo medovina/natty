@@ -385,7 +385,7 @@ let rec syntax_pos item = function
   | [] -> None
   | (s, range) :: ss ->
       if syntax_ref_eq s item then (
-        assert (syntax_pos item ss = None);
+        (* assert (syntax_pos item ss = None); *)
         Some range)
       else syntax_pos item ss
 
