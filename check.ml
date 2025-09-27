@@ -82,7 +82,10 @@ and possible_app env dot_types vars formula f g with_dot : (typ * typ * typ * bo
       else [] in
     app @ prod in
   match all with
-    | [] -> errorf "can't apply" formula
+    | [] ->
+        printf "f types: %s\n" (comma_join (map show_type (possible f)));
+        printf "g types: %s\n" (comma_join (map show_type (possible g)));
+        errorf "can't apply" formula
     | all -> all
 
 let tuple_cons_type typs : typ =

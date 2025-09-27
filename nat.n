@@ -419,7 +419,7 @@ Theorem.  Let i, j, k ∈ ℤ.
   1. Precisely one of i < j or i = j or i > j holds.    [int_trichotomy]
   2. If i < j and j < k, then i < k.        [int_lt_trans]
   3. If i ≤ j and j < k, then i < k.
-  4. If i < j and j ≤ k, then i < k.
+  4. If i < j and j ≤ k, then i < k.        [int_lt_le_trans]
   5. If i ≤ j and j ≤ k, then i ≤ k.        [int_le_trans]
   6. If i < j then i + k < j + k.            [int_lt_add_right]
   7. If i < j and k > 0, then ik < jk.    [int_lt_mul_right]
@@ -446,7 +446,7 @@ Theorem.  Let i, j ∈ ℤ.
 
   1. i > 0 if and only if −i < 0, and i < 0 if and only if −i > 0.  [int_lt_neg]
   2. 0 : ℤ < 1 : ℤ.
-  3. If i ≤ j and j ≤ i, then i = j.
+  3. If i ≤ j and j ≤ i, then i = j.       [int_le_antisymm]
   4. If i > 0 and j > 0, then ij > 0.
   5. If i > 0 and j < 0, then ij < 0.
   6. If i > 0 and j ≤ 0, then ij ≤ 0.   [int_mul_pos_nonneg]
@@ -479,7 +479,7 @@ Proof.
 
 # Mathematical induction on non-negative integers
 
-Theorem.  For all S : ℤ → 𝔹, if 0 ∈ S and for all i ∈ ℤ i ≥ 0 and i ∈ S implies i + 1 ∈ S, then for all i ∈ ℤ i ≥ 0 implies i ∈ S.
+Theorem (int_induction).  For all S : ℤ → 𝔹, if 0 ∈ S and for all i ∈ ℤ i ≥ 0 and i ∈ S implies i + 1 ∈ S, then for all i ∈ ℤ i ≥ 0 implies i ∈ S.
 
 Proof.  Let S : ℤ → 𝔹, and suppose that 0 ∈ S and for all i ∈ ℤ i ≥ 0 and i ∈ S implies i + 1 ∈ S.  Let T = { n ∈ ℕ | there exists i ∈ ℤ such that i ≥ 0 and i ∈ S and n = π(i) }.  0 = π(0), so 0 ∈ T.  Now let n : ℕ, and suppose that n ∈ T.  Then there exists some i ∈ ℤ such that i ≥ 0 and i ∈ S and n = π(i). So i + 1 ∈ S.  Now, π(i + 1) = π(i) + π(1) = n + 1 = s(n), so s(n) ∈ T.  We have shown that n ∈ T implies s(n) ∈ T for all n ∈ ℕ.  Then T = ℕ by :nat_induction.  Now let i ∈ ℤ, and suppose that i ≥ 0.  Since T = ℕ, there exists j ∈ ℤ such that j ≥ 0 and j ∈ S and π(i) = π(j).  Then by :int_proj_injective we have i = j, so i ∈ S.
 
@@ -488,6 +488,10 @@ Proof.  Let S : ℤ → 𝔹, and suppose that 0 ∈ S and for all i ∈ ℤ i �
 Definition.  For all S : ℤ → 𝔹, S is empty iff there is no n : ℤ such that n ∈ S.  S is nonempty iff S is not empty.
 
 Definition.  For all A : ℤ → 𝔹 and a : ℤ, a is a least element of A iff a ∈ A and for all x : ℤ, if x ∈ A then a ≤ x.  a is a greatest element of A iff a ∈ A and for all x : ℤ, if x ∈ A then x ≤ a.
+
+Theorem (int_greatest_unique).  For all A : ℤ → 𝔹 and x, y : ℤ, if x is a greatest element of A, and y is a greatest element of A, then x = y.
+
+Proof.  Let A : ℤ → 𝔹.  Let x, y : ℤ.  Suppose that x is a greatest element of A, and y is a greatest element of A.  Then x ≤ y and y ≤ x.  It follows by :int_le_antisymm that x = y.
 
 Theorem (int_well_ordered). Let S : ℤ → 𝔹.  Suppose that S is nonempty, and for all i ∈ ℤ, if i ∈ S then i ≥ 0.  Then there exists some m : ℤ such that m is a least element of S.
 
@@ -498,13 +502,16 @@ Proof.  Let S : ℤ → 𝔹, and suppose that S is nonempty and for all i ∈ �
 Theorem.  Let x, y ∈ ℤ.
 
     1. It cannot be that x < y < x + 1.     [int_discrete]
-    2. x < y if and only if x + 1 ≤ y.          [int_discrete_lt]
+    2. x ≤ y if and only if x < y + 1.         [int_discrete_le]
+    3. x < y if and only if x + 1 ≤ y.         [int_discrete_lt]
 
 Proof.
 
     1. Let x, y ∈ ℤ.  Suppose that x < y < x + 1.  Then x − x < y − x < (x + 1) − x, and we deduce that 0 < y − x < 1.  By :int_lt_trans we know that y − x ≥ 0, and also 1 : ℤ ≥ 0.  Then by :int_proj_lt π(0) < π(y − x) < π(1), which is a contradiction to :nat_discrete.
 
-    2. Let x, y ∈ ℤ.  First suppose that x < y.  Suppose further that x + 1 > y.  Then x < y < x + 1, which is a contradiction to part (1) of this theorem.  So it must be that x + 1 ≤ y.  Second, suppose that x + 1 ≤ y.  Then by :int_le_trans we deduce that x + 1 ≤ x.  However 1 : ℤ > 0, so by :int_lt_add_right we have x + 1 > x + 0 = x.  This is a contradiction.
+    2. Let x, y ∈ ℤ.  First suppose that x ≤ y.  Suppose further that x ≥ y + 1.  Then by :int_le_trans we deduce that y + 1 ≤ y.  However 1 : ℤ > 0, so by :int_lt_add_right we know that y + 1 > y + 0 = y.  This is a contradiction.  Second, suppose that x < y + 1.  Suppose further that x > y.  It follows that y < x < y + 1, which is a contradiction to part (1) of this theorem.  So it must be that x ≤ y.
+
+    3. Let x, y ∈ ℤ.  First suppose that x < y.  Suppose further that x + 1 > y.  Then x < y < x + 1, which is a contradiction to part (1) of this theorem.  So it must be that x + 1 ≤ y.  Second, suppose that x + 1 ≤ y.  Then by :int_le_trans we deduce that x + 1 ≤ x.  However 1 : ℤ > 0, so by :int_lt_add_right we know that x + 1 > x + 0 = x.  This is a contradiction.
 
 Theorem.  Let a, b, c ∈ ℤ.  If c > 0 and ab = c, then a ≤ c.    [int_factor_less]
 
@@ -534,6 +541,10 @@ Lemma.  For all a ∈ ℤ, a | a.
 
 Proof.  Let a ∈ ℤ.  a = a · 1, so a | a.
 
+Lemma (divisor_le).  For all a, b ∈ ℤ, if b > 0 and a | b then a ≤ b.
+
+Proof.  Let a, b ∈ ℤ, and suppose that b > 0 and a | b.  Then there is some c ∈ ℤ such that b = ac.  By :int_factor_less, a ≤ b.
+
 Theorem (int_div_trans). For all a, b, c ∈ ℤ, if a | b and b | c then a | c.
 
 Proof.  Let a, b, c : ℤ, and suppose that a | b and b | c.  There is some e ∈ ℤ such that ae = b.  Similarly, there is some f ∈ ℤ such that bf = c.  Hence c = bf = (ae)f = a(ef), and we conclude that a | c.
@@ -546,7 +557,7 @@ Theorem (int_division_algorithm).  For all a, b ∈ ℤ, if b > 0 then there exi
 
 Proof.  Let a, b ∈ ℤ, and suppose that b > 0.  Let S = { i ∈ ℤ | i ≥ 0 and there exists k ∈ ℤ such that i = a − bk }.  We will show that S is nonempty.  Suppose that a ≥ 0.  Then a − b · 0 ≥ 0, so a − b · 0 ∈ S.  Conversely, suppose that a < 0.  There exists d : ℤ such that d = a − b · a.  Then d = a(1 − b).  b > 0, so by :int_discrete b ≥ 1.  Then b − b ≥ 1 − b, so 1 − b ≤ 0.  It follows by :int_mul_neg_neg that d ≥ 0, so d ∈ S.  In any case S is nonempty.
 
-By :int_well_ordered, there exists some r : ℤ such that r is a least element of S.  r ∈ S, so r ≥ 0.  We know that there exists q : ℤ such that r = a − bq.  Suppose that r ≥ b.  There exists d : ℤ such that d = a - b(q + 1).  Then d = a - bq - b = r - b.  Since r ≥ b, we have r - b ≥ 0, so d ≥ 0, so d ∈ S.  By :int_lt_neg −b < 0, so r > r − b by :int_lt_add_right, so d < r.  This is a contradiction.  Hence 0 ≤ r < b and a = bq + r.
+By :int_well_ordered, there exists some r : ℤ such that r is a least element of S.  r ∈ S, so r ≥ 0.  We know that there exists q : ℤ such that r = a − bq.  Suppose that r ≥ b.  There exists d : ℤ such that d = a − b(q + 1).  Then d = a − bq − b = r − b.  Since r ≥ b, we have r − b ≥ 0, so d ≥ 0, so d ∈ S.  By :int_lt_neg −b < 0, so r > r − b by :int_lt_add_right, so d < r.  This is a contradiction.  Hence 0 ≤ r < b and a = bq + r.
 
 # Prime numbers
 
@@ -568,7 +579,7 @@ Axiom. There is a function ∏ : ℤ ⨯ (ℤ → ℤ) → ℤ such that for all
 # Euclid's theorem, Wiedjik #11
 Theorem.  { x ∈ ℤ | x is prime } is infinite.
 
-Proof.  Suppose that there exists n : ℤ and P : ℤ → ℤ with n > 0 such that for all x : ℤ, x is prime iff there exists i : ℤ such that 0 ≤ i < n and P(i) = x.  Let Q : ℤ, and suppose that Q = ∏(n, P) + 1.  By :int_has_prime_divisor, there exists q : ℤ such that q is prime and q | Q.  Suppose that there is some j : ℤ such that 0 ≤ j < n and q = P(j).  We know that Q - ∏(n, P) = 1. q | Q and q | ∏(n, P), so by :int_divides_linear_combo it follows that q | 1.  This is a contradiction.  So q is prime, but there is no j : ℤ such that j < n and q = P(j).  This is a contradiction, so { x ∈ ℤ | x is prime } is infinite.
+Proof.  Suppose that there exists n : ℤ and P : ℤ → ℤ with n > 0 such that for all x : ℤ, x is prime iff there exists i : ℤ such that 0 ≤ i < n and P(i) = x.  Let Q : ℤ, and suppose that Q = ∏(n, P) + 1.  By :int_has_prime_divisor, there exists q : ℤ such that q is prime and q | Q.  Suppose that there is some j : ℤ such that 0 ≤ j < n and q = P(j).  We know that Q − ∏(n, P) = 1. q | Q and q | ∏(n, P), so by :int_divides_linear_combo it follows that q | 1.  This is a contradiction.  So q is prime, but there is no j : ℤ such that j < n and q = P(j).  This is a contradiction, so { x ∈ ℤ | x is prime } is infinite.
 
 # Greatest common divisors
 
@@ -576,9 +587,17 @@ Definition.  For all a, b, c ∈ ℤ, c is a common divisor of a and b iff c | a
 
 Axiom.  There is a function gcd : ℤ ⨯ ℤ → ℤ such that for all a, b ∈ ℤ, if a ≠ 0 or b ≠ 0 then gcd(a, b) is a greatest element of { x ∈ ℤ | x is a common divisor of a and b }.
 
-Theorem.  For all a, b, c : ℤ, if a ≠ 0 or b ≠ 0 then gcd(a + cb, b) = gcd(a, b).
+Theorem (gcd_zero).  For all a ∈ ℤ, if a > 0 then gcd(a, 0) = a.
 
-Proof.  Let a, b, c : ℤ, and suppose that a ≠ 0 and b ≠ 0.  We will show that for all x : ℤ, x is a common divisor of a and b iff x is a common divisor of a + cb and b.  Let e : ℤ, and suppose that e is a common divisor of a and b.  By :int_divides_linear_combo, we see that e | (a + cb), so e is a common divisor of a + cb and b.  Now let f : ℤ, and suppose that f is a common divisor of a + cb and b.  Then by :int_divides_linear_combo we see that f | ((a + cb) - cb), so f | a.  So f is a common divisor of a and b.  So { x ∈ ℤ | x is a common divisor of a + cb and b } = { x ∈ ℤ | x is a common divisor of a and b }.  Hence gcd(a + cb, b) = gcd(a, b).
+Proof.  Let a ∈ ℤ, and suppose that a > 0.  a | a and a | 0, so gcd(a, 0) ≥ a.  For all b ∈ ℤ, if b | a then b ≤ a by :divisor_le.  So gcd(a, 0) ≤ a.  It follows by :int_le_antisymm that gcd(a, 0) = a.
+
+Theorem (gcd_symmetric).  For all a, b ∈ ℤ, if a ≠ 0 or b ≠ 0 then gcd(a, b) = gcd(b, a).
+
+Proof.  Let a, b ∈ ℤ, and suppose that a ≠ 0 or b ≠ 0.  Let S = { x ∈ ℤ | x is a common divisor of a and b }.  Let T = { x ∈ ℤ | x is a common divisor of b and a }.  gcd(a, b) is a greatest element of S, and gcd(b, a) is a greatest element of T.  But for all x, y, z ∈ ℤ, x is a common divisor of y and z iff x is a common divisor of z and y.  So S = T, so gcd(b, a) is a greatest element of S.  Then by :int_greatest_unique we have gcd(a, b) = gcd(b, a).
+
+Theorem (gcd_add_multiple).  For all a, b, c : ℤ, if a ≠ 0 or b ≠ 0 then gcd(a + cb, b) = gcd(a, b).
+
+Proof.  Let a, b, c : ℤ, and suppose that a ≠ 0 and b ≠ 0.  We will show that for all x : ℤ, x is a common divisor of a and b iff x is a common divisor of a + cb and b.  Let e : ℤ, and suppose that e is a common divisor of a and b.  By :int_divides_linear_combo, we see that e | (a + cb), so e is a common divisor of a + cb and b.  Now let f : ℤ, and suppose that f is a common divisor of a + cb and b.  Then by :int_divides_linear_combo we see that f | ((a + cb) − cb), so f | a.  So f is a common divisor of a and b.  So { x ∈ ℤ | x is a common divisor of a + cb and b } = { x ∈ ℤ | x is a common divisor of a and b }.  Hence gcd(a + cb, b) = gcd(a, b).
 
 Definition.  For all a, b, c : ℤ, c is a linear combination of a and b iff there exist m, n : ℤ such that c = ma + nb.
 
@@ -596,7 +615,7 @@ By :int_division_algorithm there exist q, r ∈ ℤ such that
 
 We see that
 
-    r = a - dq = a - q(ma +nb) = (1 - qm)a - qnb.
+    r = a − dq = a − q(ma +nb) = (1 − qm)a − qnb.
 
 This shows that r is a linear combination of a and b.  Because 0 ≤ r < d, and d is a least element of { i ∈ ℤ | i > 0 and i is a linear combination of a and b }, we conclude that r = 0.  Hence d | a.
 
@@ -608,22 +627,41 @@ Proof.  Let a, b ∈ ℤ, and suppose that a ≠ 0 or b ≠ 0. Let S = { i ∈ �
 
 By :gcd_lemma d | a and d | b.
 
-We will show that d = gcd(a, b).  Let c : ℤ, and suppose that c | a and c | d.  d is a linear combination of a and b, so by :int_divides_linear_combo we know that c | d.  Then by :int_factor_less c ≤ d.  So d = gcd(a, b).
+We will show that d = gcd(a, b).  Let c : ℤ, and suppose that c | a and c | d.  d is a linear combination of a and b, so by :int_divides_linear_combo we know that c | d.  Then by :divisor_le c ≤ d.  So d = gcd(a, b).
 
 # Bezout's Theorem, Wiedjik #60
 Corollary.  For all a, b ∈ ℤ, if a ≠ 0 or b ≠ 0 then there exist m, n ∈ ℤ such that ma + nb = gcd(a, b).
+
+# Euclid's algorithm
 
 Axiom.  There exists a function r : ℤ ⨯ ℤ ⨯ ℤ → ℤ such that for all a, b ∈ ℤ,
 
     a. r(a, b, 0) = a.
     b. r(a, b, 1) = b.
-    c. For all i : ℤ, if i ≥ 0 and r(a, b, i + 1) > 0 then r(a, b, i) = r(a, b, i + 1) · q + r(a, b, i + 2) for some q ∈ ℤ and 0 < r(a, b, i + 2) < r(a, b, i + 1).
+    c. For all i : ℤ, if i ≥ 0 and r(a, b, i + 1) > 0 then r(a, b, i) = r(a, b, i + 1) · q + r(a, b, i + 2) for some q ∈ ℤ and 0 ≤ r(a, b, i + 2) < r(a, b, i + 1).  [euclidean_sequence]
 
-Lemma.  For all a, b, j ∈ ℤ, if a ≥ b > 0 and j ≥ 0 and r(a, b, j) > 0 then gcd(r(a, b, j), r(a, b, j + 1)) = gcd(a, b).
+Lemma (decrease_terminates).  For all f : ℤ → ℤ, if f(0) > 0 and for all i ∈ ℤ i ≥ 0 and f(i) > 0 implies that 0 ≤ f(i + 1) < f(i), then there exists some i ∈ ℤ such that i ≥ 0 and f(i) = 0.
 
-# Proof.  Let a, b ∈ ℤ, and suppose that a ≥ b > 0.  Let S =
+Proof.  Let f : ℤ → ℤ, and suppose that f(0) > 0 and for all i ∈ ℤ, i ≥ 0 and f(i) > 0 implies that 0 ≤ f(i + 1) < f(i).  Assume that for all i ∈ ℤ, if i ≥ 0 then f(i) ≠ 0.  Let S = { i ∈ ℤ | 0 < f(i) ≤ f(0) − i }.  We have 0 < f(0) ≤ f(0) − 0, so 0 ∈ S.  Now let i ∈ ℤ, and suppose that i ≥ 0 and i ∈ S.  Then 0 < f(i) ≤ f(0) − i, and also 0 ≤ f(i + 1) < f(i).  By assumption f(i + 1) ≠ 0, so f(i + 1) > 0.  Also f(i + 1) < f(i) ≤ f(0) − i, so by :int_lt_le_trans f(i + 1) < f(0) − i, so f(i + 1) < f(0) − (i + 1) + 1, so by :int_discrete_le we have f(i + 1) ≤ f(0) − (i + 1).  This shows that i + 1 ∈ S.  Then by :int_induction we know that for all i ∈ ℤ, i ≥ 0 implies i ∈ S.  But then f(0) ∈ S, so 0 < f(0) ≤ f(0) − f(0), which implies that 0 : ℤ < 0, a contradiction.  So there must exist some i ∈ ℤ such that i ≥ 0 and f(i) = 0.
 
-#     { j ∈ ℤ | 
+Lemma (euclid_terminates).  For all a, b ∈ ℤ, if a ≥ b > 0 then there exists some i ∈ ℤ such that i ≥ 0 and r(a, b, i) = 0.
+
+Proof.  Let a, b ∈ ℤ, and suppose that a ≥ b > 0. There exists f : ℤ → ℤ such that for all i ∈ ℤ, f(i) = r(a, b, i + 1).  f(0) = r(a, b, 1) = b, so f(0) > 0.  Let i ∈ ℤ, and suppose that i ≥ 0 and f(i) > 0. Then r(a, b, i + 1) > 0, so 0 ≤ r(a, b, i + 2) < r(a, b, i + 1) by :euclidean_sequence, so 0 ≤ f(i + 1) < f(i).  Then by :decrease_terminates there is some j ∈ ℤ such that j ≥ 0 and r(a, b, j + 1) = 0.  There is some i ∈ ℤ such that i = j + 1.  We have i ≥ 0 and r(a, b, i) = 0.
 
 # Euclidean algorithm, Wiedjik #69
-Theorem.  For all a, b ∈ ℤ, if a ≥ b > 0 then there exists some j ∈ ℤ such that j > 0 and r(a, b, j) = gcd(a, b) and r(a, b, j + 1) = 0 and for all i ∈ ℤ, if 0 ≤ i ≤ j then r(a, b, i) > 0.
+Theorem.  For all a, b ∈ ℤ, if a ≥ b > 0 then there exists some j ∈ ℤ such that j is a least element of { i ∈ ℤ | i ≥ 0 and r(a, b, i) = 0 }, and r(a, b, j − 1) = gcd(a, b).
+
+Proof.  Let a, b ∈ ℤ, and suppose that a ≥ b > 0.  Let S = { i ∈ ℤ | i ≥ 0 and r(a, b, i) = 0 }.  By :euclid_terminates we know that S is nonempty.  Then by :int_well_ordered there is some j ∈ ℤ such that j is a least element of S.  r(a, b, 0) = a > 0, so it must be that j > 0.
+
+Let T = { i ∈ ℤ | if 0 ≤ i < j then gcd(r(a, b, i), r(a, b, i + 1)) = gcd(a, b) and r(a, b, i + 1) ≥ 0 }.  We know that r(a, b, 0) = a and r(a, b, 1) = b > 0, so 0 ∈ T.
+
+Now let i ∈ ℤ, and suppose that i ≥ 0 and i ∈ T.  If i + 1 ≥ j then trivially i + 1 ∈ T.  Suppose that i + 1 < j.  By hypothesis r(a, b, i + 1) ≥ 0.  Since j is a least element of S we know that r(a, b, i + 1) ≠ 0, so r(a, b, i + 1) > 0.  Then by :euclidean_sequence we know that r(a, b, i) = r(a, b, i + 1) · q + r(a, b, i + 2) for some q ∈ ℤ, and r(a, b, i + 2) ≥ 0.  Now
+
+    gcd(r(a, b, i + 1), r(a, b, i + 2))
+        = gcd(r(a, b, i + 2), r(a, b, i + 1))  by :gcd_symmetric
+        = gcd(r(a, b, i), r(a, b, i + 1))         by :gcd_add_multiple
+        = gcd(a, b)                                     by hypothesis .
+
+So i + 1 ∈ T.  Then by :int_induction we know that for all i ∈ ℤ, i ≥ 0 implies i ∈ T.
+
+j > 0, so j − 1 ≥ 0 by :int_discrete_lt.  Then j − 1 ∈ T, so gcd(r(a, b, j − 1), r(a, b, j)) = gcd(a, b).  But j ∈ S, so r(a, b, j) = 0.  Now we have gcd(a, b) = gcd(r(a, b, j − 1), 0) = r(a, b, j − 1) by :gcd_zero.

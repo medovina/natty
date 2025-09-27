@@ -44,7 +44,8 @@ theorem_ref = ':' name;
 
 reference = theorem_ref | 'part (' number ')' ['of this theorem'];
 
-reason = (('by' | 'using') reference) | 'by' ['the inductive'] 'hypothesis';
+reason = (('by' | 'using') reference) |
+            'by' ['the inductive'] ('assumption' | 'hypothesis');
 
 (* terms *)
 
@@ -90,7 +91,8 @@ exists_prop =
     there_exists ['some' | 'no'] ids_types ['with' small_prop]
     'such that' small_prop;
 
-prop_op = 'and' | 'or' | 'implies' | 'if and only if' | 'iff' | ', and' | ', or';
+prop_op = 'and' | 'or' | 'implies' ['that'] | 'if and only if' | 'iff' |
+          ', and' | ', or';
 
 small_prop =
     atomic | if_then_prop | for_all_prop | exists_prop |
@@ -114,7 +116,8 @@ proposition =
 
 let_prop = 'Let' id_type '.' top_prop;
 
-suppose = 'Suppose' ['further'] 'that' proposition {[','] 'and that' proposition};
+suppose = ['Also'] ['assume' | 'suppose'] ['further'] 'that' proposition
+            {[','] 'and that' proposition};
 
 suppose_then = suppose '.' 'Then' proposition;
 
@@ -159,13 +162,13 @@ definition = 'Definition.' ({eq_definition}+ | {def_prop});
 
 (* proofs *)
 
-so = 'also' | 'but' | 'consequently' | 'hence' | 'however' | 'so' | 'then' | 'therefore' |
+so = 'also' | 'but' ['then'] | 'consequently' | 'hence' | 'however' | 'so' | 'then' | 'therefore' |
     'which implies' ['that'] | 'which means that';
     
 have = 'clearly' |
     'it' ['then'] 'follows' ['from' reference | reason] 'that' |
     'it is clear that' | 'it must be that' | 'similarly' [','] |
-    'the only alternative is' | 'this shows that' |
+    'the only alternative is' | 'this shows that' | 'trivially' |
     'we conclude that' | 'we deduce that' | 'we have' ['shown that'] |
     'we know that' | 'we must have' | 'we see that';
 
@@ -187,7 +190,7 @@ to_show = 'To show that' small_prop ',';
 
 assert_step =
     [have] proof_if_prop |
-    ['Because' | 'Since'] proof_prop ',' proof_prop |
+    ['Because' | 'Since'] proof_prop [','] proof_prop |
     [to_show] will_show proposition |
     'The result follows' reason |
     'This is a contradiction' ['to' reference] |

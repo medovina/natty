@@ -145,18 +145,19 @@ let reference = choice [
 
 let reason =
   (any_str ["by"; "using"] >>? reference) <|>
-    (str "by" >>? opt_str "the inductive" >>? str "hypothesis")
+    (str "by" >>? opt_str "the inductive" >>? any_str ["assumption"; "hypothesis"])
 
 (* operators for small propositions *)
 
-let so =
-  any_str ["also"; "but"; "consequently"; "hence"; "however"; "so";
-           "then"; "therefore"; "which means that"] <|>
-  (str "which implies" << opt_str "that")
+let so = choice [
+  any_str ["also"; "consequently"; "hence"; "however"; "so";
+           "then"; "therefore"; "which means that"];
+  str "but" << opt_str "then";
+  str "which implies" << opt_str "that" ]
 
 let have = any_str 
   ["clearly"; "it is clear that"; "it must be that";
-   "the only alternative is"; "this shows that";
+   "the only alternative is"; "this shows that"; "trivially";
    "we conclude that"; "we deduce that";
    "we know that"; "we must have"; "we see that"] <|>
    (str "we have" << opt_str "shown that") <|>
@@ -261,7 +262,7 @@ and atomic s = (
 and prop_operators = [
   [ Infix (and_op >>$ _and, Assoc_left) ];
   [ infix "or" _or Assoc_left ];
-  [ infix "implies" implies Assoc_right ];
+  [ Infix (str "implies" << opt_str "that" >>$ implies, Assoc_right) ];
   [ Postfix (str "for all" >> id_type |>> _for_all') ];
   [ Postfix (str "for some" >> id_type |>> _exists') ];
   [ Infix (any_str ["iff"; "if and only if"] >>$ _iff, Assoc_right) ];
@@ -320,8 +321,8 @@ and proposition s : formula pr = choice [
 
 let rec let_prop s = pipe2 (str "Let" >> id_type << str ".") top_prop _for_all' s
 
-and suppose s = (str "Suppose" >> opt_str "further" >> str "that" >>
-      sep_by1 proposition (opt_str "," >> str "and that")) s
+and suppose s = (opt_str "also" >>? any_str ["assume"; "suppose"] >> opt_str "further" >>
+    str "that" >> sep_by1 proposition (opt_str "," >> str "and that")) s
 
 and suppose_then s = pipe2 (suppose << str ".") (str "Then" >> proposition)
   (fold_right implies) s
@@ -461,7 +462,7 @@ let to_show = str "To show that" >> small_prop << str ","
 
 let assert_step : proof_step_r list p =
   (optional have >>? proof_if_prop) <|> (choice [
-    pipe2 (any_str ["Because"; "Since"] >> proof_prop) (str "," >> proof_prop) (@);
+    pipe2 (any_str ["Because"; "Since"] >> proof_prop) (opt_str "," >> proof_prop) (@);
     optional to_show >> will_show >> proposition >>$ [];
     str "The result follows" >> reason >>$ [];
     single (with_range (str "This is a contradiction" >>
