@@ -515,7 +515,7 @@ Proof.
 
 Theorem.  Let a, b, c ∈ ℤ.  If c > 0 and ab = c, then a ≤ c.    [int_factor_less]
 
-Proof.  Let a, b, c ∈ ℤ.  If a < 0 then by :int_lt_trans we have a < c.  If a = 0 then c = 0, which is a contradiction.  Now suppose that a > 0.  If b ≤ 0 then by :int_mul_pos_nonneg we have c ≤ 0, a contradiction.  So b > 0.  By :int_discrete_lt b ≥ 1.  Then by :int_lt_mul_right we have b · a ≥ 1 · a, so c ≥ a.
+Proof.  Let a, b, c ∈ ℤ, and suppose that c > 0 and ab = c.  If a < 0 then by :int_lt_trans we have a < c.  If a = 0 then c = 0, which is a contradiction.  Now suppose that a > 0.  If b ≤ 0 then by :int_mul_pos_nonneg we have c ≤ 0, a contradiction.  So b > 0.  By :int_discrete_lt b ≥ 1.  Then by :int_lt_mul_right we have b · a ≥ 1 · a, so c ≥ a.
 
 # Functions
 
