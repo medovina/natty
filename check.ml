@@ -46,7 +46,7 @@ let rec possible_types env dot_types vars : formula -> typ list =
         assert (t = t'); [t]
     | App (App (Const ("∈", _), _), _) -> [Bool]
     | App (f, g) -> (
-        match is_tuple_apply formula with
+        match is_untyped_tuple_apply formula with
           | Some (_, args) ->
               let rec poss = function
                 | [] -> [[]]
@@ -135,7 +135,7 @@ let check_formula env formula as_type : formula =
           assert (t = t'); check vars f (Some t)
       | App (App (Const ("∈", _), f), g) -> check_app g f false
       | App (f, g) -> (
-          match is_tuple_apply formula with 
+          match is_untyped_tuple_apply formula with 
             | Some (s, args) ->
                 let args = (match as_type with
                   | Some (Product arg_types) ->

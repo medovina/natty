@@ -263,13 +263,15 @@ let collect_args t : formula * formula list =
   let (head, args) = collect t in
   (head, rev args)
 
-let is_tuple_apply f =
+let is_tuple_apply f allow_typed =
   let (head, args) = collect_args f in
   match head with
-    | Const (s, _) when starts_with "(," s ->
+    | Const (s, _) when starts_with "(," s && (allow_typed || ends_with ",)" s) ->
         assert (tuple_arity s = length args);
         Some (s, args)
     | _ -> None
+
+let is_untyped_tuple_apply f = is_tuple_apply f false
 
 let show_formula_multi multi f =
   let rec show indent multi outer right f =
@@ -312,7 +314,7 @@ let show_formula_multi multi f =
         | Const (id, _typ) -> without_type_suffix id
         | Var (id, _typ) -> id
         | App (t, u) -> (
-            match is_tuple_apply f with
+            match is_tuple_apply f true with
               | Some (_, args) ->
                   parens_if (outer > -2) @@
                     comma_join (map (show1 (-1) false) args)

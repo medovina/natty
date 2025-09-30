@@ -41,7 +41,7 @@ all_provers = {
 all_prover_names = list(all_provers.keys())
 
 def sort_key(s):
-    s = re.sub(':.*', '', s)
+    s = s.split(':')[0]
     return [int(n) for n in s.replace('s', '').split('_')]
 
 def read_theorems():
@@ -52,16 +52,19 @@ def read_theorems():
     for file in files:
         with open(path.join(conf.dir, file + '.thf')) as f:
             conjecture = f.readline().strip().removeprefix('% Problem: '.strip())
-        id = file.replace('_', '.')
+        is_step = re.search(r'_s\d+$', file) is not None
         if conf.prove_steps:
-            if '_s' in file:
+            if is_step:
                 include = True
             else:
-                prefix = file.removesuffix('.thf') + '_s'
+                prefix = file.split(':')[0] + '_s'
                 include = not any(f.startswith(prefix) for f in files)  # theorem has no steps
         else:
-            include = '_s' not in file
+            include = not is_step
         if include:
+            w = file.split(':')
+            w[0] = w[0].replace('_', '.')
+            id = ':'.join(w)
             theorems[id] = conjecture
     return theorems
 
