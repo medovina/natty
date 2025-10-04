@@ -78,9 +78,9 @@ let thf_statement is_conjecture f : string =
     | ConstDecl (id, typ) -> [const id typ]
     | Axiom (name, f, _) -> [axiom ("ax_" ^ name) "axiom" f]
     | Hypothesis (name, f) -> thm_or_hyp name "hypothesis" f
-    | Definition (id, typ, _f) as def -> [
+    | Definition (id, typ, f) -> [
         const id typ;
-        axiom (id ^ "_def") "definition" (Option.get (stmt_formula def))
+        axiom (id ^ "_def") "definition" f
         ]
     | Theorem (num, _, f, _, _) ->
         let kind = if is_conjecture then "conjecture" else "theorem" in

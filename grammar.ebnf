@@ -159,7 +159,7 @@ eq_definition = 'Let' sym ':' typ '=' term '.';
 
 def_prop = ['we write'] proposition '.';
 
-definition = 'Definition.' ({eq_definition}+ | {def_prop});
+definition = 'Definition.' ({eq_definition}+ | for_all_ids {def_prop});
 
 (* proofs *)
 

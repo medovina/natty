@@ -446,34 +446,6 @@ let eq_pairs para_ok f = match terms f with
         (if para_ok then oriented t t' else [])   (* iii: pre-check *)
   | (false, t, t') -> [(Eq (t, t'), _false)]
 
-let init_csv_header =
-  "theorem,id,inv_id,hypothesis,last_hyp,goal," ^
-  "definition,inductive,associative,commutative," ^
-  "lits,lits_gt_1,lits_gt_2,weight,in_proof,formula"
-
-let write_initial thm_name all in_proof out =
-  let last_id = maximum (map id_of all) in
-  let hypotheses = filter (fun pf -> pf.hypothesis) all in
-  let last_hyp =
-    if hypotheses = [] then None
-    else Some (maximum_by id_of hypotheses) in
-  let (goals, non_goals) = partition (fun pf -> pf.goal) all in
-  let goals_in_proof = goals |> filter (fun g -> memq g in_proof) in
-  let goals = if goals_in_proof = [] then [hd goals] else goals_in_proof in
-  let all = goals @ non_goals in
-  let b = function | true -> "T" | false -> "F" in
-  all |> sort_by id_of |> iter (fun pf ->
-    let lits, weight = num_literals pf.formula, weight pf.formula in
-    fprintf out "\"%s\",%d,%d," thm_name pf.id (last_id - pf.id);
-    fprintf out "%s,%s,%s,%s,"
-      (b pf.hypothesis) (b (opt_exists ((==) pf) last_hyp))
-      (b pf.goal) (b pf.definition);
-    fprintf out "%s,%s,%s," (b (is_inductive pf))
-      (b (is_associative_axiom pf)) (b (is_commutative_axiom pf));
-    fprintf out "%d,%s,%s,%d," lits (b (lits > 1)) (b (lits > 2)) weight;
-    fprintf out "%s,\"%s\"\n" (b (memq pf in_proof)) (show_formula pf.formula)
-  )
-
 let is_resolution p = starts_with "res:" p.rule
 
 let trim_rule rule =

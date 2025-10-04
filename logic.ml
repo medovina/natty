@@ -263,7 +263,7 @@ let collect_args t : formula * formula list =
   let (head, args) = collect t in
   (head, rev args)
 
-let is_tuple_apply f allow_typed =
+let is_tuple_apply f allow_typed : (id * formula list) option =
   let (head, args) = collect_args f in
   match head with
     | Const (s, _) when starts_with "(," s && (allow_typed || ends_with ",)" s) ->
@@ -415,14 +415,17 @@ let rec gather_lambdas = function
       ((x, typ) :: vars, g)
   | f -> ([], f)
 
-let rec remove_exists f : (id * typ) list * formula = match kind f with
-  | Quant ("∃", x, typ, g) ->
-      let (xs, h) = remove_exists g in
+let rec remove_quant q f : (id * typ) list * formula = match kind f with
+  | Quant (q', x, typ, g) when q = q' ->
+      let (xs, h) = remove_quant q g in
       ((x, typ) :: xs, h)
   | _ -> ([], f)
 
+let remove_for_all = remove_quant "∀"
+let remove_exists = remove_quant "∃"
+
 let remove_quants with_existential : formula -> formula * id list =
-  let rec remove f = match bool_kind f with
+  let rec remove f = match kind f with
     | Quant ("∀", _x, _typ, g) -> remove g
     | Quant ("∃", x, _typ, g) when with_existential ->
         let (f, ex) = remove g in

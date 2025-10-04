@@ -91,7 +91,7 @@ and possible_app env dot_types vars formula f g with_dot : (typ * typ * typ * bo
 let tuple_cons_type typs : typ =
   fold_right mk_fun_type typs (Product typs)
 
-let check_formula env formula as_type : formula =
+let check_formula env vars formula as_type : formula =
   let dot_types = const_types1 env "·" in
   let type_opt t = if is_unknown t then None else Some t in
   let rec check vars formula as_type : formula =
@@ -167,9 +167,9 @@ let check_formula env formula as_type : formula =
                   error "can't compare different types" formula
               | _ -> error "ambiguous" formula
           else error (show_type (Option.get as_type) ^ " expected") formula in
-  check [] formula (type_opt as_type)
+  check vars formula (type_opt as_type)
 
-let top_check env f = b_reduce (check_formula env f Bool)
+let top_check env f = b_reduce (check_formula env [] f Bool)
 
 type block = Block of proof_step * range * block list
 
@@ -269,7 +269,8 @@ and block_steps (Block (step, range, children)) : statement list list * formula 
         let (decls, fs) = const_decls ids_typs in
         (map (append decls) fs, for_all_vars_typ (ids, typ) concl)
     | LetVal (id, typ, value) ->
-        (map (cons (Definition (id, typ, value))) fs, rsubst1 concl value id)
+        let g = Eq (Const (id, typ), value) in
+        (map (cons (Definition (id, typ, g))) fs, rsubst1 concl value id)
     | Assume a ->
         let (ids_typs, f) = remove_exists a in
         let (decls, fs) = const_decls ids_typs in
@@ -285,6 +286,12 @@ and block_steps (Block (step, range, children)) : statement list list * formula 
         ([Theorem ("", None, ex, None, range)] :: map (append stmts) fs,
          if any_free_in ids concl then exists_vars_typ (ids, typ) concl else concl)
     | Escape | Group _ -> failwith "block_formulas"
+
+let rec arg_vars f : id list = match f with 
+  | Var (id, _) -> [id]
+  | _ -> match is_untyped_tuple_apply f with
+      | Some (id, args) -> id :: concat_map arg_vars args
+      | None -> failwith "invalid argument in definition"
 
 let rec expand_proof stmt env f range proof : proof option = match proof with
   | Steps steps ->
@@ -310,9 +317,19 @@ and check_stmt env stmt : statement =
   match stmt with
     | Axiom (id, f, name) -> Axiom (id, top_check env f, name)
     | Hypothesis (id, f) -> Hypothesis (id, top_check env f)
-    | Definition (id, typ, f) ->
-        let f = check_formula env f typ in
-        Definition (id, type_of f, f)
+    | Definition (id, _typ, f) ->
+        let (vars, id', args, body) = expand_definition f in
+        assert (id = id');
+        let avars = concat_map arg_vars args in
+        let vars1, vars2 = std_sort (map fst vars), std_sort avars in
+        (if vars1 <> vars2 then
+          let s = sprintf "variable mismatch in definition (%s / %s)"
+            (comma_join vars1) (comma_join vars2) in
+          errorf s f);
+        let check f = check_formula env vars f unknown_type in
+        let (args, body) = (map check args, check body) in
+        let typ = fold_right mk_fun_type (map type_of args) (type_of body) in
+        Definition (id, typ, build_definition vars id typ args body)
     | Theorem (num, name, f, proof, range) ->
         let f1 = top_check env f in
         Theorem (num, name, f1, Option.bind proof (expand_proof stmt env f range), range)

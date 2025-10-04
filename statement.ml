@@ -83,8 +83,6 @@ and proof =
   | Steps of (proof_step * range) list
   | ExpandedSteps of statement list list
 
-let mk_def id typ formula = Definition (id, typ, formula)
-
 let is_hypothesis = function
   | Hypothesis _ -> true
   | _ -> false
@@ -126,7 +124,7 @@ let stmt_name stmt =
 
 let stmt_formula = function
   | Axiom (_, f, _) | Hypothesis (_, f) | Theorem (_, _, f, _, _) -> Some f
-  | Definition (id, typ, f) -> Some (Eq (Const (id, typ), f))
+  | Definition (_id, _typ, f) -> Some f
   | _ -> None
 
 let rec map_stmt_formulas fn stmt = match stmt with
@@ -151,6 +149,20 @@ let is_const id def =
   let* (i, typ) = decl_var def in
   if i = id then Some typ else None
 
+let expand_definition f : (str * typ) list * id * formula list * formula =
+  let (vars, f) = remove_for_all f in
+  match f with
+    | Eq (g, body) | App (App (Const ("↔", _), g), body) ->
+        let (c, args) = collect_args g in
+        let id = get_const_or_var c in
+        (vars, id, args, body)
+    | _ -> failwith "invalid definition"
+
+let build_definition vars id typ args body =
+  let binder = if type_of body = Bool then _iff else mk_eq in
+  let g = binder (apply (Const (id, typ) :: args)) body in
+  for_all_vars_types vars g
+
 let show_statement multi s : string =
   let name = stmt_name s in
   let show prefix f = indent_with_prefix prefix (show_formula_multi multi f) in
@@ -161,7 +173,7 @@ let show_statement multi s : string =
     | Axiom (_, f, _) | Hypothesis (_, f) -> show (name ^ ": ") f
     | Definition (id, typ, f) ->
         let prefix =
-          sprintf "definition %s: %s = " (without_type_suffix id) (show_type typ) in
+          sprintf "definition (%s: %s): " (without_type_suffix id) (show_type typ) in
         show prefix f
     | Theorem (_, _, f, _, _) -> show (name ^ ": ") f
 

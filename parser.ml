@@ -395,25 +395,18 @@ let axiom_group : statement list p =
 
 (* definitions *)
 
+let mk_def id typ formula = Definition (id, typ, Eq (Const (id, typ), formula))
+
 let eq_definition : statement p = pipe3
   (str "Let" >> sym) (str ":" >> typ) (str "=" >> term << str ".")
   mk_def
 
 let new_paragraph : id p = empty >>? (any_str keywords <|> label)
 
-let define env_ids_types prop : statement p =
-    match prop with
-    | App (App (Const ("↔", _), term), definition)
-    | Eq (term, definition) ->
-        let (t, args) = collect_args term in (
-        assert (length env_ids_types = length args);
-        let ids_types = args |> map (fun e ->
-          let v = get_var e in
-          (v, assoc v env_ids_types)) in
-        let arg_type = if is_eq prop then unknown_type else Bool in
-        let typ = fold_right1 mk_fun_type (map snd ids_types @ [arg_type]) in
-        return @@ Definition (get_const_or_var t, typ, fold_right lambda' ids_types definition))
-    | _ -> fail "syntax error in definition"
+let define ids_types prop : statement p =
+  let prop = for_all_vars_types ids_types prop in
+  let (_vars, id, _args, _body) = expand_definition prop in
+  return @@ Definition (id, unknown_type, prop)
 
 let def_prop ids_types : statement p = 
     (not_followed_by new_paragraph "" >> opt_str "we write" >> proposition << str ".") >>=
