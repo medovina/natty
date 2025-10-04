@@ -290,7 +290,7 @@ and block_steps (Block (step, range, children)) : statement list list * formula 
 let rec arg_vars f : id list = match f with 
   | Var (id, _) -> [id]
   | _ -> match is_untyped_tuple_apply f with
-      | Some (id, args) -> id :: concat_map arg_vars args
+      | Some (_id, args) -> concat_map arg_vars args
       | None -> failwith "invalid argument in definition"
 
 let rec expand_proof stmt env f range proof : proof option = match proof with

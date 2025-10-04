@@ -50,8 +50,10 @@ reason = (('by' | 'using') reference) |
 
 (* terms *)
 
+parens_exprs = '(' expr {',' expr} ')';
+
 term =
-    sym | id '(' expr {',' expr} ')' | id | '⊤' | '⊥' | '(' expr ')'
+    sym | id parens_exprs | id | '⊤' | '⊥' | parens_exprs
   | '{' var of_type typ '|' proposition '}';
 
 terms = term+;
@@ -70,11 +72,12 @@ eq_op = '=' | '≠' | '<' | '≤' | '>' | '≥' | '≮';
 
 expr = base_expr { eq_op base_expr [reason] };
 
-predicate_target = 'of' atomic ['and' atomic] | 'from' atomic 'to' atomic;
+predicate_target =
+    'as' atomic | 'of' atomic ['and' atomic] | 'from' atomic 'to' atomic;
 
 predicate =
     ['not'] adjective |
-    ('a' | 'an') word [word] predicate_target;
+    ('a' | 'an' | 'the') word [word] predicate_target;
 
 atomic = expr ['is true' | 'always holds' | 'is' predicate];
 

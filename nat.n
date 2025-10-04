@@ -681,3 +681,5 @@ Proof.  Let p ∈ ℤ, and suppose that p is prime.  Let A ∈ ℤ → ℤ.  Let
     S = { n ∈ ℤ | if p | ∏(n, A), then there exists i ∈ ℤ such that 0 ≤ i < n and p | A(i) }.
 
 ∏(0, A) = 1 by definition, so p ∤ ∏(0, A), so 0 ∈ S.  Now let n ∈ ℤ, and suppose that n ∈ S.  Suppose that p | ∏(n + 1, A).  We must have ∏(n + 1, A) = A(n) · ∏(n, A).  We know that either gcd(p, ∏(n, A)) = 1 or gcd(p, ∏(n, A)) = p.  If gcd(p, ∏(n, A)) = 1, then by :divides_other_factor p | ∏(n, A).  On the other hand, if gcd(p, ∏(n, A)) = p, then p | ∏(n, A), so by the induction hypothesis there exists i ∈ ℤ such that 0 ≤ i < n and p | A(i).  In either case there exists some i ∈ ℤ such that 0 ≤ i < n + 1 and p | A(i).  And so n + 1 ∈ S.  Then by :int_induction for all i ∈ ℤ if i ≥ 0 then i ∈ S.
+
+Definition.  For all m, n : ℤ and P, Q : ℤ → ℤ, (m, P) is the same sequence as (n, Q) iff m = n and for all i : ℤ, if 0 ≤ i < n then P(i) = Q(i).

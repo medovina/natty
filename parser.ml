@@ -188,14 +188,15 @@ let unary_minus f = App (Const ("u-", unknown_type), f)
 let ascribe typ f =
   App (Const (":", Fun (typ, typ)), f)
 
-let rec term s = (record_formula @@ choice [
+let rec parens_exprs s = (str "(" >> (sep_by1 expr (str ",") << str ")")) s
+
+and term s = (record_formula @@ choice [
   (sym |>> fun c -> Const (c, unknown_type));
-  pipe2 (record_formula id_term <<? str "(")
-    (sep_by1 expr (str ",") << str ")") (fun f args -> App (f, mk_tuple args));
+  pipe2a (record_formula id_term) parens_exprs (fun f args -> App (f, mk_tuple args));
   id_term;
   str "⊤" >>$ _true;
   str "⊥" >>$ _false;
-  parens expr;
+  parens_exprs |>> mk_tuple;
   pipe3 (str "{" >> var) (of_type >> typ) (str "|" >> proposition << str "}")
     (fun var typ expr -> Lambda (var, typ, expr))
  ]) s
@@ -227,13 +228,14 @@ and operators = [
 and predicate_target word =
   let app xs f = apply ([Const ("is_" ^ word, unknown_type); f] @ xs) in
   choice [
+    str "as" >> atomic |>> (fun x -> app [x]);
     pipe2 (str "of" >> atomic) (opt [] (single (str "and" >> atomic)))
         (fun x y -> (app ([x] @ y)));
     pipe2 (str "from" >> atomic) (str "to" >> atomic) (fun y z -> app [y; z])
   ]
 
 and predicate s : (formula -> formula) pr = choice [
-  any_str ["a"; "an"] >> word >>= (fun w ->
+  any_str ["a"; "an"; "the"] >> word >>= (fun w ->
     predicate_target w <|> (word >>= fun x -> predicate_target (w ^ "_" ^ x)));
   pipe2 (option (str "not")) adjective (fun neg word f ->
     let g = App (Const (word, unknown_type), f) in
