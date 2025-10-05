@@ -575,15 +575,20 @@ Proof.  Suppose that there exists some k ∈ ℤ such that k > 1 and there exist
 
 We have k ∈ G.  So by :int_well_ordered there exists some n : ℤ such that n ∈ G and for all g ∈ ℤ, if g ∈ G then n ≤ g.  There exists no p ∈ ℤ such that p is prime and p | n, but n | n, so n is not prime.  Hence there exist a, b ∈ ℤ such that n = ab and 1 < a < n and 1 < b < n.  Because a < n, there must exist some p ∈ ℤ such that p is prime and p | a.  By :int_div_trans, for all d ∈ ℤ, if d | a then d | n.  So we must have p | n, which is a contradiction.
 
-Axiom. There is a function ∏ : ℤ ⨯ (ℤ → ℤ) → ℤ such that for all P : ℤ → ℤ,
+# Natty parses the product pᵢ ⋯ pⱼ into ∏(p, i, j), which we define here.
+Axiom. There is a function ∏ : (ℤ → ℤ) ⨯ ℤ ⨯ ℤ → ℤ such that for all p : ℤ → ℤ,
 
- a. ∏(0, P) = 1.
- b. For all n : ℤ, if n > 0 then ∏(n, P) = P(n − 1) · ∏(n − 1, P).
+ a. For all i, j : ℤ, if j < i then ∏(p, i, j) = 1.
+ b. For all i, j : ℤ, if j ≥ i then ∏(p, i, j) = p(i) · ∏(p, i + 1, j).
 
 # Euclid's theorem, Wiedjik #11
 Theorem (euclid).  { x ∈ ℤ | x is prime } is infinite.
 
-Proof.  Suppose that there exists n : ℤ and p : ℤ → ℤ with n > 0 such that for all x : ℤ, x is prime iff x = pᵢ for some i : ℤ with 0 ≤ i < n.  Let Q : ℤ = ∏(n, p) + 1.  By :int_has_prime_divisor, there exists q : ℤ such that q is prime and q | Q.  Suppose that there is some j : ℤ such that 0 ≤ j < n and q = pⱼ.  We know that Q − ∏(n, p) = 1. q | Q and q | ∏(n, p), so by :int_divides_linear_combo it follows that q | 1.  This is a contradiction.  So q is prime, but there is no j : ℤ such that j < n and q = pⱼ.  This is a contradiction, so { x ∈ ℤ | x is prime } is infinite.
+Proof.  Suppose that there exists n : ℤ and p : ℤ → ℤ with n > 0 such that for all x : ℤ, x is prime iff x = pᵢ for some i : ℤ with 1 ≤ i ≤ n.  Let
+
+           Q = p₁ ⋯ pₙ + 1.
+    
+By :int_has_prime_divisor, there exists q : ℤ such that q is prime and q | Q.  Suppose that there is some j : ℤ such that 1 ≤ j ≤ n and q = pⱼ.  We know that Q − p₁ ⋯ pₙ = 1. q | Q and q | p₁ ⋯ pₙ, so by :int_divides_linear_combo it follows that q | 1.  This is a contradiction.  So q is prime, but there is no j : ℤ such that 1 ≤ j ≤ n and q = pⱼ.  This is a contradiction, so { x ∈ ℤ | x is prime } is infinite.
 
 # Greatest common divisors
 
@@ -674,10 +679,10 @@ Lemma (divides_other_factor).  For all a, b, c ∈ ℤ, if a > 0 and b > 0 and c
 
 Proof.  Let a, b, c ∈ ℤ, and suppose that a > 0 and b > 0 and c > 0 and gcd(a, b) = 1 and a | bc.  Then by :bezout there exist x, y : ℤ such that ax + by = 1.  So acx + bcy = c.  acx + bcy is a linear combination of a and bc, and a | a and a | bc.  So by :int_divides_linear_combo a | acx + bcy.  Hence a | c.
 
-Lemma.  For all p ∈ ℤ and A ∈ ℤ → ℤ and n ∈ ℤ, if p is prime and n ≥ 0 and p | ∏(n, A), then there exists i ∈ ℤ such that 0 ≤ i < n and p | A(i).
+Lemma.  For all p, n ∈ ℤ and a ∈ ℤ → ℤ, if p is prime and n ≥ 0 and p | a₁ ⋯ aₙ, then there exists i ∈ ℤ such that 1 ≤ i ≤ n and p | aᵢ.
 
-Proof.  Let p ∈ ℤ, and suppose that p is prime.  Let A ∈ ℤ → ℤ.  Let
+Proof.  Let p ∈ ℤ, and suppose that p is prime.  Let a ∈ ℤ → ℤ.  Let
 
-    S = { n ∈ ℤ | if p | ∏(n, A), then there exists i ∈ ℤ such that 0 ≤ i < n and p | A(i) }.
+    S = { n ∈ ℤ | if p | a₁ ⋯ aₙ, then there exists i ∈ ℤ such that 1 ≤ i ≤ n and p | aᵢ }.
 
-∏(0, A) = 1 by definition, so p ∤ ∏(0, A), so 0 ∈ S.  Now let n ∈ ℤ, and suppose that n ∈ S.  Suppose that p | ∏(n + 1, A).  We must have ∏(n + 1, A) = A(n) · ∏(n, A).  We know that either gcd(p, ∏(n, A)) = 1 or gcd(p, ∏(n, A)) = p.  If gcd(p, ∏(n, A)) = 1, then by :divides_other_factor p | ∏(n, A).  On the other hand, if gcd(p, ∏(n, A)) = p, then p | ∏(n, A), so by the induction hypothesis there exists i ∈ ℤ such that 0 ≤ i < n and p | A(i).  In either case there exists some i ∈ ℤ such that 0 ≤ i < n + 1 and p | A(i).  And so n + 1 ∈ S.  Then by :int_induction for all i ∈ ℤ if i ≥ 0 then i ∈ S.
+Trivially 1 ∈ S.  Now let n ∈ ℤ, and suppose that n ≥ 1 and n ∈ S.  Suppose that p | a₁ ⋯ aₙ₊₁.  We know that either gcd(p, a₁ ⋯ aₙ) = 1 or gcd(p, a₁ ⋯ aₙ) = p.  If gcd(p, a₁ ⋯ aₙ) = 1, then by :divides_other_factor p | aₙ₊₁.  On the other hand, if gcd(p, a₁ ⋯ aₙ) = p, then p | a₁ ⋯ aₙ, so by the induction hypothesis there exists i ∈ ℤ such that 0 ≤ i ≤ n and p | aᵢ.  In either case there exists some i ∈ ℤ such that 1 ≤ i ≤ n + 1 and p | aᵢ.  And so n + 1 ∈ S.  Then by :int_induction for all i ∈ ℤ if i ≥ 0 then i ∈ S.

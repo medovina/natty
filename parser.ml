@@ -49,8 +49,6 @@ let letter1 = letter |>> char_to_string
 
 let var = empty >>? letter1
 
-let sub_var = choice [str "ᵢ" >>$ "i"; str "ⱼ" >>$ "j"]
-
 let id = str "gcd" <|> var <|> any_str ["𝔹"; "ℕ"; "ℤ"; "π"; "∏"]
 
 let sym = choice [
@@ -60,6 +58,8 @@ let sym = choice [
 
 let minus = any_str ["-"; "−"]
 
+let mid_ellipsis : string p = any_str ["···"; "⋯"]
+
 let id_or_sym = id <|> sym
 
 let word = empty >>? many1_chars letter
@@ -67,6 +67,28 @@ let word = empty >>? many1_chars letter
 let adjective = word
 
 let name = empty >>? many1_chars (alphanum <|> char '_')
+
+let uchar s =
+  let u = String.get_utf_8_uchar s 0 in
+  assert (Uchar.utf_decode_is_valid u);
+  Uchar.utf_decode_uchar u
+
+let sub_digit = choice [
+  str "₀"; str "₁";	str "₂"; str "₃";	str "₄";
+  str "₅"; str "₆"; str "₇"; str "₈"; str "₉" ] |>> fun s ->
+    let c = Char.chr(Char.code('0') + Uchar.to_int (uchar s) - Uchar.to_int (uchar "₀")) in
+    char_to_string c
+
+let sub_letter_map = [
+  "ₐ", "a";	"ₑ", "e"; "ₕ", "h"; "ᵢ", "i"; "ⱼ", "j";	"ₖ", "k";	"ₗ", "l"; "ₘ", "m"; "ₙ", "n";
+  "ₒ", "o";	"ₚ", "p"; "ᵣ", "r";	"ₛ", "s";	"ₜ", "t";	"ᵤ", "u";	"ᵥ", "v"; "ₓ", "x"
+]
+
+let sub_letters = map fst sub_letter_map
+
+let sub_var = any_str sub_letters |>> fun s -> assoc s sub_letter_map
+
+let sub_sym = (str "₊" >>$ "+") <|> (str "₋" >>$ "-")
 
 let keywords = ["axiom"; "corollary"; "definition"; "lemma"; "proof"; "theorem"]
 
@@ -181,8 +203,6 @@ let compare_op op = infix op (binop_unknown op) Assoc_right
 let mk_not_less f g = _not (binop_unknown "<" f g)
 let mk_not_greater f g = _not (binop_unknown ">" f g)
 
-let id_term = id |>> (fun v -> Var (v, unknown_type))
-
 (* We use separate constant names for unary and binary minus so that
  * a - b cannot be interpreted as (-a)(b) using implicit multiplication. *)
 let unary_minus f = App (Const ("u-", unknown_type), f)
@@ -190,14 +210,27 @@ let unary_minus f = App (Const ("u-", unknown_type), f)
 let ascribe typ f =
   App (Const (":", Fun (typ, typ)), f)
 
-let sub_expr = sub_var |>> (fun v -> Var (v, unknown_type))
+let sub_term = (sub_digit |>> _const) <|> (sub_var |>> _var)
+
+let sub_expr = chain_left1 sub_term (sub_sym |>> fun sym e1 e2 ->
+  apply [_const sym; e1; e2])
 
 let rec parens_exprs s = (str "(" >> (sep_by1 expr (str ",") << str ")")) s
 
+and id_term s = (id |>> _var >>=
+  (fun var -> choice [
+    parens_exprs |>> (fun args -> App (var, mk_tuple args));
+    pipe2 sub_expr (option (pair (mid_ellipsis >> id |>> _var) sub_expr))
+      (fun sub range -> match range with
+        | Some (var2, sub2) ->
+            assert (var = var2);
+            App ((Const ("∏", unknown_type), mk_tuple [var; sub; sub2]))
+        | None -> App (var, sub));
+    return var
+  ])) s
+
 and term s = (record_formula @@ choice [
   (sym |>> fun c -> Const (c, unknown_type));
-  pipe2a (record_formula id_term) (parens_exprs <|> single sub_expr)
-    (fun f args -> App (f, mk_tuple args));
   id_term;
   str "⊤" >>$ _true;
   str "⊥" >>$ _false;

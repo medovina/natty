@@ -8,8 +8,6 @@ letter = 'a' .. 'z';
 
 var = letter;
 
-sub_var = 'ₐ' .. 'ₓ';
-
 id = 'gcd' | var | '𝔹' | 'ℕ' | 'ℤ' | 'π' | '∏';
 
 sym = digit |
@@ -23,6 +21,12 @@ word = letter {letter};
 adjective = word;
 
 name = {letter | digit | '_'}+;
+
+sub_digit = '₀' .. '₉';
+
+sub_var = 'ₐ' .. 'ₓ';
+
+sub_sym = '₊' | '₋';
 
 (* types *)
 
@@ -54,10 +58,13 @@ reason = (('by' | 'using') reference) |
 
 parens_exprs = '(' expr {',' expr} ')';
 
-sub_expr = sub_var;
+sub_term = sub_digit | sub_var;
+
+sub_expr = sub_term {sub_sym sub_term};
 
 term =
-    sym | id [parens_exprs | sub_expr] | '⊤' | '⊥' | parens_exprs
+    sym | id [parens_exprs | sub_expr ["⋯" id sub_expr]]
+  | '⊤' | '⊥' | parens_exprs
   | '{' var of_type typ '|' proposition '}';
 
 terms = term+;
