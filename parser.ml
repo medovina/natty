@@ -260,6 +260,8 @@ and eq_expr s = pair eq_op (base_expr << optional reason) s
 
 and expr s = record_formula (pair base_expr (many eq_expr) |>> chain_ops) s
 
+and exprs s = (sep_by1 expr (str "and") |>> multi_and) s
+
 and atomic s = (
   pipe2 expr (choice [
     any_str ["is true"; "always holds"] >>$ Fun.id;
@@ -269,12 +271,20 @@ and atomic s = (
 
 (* small propositions *)
 
+and for_with text q s =
+  pipe2 (str text >> id_type) (option with_exprs)
+    (fun id_type opt_with f ->
+      q id_type (opt_fold _and opt_with f)) s
+
+and for_all_with s = for_with "for all" _for_all' s
+and for_some_with s = for_with "for some" _exists' s
+
 and prop_operators = [
   [ Infix (and_op >>$ _and, Assoc_left) ];
   [ infix "or" _or Assoc_left ];
   [ Infix (str "implies" << opt_str "that" >>$ implies, Assoc_right) ];
-  [ Postfix (str "for all" >> id_type |>> _for_all') ];
-  [ Postfix (str "for some" >> id_type |>> _exists') ];
+  [ Postfix for_all_with ];
+  [ Postfix for_some_with ];
   [ Infix (any_str ["iff"; "if and only if"] >>$ _iff, Assoc_right) ];
   [ Infix (str "," >>? and_op >>$ _and, Assoc_left) ];
   [ Infix (str "," >>? str "or" >>$ _or, Assoc_left) ];
@@ -293,9 +303,11 @@ and for_all_prop s : formula pr = pipe2
 and there_exists =
   str "There" >> any_str ["is"; "are"; "exists"; "exist"; "must exist"]
 
+and with_exprs s = (str "with" >> exprs) s
+
 and exists_prop s : formula pr = pipe4
   (there_exists >> opt true ((str "some" >>$ true) <|> (str "no" >>$ false)))
-  ids_types (option (str "with" >> small_prop)) (str "such that" >> small_prop)
+  ids_types (option with_exprs) (str "such that" >> small_prop)
   (fun some ids_types with_prop p ->
     let p = opt_fold _and with_prop p in
     (if some then Fun.id else _not) (exists_vars_types ids_types p)) s

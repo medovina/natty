@@ -76,6 +76,8 @@ eq_op = '=' | '≠' | '<' | '≤' | '>' | '≥' | '≮';
 
 expr = base_expr { eq_op base_expr [reason] };
 
+exprs = expr { 'and' expr };
+
 predicate_target =
     'as' atomic | 'of' atomic ['and' atomic] | 'from' atomic 'to' atomic;
 
@@ -95,8 +97,10 @@ for_all_prop = for_all_ids small_prop;
 
 there_exists = 'There' ('is' | 'are' | 'exists' | ['must'] 'exist');
 
+with_exprs = 'with' exprs;
+
 exists_prop =
-    there_exists ['some' | 'no'] ids_types ['with' small_prop]
+    there_exists ['some' | 'no'] ids_types [with_exprs]
     'such that' small_prop;
 
 prop_op = 'and' | 'or' | 'implies' ['that'] | 'if and only if' | 'iff' |
@@ -106,7 +110,7 @@ small_prop =
     atomic | if_then_prop | for_all_prop | exists_prop |
     small_prop prop_op small_prop |
     small_prop 'is' predicate |
-    small_prop 'for' ('all' | 'some') id_type;
+    small_prop 'for' ('all' | 'some') id_type [with_exprs];
 
 (* propositions *)
 
