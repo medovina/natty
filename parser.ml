@@ -484,7 +484,7 @@ let let_step : proof_step_r list p = pipe2
   (@)
 
 let let_val_step : proof_step_r p = 
-  with_range (pair (str "let" >>? id_opt_type <<? str "=") term) |>>
+  with_range (pair (str "let" >>? id_opt_type <<? str "=") expr) |>>
     fun (((id, typ), f), range) -> (LetVal (id, typ, f), range)
 
 let assume_step : proof_step_r p =

@@ -209,7 +209,7 @@ any_case = 'In any case' | 'In either case' | 'Putting the cases together';
 
 let_step = 'let' ids_type ['with' small_prop];
 
-let_val_step = 'let' id_opt_type '=' term;
+let_val_step = 'let' id_opt_type '=' expr;
 
 assume_step = suppose;
 
