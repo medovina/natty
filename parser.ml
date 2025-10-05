@@ -49,6 +49,8 @@ let letter1 = letter |>> char_to_string
 
 let var = empty >>? letter1
 
+let sub_var = choice [str "ᵢ" >>$ "i"; str "ⱼ" >>$ "j"]
+
 let id = str "gcd" <|> var <|> any_str ["𝔹"; "ℕ"; "ℤ"; "π"; "∏"]
 
 let sym = choice [
@@ -188,11 +190,14 @@ let unary_minus f = App (Const ("u-", unknown_type), f)
 let ascribe typ f =
   App (Const (":", Fun (typ, typ)), f)
 
+let sub_expr = sub_var |>> (fun v -> Var (v, unknown_type))
+
 let rec parens_exprs s = (str "(" >> (sep_by1 expr (str ",") << str ")")) s
 
 and term s = (record_formula @@ choice [
   (sym |>> fun c -> Const (c, unknown_type));
-  pipe2a (record_formula id_term) parens_exprs (fun f args -> App (f, mk_tuple args));
+  pipe2a (record_formula id_term) (parens_exprs <|> single sub_expr)
+    (fun f args -> App (f, mk_tuple args));
   id_term;
   str "⊤" >>$ _true;
   str "⊥" >>$ _false;
