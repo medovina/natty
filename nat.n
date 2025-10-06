@@ -483,6 +483,10 @@ Theorem (int_induction).  For all S : ℤ → 𝔹, if 0 ∈ S and for all i ∈
 
 Proof.  Let S : ℤ → 𝔹, and suppose that 0 ∈ S and for all i ∈ ℤ i ≥ 0 and i ∈ S implies i + 1 ∈ S.  Let T = { n ∈ ℕ | there exists i ∈ ℤ such that i ≥ 0 and i ∈ S and n = π(i) }.  0 = π(0), so 0 ∈ T.  Now let n : ℕ, and suppose that n ∈ T.  Then there exists some i ∈ ℤ such that i ≥ 0 and i ∈ S and n = π(i). So i + 1 ∈ S.  Now, π(i + 1) = π(i) + π(1) = n + 1 = s(n), so s(n) ∈ T.  We have shown that n ∈ T implies s(n) ∈ T for all n ∈ ℕ.  Then T = ℕ by :nat_induction.  Now let i ∈ ℤ, and suppose that i ≥ 0.  Since T = ℕ, there exists j ∈ ℤ such that j ≥ 0 and j ∈ S and π(i) = π(j).  Then by :int_proj_injective we have i = j, so i ∈ S.
 
+Theorem (int_induction_1).  For all S : ℤ → 𝔹, if 1 ∈ S and for all i ∈ ℤ i ≥ 1 and i ∈ S implies i + 1 ∈ S, then for all i ∈ ℤ i ≥ 1 implies i ∈ S.
+
+Proof.  Let S : ℤ → 𝔹, and suppose that 1 ∈ S and for all i ∈ ℤ i ≥ 1 and i ∈ S implies i + 1 ∈ S.  Let T = { n ∈ ℤ | n + 1 ∈ S }.  Clearly 0 ∈ T.  Now let i ∈ ℤ, and suppose that i ≥ 0 and i ∈ T.  Let j : ℤ = i + 1. Then j ≥ 1 and j ∈ S, so j + 1 ∈ S, so j ∈ T, so i + 1 ∈ T.  So by :int_induction we know that i ∈ T for all i : ℤ with i ≥ 0.  Now let i : ℤ, and suppose that i ≥ 1.  Then i - 1 ≥ 0, so i - 1 ∈ T, so i ∈ S.
+
 # Well-ordering principle on non-negative integers
 
 Definition.  For all S : ℤ → 𝔹, S is empty iff there is no n : ℤ such that n ∈ S.  S is nonempty iff S is not empty.
@@ -679,10 +683,10 @@ Lemma (divides_other_factor).  For all a, b, c ∈ ℤ, if a > 0 and b > 0 and c
 
 Proof.  Let a, b, c ∈ ℤ, and suppose that a > 0 and b > 0 and c > 0 and gcd(a, b) = 1 and a | bc.  Then by :bezout there exist x, y : ℤ such that ax + by = 1.  So acx + bcy = c.  acx + bcy is a linear combination of a and bc, and a | a and a | bc.  So by :int_divides_linear_combo a | acx + bcy.  Hence a | c.
 
-Lemma.  For all p, n ∈ ℤ and a ∈ ℤ → ℤ, if p is prime and n ≥ 0 and p | a₁ ⋯ aₙ, then there exists i ∈ ℤ such that 1 ≤ i ≤ n and p | aᵢ.
+Lemma.  For all p, n ∈ ℤ and a ∈ ℤ → ℤ, if p is prime and n ≥ 1 and p | a₁ ⋯ aₙ, then there exists i ∈ ℤ such that 1 ≤ i ≤ n and p | aᵢ.
 
 Proof.  Let p ∈ ℤ, and suppose that p is prime.  Let a ∈ ℤ → ℤ.  Let
 
     S = { n ∈ ℤ | if p | a₁ ⋯ aₙ, then there exists i ∈ ℤ such that 1 ≤ i ≤ n and p | aᵢ }.
 
-Trivially 1 ∈ S.  Now let n ∈ ℤ, and suppose that n ≥ 1 and n ∈ S.  Suppose that p | a₁ ⋯ aₙ₊₁.  We know that either gcd(p, a₁ ⋯ aₙ) = 1 or gcd(p, a₁ ⋯ aₙ) = p.  If gcd(p, a₁ ⋯ aₙ) = 1, then by :divides_other_factor p | aₙ₊₁.  On the other hand, if gcd(p, a₁ ⋯ aₙ) = p, then p | a₁ ⋯ aₙ, so by the induction hypothesis there exists i ∈ ℤ such that 0 ≤ i ≤ n and p | aᵢ.  In either case there exists some i ∈ ℤ such that 1 ≤ i ≤ n + 1 and p | aᵢ.  And so n + 1 ∈ S.  Then by :int_induction for all i ∈ ℤ if i ≥ 0 then i ∈ S.
+Trivially 1 ∈ S.  Now let n ∈ ℤ, and suppose that n ≥ 1 and n ∈ S.  Suppose that p | a₁ ⋯ aₙ₊₁.  We know that either gcd(p, a₁ ⋯ aₙ) = 1 or gcd(p, a₁ ⋯ aₙ) = p.  If gcd(p, a₁ ⋯ aₙ) = 1, then by :divides_other_factor p | aₙ₊₁.  On the other hand, if gcd(p, a₁ ⋯ aₙ) = p, then p | a₁ ⋯ aₙ, so by the induction hypothesis there exists i ∈ ℤ such that 0 ≤ i ≤ n and p | aᵢ.  In either case there exists some i ∈ ℤ such that 1 ≤ i ≤ n + 1 and p | aᵢ.  And so n + 1 ∈ S.  Then by :int_induction_1 for all k ∈ ℤ if k ≥ 1 then k ∈ S.
