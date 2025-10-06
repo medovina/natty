@@ -215,6 +215,12 @@ let sub_term = (sub_digit |>> _const) <|> (sub_var |>> _var)
 let sub_expr = chain_left1 sub_term (sub_sym |>> fun sym e1 e2 ->
   apply [_const sym; e1; e2])
 
+let for_all_with ids_types prop opt_with : formula =
+    for_all_vars_types ids_types (opt_fold implies opt_with prop)
+
+let exists_with ids_types prop opt_with : formula =
+    exists_vars_types ids_types (opt_fold _and opt_with prop)
+
 let rec parens_exprs s = (str "(" >> (sep_by1 expr (str ",") << str ")")) s
 
 and id_term s = (id |>> _var >>=
@@ -306,18 +312,17 @@ and atomic s = (
 
 and for_with text q s =
   pipe2 (str text >> id_type) (option with_exprs)
-    (fun id_type opt_with f ->
-      q id_type (opt_fold _and opt_with f)) s
+    (fun id_type opt_with f -> q [id_type] f opt_with) s
 
-and for_all_with s = for_with "for all" _for_all' s
-and for_some_with s = for_with "for some" _exists' s
+and post_for_all_with s = for_with "for all" for_all_with s
+and post_for_some_with s = for_with "for some" exists_with s
 
 and prop_operators = [
   [ Infix (and_op >>$ _and, Assoc_left) ];
   [ infix "or" _or Assoc_left ];
   [ Infix (str "implies" << opt_str "that" >>$ implies, Assoc_right) ];
-  [ Postfix for_all_with ];
-  [ Postfix for_some_with ];
+  [ Postfix post_for_all_with ];
+  [ Postfix post_for_some_with ];
   [ Infix (any_str ["iff"; "if and only if"] >>$ _iff, Assoc_right) ];
   [ Infix (str "," >>? and_op >>$ _and, Assoc_left) ];
   [ Infix (str "," >>? str "or" >>$ _or, Assoc_left) ];
@@ -328,10 +333,12 @@ and if_then_prop s : formula pr =
     implies s
 
 and for_all_ids s : (id * typ) list pr =
-    (str "For all" >> ids_types << optional (str ",")) s
+    (str "For all" >> ids_types) s
 
-and for_all_prop s : formula pr = pipe2
-  for_all_ids small_prop for_all_vars_types s
+and for_all_prop s : formula pr = (pipe3
+  for_all_ids (option with_exprs) (optional (str ",") >> small_prop)
+    (fun ids_types with_exprs prop -> 
+        for_all_with ids_types prop with_exprs)) s
 
 and there_exists =
   str "There" >> any_str ["is"; "are"; "exists"; "exist"; "must exist"]
@@ -341,9 +348,8 @@ and with_exprs s = (str "with" >> exprs) s
 and exists_prop s : formula pr = pipe4
   (there_exists >> opt true ((str "some" >>$ true) <|> (str "no" >>$ false)))
   ids_types (option with_exprs) (str "such that" >> small_prop)
-  (fun some ids_types with_prop p ->
-    let p = opt_fold _and with_prop p in
-    (if some then Fun.id else _not) (exists_vars_types ids_types p)) s
+  (fun some ids_types with_exprs p ->
+    (if some then Fun.id else _not) (exists_with ids_types p with_exprs)) s
 
 and small_prop s : formula pr = expression prop_operators
   (if_then_prop <|> for_all_prop <|> exists_prop <|> atomic) s
@@ -408,7 +414,7 @@ let top_prop_or_items (name: id option) ids_typ : (id * formula * id option * ra
       (label, for_all_vars_typs_if_free ids_typ f, name, range))
 
 let propositions name : (id * formula * id option * range) list p =
-  (opt [] for_all_ids) >>= top_prop_or_items name
+  (opt [] (for_all_ids << str ",")) >>= top_prop_or_items name
 
 (* axioms *)
 
@@ -467,7 +473,7 @@ let def_prop ids_types : statement p =
 let definition : statement list p = str "Definition." >>
   choice [
     many1 eq_definition;
-    for_all_ids >>= fun ids_types -> many1 (def_prop ids_types)
+    (for_all_ids << str ",") >>= fun ids_types -> many1 (def_prop ids_types)
   ]
 
 (* proofs *)
@@ -529,7 +535,7 @@ let any_case = any_str ["In any case"; "In either case"; "Putting the cases toge
 let let_step : proof_step_r list p = pipe2 
   (with_range (str "let" >> ids_type) |>>
     fun ((ids, typ), range) -> [(Let (ids, typ), range)])
-  (opt [] (str "with" >> with_range small_prop |>>
+  (opt [] (str "with" >> with_range exprs |>>
               fun (f, range) -> [(Assume f, range)]))
   (@)
 

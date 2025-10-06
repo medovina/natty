@@ -655,14 +655,14 @@ Axiom.  There exists a function r : ℤ ⨯ ℤ ⨯ ℤ → ℤ such that for al
 
 Lemma (decrease_terminates).  For all f : ℤ → ℤ, if f(0) > 0 and for all i ∈ ℤ i ≥ 0 and f(i) > 0 implies that 0 ≤ f(i + 1) < f(i), then there exists some i ∈ ℤ such that i ≥ 0 and f(i) = 0.
 
-Proof.  Let f : ℤ → ℤ, and suppose that f(0) > 0 and for all i ∈ ℤ, i ≥ 0 and f(i) > 0 implies that 0 ≤ f(i + 1) < f(i).  Assume that for all i ∈ ℤ, if i ≥ 0 then f(i) ≠ 0.  Let S = { i ∈ ℤ | 0 < f(i) ≤ f(0) − i }.  We have 0 < f(0) ≤ f(0) − 0, so 0 ∈ S.  Now let i ∈ ℤ, and suppose that i ≥ 0 and i ∈ S.  Then 0 < f(i) ≤ f(0) − i, and also 0 ≤ f(i + 1) < f(i).  By assumption f(i + 1) ≠ 0, so f(i + 1) > 0.  Also f(i + 1) < f(i) ≤ f(0) − i, so by :int_lt_le_trans f(i + 1) < f(0) − i, so f(i + 1) < f(0) − (i + 1) + 1, so by :int_discrete_le we have f(i + 1) ≤ f(0) − (i + 1).  This shows that i + 1 ∈ S.  Then by :int_induction we know that for all i ∈ ℤ, i ≥ 0 implies i ∈ S.  But then f(0) ∈ S, so 0 < f(0) ≤ f(0) − f(0), which implies that 0 : ℤ < 0, a contradiction.  So there must exist some i ∈ ℤ such that i ≥ 0 and f(i) = 0.
+Proof.  Let f : ℤ → ℤ, and suppose that f(0) > 0 and for all i ∈ ℤ, i ≥ 0 and f(i) > 0 implies that 0 ≤ f(i + 1) < f(i).  Assume that for all i ∈ ℤ, if i ≥ 0 then f(i) ≠ 0.  Let S = { i ∈ ℤ | 0 < f(i) ≤ f(0) − i }.  We have 0 < f(0) ≤ f(0) − 0, so 0 ∈ S.  Now let i ∈ ℤ, and suppose that i ≥ 0 and i ∈ S.  Then 0 < f(i) ≤ f(0) − i, and also 0 ≤ f(i + 1) < f(i).  By assumption f(i + 1) ≠ 0, so f(i + 1) > 0.  Also f(i + 1) < f(i) ≤ f(0) − i, so by :int_lt_le_trans f(i + 1) < f(0) − i, so f(i + 1) < f(0) − (i + 1) + 1, so by :int_discrete_le we have f(i + 1) ≤ f(0) − (i + 1).  This shows that i + 1 ∈ S.  Then by :int_induction we know that i ∈ S for all i ∈ ℤ with i ≥ 0.  But then f(0) ∈ S, so 0 < f(0) ≤ f(0) − f(0), which implies that 0 : ℤ < 0, a contradiction.  So there must exist some i ∈ ℤ such that i ≥ 0 and f(i) = 0.
 
-Lemma (euclid_terminates).  For all a, b ∈ ℤ, if a ≥ b > 0 then there exists some i ∈ ℤ such that i ≥ 0 and r(a, b, i) = 0.
+Lemma (euclid_terminates).  For all a, b ∈ ℤ with a ≥ b > 0, there exists some i ∈ ℤ such that i ≥ 0 and r(a, b, i) = 0.
 
 Proof.  Let a, b ∈ ℤ, and suppose that a ≥ b > 0. There exists f : ℤ → ℤ such that for all i ∈ ℤ, f(i) = r(a, b, i + 1).  f(0) = r(a, b, 1) = b, so f(0) > 0.  Let i ∈ ℤ, and suppose that i ≥ 0 and f(i) > 0. Then r(a, b, i + 1) > 0, so 0 ≤ r(a, b, i + 2) < r(a, b, i + 1) by :euclidean_sequence, so 0 ≤ f(i + 1) < f(i).  Then by :decrease_terminates there is some j ∈ ℤ such that j ≥ 0 and r(a, b, j + 1) = 0.  There is some i ∈ ℤ such that i = j + 1.  We have i ≥ 0 and r(a, b, i) = 0.
 
 # Euclidean algorithm, Wiedjik #69
-Theorem.  For all a, b ∈ ℤ, if a ≥ b > 0 then there exists some j ∈ ℤ such that j is a least element of { i ∈ ℤ | i ≥ 0 and r(a, b, i) = 0 }, and r(a, b, j − 1) = gcd(a, b).
+Theorem.  For all a, b ∈ ℤ with a ≥ b > 0, there exists some j ∈ ℤ such that j is a least element of { i ∈ ℤ | i ≥ 0 and r(a, b, i) = 0 }, and r(a, b, j − 1) = gcd(a, b).
 
 Proof.  Let a, b ∈ ℤ, and suppose that a ≥ b > 0.  Let S = { i ∈ ℤ | i ≥ 0 and r(a, b, i) = 0 }.  By :euclid_terminates we know that S is nonempty.  Then by :int_well_ordered there is some j ∈ ℤ such that j is a least element of S.  r(a, b, 0) = a > 0, so it must be that j > 0.
 
@@ -675,11 +675,11 @@ Now let i ∈ ℤ, and suppose that i ≥ 0 and i ∈ T.  If i + 1 ≥ j then tr
         = gcd(r(a, b, i), r(a, b, i + 1))         by :gcd_add_multiple
         = gcd(a, b)                                     by hypothesis .
 
-So i + 1 ∈ T.  Then by :int_induction we know that for all i ∈ ℤ, i ≥ 0 implies i ∈ T.
+So i + 1 ∈ T.  Then by :int_induction we know that i ∈ T for all i ∈ ℤ with i ≥ 0.
 
 j > 0, so j − 1 ≥ 0 by :int_discrete_lt.  Then j − 1 ∈ T, so gcd(r(a, b, j − 1), r(a, b, j)) = gcd(a, b).  But j ∈ S, so r(a, b, j) = 0.  Now we have gcd(a, b) = gcd(r(a, b, j − 1), 0) = r(a, b, j − 1) by :gcd_zero.
 
-Lemma (divides_other_factor).  For all a, b, c ∈ ℤ, if a > 0 and b > 0 and c > 0 and gcd(a, b) = 1 and a | bc, then a | c.
+Lemma (divides_other_factor).  For all a, b, c ∈ ℤ with a > 0 and b > 0 and c > 0, if gcd(a, b) = 1 and a | bc then a | c.
 
 Proof.  Let a, b, c ∈ ℤ, and suppose that a > 0 and b > 0 and c > 0 and gcd(a, b) = 1 and a | bc.  Then by :bezout there exist x, y : ℤ such that ax + by = 1.  So acx + bcy = c.  acx + bcy is a linear combination of a and bc, and a | a and a | bc.  So by :int_divides_linear_combo a | acx + bcy.  Hence a | c.
 

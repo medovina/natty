@@ -98,13 +98,13 @@ atomic = expr ['is true' | 'always holds' | 'is' predicate];
 
 if_then_prop = 'if' small_prop [','] 'then' small_prop;
 
-for_all_ids = 'For all' ids_types ',';
+with_exprs = 'with' exprs;
 
-for_all_prop = for_all_ids small_prop;
+for_all_ids = 'For all' ids_types;
+
+for_all_prop = for_all_ids [with_exprs] [','] small_prop;
 
 there_exists = 'There' ('is' | 'are' | 'exists' | ['must'] 'exist');
-
-with_exprs = 'with' exprs;
 
 exists_prop =
     there_exists ['some' | 'no'] ids_types [with_exprs]
@@ -156,7 +156,7 @@ prop_items = proposition_item+;
 
 top_prop_or_items = prop_items | top_sentence;
 
-propositions = [for_all_ids] top_prop_or_items;
+propositions = [for_all_ids ','] top_prop_or_items;
 
 (* axioms *)
 
@@ -177,7 +177,7 @@ eq_definition = 'Let' sym ':' typ '=' term '.';
 
 def_prop = ['we write'] proposition '.';
 
-definition = 'Definition.' ({eq_definition}+ | for_all_ids {def_prop});
+definition = 'Definition.' ({eq_definition}+ | for_all_ids ',' {def_prop});
 
 (* proofs *)
 
@@ -222,7 +222,7 @@ now = 'Conversely' | 'Finally' | 'Next' | 'Now' | 'Second';
 
 any_case = 'In any case' | 'In either case' | 'Putting the cases together';
 
-let_step = 'let' ids_type ['with' small_prop];
+let_step = 'let' ids_type [with_exprs];
 
 let_val_step = 'let' id_opt_type '=' expr;
 
