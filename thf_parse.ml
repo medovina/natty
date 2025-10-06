@@ -85,7 +85,7 @@ and quantifier s mk =
 and formula s = expression operators term s
 
 let thf_type = id << str ":" >>= fun id ->
-   (str "$tType" >>$ TypeDecl id) <|>
+   (str "$tType" >>$ TypeDecl (id, None)) <|>
    (typ |>> fun typ -> ConstDecl (id, typ))
 
 let thf_formula = empty >>?

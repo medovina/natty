@@ -74,7 +74,7 @@ let thf_statement is_conjecture f : string =
   let thm_or_hyp name kind f =
     [sprintf "%s, %s, %s" (quote ("thm_" ^ name)) kind (thf_formula f)] in
   let conv = function
-    | TypeDecl id -> [type_decl id]
+    | TypeDecl (id, _) -> [type_decl id]
     | ConstDecl (id, typ) -> [const id typ]
     | Axiom (name, f, _) -> [axiom ("ax_" ^ name) "axiom" f]
     | Hypothesis (name, f) -> thm_or_hyp name "hypothesis" f

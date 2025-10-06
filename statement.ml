@@ -72,7 +72,7 @@ let rec show_proof_step = function
       sprintf "[%s]" (comma_join (map show_proof_step (map fst steps)))
 
 type statement =
-  | TypeDecl of id
+  | TypeDecl of id * string option  (* e.g. "ℤ", "integer" *)
   | ConstDecl of id * typ
   | Axiom of id * formula * id option (* num, formula, name *)
   | Hypothesis of id * formula
@@ -83,6 +83,10 @@ and proof =
   | Steps of (proof_step * range) list
   | ExpandedSteps of statement list list
 
+let is_type_decl id = function
+  | TypeDecl (id', _) when id = id' -> true
+  | _ -> false
+
 let is_hypothesis = function
   | Hypothesis _ -> true
   | _ -> false
@@ -92,7 +96,7 @@ let is_theorem = function
   | _ -> false
 
 let stmt_id = function
-  | TypeDecl id -> id
+  | TypeDecl (id, _) -> id
   | ConstDecl (id, _) -> id
   | Axiom (id, _, _) -> id
   | Hypothesis (id, _) -> id
@@ -140,7 +144,7 @@ let rec map_stmt_formulas fn stmt = match stmt with
   | TypeDecl _ | ConstDecl _ -> stmt
 
 let decl_var = function
-  | TypeDecl id -> Some (id, Fun (Base id, Bool))   (* universal set for type *)
+  | TypeDecl (id, _) -> Some (id, Fun (Base id, Bool))   (* universal set for type *)
   | ConstDecl (i, typ) -> Some (i, typ)
   | Definition (i, typ, _f) -> Some (i, typ)
   | _ -> None

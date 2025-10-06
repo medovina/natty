@@ -17,7 +17,7 @@ let rec check_type env typ = match typ with
   | Fun (t, u) -> check_type env t; check_type env u
   | Product typs -> iter (check_type env) typs
   | Base id ->
-      if not (is_unknown typ) && not (mem (TypeDecl id) env) then
+      if not (is_unknown typ) && not (exists (is_type_decl id) env) then
         type_error ("undefined type " ^ id) typ
       else ()
 
@@ -392,7 +392,7 @@ let rec encode_stmts known_tuple_types stmts : statement list = match stmts with
       let new_tuple_types = subtract !tuple_types known_tuple_types in
       let tuple_defs typs =
         let tuple_type_id = type_as_id (Product typs) in
-        [TypeDecl tuple_type_id;
+        [TypeDecl (tuple_type_id, None);
          ConstDecl (tuple_constructor typs,
                     fold_right mk_fun_type typs (Base tuple_type_id))] in
       concat_map tuple_defs new_tuple_types @ (stmt ::

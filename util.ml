@@ -59,7 +59,9 @@ let strlen = String.length
 
 let char_to_string = String.make 1
 
-let string_from s i = String.sub s i (String.length s - i)
+let string_range s i j = String.sub s i (j - i)
+
+let string_from s i = string_range s i (String.length s)
 
 let last_char s = s.[strlen s - 1]
 
@@ -125,6 +127,10 @@ let utf16_encode_len = utf8_count (fun n -> if n > 3 then 2 else 1)
 
 module StringSet = Set.Make (String)
 module StringMap = Map.Make (String)
+
+let singular s =
+  if last_char s = 's' then string_range s 0 (String.length s - 1)
+  else failwith "word must end with 's'"
 
 (* tuples *)
 

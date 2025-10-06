@@ -1,6 +1,6 @@
 # Natural numbers: definition
 
-Axiom.  There exists a type ℕ with an element 0 ∈ ℕ and a function s : ℕ → ℕ such that
+Axiom.  There exists a type ℕ (the natural numbers) with an element 0 ∈ ℕ and a function s : ℕ → ℕ such that
 
   a. There is no n ∈ ℕ such that s(n) = 0.  [nat_succ_zero]
   b. For all n, m ∈ ℕ, if s(n) = s(m) then n = m.  [nat_succ_injective]
@@ -215,7 +215,7 @@ Let b : ℕ.  We know that b ∈ H. Since b ≤ b, we have b ∉ G.  And so G is
 
 # Integers: definition
 
-Axiom.  There exists a type ℤ with a function z : ℕ ⨯ ℕ → ℤ such that
+Axiom.  There exists a type ℤ (the integers) with a function z : ℕ ⨯ ℕ → ℤ such that
 
   a. For all a, b, c, d ∈ ℕ, z(a, b) = z(c, d) if and only if a + d = b + c.  [int_eq_def]
   b. For all x ∈ ℤ, there exist some a, b ∈ ℕ such that x = z(a, b).

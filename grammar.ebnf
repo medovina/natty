@@ -40,7 +40,9 @@ id_type = id of_type typ;
 
 id_opt_type = id [of_type typ];
 
-ids_type = id {',' id}+ of_type typ;
+ids = id {',' id}+;
+
+ids_type = ids of_type typ;
 
 ids_types = ids_type {'and' ids_type};
 
@@ -162,8 +164,11 @@ propositions = [for_all_ids ','] top_prop_or_items;
 
 operation = ('a' | 'an') ['binary' | 'unary'] ('operation' | 'relation');
 
-axiom_decl = 'a type' id |
-    (('a constant' | 'an element' | 'a function' | operation) id_or_sym of_type typ);
+type_decl = 'a type' id ['(' 'the' word [word] ')'];
+
+const_decl = ('a constant' | 'an element' | 'a function' | operation) id_or_sym of_type typ;
+
+axiom_decl = type_decl | const_decl;
 
 axiom_exists = 
     there_exists axiom_decl {('and' | 'with') axiom_decl}

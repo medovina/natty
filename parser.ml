@@ -151,7 +151,9 @@ let id_type = pair id (of_type >> typ)
 
 let id_opt_type = pair id (opt unknown_type (of_type >> typ))
 
-let ids_type : (id list * typ) p = pair (sep_by1 id (str ",")) (of_type >> typ)
+let ids = sep_by1 id (str ",")
+
+let ids_type : (id list * typ) p = pair ids (of_type >> typ)
 
 let ids_types : ((id * typ) list) p =
   sep_by1 ids_type (str "and") |>> fun ids_typs ->
@@ -336,7 +338,7 @@ and for_all_ids s : (id * typ) list pr =
     (str "For all" >> ids_types) s
 
 and for_all_prop s : formula pr = (pipe3
-  for_all_ids (option with_exprs) (optional (str ",") >> small_prop)
+  for_all_ids (option with_exprs) (opt_str "," >> small_prop)
     (fun ids_types with_exprs prop -> 
         for_all_with ids_types prop with_exprs)) s
 
@@ -425,11 +427,20 @@ let operation =
 let unary_prefix id typ =
   if arity typ = 1 && id = "-" then "u-" else id
 
-let axiom_decl : statement p =
-  str "a type" >> id |>> (fun id -> TypeDecl id) <|>
-  pipe2 ((any_str ["a constant"; "an element"; "a function"] <|> operation) >> id_or_sym)
-    (of_type >> typ)
-    (fun c typ -> ConstDecl (unary_prefix c typ, typ))
+let words2 : string p =
+    pipe2 word (option word) (fun w x ->
+        String.concat " " (w :: Option.to_list x)) 
+
+let type_decl : statement p =
+    pipe2 (str "a type" >> id) (option (parens (str "the" >> words2)))
+        (fun id opt_name -> TypeDecl (id, Option.map singular opt_name))
+
+let const_decl : statement p =
+    pipe2 ((any_str ["a constant"; "an element"; "a function"] <|> operation) >> id_or_sym)
+        (of_type >> typ)
+        (fun c typ -> ConstDecl (unary_prefix c typ, typ))
+
+let axiom_decl : statement p = type_decl <|> const_decl
 
 let count_label num label =
   if label = "" then sprintf "%d" num
