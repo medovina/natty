@@ -406,7 +406,7 @@ let rec syntax_pos item origin_map : range option = match origin_map with
         Some range)
       else syntax_pos item ss
 
-let check_program from_thf origin_map stmts : (statement list, str * range option) result =
+let check_program from_thf origin_map stmts : (statement list, string * range option) result =
   try
     let stmts = check_stmts [] stmts in
     Ok (if from_thf then stmts else encode_stmts [] stmts)

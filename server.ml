@@ -10,7 +10,7 @@ open Prove
 open Statement
 open Util
 
-let adjust_pos text (line_num, col_num) =
+let adjust_pos text (line_num, col_num) : pos =
   let lines = str_lines text in
   let line = nth lines (line_num - 1) in
   let col_num = utf16_encode_len (String.sub line 0 (col_num - 1)) in
@@ -28,7 +28,7 @@ type prover_data = {
   not_proven: (string * statement) list ref    (* uri, theorem *)
 }
 
-let cancel_check data stmts () =
+let cancel_check data stmts () : bool =
   Mutex.protect data.mutex (fun () -> !(data.statements) != stmts)
 
 let prove_stmts data stmts =
@@ -122,22 +122,22 @@ let diagnostic start_pos end_pos severity message =
 
 (* lifecycle messages *)
 
-let parse_initialize init =
+let parse_initialize init : string =
   assert (msg_method init = "initialize");
   params init |> member "workspaceFolders" |> index 0 |> mem_str "uri"
 
 (* document synchronization *)
 
-let parse_did_open msg =
+let parse_did_open msg : string * string =
   let doc = params msg |> member "textDocument" in
   (doc |> mem_str "uri", doc |> mem_str "text")
 
-let parse_did_change msg =
+let parse_did_change msg : string * string =
   let p = params msg in
   (p |> member "textDocument" |> mem_str "uri",
    p |> member "contentChanges" |> index 0 |> mem_str "text")
 
-let parse_did_close msg =
+let parse_did_close msg : string =
   params msg |> member "textDocument" |> mem_str "uri"
 
 (* language features *)
@@ -148,7 +148,7 @@ let publish_diagnostics uri diagnostics =
 
 (* server *)
 
-let check text =
+let check text : (statement list, pos * pos * string) Stdlib.result =
   match Parser.parse text with
     | Failed (msg, Parse_error ((_index, line, col), _)) ->
         let (line, col) = adjust_pos text (line, col) in
@@ -166,7 +166,7 @@ let check text =
 let clear_diags output uri =
   write_message output (publish_diagnostics uri [])
 
-let init opts =
+let init opts : in_channel * out_channel =
   printf "language server running: pipe = %s\n%!" !(opts.pipe);
   let (input, output) = open_connection (ADDR_UNIX !(opts.pipe)) in
   printf "connected%!\n";
@@ -183,40 +183,40 @@ let init opts =
   assert (msg_method inited = "initialized");
   (input, output)
 
-  let notify_progress output n total =
-    write_message output (notification "natty/progress" (
-      `List [`Int n; `Int total]))
+let notify_progress output n total =
+  write_message output (notification "natty/progress" (
+    `List [`Int n; `Int total]))
 
-  let reprove sources data output proving f =
-    sources := f !sources;
+let reprove sources data output proving f =
+  sources := f !sources;
 
-    let checked = map_snd check !sources in
-    checked |> iter (fun (uri, r) ->
-      let diags = match r with
-        | Ok _ -> []
-        | Error (pos1, pos2, err) -> [diagnostic pos1 pos2 DiagError err] in
-      write_message output (publish_diagnostics uri diags));
+  let checked = map_snd check !sources in
+  checked |> iter (fun (uri, r) ->
+    let diags = match r with
+      | Ok _ -> []
+      | Error (pos1, pos2, err) -> [diagnostic pos1 pos2 DiagError err] in
+    write_message output (publish_diagnostics uri diags));
 
-    let rec to_prove = function
-      | [] -> Some []
-      | (_uri, Error _) :: _ -> None
-      | (uri, Ok prog) :: rs ->
-          let* ss = to_prove rs in
-          Some ((expand_proofs prog |> filter_map (
-            fun (thm, known) ->
-              match thm with
-                | Theorem (_, _, _, None, _) -> Some (uri, thm, known)
-                | _ -> None)) @ ss) in
+  let rec to_prove = function
+    | [] -> Some []
+    | (_uri, Error _) :: _ -> None
+    | (uri, Ok prog) :: rs ->
+        let* ss = to_prove rs in
+        Some ((expand_proofs prog |> filter_map (
+          fun (thm, known) ->
+            match thm with
+              | Theorem (_, _, _, None, _) -> Some (uri, thm, known)
+              | _ -> None)) @ ss) in
 
-    let stmts =
-      if proving then opt_default (to_prove checked) [] else [] in
-    Mutex.protect data.mutex (fun () ->
-      data.statements := stmts;
-      data.progress := 0;
-      data.not_proven := []
-      );
-    Semaphore.Binary.release data.semaphore;
-    notify_progress output 0 (length stmts)
+  let stmts =
+    if proving then opt_default (to_prove checked) [] else [] in
+  Mutex.protect data.mutex (fun () ->
+    data.statements := stmts;
+    data.progress := 0;
+    data.not_proven := []
+    );
+  Semaphore.Binary.release data.semaphore;
+  notify_progress output 0 (length stmts)
 
 let run () =
   if !(opts.pipe) = "" then failwith "--pipe expected"
@@ -233,7 +233,7 @@ let run () =
       } in
     let _thread = Thread.create prover_thread data in
 
-    let sources = ref [] in
+    let sources : (str * str) list ref = ref [] in
     let proving = ref false in
     let reprove1 f = reprove sources data output !proving f in
 
