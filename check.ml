@@ -398,7 +398,7 @@ let rec encode_stmts known_tuple_types stmts : statement list = match stmts with
       concat_map tuple_defs new_tuple_types @ (stmt ::
         encode_stmts (new_tuple_types @ known_tuple_types) stmts)
 
-let rec syntax_pos item = function
+let rec syntax_pos item origin_map : range option = match origin_map with
   | [] -> None
   | (s, range) :: ss ->
       if syntax_ref_eq s item then (
@@ -406,7 +406,7 @@ let rec syntax_pos item = function
         Some range)
       else syntax_pos item ss
 
-let check_program from_thf origin_map stmts =
+let check_program from_thf origin_map stmts : (statement list, str * range option) result =
   try
     let stmts = check_stmts [] stmts in
     Ok (if from_thf then stmts else encode_stmts [] stmts)

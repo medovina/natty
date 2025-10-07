@@ -605,9 +605,11 @@ let theorem_group : statement list p =
 let program : statement list p =
   many (axiom_group <|> definition <|> theorem_group) << empty << eof |>> concat
 
-let get_syntax_map = get_user_state |>> fun state -> state.syntax_map
+let get_syntax_map : (syntax * range) list p =
+    get_user_state |>> fun state -> state.syntax_map
 
-let parse text = MParser.parse_string (pair program get_syntax_map) text empty_state
+let parse text : (statement list * (syntax * range) list) MParser.result =
+    MParser.parse_string (pair program get_syntax_map) text empty_state
 
 let parse_formula text = match MParser.parse_string expr text empty_state with
   | Success f -> f
