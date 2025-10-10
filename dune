@@ -1,6 +1,7 @@
 (env
     (dev
-        (flags (:standard -w -34-37))))
+        (flags (:standard -w -unused-type-declaration -w -unused-constructor
+                          -w -unused-value-declaration))))
 
 (executable
     (name main)

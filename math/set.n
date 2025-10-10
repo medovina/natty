@@ -1,0 +1,17 @@
+using int;
+
+# Functions
+
+Definition. For all f : ℤ → ℤ and S, T : ℤ → 𝔹, f is a mapping from S to T iff for all x : ℤ, if x ∈ S then f(x) ∈ T. 
+
+Definition. For all f : ℤ → ℤ and S, T : ℤ → 𝔹, f is an injection from S to T iff f is a mapping from S to T and for all x, y : ℤ, if x ∈ S and y ∈ S and f(x) = f(y) then x = y.
+
+Definition. For all f : ℤ → ℤ and S, T : ℤ → 𝔹, f is a surjection from S to T iff f is a mapping from S to T and for all y : ℤ, if y ∈ T then there exists some x : ℤ such that x ∈ S and f(x) = y.
+
+Definition. For all f : ℤ → ℤ and S, T : ℤ → 𝔹, f is a bijection from S to T iff f is an injection from S to T and f is a surjection from S to T.
+
+# Finite and infinite sets
+
+Definition.  For all S, T : ℤ → 𝔹, S ~ T iff there exists some f : ℤ → ℤ such that f is a bijection from S to T.
+
+Definition.  For all S : ℤ → 𝔹, S is finite iff there exists n : ℤ such that S ~ { x ∈ ℤ | x < n }.   S is infinite iff S is not finite.

@@ -12,12 +12,14 @@ let errorf s f = error (sprintf "%s: %s" s (show_formula f)) f
 
 let type_error s typ = raise (Check_error (s, Type typ))
 
+let is_type_defined id env = exists (is_type_decl id) env
+
 let rec check_type env typ = match typ with
   | Bool -> ()
   | Fun (t, u) -> check_type env t; check_type env u
   | Product typs -> iter (check_type env) typs
   | Base id ->
-      if not (is_unknown typ) && not (exists (is_type_decl id) env) then
+      if not (is_unknown typ) && not (is_type_defined id env) then
         type_error ("undefined type " ^ id) typ
       else ()
 
@@ -295,26 +297,24 @@ let rec arg_vars f : id list = match f with
 
 let rec expand_proof stmt env f range proof : proof option = match proof with
   | Steps steps ->
-      let thm_name = stmt_id stmt in
-      let only_thm = !(opts.only_thm) in
-      if not (only_thm |> opt_for_all (fun o ->
-          thm_name = o || starts_with (thm_name ^ ".") o)) then None else (
-        if !debug > 0 then (
-          printf "%s:\n\n" (stmt_name stmt);
-          if !debug > 1 then (
-            steps |> iter (fun (s, _range) -> print_endline (show_proof_step s));
-            print_newline ()
-          );
+      if !debug > 0 then (
+        printf "%s:\n\n" (stmt_name stmt);
+        if !debug > 1 then (
+          steps |> iter (fun (s, _range) -> print_endline (show_proof_step s));
+          print_newline ()
         );
-        concat_map step_types (map fst steps) |> iter (check_type env);
-        let blocks = infer_blocks steps @ [Block (Assert f, range, [])] in
-        if !debug > 0 then print_blocks blocks;
-        let fs = fst (blocks_steps blocks) in
-        Some (ExpandedSteps (map (check_stmts env) fs)))
+      );
+      concat_map step_types (map fst steps) |> iter (check_type env);
+      let blocks = infer_blocks steps @ [Block (Assert f, range, [])] in
+      if !debug > 0 then print_blocks blocks;
+      let fs = fst (blocks_steps blocks) in
+      Some (ExpandedSteps (map (check_stmts env) fs))
   | _ -> assert false
 
 and check_stmt env stmt : statement =
   match stmt with
+    | TypeDecl _ -> stmt
+    | ConstDecl (_, typ) -> check_type env typ; stmt      
     | Axiom (id, f, name) -> Axiom (id, top_check env f, name)
     | Hypothesis (id, f) -> Hypothesis (id, top_check env f)
     | Definition (id, _typ, f) ->
@@ -333,14 +333,32 @@ and check_stmt env stmt : statement =
     | Theorem (num, name, f, proof, range) ->
         let f1 = top_check env f in
         Theorem (num, name, f1, Option.bind proof (expand_proof stmt env f range), range)
-    | TypeDecl _ | ConstDecl _ -> stmt
 
 and check_stmts initial_env stmts : statement list =
   let check env stmt =
     let stmt = check_stmt env stmt in
     (stmt :: env, stmt) in
   snd (fold_left_map check initial_env stmts)
-    
+
+let rec syntax_pos item origin_map : range option = match origin_map with
+  | [] -> None
+  | (s, range) :: ss ->
+      if syntax_ref_eq s item then Some range
+      else syntax_pos item ss
+
+let check_module checked md : (_module list, string * frange) result =
+  let env : statement list = module_env md checked in
+  try 
+    let modd = { md with stmts = check_stmts env md.stmts } in
+    Ok (modd :: checked)
+  with
+    | Check_error (err, item) ->
+        let pos = syntax_pos item md.syntax_map in
+        Error (err, (md.filename, opt_default pos empty_range))
+
+let check_modules modules : (_module list, string * frange) result =
+  fold_left_res check_module [] modules |> Result.map rev
+
 let type_as_id typ = str_replace " " "" (show_type typ)
 
 let tuple_constructor types : string =
@@ -372,11 +390,11 @@ let rec encode_formula tuple_types f : formula =
         Lambda (id, encode_type tuple_types typ, encode_formula tuple_types f)
     | f -> map_formula (encode_formula tuple_types) f
 
-let rec encode_stmts known_tuple_types stmts : statement list = match stmts with
+let rec encode_stmts env stmts : statement list = match stmts with
   | [] -> []
   | stmt :: stmts ->
       let tuple_types : typ list list ref = ref [] in
-      let encode = encode_formula tuple_types in
+      let encode f = encode_formula tuple_types f in
       let stmt = match stmt with
         | ConstDecl (id, typ) ->
             ConstDecl (encode_id id typ, encode_type tuple_types typ)
@@ -385,30 +403,29 @@ let rec encode_stmts known_tuple_types stmts : statement list = match stmts with
         | Theorem (num, name, f, proof, range) ->
             let map_proof = function
               | ExpandedSteps esteps ->
-                  ExpandedSteps (map (encode_stmts known_tuple_types) esteps)
+                  ExpandedSteps (map (encode_stmts env) esteps)
               | _ -> assert false in
             Theorem (num, name, encode f, Option.map map_proof proof, range)
         | _ -> map_stmt_formulas encode stmt in
-      let new_tuple_types = subtract !tuple_types known_tuple_types in
+      let typs_id typs = type_as_id (Product typs) in
+      let new_tuple_types =
+        !tuple_types |> filter (fun typs -> not (is_type_defined (typs_id typs) env)) in
       let tuple_defs typs =
-        let tuple_type_id = type_as_id (Product typs) in
+        let tuple_type_id = typs_id typs in
         [TypeDecl (tuple_type_id, None);
          ConstDecl (tuple_constructor typs,
                     fold_right mk_fun_type typs (Base tuple_type_id))] in
-      concat_map tuple_defs new_tuple_types @ (stmt ::
-        encode_stmts (new_tuple_types @ known_tuple_types) stmts)
+      let new_tuple_defs = concat_map tuple_defs new_tuple_types in
+      new_tuple_defs @ (stmt ::
+        encode_stmts (new_tuple_defs @ env) stmts)
 
-let rec syntax_pos item origin_map : range option = match origin_map with
-  | [] -> None
-  | (s, range) :: ss ->
-      if syntax_ref_eq s item then (
-        (* assert (syntax_pos item ss = None); *)
-        Some range)
-      else syntax_pos item ss
+let encode_module encoded md : _module list =
+  let env : statement list = module_env md encoded in
+  { md with stmts = encode_stmts env md.stmts } :: encoded
 
-let check_program from_thf origin_map stmts : (statement list, string * range option) result =
-  try
-    let stmts = check_stmts [] stmts in
-    Ok (if from_thf then stmts else encode_stmts [] stmts)
-  with
-    | Check_error (err, item) -> Error (err, syntax_pos item origin_map)
+let encode_modules modules : _module list =
+  rev (fold_left encode_module [] modules)
+
+let check from_thf modules : (_module list, string * frange) result =
+  let** modules = check_modules modules in
+  Ok (if from_thf then modules else encode_modules modules)

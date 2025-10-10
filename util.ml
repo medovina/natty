@@ -29,17 +29,36 @@ let opt_exists f = function
 
 let opt_fold f opt acc = fold_right f (Option.to_list opt) acc
 
-let opt_or x y = match x with
+let opt_or (x: 'a option) (y: unit -> 'a) : 'a = match x with
   | Some x -> x
   | None -> y ()
 
-let or_opt x y = match x with
+let or_opt (x: 'a option) (y: unit -> 'a option) : 'a option = match x with
   | Some x -> Some x
   | None -> y ()
 
-let opt_or_opt x y = match x with
+let opt_or_opt (x: 'a option) (y: 'a option) : 'a option = match x with
   | Some x -> Some x
   | None -> y
+
+(* results *)
+
+let (let**) = Stdlib.Result.bind
+
+(* ('a -> ('b, 'e) result) -> 'a list -> ('b list, 'e) result *)
+let rec map_res f xs = match xs with
+  | [] -> Ok []
+  | x :: xs ->
+      let** y = f x in
+      let** rest = map_res f xs in
+      Ok (y :: rest)
+
+(* ('a -> 'b -> ('a, 'e) result) -> 'a -> 'b list -> ('a, 'e) result *)
+let rec fold_left_res f acc xs = match xs with
+  | [] -> Ok acc
+  | x :: xs ->
+      let** acc = f acc x in
+      fold_left_res f acc xs
 
 (* chars *)
 
@@ -218,9 +237,9 @@ let sort_by f = sort (fun x y -> Stdlib.compare (f x) (f y))
 
 let unique l = sort_uniq Stdlib.compare l
 
-let minimum xs = fold_left1 min xs
+let minimum (xs: 'a list) : 'a = fold_left1 min xs
 
-let maximum xs = fold_left1 max xs
+let maximum (xs: 'a list) : 'a = fold_left1 max xs
 
 let is_maximal gt x ys =
   not (exists (fun y -> y <> x && gt y x) ys)
@@ -229,6 +248,14 @@ let maximum_by f xs =
   snd (maximum (map (fun x -> (f x, x)) xs))
 
 let sum xs = fold_left (+.) 0.0 xs
+
+(* span f xs returns (take_while f xs, drop_while f xs). *)
+let rec span f = function
+  | [] -> ([], [])
+  | x :: xs ->
+      if f x then 
+        let (xs, ys) = span f xs in (x :: xs, ys)
+      else ([], x :: xs)
 
 let group_by key_fun fold init xs =
   let rec gather = function
@@ -242,7 +269,7 @@ let group_by key_fun fold init xs =
               else (key, fold x init) :: rest in
   gather (sort_by key_fun xs)
   
-let gather_pairs xs =
+let gather_pairs (xs: ('a * 'b) list) : ('a * 'b list) list =
   group_by fst (fun (_, x) acc -> cons x acc) [] xs
 
 (* association lists *)
@@ -251,13 +278,23 @@ let update_assoc (k, v) assoc = (k, v) :: remove_assoc k assoc
 
 (* search *)
 
-let search xs neighbors =
+(* return values in reverse topological order *)
+let dsearch (x: 'a) (neighbors: 'a -> 'a list) : 'a list =
+  let rec find all x =
+    if memq x all then all else
+      x :: fold_left find all (neighbors x) in
+  find [] x
+
+let search1 sub (initial: 'a list) (neighbors: 'a -> 'a list) : 'a list =
   let rec loop visited = function
     | [] -> visited
     | x :: rest ->
-        let ns = subtractq (neighbors x) visited in
+        let ns = sub (neighbors x) visited in
         loop (ns @ visited) (ns @ rest) in
-  loop xs xs
+  loop initial initial
+
+let search init f = search1 subtract init f
+let searchq init f = search1 subtractq init f
 
 (* I/O *)
 
@@ -270,14 +307,13 @@ let change_extension path ext =
 
 let mk_dir dir = Sys.mkdir dir 0o755
 
-let empty_dir dir =
-  Sys.readdir dir |> Array.iter (fun file -> Sys.remove (mk_path dir file))
-
-let rm_dir dir =
-  if Sys.file_exists dir then (
-    empty_dir dir;
-    Sys.rmdir dir
-  )
+let rec empty_dir dir =
+  Sys.readdir dir |> Array.iter (fun file ->
+    let path = mk_path dir file in
+    if Sys.is_directory path then (
+      empty_dir path;
+      Sys.rmdir path
+    ) else Sys.remove path)
 
 let clean_dir dir =
   if Sys.file_exists dir then empty_dir dir else mk_dir dir
@@ -311,6 +347,11 @@ let trace msg s =
   (return () |>> (fun _ -> printf "entering %s\n" msg)) >>
   s |>> (fun x ->
   printf "parsed %s\n" msg; x)
+
+let always_parse parser text state =
+  match MParser.parse_string parser text state with
+    | Success x -> x
+    | Failed _ -> failwith "parse failure"
 
 (* multisets *)
 

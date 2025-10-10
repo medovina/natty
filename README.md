@@ -14,32 +14,41 @@ Natty is written in [OCaml](https://ocaml.org/), using [Dune](https://dune.build
 $ opam install mparser mparser-re psq yojson
 ```
 
-### Running
+### Running Natty
 
-The included file [`nat.n`](nat.n) defines the natural numbers and integers and contains a number of elementary theorems about them.  To invoke Natty on this file, run
+Natty's math library contains several files that develop some basic mathematics:
+
+* [nat.n](math/nat.n) - defines the natural numbers using the Peano axioms, then asserts many identities about them
+* [int.n](math/int.n) - defines the integers using the natural numbers. them asserts many identities about them
+* [set.n](math/set.n) - contains a few definitions about functions and sets
+* [num.n](math/num.n) - a development of elementary number theory including the infinite of primes, Bezout's theorem and the Euclidean algorithm
+
+You can run Natty on any of these files from the command line.  For example:
 
 ```
-$ ./natty nat.n
+$ ./natty math/nat.n
 ```
 
 The `-p` option asks Natty to output a proof of each theorem that it proves:
 
 ```
-$ ./natty -p nat.n
+$ ./natty -p math/nat.n
 ```
+
+When you run Natty on any input file, it will prove all theorems in all files that the input file depends on.  For example, `num.n` depends on `int.n` and `set.n`.  Also, `int.n` depends on `nat.n`.  So if you invoke Natty on `num.n`, it will first attempt to prove all theorems in `nat.n`, then in `int.n`, `set.n` and finally in `num.n` itself.
 
 The `-d` option will print verbose debug output, showing all inferences that Natty makes as it searches for proofs.
 
-By default, Natty will stop as soon as it fails to prove any theorem.  The `-a` option asks it to keep going and attempt to prove all theorems even if one or more proofs fail.  (At this time Natty is not able to prove all theorems in `nat.n`, so you will need to use this option if you'd like it to try to prove all theorems in that file.)
+By default, Natty will stop as soon as it fails to prove any theorem.  The `-a` option asks it to keep going and attempt to prove all theorems even if one or more proofs fail.  (At this time Natty is not able to prove all theorems in any of the input files, so you will need to use this option if you'd like it to try to prove all theorems.)
 
 The `-t` option specifies a time limit for searching for a proof.  For example, `-t2` specifies a limit of 2 seconds.  The default limit is 5 seconds.
 
-The `-x` option will cause Natty to export each theorem from the input to a file in the standard THF format.  The output files will appear in a subdirectory, e.g. in the `nat` directory for theorems from `nat.n`.  In this mode Natty will not attempt to prove any theorems.
+The `-x` option will cause Natty to export each theorem from the input file (and its dependencies) to a file in the standard THF format.  The output files will appear in the `thf` subdirectory, e.g. in the `thf/nat` directory for theorems from `nat.n`.  In this mode Natty will not attempt to prove any theorems.
 
 You can also run Natty on a THF file directly:
 
 ```
-$ ./natty nat/1.thf
+$ ./natty thf/nat/1.thf
 ```
 
 To see a list of other available options, run Natty with no command-line arguments:
@@ -59,19 +68,19 @@ Reading [`nat.n`](nat.n) may give you an idea of the syntactic constructs that N
 The Python program `eval.py` evaluates Natty and several other provers (E, Vampire, Zipperposition) on a set of THF files.  To use it, first use Natty to export the theorems from `nat.n` to THF files:
 
 ```
-$ natty -x nat.n
+$ natty -x math/nat.n
 ```
 
 After that, run
 
 ```
-$ python eval.py -pnatty nat
+$ python eval.py -pnatty thf/nat
 ```
 
 That will run Natty on all the THF files in the `nat` subdirectory, and generate a results file `nat_results.csv` that you can open in any spreadsheet program.  After '-p' you may alternately specify the name of a different prover to evaluate, one of 'e', 'vampire' or 'zipperposition'.  Any such prover will need to be in your `PATH`. To evaluate all of these provers at once, run
 
 ```
-$ python eval.py -a nat
+$ python eval.py -a thf/nat
 ```
 
 ### References

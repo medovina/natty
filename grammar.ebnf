@@ -254,6 +254,8 @@ proofs = 'Proof.' (proof_item+ | proof_steps);
 theorem_group = ('Corollary' | 'Lemma' | 'Theorem') [stmt_name] '.' ['Let' ids_types '.']
     top_prop_or_items [proofs];
 
-(* program *)
+(* module *)
 
-program = {axiom_group | definition | theorem_group};
+using = 'using' name {',' name} ';' ;
+
+module = [using] {axiom_group | definition | theorem_group};

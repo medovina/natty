@@ -8,11 +8,16 @@ type str = string
 
 type pos = int * int   (* line number, colum number *)
 
-type range = Range of pos * pos
-let empty_range = Range ((0, 0), (0, 0))
+type range = pos * pos
+let empty_range = ((0, 0), (0, 0))
 
-let show_range (Range ((line1, col1), (line2, col2))) =
-  sprintf "%d:%d - %d:%d" line1 col1 line2 col2
+let show_pos (line, col) = sprintf "%d:%d" line col
+
+let show_range (pos1, pos2) =
+  if pos2 = (0, 0) then show_pos pos1
+  else sprintf "%s - %s" (show_pos pos1) (show_pos pos2)
+
+type frange = string * range
 
 type syntax = Type of typ | Formula of formula
 let mk_type_syntax t = Type t
@@ -77,7 +82,7 @@ type statement =
   | Axiom of id * formula * id option (* num, formula, name *)
   | Hypothesis of id * formula
   | Definition of id * typ * formula
-  | Theorem of id * id option * formula * proof option * range
+  | Theorem of id * string option * formula * proof option * range
 
 and proof =
   | Steps of (proof_step * range) list
@@ -103,7 +108,7 @@ let stmt_id = function
   | Definition (id, _, _) -> id
   | Theorem (id, _, _, _, _) -> id
 
-let set_stmt_num id = function
+let set_stmt_id id = function
   | Hypothesis (_, formula) -> Hypothesis (id, formula)
   | Theorem (_, name, formula, proof, range) -> Theorem (id, name, formula, proof, range)
   | _ -> assert false
@@ -185,39 +190,80 @@ let number_hypotheses name stmts =
   let f n = function
     | (Hypothesis _) as hyp ->
         let hyp_name = sprintf "%s.h%d" name n in
-        (n + 1, set_stmt_num hyp_name hyp)
+        (n + 1, set_stmt_id hyp_name hyp)
     | stmt -> (n, stmt) in
   snd (fold_left_map f 1 stmts)
 
-let expand_proofs stmts : (statement * statement list) list =
-  let only_thm, from_thm, to_thm =
-    !(opts.only_thm), !(opts.from_thm), !(opts.to_thm) in
-  let active = ref (not (Option.is_some only_thm) && not (Option.is_some from_thm)) in
+let match_thm_id thm_id selector = starts_with selector thm_id
+
+let match_thm thm selector = match_thm_id (stmt_id thm) selector
+
+let expand_proofs stmts with_full : (statement * statement list) list =
+  let only_thm = !(opts.only_thm) in
   let rec expand known = function
     | stmt :: stmts ->
         let thms = match stmt with
-          | Theorem (num, _, _, proof, _) as thm -> (
-            let thm_known =
-              if !active || only_thm = Some num || from_thm = Some num then
-                (if from_thm = Some num then active := true;
-                 [(thm, known)])
-              else [] in
-            thm_known @ match proof with
+          | Theorem (id, _, _, proof, _) as thm -> (
+              let thm_known =
+                if opt_for_all (match_thm_id id) only_thm &&
+                  (with_full || proof = None)
+                then [(thm, known)] else [] in
+              thm_known @ match proof with
                 | Some (ExpandedSteps fs) ->
                     fs |> filter_mapi (fun j stmts ->
-                      let step_name = sprintf "%s.s%d" num (j + 1) in
-                      if !active || only_thm = Some num || only_thm = Some step_name then
+                      let step_name = sprintf "%s.s%d" id (j + 1) in
+                      if opt_for_all (match_thm_id step_name) only_thm then
                         let (hypotheses, conjecture) = split_last stmts in
-                        Some (set_stmt_num step_name conjecture,
-                              rev (number_hypotheses num hypotheses) @ known)
+                        Some (set_stmt_id step_name conjecture,
+                              rev (number_hypotheses id hypotheses) @ known)
                       else None)
                 | Some (Steps _) -> assert false
                 | None -> [])
           | _ -> [] in
-        thms @ (if to_thm |> opt_exists ((=) (stmt_id stmt)) then []
-                else expand (stmt :: known) stmts)
+        thms @ expand (stmt :: known) stmts
     | [] -> [] in
-  let res = expand [] stmts in
-  only_thm |> Option.iter (fun only_thm ->
-    if res = [] then failwith (sprintf "theorem %s not found" only_thm));
-  res
+  expand [] stmts
+
+type _module = {
+  filename: string;
+  using: string list;
+  stmts: statement list;
+  syntax_map : (syntax * range) list; 
+}
+
+let find_module modules name : _module =
+    find (fun m -> m.filename = name) modules
+
+let all_using md existing : _module list =
+  let uses m = map (find_module existing) m.using in
+  rev (tl (dsearch md uses))
+
+let module_env md existing : statement list =
+  concat_map (fun m -> m.stmts) (all_using md existing)
+
+let expand_modules modules : (string * statement * statement list) list =
+  let stmts =
+    let+ m = modules in
+    let env = module_env m modules in
+    let+ (stmt, known) = expand_proofs (m.stmts) false in
+    [(m.filename, stmt, env @ rev known)] in
+  let stmts = match !(opts.from_thm) with
+    | Some id -> stmts |> drop_while (fun (_filename, stmt, _known) -> not (match_thm stmt id))
+    | None -> stmts in
+  if (Option.is_some !(opts.only_thm) || Option.is_some !(opts.from_thm)) && stmts = [] then
+    failwith "theorem not found";
+  stmts
+
+let write_thm_info md =
+  let thms = filter is_theorem md.stmts in
+  let thm_steps = function
+    | Theorem (_, _, _, proof, _) -> (match proof with
+        | Some (ExpandedSteps steps) -> Some steps
+        | Some (Steps _) -> assert false
+        | None -> None)
+    | _ -> assert false in
+  let step_groups = filter_map thm_steps thms in
+  printf "%s: %d theorems (%d with proofs, %d without); %d proof steps\n"
+    md.filename
+    (length thms) (length step_groups) (length thms - length step_groups)
+    (length (concat step_groups))

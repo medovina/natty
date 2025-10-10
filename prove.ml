@@ -133,11 +133,11 @@ let merge_cost parents = match unique parents with
     | [] -> 0.0
     | [p] -> p.cost
     | parents ->
-        let ancestors = search parents (fun p -> p.parents) in
+        let ancestors = searchq parents (fun p -> p.parents) in
         sum (ancestors |> map (fun p -> p.delta))
 
 let inducted p =
-  search [p] (fun p -> p.parents) |> exists (fun p -> is_inductive p)
+  searchq [p] (fun p -> p.parents) |> exists (fun p -> is_inductive p)
 
 let cost_limit = 1.5
 
@@ -466,7 +466,7 @@ let is_para pf = match trim_rule pf.rule with
 let by_induction p = exists is_inductive p.parents
 
 let all_steps pformula =
-  search [pformula] (fun p -> unique (p.parents @ p.rewrites))
+  searchq [pformula] (fun p -> unique (p.parents @ p.rewrites))
 
 let step_cost = 0.01
 let big_cost = 0.03
@@ -924,7 +924,7 @@ type proof_stats = {
   initial: int; given: int; generated: int; max_cost: float
 }
 
-type result = Proof of pformula * proof_stats | Timeout | GaveUp | Stopped
+type proof_result = Proof of pformula * proof_stats | Timeout | GaveUp | Stopped
 
 let szs = function
   | Proof _ -> "Theorem"
@@ -966,7 +966,7 @@ let rw_simplify_all queue used found ps =
     p in
   filter_map simplify ps
 
-let refute pformulas cancel_check : result =
+let refute pformulas cancel_check : proof_result =
   profile "refute" @@ fun () ->
   let timeout = !(opts.timeout) in
   let found = ref @@ FormulaMap.of_list (pformulas |> map (fun p -> (canonical p, p))) in
@@ -1074,7 +1074,6 @@ let to_pformula name f =
   { (create_pformula name [] (rename_vars f)) with definition = is_def }
 
 let prove known_stmts thm cancel_check =
-  let known_stmts = rev known_stmts in
   consts := filter_map decl_var known_stmts;
   ac_ops := [];
   let formulas = known_stmts |> filter_map (fun stmt ->
@@ -1107,7 +1106,7 @@ let show_proof pf dis elapsed stats =
     print_newline ();
     output_proof pf)
 
-let prove_all thf prog =
+let prove_all thf modules =
   profile "prove_all" @@ fun () ->
   let dis = if !(opts.disprove) then "dis" else "" in
   let rec prove_stmts succeeded failed = function
@@ -1121,7 +1120,7 @@ let prove_all thf prog =
               printf "%d theorems/steps disproved.\n" failed
             else
               printf "%d theorems/steps proved, %d not proved.\n" succeeded failed
-    | (thm, known) :: rest ->
+    | (_, thm, known) :: rest ->
         let (succeed, fail) = match thm with
           | Theorem (_, _, _, None, _) ->
               print_endline (show_statement true thm ^ "\n");
@@ -1135,9 +1134,8 @@ let prove_all thf prog =
               if thf then printf "SZS status %s\n" (szs result);
               print_newline ();
               if !(opts.disprove) then (not b, b) else (b, not b)
-          | Theorem _ -> (false, false)
           | _ -> assert false in
         let (succeeded, failed) = (succeeded + int_of_bool succeed), (failed + int_of_bool fail) in
         if failed = 0 || !(opts.keep_going) then
           prove_stmts succeeded failed rest in
-  prove_stmts 0 0 (expand_proofs prog)
+  prove_stmts 0 0 (expand_modules modules)

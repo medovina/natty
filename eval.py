@@ -45,7 +45,8 @@ def sort_key(s):
     return [int(n) for n in s.replace('s', '').split('_')]
 
 def read_theorems():
-    files = [name.removesuffix('.thf') for name in os.listdir(conf.dir) if name.endswith('.thf')]
+    files = [name.removesuffix('.thf') for name in os.listdir(conf.dir)
+             if name.endswith('.thf') and name[0].isdigit()]
     files.sort(key = sort_key)
 
     theorems = {}

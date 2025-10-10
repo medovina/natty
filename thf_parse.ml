@@ -1,8 +1,11 @@
 open MParser
+open Printf
 
 open Logic
 open Statement
 open Util
+
+type 'a p = ('a, unit) t   (* parser type *)
 
 let comment = (any_of "%#" >> skip_many_until any_char newline)
   <|> (string "/*" >> skip_many_until any_char (string "*/"))
@@ -84,11 +87,11 @@ and quantifier s mk =
     (build_quant mk)
 and formula s = expression operators term s
 
-let thf_type = id << str ":" >>= fun id ->
+let thf_type : statement p = id << str ":" >>= fun id ->
    (str "$tType" >>$ TypeDecl (id, None)) <|>
    (typ |>> fun typ -> ConstDecl (id, typ))
 
-let thf_formula = empty >>?
+let thf_formula : statement p = empty >>?
   str "thf" >> parens (
     pair (id << str ",") (id << str ",") >>= fun (name, role) ->
       match role with
@@ -102,8 +105,26 @@ let thf_formula = empty >>?
         | _ -> failwith "unknown role")
   << str "."
 
-let parse text =
-  MParser.parse_string (many thf_formula |>> fun f -> (f, [])) text ()
+let _include = str "include" >> parens quoted_id << str "."
+
+let thf_file : statement list p =
+  many _include >> many thf_formula << empty << eof
+
+let relative_name from f = mk_path (Filename.dirname from) f
+
+let parse_thf source : (_module list, string * frange) Stdlib.result =
+  let rec parse source : (statement list, string * frange) Stdlib.result =
+    let text = read_file source in
+    let inc : str list =
+      map (relative_name source) (always_parse (many _include) text ()) in
+    let** inc_stmts = map_res parse inc in
+    match MParser.parse_string thf_file text () with
+      | Success stmts -> Ok (concat inc_stmts @ stmts)
+      | Failed (err, Parse_error ((_index, line, col), _)) ->
+          Error (err, (source, ((line, col), (0, 0))))
+      | _ -> failwith "parse_thf" in
+  let** stmts = parse source in
+  Ok [{ filename = source; using = []; stmts; syntax_map = [] }]
 
 type derivation =
   | Step of id
@@ -129,3 +150,19 @@ let proof_formula = empty >>?
 
 let parse_proof source =
   MParser.parse_channel (many proof_formula |>> concat) (open_in source) ()
+
+let id_num id = remove_prefix "c_0_" id
+
+let rec show_derivation = function
+  | Step id -> id_num id
+  | Inference (id, [d]) -> show_derivation d ^ ", " ^ id
+  | Inference ("rw", [d; Step id]) ->
+      show_derivation d ^ sprintf ", rw(%s)" (id_num id)
+  | Inference (rule, [d1; d2]) ->
+      sprintf "%s, %s, %s" (show_derivation d1) (show_derivation d2) rule
+  | Inference _ -> failwith "show_derivation"
+  | File -> "file"
+
+let format_proof formulas =
+  formulas |> iter (fun (id, f, deriv) ->
+    printf "%s. %s [%s]\n" (id_num id) (show_formula f) (show_derivation deriv))

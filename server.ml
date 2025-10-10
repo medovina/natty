@@ -1,6 +1,5 @@
 open Unix
 
-open MParser
 open Yojson
 open Yojson.Basic.Util
 
@@ -21,11 +20,11 @@ type prover_data = {
   semaphore: Semaphore.Binary.t;
   notify_out: out_channel;
 
-  (* uri, theorem to prove, known stmts *)
+  (* filename, theorem to prove, known stmts *)
   statements: (string * statement * statement list) list ref;
 
   progress: int ref;
-  not_proven: (string * statement) list ref    (* uri, theorem *)
+  not_proven: (string * statement) list ref    (* filename, theorem *)
 }
 
 let cancel_check data stmts () : bool =
@@ -34,7 +33,7 @@ let cancel_check data stmts () : bool =
 let prove_stmts data stmts =
   let rec loop = function
     | [] -> ()
-    | (uri, thm, known) :: ss ->
+    | (filename, thm, known) :: ss ->
         let success =
           printf "proving %s\n%!" (stmt_name thm);
           let (proof, _elapsed) =
@@ -47,7 +46,7 @@ let prove_stmts data stmts =
           else (
             incr data.progress;
             if not success then
-              data.not_proven := (uri, thm) :: !(data.not_proven);
+              data.not_proven := (filename, thm) :: !(data.not_proven);
             false
           )) in
         if abort then
@@ -148,23 +147,33 @@ let publish_diagnostics uri diagnostics =
 
 (* server *)
 
-let check text : (statement list, pos * pos * string) Stdlib.result =
-  match Parser.parse text with
-    | Failed (msg, Parse_error ((_index, line, col), _)) ->
-        let (line, col) = adjust_pos text (line, col) in
-        Error ((line, col), (line, col + 1), last (str_lines (String.trim msg)))
-    | Success (prog, origin_map) -> (
-        match Check.check_program false origin_map prog with
-          | Error (err, range) ->
-              let (pos1, pos2) = match range with
-                | Some (Range (pos1, pos2)) -> (adjust_pos text pos1, adjust_pos text pos2)
-                | None -> ((0, 0), (0, 0)) in
-              Error (pos1, pos2, err)
-          | Ok prog -> Ok prog)
-    | _ -> failwith "check"
+let uri_to_filename uri = remove_prefix "file://" uri
+let filename_to_uri f = "file://" ^ f
 
-let clear_diags output uri =
-  write_message output (publish_diagnostics uri [])
+let text_of sources file =
+  opt_or (assoc_opt file sources) (fun () -> read_file file)
+
+let check (sources : (string * string) list) : (_module list, string * frange) result =
+  let res =
+    let** modules = Parser.parse_files (map fst sources) sources in
+    Check.check false modules in
+  match res with
+    | Error (err, (filename, (pos1, pos2))) ->
+        let text = text_of sources filename in
+        let (line, col) as pos1 = if pos1 = (0, 0) then (0, 0) else adjust_pos text pos1 in
+        let pos2 = if pos2 = (0, 0) then (line, col + 1) else adjust_pos text pos2 in
+        let frange = (filename, (pos1, pos2)) in
+        Error (last (str_lines (String.trim err)), frange)
+    | Ok modules -> Ok modules
+
+let update_diagnostics output existing new_diags =
+  let output_diags (filename, ds) =
+    write_message output (publish_diagnostics (filename_to_uri filename) ds) in
+  let new_filenames = map fst new_diags in
+  !existing |> iter (fun filename ->
+    if not (mem filename new_filenames) then output_diags (filename, []));
+  iter output_diags new_diags;
+  existing := new_filenames
 
 let init opts : in_channel * out_channel =
   printf "language server running: pipe = %s\n%!" !(opts.pipe);
@@ -173,7 +182,7 @@ let init opts : in_channel * out_channel =
   
   let msg = read_message input in
   let uri = parse_initialize msg in
-  let folder = Option.get (opt_remove_prefix "file://" uri) in
+  let folder = uri_to_filename uri in
   printf "folder = %s\n%!" folder;
 
   let result = `Assoc [("capabilities", `Assoc [("textDocumentSync", `Int 1)])] in
@@ -187,29 +196,14 @@ let notify_progress output n total =
   write_message output (notification "natty/progress" (
     `List [`Int n; `Int total]))
 
-let reprove sources data output proving f =
-  sources := f !sources;
-
-  let checked = map_snd check !sources in
-  checked |> iter (fun (uri, r) ->
-    let diags = match r with
-      | Ok _ -> []
-      | Error (pos1, pos2, err) -> [diagnostic pos1 pos2 DiagError err] in
-    write_message output (publish_diagnostics uri diags));
-
-  let rec to_prove = function
-    | [] -> Some []
-    | (_uri, Error _) :: _ -> None
-    | (uri, Ok prog) :: rs ->
-        let* ss = to_prove rs in
-        Some ((expand_proofs prog |> filter_map (
-          fun (thm, known) ->
-            match thm with
-              | Theorem (_, _, _, None, _) -> Some (uri, thm, known)
-              | _ -> None)) @ ss) in
-
-  let stmts =
-    if proving then opt_default (to_prove checked) [] else [] in
+let reprove sources existing_diags data output proving =
+  let diags, stmts = match check sources with
+    | Error (msg, (filename, (pos1, pos2))) ->
+        [(filename, [diagnostic pos1 pos2 DiagError msg])], []
+    | Ok modules ->
+        [], if proving then expand_modules modules else [] in
+  update_diagnostics output existing_diags diags;
+  
   Mutex.protect data.mutex (fun () ->
     data.statements := stmts;
     data.progress := 0;
@@ -234,8 +228,9 @@ let run () =
     let _thread = Thread.create prover_thread data in
 
     let sources : (str * str) list ref = ref [] in
+    let existing_diags = ref [] in
     let proving = ref false in
-    let reprove1 f = reprove sources data output !proving f in
+    let reprove1 () = reprove !sources existing_diags data output !proving in
 
     let exit = ref false in
     while (not !exit) do
@@ -244,16 +239,20 @@ let run () =
         let msg = read_message input in
         match msg_method msg with
           | "textDocument/didOpen" ->
-              reprove1 (update_assoc (parse_did_open msg))
+              let uri, text = parse_did_open msg in
+              sources := update_assoc (uri_to_filename uri, text) !sources;
+              reprove1 ()
           | "textDocument/didChange" ->
-              reprove1 (update_assoc (parse_did_change msg))
+              let uri, text = parse_did_change msg in
+              sources := update_assoc (uri_to_filename uri, text) !sources; 
+              reprove1 ()
           | "textDocument/didClose" ->
               let uri = parse_did_close msg in
-              clear_diags output uri;
-              reprove1 (remove_assoc uri)
+              sources := remove_assoc (uri_to_filename uri) !sources;
+              reprove1 ()
           | "natty/setProving" ->
               proving := params msg |> index 0 |> to_bool;
-              reprove1 Fun.id
+              reprove1 ()
           | "shutdown" ->
               write_message output (response msg `Null)
           | "exit" ->
@@ -265,13 +264,15 @@ let run () =
           let (n, not_proven, total) = Mutex.protect data.mutex (fun () ->
             (!(data.progress), !(data.not_proven), length (!(data.statements)))) in
           notify_progress output n total;
-          gather_pairs not_proven |> iter (fun (uri, stmts) ->
-            let diags = stmts |> map (function
-              | Theorem (_, _, _, _, Range (pos1, pos2)) as thm ->
-                  let text = assoc uri !sources in
-                  diagnostic (adjust_pos text pos1) (adjust_pos text pos2) Warning
-                    ("could not prove " ^ (stmt_name thm))
-              | _ -> assert false) in
-            write_message output (publish_diagnostics uri diags))
+          let all_diags =
+            gather_pairs not_proven |> map (fun (filename, stmts) ->
+              let text = text_of !sources filename in
+              let stmts = stmts |> map (function
+                | Theorem (_, _, _, _, (pos1, pos2)) as thm ->
+                    diagnostic (adjust_pos text pos1) (adjust_pos text pos2) Warning
+                      ("could not prove " ^ (stmt_name thm))
+                | _ -> assert false) in
+              (filename, stmts)) in
+          update_diagnostics output existing_diags all_diags
         )
     done

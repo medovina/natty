@@ -1,0 +1,309 @@
+using nat;
+
+# Integers: definition
+
+Axiom.  There exists a type ℤ (the integers) with a function z : ℕ ⨯ ℕ → ℤ such that
+
+  a. For all a, b, c, d ∈ ℕ, z(a, b) = z(c, d) if and only if a + d = b + c.  [int_eq_def]
+  b. For all x ∈ ℤ, there exist some a, b ∈ ℕ such that x = z(a, b).
+
+Definition.  Let 0 : ℤ = z(0, 0).  Let 1 : ℤ = z(1, 0).  Let 2 : ℤ = z(2, 0).
+
+Lemma (int_z_zero).  For all a, b ∈ ℕ, z(a, b) = 0 if and only if a = b.
+
+Lemma.  0 : ℤ ≠ 1 : ℤ.
+
+# Integers: addition
+
+Axiom (int_ax_add).  There is a binary operation + : ℤ → ℤ → ℤ such that for all a, b, c, d ∈ ℕ,
+
+    z(a, b) + z(c, d) = z(a + c, b + d).
+
+Axiom.  There is a unary operation − : ℤ → ℤ such that for all a, b ∈ ℕ,
+
+  −z(a, b) = z(b, a).
+
+Definition.  For all i, j ∈ ℤ, i − j = i + (−j).
+
+Theorem.  Let i, j, k ∈ ℤ.
+
+  1. (i + j) + k = i + (j + k).
+  2. i + j = j + i.
+  3. i + 0 = i.
+  4. i + (−i) = 0.
+
+Proof.
+
+  1. Let i, j, k ∈ ℤ. We know that there are some a, b, c, d, e, f ∈ ℕ such that i = z(a, b) and j = z(c, d) and k = z(e, f).  Then
+  
+    (i + j) + k = (z(a, b) + z(c, d)) + z(e, f)
+                    = z(a + c, b + d) + z(e, f)
+                    = z((a + c) + e, (b + d) + f)
+                    = z(a + (c + e), b + (d + f))
+                    = z(a, b) + z(c + e, d + f)
+                    = z(a, b) + (z(c, d) + z(e, f))
+                    = i + (j + k).
+
+  2. Let i, j ∈ ℤ.  There are some a, b, c, d ∈ ℕ such that i = z(a, b) and j = z(c, d).  Then
+
+    i + j = z(a, b) + z(c, d)
+          = z(a + c, b + d)
+          = z(c + a, d + b)
+          = z(c, d) + z(a, b)
+          = j + i.
+
+  3. Let i ∈ ℤ.  Then there are some a, b ∈ ℕ such that i = z(a, b).  So
+
+    i + 0 = z(a, b) + z(0, 0)
+            = z(a + 0, b + 0)
+            = z(a, b)
+            = i.
+
+  4. Let i ∈ ℤ.  Then there are some a, b ∈ ℕ such that i = z(a, b).  So
+
+    i + (−i) = z(a, b) + −z(a, b)
+                = z(a, b) + z(b, a)
+                = z(a + b, b + a)
+                = z(0, 0)     by :int_eq_def
+                = 0.
+
+Theorem.  Let x, y, z ∈ ℤ.
+
+  1. If x + z = y + z, then x = y.
+  2. −(−x) = x.
+  3. −(x + y) = (−x) + (−y).
+
+Proof.
+
+  1. Let x, y, z ∈ ℤ, and suppose that x + z = y + z.  Then (x + z) + (−z) = (y + z) + (−z), so x + (z + −z) = y + (z + −z), so x + 0 = y + 0, so x = y.
+
+  2. Let x ∈ ℤ.  Then there are some a, b ∈ ℕ such that x = z(a, b).  Then
+
+    −(−x) = −(− z(a, b))
+            = − z(b, a)
+            = z(a, b)
+            = x.
+
+  3. Let x, y ∈ ℤ.  Then there are some a, b, c, d ∈ ℕ such that x = z(a, b) and y = z(c, d).  Then
+
+    −(x + y) = −(z(a, b) + z(c, d))
+                = −(z(a + c, b + d))
+                = z(b + d, a + c)
+                = z(b, a) + z(d, c)
+                = −z(a, b) + −z(c, d)
+                = −x + −y.
+
+# Integers: multiplication
+
+Axiom.  There is a binary operation · : ℤ → ℤ → ℤ such that for all a, b, c, d ∈ ℕ,
+
+    z(a, b) · z(c, d) = z(ac + bd, ad + bc).        [int_mul_def]
+
+Theorem.  Let i, j, k ∈ ℤ.
+
+  1. (ij)k = i(jk).
+  2. ij = ji.
+  3. i · 0 = 0.
+  4. i · 1 = i.
+  5. i(j + k) = ij + ik.
+  6. (i + j)k = ik + jk.
+  
+Proof.
+
+  1. Let i, j, k ∈ ℤ.  There are some a, b, c, d, e, f ∈ ℕ such that i = z(a, b) and j = z(c, d) and k = z(e, f).  Then
+
+    (ij)k = (z(a, b) · z(c, d)) · z(e, f)
+          = z(ac + bd, ad + bc) · z(e, f)
+          = z((ac + bd)e + (ad + bc)f, (ac + bd)f + (ad + bc)e)
+          = z(ace + bde + adf + bcf, acf + bdf + ade + bce)
+          = z(ace + adf + bcf + bde, acf + ade + bce + bdf)
+          = z(a(ce + df) + b(cf + de), a(cf + de) + b(ce + df))
+          = z(a, b) · z(ce + df, cf + de)
+          = z(a, b) · (z(c, d) · z(e, f))
+          = i(jk).
+
+  2. Let i, j ∈ ℤ.  Then there are some a, b, c, d ∈ ℕ such that i = z(a, b) and j = z(c, d).  Then
+
+    ij = z(a, b) · z(c, d)
+      = z(ac + bd, ad + bc)
+      = z(ca + db, cb + da)
+      = z(c, d) · z(a, b)
+      = ji.
+
+  3. Let i ∈ ℤ.  Then there are some a, b ∈ ℕ such that i = z(a, b).  Then
+
+    i · 0 = z(a, b) · 0
+          = z(a, b) · z(0, 0)
+          = z(0, 0)
+          = 0.
+
+  4. Let i ∈ ℤ.  Then there are some a, b ∈ ℕ such that i = z(a, b).  Then
+
+    i · 1 = z(a, b) · 1
+          = z(a, b) · z(1, 0)
+          = z(a, b)
+          = i.
+
+  5. Let i, j, k ∈ ℤ.  There are some a, b, c, d, e, f ∈ ℕ such that i = z(a, b) and j = z(c, d) and k = z(e, f).  Then
+
+    i(j + k) = z(a, b) · (z(c, d) + z(e, f))
+                = z(a, b) · z(c + e, d + f)
+                = z(a(c + e) + b(d + f), a(d + f) + b(c + e))
+                = z(ac + ae + bd + bf, ad + af + bc + be)
+                = z(ac + bd + ae + bf, ad + bc + af + be)
+                = z(ac + bd, ad + bc) + z(ae + bf, af + be)
+                = z(a, b) · z(c, d) + z(a, b) · z(e, f)
+                = ij + ik.
+
+  6. Let i, j, k ∈ ℤ.  Then (i + j)k = k(i + j) = ki + kj = ik + jk.
+
+Theorem (int_mul_zero).  Let i, j ∈ ℤ.  If ij = 0, then i = 0 or j = 0.
+
+Proof.
+
+  Let i, j ∈ ℤ.  Suppose that ij = 0 and that i ≠ 0.  We will deduce that j = 0.  There are some a, b, c, d ∈ ℕ such that i = z(a, b) and j = z(c, d).  Then a ≠ b by :int_z_zero.  By :int_mul_def we see that 0 = ij = z(a, b) · z(c, d) = z(ac + bd, ad + bc).  Then ac + bd = ad + bc by :int_z_zero.  By :nat_trichotomy we know that either a < b or a > b.
+  
+  First, suppose that a < b.  Then there is some g ∈ ℕ such that a + g = b.  Hence ac + (a + g)d = ad + (a + g)c.  So ac + ad + gd = ad + ac + gc, so gd = gc.  Since a ≠ b, we must have g ≠ 0, and we deduce that d = c.
+
+  Next, suppose that a > b.  Then there is some g ∈ ℕ such that b + g = a.  Hence (b + g)c + bd = (b + g)d + bc.  So bc + gc + bd = bd + gd + bc, so gc = gd.  Since a ≠ b, we must have g ≠ 0, and we deduce that c = d.  
+
+  In either case c = d.  Then j = 0 by :int_z_zero.
+
+Theorem.  Let i, j, k ∈ ℤ.
+
+  1. If k ≠ 0 and ik = jk, then i = j.
+  2. (−i)j = −(ij).
+  3. i(−j) = −(ij).
+
+Proof.
+
+  1. Let i, j, k ∈ ℤ, and suppose that k ≠ 0 and ik = jk.  Then ik + (−j)k = jk + (−j)k, so (i + −j)k = (j + −j)k = 0 · k = 0.  By :int_mul_zero we have i + −j = 0.  Then i + −j + j = 0 + j, so i = j.
+
+  2. Let i, j, k ∈ ℤ.  Then
+  
+    i(−j) = i(−j) + (ij + −(ij))
+          = (i(−j) + ij) + −(ij)
+          = i(−j + j) + −(ij)
+          = i · 0 + −(ij)
+          = −(ij).
+
+# Integers: inequalities
+
+Axiom.  There is a relation < : ℤ → ℤ → 𝔹 such that for all a, b, c, d ∈ ℕ,
+
+    z(a, b) < z(c, d) if and only if a + d < b + c.     [int_lt_def]
+
+Definition.  For all i, j ∈ ℤ, i ≤ j iff i < j or i = j.
+
+Corollary.  For all a, b, c, d ∈ ℕ,
+
+    z(a, b) ≤ z(c, d) if and only if a + d ≤ b + c.     [int_le]
+
+Definition.  For all i, j ∈ ℤ, we write i > j iff j < i.  We write i ≥ j iff j ≤ i.
+
+Theorem.  Let i, j, k ∈ ℤ.
+
+  1. Precisely one of i < j or i = j or i > j holds.    [int_trichotomy]
+  2. If i < j and j < k, then i < k.        [int_lt_trans]
+  3. If i ≤ j and j < k, then i < k.
+  4. If i < j and j ≤ k, then i < k.        [int_lt_le_trans]
+  5. If i ≤ j and j ≤ k, then i ≤ k.        [int_le_trans]
+  6. If i < j then i + k < j + k.            [int_lt_add_right]
+  7. If i < j and k > 0, then ik < jk.    [int_lt_mul_right]
+
+Proof.
+
+  1. Let i, j ∈ ℤ.  Then there are some a, b, c, d ∈ ℕ such that i = z(a, b) and j = z(c, d).  By :int_trichotomy we know that exactly one of a + d < b + c or a + d = b + c or a + d > b + c holds.  The result follows using :int_lt_def.
+
+  2. Let i, j, k ∈ ℤ, and suppose that i < j and j < k.  There are some a, b, c, d, e, f ∈ ℕ such that i = z(a, b) and j = z(c, d) and k = z(e, f).  Then z(a, b) < z(c, d) and z(c, d) < z(e, f), so a + d < b + c and c + f < d + e.  It follows that a + d + f < b + c + f and b + c + f < b + d + e, so a + d + f < b + d + e.  Then a + f < b + e by :nat_lt_add_cancel, so i < k.
+
+  6. Let i, j, k ∈ ℤ, and suppose that i < j.  There are some a, b, c, d, e, f ∈ ℕ such that i = z(a, b) and j = z(c, d) and k = z(e, f).  Then z(a, b) < z(c, d), and therefore a + d < b + c.  Hence (a + d) + (e + f) < (b + c) + (e + f), and therefore (a + e) + (d + f) < (b + f) + (c + e).  It follows by :int_lt_def that z(a + e, b + f) < z(c + e, d + f), and hence z(a, b) + z(e, f) < z(c, d) + z(e, f), which means that i + k < j + k.
+
+  7. Let i, j, k ∈ ℤ, and suppose that i < j and k > 0.  There are some a, b, c, d, e, f ∈ ℕ such that i = z(a, b) and j = z(c, d) and k = z(e, f). So z(a, b) < z(c, d) and z(e, f) > 0, which means that a + d < b + c and f < e.  So by :nat_add_prod we have
+  
+    (b + c)f + (a + d)e < (a + d)f + (b + c)e.
+
+  Then
+  
+    (ae + bf) + (cf + de) < (af + be) + (ce + df).
+    
+  So z(ae + bf, af + be) < z(ce + df, cf + de) by :int_lt_def.  And so z(a, b) · z(e, f) < z(c, d) · z(e, f), so we have ik < jk.
+
+Theorem.  Let i, j ∈ ℤ.
+
+  1. i > 0 if and only if −i < 0, and i < 0 if and only if −i > 0.  [int_lt_neg]
+  2. 0 : ℤ < 1 : ℤ.
+  3. If i ≤ j and j ≤ i, then i = j.       [int_le_antisymm]
+  4. If i > 0 and j > 0, then ij > 0.
+  5. If i > 0 and j < 0, then ij < 0.
+  6. If i > 0 and j ≤ 0, then ij ≤ 0.   [int_mul_pos_nonneg]
+  7. If i < 0 and j < 0, then ij > 0.   [int_mul_neg_neg]
+  8. If i ≤ 0 and j ≤ 0, then ij ≥ 0.
+
+# Bijection between naturals and non-negative integers
+
+Axiom (int_nat_proj). There is a function π : ℤ → ℕ such that for all i ∈ ℤ, if i ≥ 0 then i = z(π(i), 0).
+
+Theorem.  Let i, j ∈ ℤ.
+
+  1. If i ≥ 0 and j ≥ 0 and π(i) = π(j), then i = j.    [int_proj_injective]
+  2. If i ≥ 0 and j ≥ 0, then π(i + j) = π(i) + π(j).
+  3. If i ≥ 0 and j ≥ 0, then i ≤ j iff π(i) ≤ π(j).       [int_proj_lt]
+
+Proof.
+
+    1. Let i, j ∈ ℤ, and suppose that i ≥ 0 and j ≥ 0 and π(i) = π(j).  Suppose that i ≠ j.  Then z(π(i), 0) ≠ z(π(j), 0), so π(i) + 0 ≠ π(j) + 0 by :int_eq_def, so π(i) ≠ π(j), which is a contradiction.
+
+    2. Let i, j ∈ ℤ, and suppose that i ≥ 0 and j ≥ 0.  Then
+    
+        z(π(i + j), 0) = i + j                            by :int_nat_proj
+                            = z(π(i), 0) + z(π(j), 0)   by :int_nat_proj
+                            = z(π(i) + π(j), 0)           by :int_ax_add  .
+    
+    Then by :int_eq_def we have π(i + j) + 0 = π(i) + π(j) + 0, so π(i + j) = π(i) + π(j).
+
+    3. Let i, j ∈ ℤ, and suppose that i ≥ 0 and j ≥ 0.  Suppose that π(i) ≤ π(j).  Then π(i) + 0 ≤ 0 + π(j), so z(π(i), 0) ≤ z(π(j), 0) by :int_le.  Then i ≤ j by :int_nat_proj.  Conversely, suppose that i ≤ j.  Then z(π(i), 0) ≤ z(π(j), 0) by :int_nat_proj.  Then π(i) + 0 ≤ 0 + π(j) by :int_le, so π(i) ≤ π(j).
+
+# Mathematical induction on non-negative integers
+
+Theorem (int_induction).  For all S : ℤ → 𝔹, if 0 ∈ S and for all i ∈ ℤ i ≥ 0 and i ∈ S implies i + 1 ∈ S, then for all i ∈ ℤ i ≥ 0 implies i ∈ S.
+
+Proof.  Let S : ℤ → 𝔹, and suppose that 0 ∈ S and for all i ∈ ℤ i ≥ 0 and i ∈ S implies i + 1 ∈ S.  Let T = { n ∈ ℕ | there exists i ∈ ℤ such that i ≥ 0 and i ∈ S and n = π(i) }.  0 = π(0), so 0 ∈ T.  Now let n : ℕ, and suppose that n ∈ T.  Then there exists some i ∈ ℤ such that i ≥ 0 and i ∈ S and n = π(i). So i + 1 ∈ S.  Now, π(i + 1) = π(i) + π(1) = n + 1 = s(n), so s(n) ∈ T.  We have shown that n ∈ T implies s(n) ∈ T for all n ∈ ℕ.  Then T = ℕ by :nat_induction.  Now let i ∈ ℤ, and suppose that i ≥ 0.  Since T = ℕ, there exists j ∈ ℤ such that j ≥ 0 and j ∈ S and π(i) = π(j).  Then by :int_proj_injective we have i = j, so i ∈ S.
+
+Theorem (int_induction_1).  For all S : ℤ → 𝔹, if 1 ∈ S and for all i ∈ ℤ i ≥ 1 and i ∈ S implies i + 1 ∈ S, then for all i ∈ ℤ i ≥ 1 implies i ∈ S.
+
+Proof.  Let S : ℤ → 𝔹, and suppose that 1 ∈ S and for all i ∈ ℤ i ≥ 1 and i ∈ S implies i + 1 ∈ S.  Let T = { n ∈ ℤ | n + 1 ∈ S }.  Clearly 0 ∈ T.  Now let i ∈ ℤ, and suppose that i ≥ 0 and i ∈ T.  Let j : ℤ = i + 1. Then j ≥ 1 and j ∈ S, so j + 1 ∈ S, so j ∈ T, so i + 1 ∈ T.  So by :int_induction we know that i ∈ T for all i : ℤ with i ≥ 0.  Now let i : ℤ, and suppose that i ≥ 1.  Then i - 1 ≥ 0, so i - 1 ∈ T, so i ∈ S.
+
+# Well-ordering principle on non-negative integers
+
+Definition.  For all S : ℤ → 𝔹, S is empty iff there is no n : ℤ such that n ∈ S.  S is nonempty iff S is not empty.
+
+Definition.  For all A : ℤ → 𝔹 and a : ℤ, a is a least element of A iff a ∈ A and for all x : ℤ, if x ∈ A then a ≤ x.  a is a greatest element of A iff a ∈ A and for all x : ℤ, if x ∈ A then x ≤ a.
+
+Theorem (int_greatest_unique).  For all A : ℤ → 𝔹 and x, y : ℤ, if x is a greatest element of A, and y is a greatest element of A, then x = y.
+
+Proof.  Let A : ℤ → 𝔹.  Let x, y : ℤ.  Suppose that x is a greatest element of A, and y is a greatest element of A.  Then x ≤ y and y ≤ x.  It follows by :int_le_antisymm that x = y.
+
+Theorem (int_well_ordered). Let S : ℤ → 𝔹.  Suppose that S is nonempty, and for all i ∈ ℤ, if i ∈ S then i ≥ 0.  Then there exists some m : ℤ such that m is a least element of S.
+
+Proof.  Let S : ℤ → 𝔹, and suppose that S is nonempty and for all i ∈ ℤ, if i ∈ S then i ≥ 0.  Then there exists some j : ℤ such that j ∈ S and j ≥ 0.  Let T = { n ∈ ℕ | there exists i ∈ ℤ such that i ≥ 0 and i ∈ S and n = π(i) }.  By :nat_well_ordered there is some a : ℕ such that a is a least element of T.  Since a ∈ T, there is some m : ℤ such that m ≥ 0 and m ∈ S and a = π(m).  We will show that m is a least element of S.  Let x : ℤ, and suppose that x ∈ S.  Then x ≥ 0.  Then π(x) ∈ T.  Since a is a least element of T, we know that a ≤ π(x).  So π(m) ≤ π(x), and then m ≤ x by :int_proj_lt.
+
+# Discreteness of integers
+
+Theorem.  Let x, y ∈ ℤ.
+
+    1. It cannot be that x < y < x + 1.     [int_discrete]
+    2. x ≤ y if and only if x < y + 1.         [int_discrete_le]
+    3. x < y if and only if x + 1 ≤ y.         [int_discrete_lt]
+
+Proof.
+
+    1. Let x, y ∈ ℤ.  Suppose that x < y < x + 1.  Then x − x < y − x < (x + 1) − x, and we deduce that 0 < y − x < 1.  By :int_lt_trans we know that y − x ≥ 0, and also 1 : ℤ ≥ 0.  Then by :int_proj_lt π(0) < π(y − x) < π(1), which is a contradiction to :nat_discrete.
+
+    2. Let x, y ∈ ℤ.  First suppose that x ≤ y.  Suppose further that x ≥ y + 1.  Then by :int_le_trans we deduce that y + 1 ≤ y.  However 1 : ℤ > 0, so by :int_lt_add_right we know that y + 1 > y + 0 = y.  This is a contradiction.  Second, suppose that x < y + 1.  Suppose further that x > y.  It follows that y < x < y + 1, which is a contradiction to part (1) of this theorem.  So it must be that x ≤ y.
+
+    3. Let x, y ∈ ℤ.  First suppose that x < y.  Suppose further that x + 1 > y.  Then x < y < x + 1, which is a contradiction to part (1) of this theorem.  So it must be that x + 1 ≤ y.  Second, suppose that x + 1 ≤ y.  Then by :int_le_trans we deduce that x + 1 ≤ x.  However 1 : ℤ > 0, so by :int_lt_add_right we know that x + 1 > x + 0 = x.  This is a contradiction.
+
+Theorem.  Let a, b, c ∈ ℤ.  If c > 0 and ab = c, then a ≤ c.    [int_factor_less]
+
+Proof.  Let a, b, c ∈ ℤ, and suppose that c > 0 and ab = c.  If a < 0 then by :int_lt_trans we have a < c.  If a = 0 then c = 0, which is a contradiction.  Now suppose that a > 0.  If b ≤ 0 then by :int_mul_pos_nonneg we have c ≤ 0, a contradiction.  So b > 0.  By :int_discrete_lt b ≥ 1.  Then by :int_lt_mul_right we have b · a ≥ 1 · a, so c ≥ a.

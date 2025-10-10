@@ -14,7 +14,7 @@ type state = {
     unique_count : int ref
 }
 
-let empty_state = {
+let empty_state () = {
     syntax_map = []; axiom_count = ref 0; theorem_count = ref 0; unique_count = ref 0
 }
 
@@ -96,7 +96,7 @@ let with_range p = empty >>?
   (get_pos >>= fun (_index, line1, col1) ->
   p >>= fun x ->
   get_pos |>> fun (_index, line2, col2) ->
-    (x, Range ((line1, col1), (line2, col2))))
+    (x, ((line1, col1), (line2, col2))))
 
 let add_syntax pair state = { state with syntax_map = pair :: state.syntax_map }
 
@@ -600,17 +600,35 @@ let theorem_group : statement list p =
       props |> map (fun (label, f, name, range) ->
         Theorem (count_label (!(st.theorem_count)) label, name, f, assoc_opt label proofs, range)))
 
-(* program *)
+(* module *)
 
-let program : statement list p =
+let using : string list p = str "using" >> sep_by1 name (str ",") << str ";"
+
+let _module : statement list p = optional using >>
   many (axiom_group <|> definition <|> theorem_group) << empty << eof |>> concat
 
-let get_syntax_map : (syntax * range) list p =
-    get_user_state |>> fun state -> state.syntax_map
+let parse_module_text text init_state : (statement list * state) MParser.result =
+  MParser.parse_string (pair _module get_user_state) text init_state
 
-let parse text : (statement list * (syntax * range) list) MParser.result =
-    MParser.parse_string (pair program get_syntax_map) text empty_state
+let parse_formula text = always_parse expr text (empty_state ())
 
-let parse_formula text = match MParser.parse_string expr text empty_state with
-  | Success f -> f
-  | Failed _ -> failwith "parse_formula" 
+let relative_name from f = mk_path (Filename.dirname from) (f ^ ".n")
+  
+let parse_files filenames sources : (_module list, string * frange) Stdlib.result =
+  let rec parse (modules, state) filename : (_module list * state, string * frange) Stdlib.result =
+    if exists (fun m -> m.filename = filename) modules then Ok (modules, state) else
+      let text = opt_or (assoc_opt filename sources) (fun () -> read_file filename) in
+      let using : str list =
+        map (relative_name filename) (always_parse (opt [] using) text (empty_state ())) in
+      let** (modules, state) = fold_left_res parse (modules, state) using in
+      match parse_module_text text state with
+        | Success (stmts, state) ->
+            let modd = { filename; using; stmts; syntax_map = state.syntax_map } in
+            Ok (modd :: modules, { state with syntax_map = [] })
+        | Failed (err, Parse_error ((_index, line, col), _)) ->
+            Error (err, (filename, ((line, col), (0, 0))))
+        | Failed _ -> failwith "parse_files" in
+  let** (modules, _state) = fold_left_res parse ([], empty_state ()) filenames in
+  Ok (rev modules)
+
+let parse_file filename = parse_files [filename] []

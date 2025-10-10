@@ -87,3 +87,38 @@ let thf_statement is_conjecture f : string =
         thm_or_hyp num kind f in
   unlines (map (sprintf "thf(%s).") (conv f))
 
+let thf_file dir name = mk_path dir (name ^ ".thf")
+
+let write_thf dir name using proven (stmt: statement option) =
+  let f = thf_file dir (str_replace "." "_" name) in
+  if not (Sys.file_exists f) then (
+    let out = open_out f in
+    stmt |> Option.iter (fun stmt ->
+      let problem = Option.get (stmt_formula stmt) in
+      let problem =
+        if free_vars problem = [] then remove_universal problem else problem in
+      fprintf out "%% Problem: %s\n\n" (show_formula problem));
+    using |> iter (fun name ->
+      fprintf out "include('../%s/%s.thf').\n" name name);
+    if using <> [] then fprintf out "\n";
+    let write is_last stmt = (
+      fprintf out "%% %s\n" (show_statement false stmt);
+      fprintf out "%s\n\n" (thf_statement is_last stmt)) in
+    iter (write false) proven;
+    Option.iter (write true) stmt;
+    Out_channel.close out)
+
+let base_name md = Filename.remove_extension (Filename.basename md.filename)
+
+let export_module dir all_modules md =
+  let module_name = base_name md in
+  let subdir = mk_path dir module_name in
+  mk_dir subdir;
+  let using = map base_name (all_using md all_modules) in
+  expand_proofs md.stmts true |> iter (fun (thm, known) ->
+    match thm with
+      | Theorem (num, name, _, _, _) ->
+          let filename = String.concat ":" ([num] @ Option.to_list name) in
+          write_thf subdir filename using (rev known) (Some thm)
+      | _ -> failwith "theorem expected");
+  write_thf subdir module_name [] md.stmts None

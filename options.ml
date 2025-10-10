@@ -13,7 +13,6 @@ type options = {
   show_proof_of: int ref;
   stats: bool ref;
   timeout: float ref;
-  to_thm: string option ref;
   verbose: bool ref
 }
 
@@ -30,7 +29,6 @@ let opts = {
   show_proof_of = ref 0;
   stats = ref false;
   timeout = ref 5.0;
-  to_thm = ref None;
   verbose = ref false
 }
 
@@ -45,7 +43,7 @@ let usage () =
       -c                try to disprove all theorems
       -d<level>         debug level
       -e                reformat proof from E
-      -f<name>[:<name>] prove/export given theorem and following (optionally up to given theorem)
+      -f<name>          prove/export given theorem and following
       -h                print this help message
       -i                print proof statistics
       -l                run as language server
@@ -74,12 +72,7 @@ let parse_args args =
             | 'd' -> let level = if arg = "-d" then 1 else int_val () in
                      debug := level
             | 'e' -> opts.e_proof := true
-            | 'f' -> (
-                match String.split_on_char ':' value with
-                  | [from] -> opts.from_thm := Some from
-                  | [from; up_to] ->
-                      opts.from_thm := Some from; opts.to_thm := Some up_to;
-                  | _ -> failwith "expected 1 or 2 names")
+            | 'f' -> opts.from_thm := Some value
             | 'h' -> usage ()
             | 'i' -> opts.stats := true
             | 'l' -> opts.server := true
