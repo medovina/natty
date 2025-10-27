@@ -7,16 +7,21 @@ open Util
 let quote s =
   let s = str_replace "." "_" s in
   if is_lower (s.[0]) && String.for_all is_id_char s
-    then s else sprintf "'%s'" s
+    then s else sprintf "'%s'" (str_replace "'" "\\'" s)
 
-let thf_type typ =
-  let rec f left = function
+let rec thf_type typ =
+  let rec f left typ = match typ with
     | Bool -> "$o"
-    | Base id -> quote id
+    | Type -> "$tType"
+    | Base id | TypeVar id -> quote id
     | Fun (t, u) ->
         let s = sprintf "%s > %s" (f true t) (f false u) in
         if left then sprintf "(%s)" s else s
-    | Product _ -> failwith "thf_type"
+    | Pi _ ->
+        let (xs, typ) = gather_pi typ in
+        let decls = xs |> map (fun x -> quote x ^ ": $tType") in
+        sprintf "!>[%s]: %s" (comma_join decls) (f false typ)
+    | Product typs -> sprintf "[%s]" (comma_join (map thf_type typs))
   in f false typ
 
 let binary = [("∧", "&"); ("∨", "|"); ("→", "=>"); ("↔", "<=>")]
@@ -33,29 +38,34 @@ let to_var id = capitalize (suffix_upper (str_replace "'" "_" id))
 
 let rec thf outer right f : string =
   let parens b s = if b && outer <> "" then sprintf "(%s)" s else s in
-  match bool_kind f with
-    | True -> "$true"
-    | False -> "$false"
-    | Not f -> (match f with
-      | Eq(t, u) ->
-          parens true (sprintf "%s != %s" (thf "=" false t) (thf "=" true u))
-      | _ -> sprintf "~ %s" (thf "¬" false f))
-    | Binary (op, _, t, u) ->
-        let s = sprintf "%s %s %s"
-          (thf op false t) (assoc op binary) (thf op true u) in
-        parens (op <> "∧" && op <> "∨" || op <> outer) s
-    | Quant (q, id, typ, u) ->
-        let (ids_typs, f) = gather_quant q u in
-        quant (if q = "∀" then "!" else "?") ((id, typ) :: ids_typs) f
-    | _ -> match f with
-      | Const (id, _) -> quote (suffix_upper id)
-      | Var (id, _) -> to_var id
-      | App (t, u) ->
-          let s = sprintf "%s @ %s" (thf "@" false t) (thf "@" true u) in
-          parens (outer <> "@" || right) s
-      | Lambda (id, typ, f) -> quant "^" [(id, typ)] f
-      | Eq (t, u) ->
-          parens true (sprintf "%s = %s" (thf "=" false t) (thf "=" true u))
+  match collect_args f with
+    | (Const (c, _), args) when is_tuple_constructor c ->
+        sprintf "[%s]" (comma_join (map thf_formula args))
+    | _ ->
+      match bool_kind f with
+        | True -> "$true"
+        | False -> "$false"
+        | Not f -> (match f with
+          | Eq(t, u) ->
+              parens true (sprintf "%s != %s" (thf "=" false t) (thf "=" true u))
+          | _ -> sprintf "~ %s" (thf "¬" false f))
+        | Binary (op, _, t, u) ->
+            let s = sprintf "%s %s %s"
+              (thf op false t) (assoc op binary) (thf op true u) in
+            parens (op <> "∧" && op <> "∨" || op <> outer) s
+        | Quant (q, id, typ, u) ->
+            let (ids_typs, f) = gather_quant q u in
+            quant (if q = "∀" then "!" else "?") ((id, typ) :: ids_typs) f
+        | _ -> match f with
+          | Const (id, typ) ->
+              if id = _type then thf_type typ else quote (suffix_upper id)
+          | Var (id, _) -> to_var id
+          | App (g, h) ->
+              let s = sprintf "%s @ %s" (thf "@" false g) (thf "@" true h) in
+              parens (outer <> "@" || right) s
+          | Lambda (id, typ, f) -> quant "^" [(id, typ)] f
+          | Eq (t, u) ->
+              parens true (sprintf "%s = %s" (thf "=" false t) (thf "=" true u))
 
 and quant q ids_typs f =
   let pair (id, typ) = sprintf "%s: %s" (to_var id) (thf_type typ) in
@@ -102,7 +112,7 @@ let write_thf dir name using proven (stmt: statement option) =
       fprintf out "include('../%s/%s.thf').\n" name name);
     if using <> [] then fprintf out "\n";
     let write is_last stmt = (
-      fprintf out "%% %s\n" (show_statement false stmt);
+      fprintf out "%% %s\n" (show_statement false (mono_statement stmt));
       fprintf out "%s\n\n" (thf_statement is_last stmt)) in
     iter (write false) proven;
     Option.iter (write true) stmt;

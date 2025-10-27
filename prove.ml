@@ -44,21 +44,18 @@ let weight f =
     | Lambda (_, _, f) -> weigh f in
   weigh (remove_quantifiers f)
 
-let prefix_var var = "$" ^ var
-
-let is_prefixed var = var.[0] = '$'
-
-let prefix_vars f =
+let prefix_vars f : formula =
   let rec prefix outer = function
-    | Var (x, typ) when not (mem x outer) ->
-        Var (prefix_var x, typ)
-    | Lambda (x, _typ, f) ->
-        Lambda (x, _typ, prefix (x :: outer) f)
+    | Var (x, typ) ->
+        let x = if mem x outer then x else prefix_var x in
+        Var (x, prefix_type_vars typ)
+    | Lambda (x, typ, f) ->
+        Lambda (x, prefix_type_vars typ, prefix (x :: outer) f)
     | f -> map_formula (prefix outer) f
   in prefix [] f
 
-let unprefix_vars f =
-  let rec build_map all_vars = function
+let unprefix_vars f : formula =
+  let rec build_map all_vars vars : (id * id) list = match vars with
     | [] -> []
     | var :: rest ->
         if is_prefixed var then
@@ -67,11 +64,18 @@ let unprefix_vars f =
           (var, w) :: build_map (w :: all_vars) rest
         else build_map all_vars rest in
   let var_map = build_map (all_vars f) (free_vars f) in
+  let type_vars = all_type_vars_in_formula f in
+  let type_map = build_map type_vars type_vars in
+  let unprefix_type t = match t with
+    | TypeVar x ->
+        if is_prefixed x then TypeVar (assoc x type_map) else t
+    | t -> t in
   let rec fix outer = function
-    | Var (v, typ) as var when not (mem v outer) ->
-        if is_prefixed v then Var (assoc v var_map, typ) else var
-    | Lambda (x, _typ, f) ->
-      Lambda (x, _typ, fix (x :: outer) f)
+    | Var (v, typ) ->
+        let v = if is_prefixed v then assoc v var_map else v in
+        Var (v, unprefix_type typ)
+    | Lambda (x, typ, f) ->
+        Lambda (x, unprefix_type typ, fix (x :: outer) f)
     | f -> map_formula (fix outer) f in
   fix [] f
 
@@ -79,7 +83,7 @@ let is_inductive pformula = match kind pformula.formula with
   | Quant ("∀", _, Fun (_, Bool), _) -> true
   | _ -> false
   
-let associative_axiom f =
+let associative_axiom f : (str * typ) option =
   let is_assoc (f, g) = match kind f, kind g with
     | Binary (op, _, f1, Var (z, typ)), Binary (op3, _, Var (x', _), g1) -> (
         match kind f1, kind g1 with
@@ -95,7 +99,8 @@ let associative_axiom f =
 
 let is_associative_axiom p = Option.is_some (associative_axiom p.formula)
 
-let commutative_axiom f = remove_universal f |> function
+let commutative_axiom f : (str * typ) option =
+  remove_universal f |> function
     | Eq (f, g) -> (match kind f, kind g with
         | Binary (op, _, Var (x, typ), Var (y, _)), Binary (op', _, Var (y', _), Var (x', _))
             when (op, x, y) = (op', x', y') -> Some (op, typ)
@@ -149,7 +154,7 @@ let mk_pformula rule parents step formula =
     derived = step || exists (fun p -> p.derived) parents;
     definition = not step && exists (fun p -> p.definition) parents }
 
-let number_formula pformula =
+let number_formula pformula : pformula =
   if pformula.id > 0 then pformula
   else (
     assert ((pformula.parents @ pformula.rewrites) |> for_all (fun p -> p.id > 0));
@@ -165,7 +170,7 @@ let is_skolem s = is_letter s.[0] && is_digit s.[strlen s - 1]
  *   ⊥
  *   T 
  *)
-let const_gt f g =
+let const_gt f g : bool =
   let prio (c, c_type) =
     let index = match find_index (fun x -> x = (c, c_type)) !consts with
       | None ->
@@ -397,7 +402,7 @@ let subterms is_blue t =
     (if is_var t then [] else [(t, parent_eq)]) @ match t with
       | App _ ->
           let (head, args) = collect_args t in
-          if head = c_for_all || head = c_exists then
+          if is_quantifier head then
             if is_blue then match args with
               | [Lambda (_x, _typ, f)] -> gather parent_eq acc f
               | _ -> acc
@@ -434,7 +439,7 @@ let simp_eq = function
   | Eq (Eq (t, t'), f) when f = _true -> Eq (t, t')
   | f -> f
 
-let is_higher subst = subst |> exists (fun (_, f) -> is_lambda f)
+let is_higher (_, vsubst) = vsubst |> exists (fun (_, f) -> is_lambda f)
 
 let oriented t t' = [(t, t'); (t', t)] |>
   filter (fun (t, t') -> not (term_ge t' t))
@@ -657,7 +662,7 @@ let rewrite _quick dp cp c_subterms : pformula list =
     let t, t' = prefix_vars t, prefix_vars t' in
     let c = cp.formula in
     let+ u = c_subterms in
-    match try_match [] t u with
+    match try_match ([], []) t u with
       | Some sub ->
           let t_s, t'_s = u, rsubst sub t' in
           if term_gt t_s t'_s  (* (i) *) then
@@ -678,8 +683,8 @@ let subsumes cp (d_lits, d_exist) : bool =
     if d_exist = [] then try_match subst c d
     else
       (* Existential subsumption, e.g. x + 0 = x subsumes ∃z:ℕ.x + z = x *)
-      let* subst = unify_or_match true subst c d in
-      if subst |> for_all (fun (id, f) ->
+      let* (_, vsubst) = unify_or_match true subst c d in
+      if vsubst |> for_all (fun (id, f) ->
         not (is_prefixed id) || mem id d_exist || 
           match f with
             | Var (id, _typ) -> not (is_prefixed id)
@@ -691,7 +696,7 @@ let subsumes cp (d_lits, d_exist) : bool =
           subsume subst c d |> opt_exists (fun subst ->
             subsume_lits c_lits (remove1q d d_lits) subst)) in
   let c_lits = mini_clausify (remove_universal cp.formula) in
-  subsume_lits c_lits d_lits []
+  subsume_lits c_lits d_lits ([], [])
 
 let prefix_lits dp : formula list * id list =
   let (f, exist) = remove_quants true dp.formula in
@@ -1052,25 +1057,10 @@ let ac_complete formulas : (id * formula * bool * bool) list =
     | [] -> [] in
   scan [] formulas
 
-let lower = function
-  (* Transform C = λx.λy.Dyx to ∀x.∀y.Cxy = Dyx. *)
-  | Eq (Const _ as c,
-      Lambda (x, x_typ, Lambda (y, y_typ,
-        App (App ((Const _ as d), (Var (y', _) as vy)), (Var (x', _) as vx)))))
-        when (x, y) = (x', y') ->
-          let f = for_all_vars_types [(x, x_typ); (y, y_typ)]
-                    (Eq (apply [c; vx; vy], apply [d; vy; vx])) in
-          (f, false)
-  (* Transform C = λv1...vn.φ to ∀v1...vn (C v1 ... vn ↔ φ). *)
-  | Eq ((Const (_, typ) as c), (Lambda _ as l)) when target_type typ = Bool ->
-      let (vars_typs, g) = gather_lambdas l in
-      let f = for_all_vars_types vars_typs (
-                _iff (apply (c :: map mk_var' vars_typs)) g) in
-      (f, true)
-  | f -> (f, false)
-
 let to_pformula name f =
-  let (f, is_def) = lower f in
+  let (f, is_def) = match lower_definition f with
+    | Some f -> (f, true)
+    | _ -> (f, false) in
   { (create_pformula name [] (rename_vars f)) with definition = is_def }
 
 let prove known_stmts thm cancel_check =

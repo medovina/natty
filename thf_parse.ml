@@ -45,7 +45,10 @@ let type_operators = [
 let rec type_term s = choice [
   parens typ;
   str "$o" >>$ Bool;
-  id |>> fun id -> Base id
+  str "$tType" >>$ Type;
+  id |>> (fun id -> Base id);
+  pipe2 (str "!>" >> brackets (var << str ":" << str "$tType"))
+        (str ":" >> type_term) (fun id typ -> Pi (id, typ))
   ] s
 and typ s = expression type_operators type_term s
 

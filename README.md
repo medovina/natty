@@ -8,7 +8,7 @@ Natty is in an early stage of development, and is currently only able to prove s
 
 ### Prerequsities
 
-Natty is written in [OCaml](https://ocaml.org/), using [Dune](https://dune.build/) as its build system.  It depends on several OCaml libraries: [MParser](https://github.com/murmour/mparser), [psq](https://github.com/pqwy/psq), and [yojson](https://github.com/ocaml-community/yojson).  You can install these libraries using [opam](https://opam.ocaml.org/):
+Natty is written in [OCaml](https://ocaml.org/), using [Dune](https://dune.build/) as its build system.  It requires OCaml version 5.4 and depends on several OCaml libraries: [MParser](https://github.com/murmour/mparser), [psq](https://github.com/pqwy/psq), and [yojson](https://github.com/ocaml-community/yojson).  You can install these libraries using [opam](https://opam.ocaml.org/):
 
 ```
 $ opam install mparser mparser-re psq yojson
@@ -19,7 +19,7 @@ $ opam install mparser mparser-re psq yojson
 Natty's math library contains several files that develop some basic mathematics:
 
 * [nat.n](math/nat.n) - defines the natural numbers using the Peano axioms, then asserts many identities about them
-* [int.n](math/int.n) - defines the integers using the natural numbers. them asserts many identities about them
+* [int.n](math/int.n) - defines the integers using the natural numbers, then asserts many identities about them
 * [set.n](math/set.n) - contains a few definitions about functions and sets
 * [num.n](math/num.n) - a development of elementary number theory including the infinite of primes, Bezout's theorem and the Euclidean algorithm
 

@@ -49,7 +49,8 @@ let letter1 = letter |>> char_to_string
 
 let var = empty >>? letter1
 
-let id = str "gcd" <|> var <|> any_str ["𝔹"; "ℕ"; "ℤ"; "π"; "∏"]
+let id = str "gcd" <|> var <|>
+  any_str ["𝔹"; "ℕ"; "ℤ"; "π"; "σ"; "τ"; "∏"]
 
 let sym = choice [
   empty >>? (digit <|> any_of "+-<>|~") |>> char_to_string;
@@ -67,11 +68,6 @@ let word = empty >>? many1_chars letter
 let adjective = word
 
 let name = empty >>? many1_chars (alphanum <|> char '_')
-
-let uchar s =
-  let u = String.get_utf_8_uchar s 0 in
-  assert (Uchar.utf_decode_is_valid u);
-  Uchar.utf_decode_uchar u
 
 let sub_digit = choice [
   str "₀"; str "₁";	str "₂"; str "₃";	str "₄";
@@ -133,8 +129,12 @@ let type_operators = [
   [ infix "→" mk_fun_type Assoc_right ]
 ]
 
-let rec typ_term s = choice [
-  record_type (id |>> fun id -> mk_base_type id);
+let is_type_var s = "σ" <= s && s <= "ω"
+
+let rec typ_term s : typ pr = choice [
+  str "Set" >> parens typ |>> (fun typ -> (Fun (typ, Bool)));
+  record_type (id |>> fun id ->
+    if is_type_var id then TypeVar id else mk_base_type id);
   parens typ
 ] s
 
@@ -260,8 +260,8 @@ and operators = [
   [ infix_binop "·" Assoc_left ];
   [ infix_binop "+" Assoc_left;
     infix_binop1 minus "-" Assoc_left ];
-  [ infix_binop "∈" Assoc_none ;
-    infix_negop "∉" "∈" Assoc_none ;
+  [ infix "∈" elem Assoc_none ;
+    infix "∉" not_elem Assoc_none ;
     infix_binop "|" Assoc_none;
     infix_negop "∤" "|" Assoc_none ;  (* does not divide *)
     infix_binop "~" Assoc_none ];
@@ -472,10 +472,14 @@ let eq_definition : statement p = pipe3
 
 let new_paragraph : id p = empty >>? (any_str keywords <|> label)
 
+let generalize f : formula =
+  let vs = free_type_vars_in_formula f in
+  let all_type x f = _for_all x Type f in
+  fold_right all_type vs f
+
 let define ids_types prop : statement p =
   let prop = for_all_vars_types ids_types prop in
-  let (_vars, id, _args, _body) = expand_definition prop in
-  return @@ Definition (id, unknown_type, prop)
+  return @@ Definition ("_", unknown_type, generalize prop)
 
 let def_prop ids_types : statement p = 
     (not_followed_by new_paragraph "" >> opt_str "we write" >> proposition << str ".") >>=

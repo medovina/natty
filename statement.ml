@@ -19,13 +19,13 @@ let show_range (pos1, pos2) =
 
 type frange = string * range
 
-type syntax = Type of typ | Formula of formula
-let mk_type_syntax t = Type t
-let mk_formula_syntax f = Formula f
+type syntax = SType of typ | SFormula of formula
+let mk_type_syntax t = SType t
+let mk_formula_syntax f = SFormula f
 
 let syntax_ref_eq x y = match x, y with
-  | Type t, Type u -> t == u
-  | Formula f, Formula g -> f == g
+  | SType t, SType u -> t == u
+  | SFormula f, SFormula g -> f == g
   | _, _ -> false
 
 type proof_step =
@@ -136,17 +136,24 @@ let stmt_formula = function
   | Definition (_id, _typ, f) -> Some f
   | _ -> None
 
-let rec map_stmt_formulas fn stmt = match stmt with
+let rec map_statement1 id_fn typ_fn fn stmt = match stmt with
+  | TypeDecl _ -> stmt
+  | ConstDecl (id, typ) -> ConstDecl (id_fn typ id, typ_fn typ)
   | Axiom (id, f, name) -> Axiom (id, fn f, name)
   | Hypothesis (id, f) -> Hypothesis (id, fn f)
-  | Definition (id, typ, f) -> Definition (id, typ, fn f)
+  | Definition (id, typ, f) -> Definition (id_fn typ id, typ_fn typ, fn f)
   | Theorem (id, name, f, proof, range) ->
       let map_proof = function
         | Steps steps -> Steps steps
         | ExpandedSteps esteps ->
-            ExpandedSteps (map (map (map_stmt_formulas fn)) esteps) in
+            ExpandedSteps (map (map (map_statement1 id_fn typ_fn fn)) esteps) in
       Theorem (id, name, fn f, Option.map map_proof proof, range)
-  | TypeDecl _ | ConstDecl _ -> stmt
+
+let map_statement = map_statement1 (fun _typ id -> id)
+
+let map_stmt_formulas fn = map_statement Fun.id fn
+
+let mono_statement = map_statement without_pi implicit_formula
 
 let decl_var = function
   | TypeDecl (id, _) -> Some (id, Fun (Base id, Bool))   (* universal set for type *)
@@ -157,20 +164,6 @@ let decl_var = function
 let is_const id def =
   let* (i, typ) = decl_var def in
   if i = id then Some typ else None
-
-let expand_definition f : (str * typ) list * id * formula list * formula =
-  let (vars, f) = remove_for_all f in
-  match f with
-    | Eq (g, body) | App (App (Const ("↔", _), g), body) ->
-        let (c, args) = collect_args g in
-        let id = get_const_or_var c in
-        (vars, id, args, body)
-    | _ -> failwith "invalid definition"
-
-let build_definition vars id typ args body =
-  let binder = if type_of body = Bool then _iff else mk_eq in
-  let g = binder (apply (Const (id, typ) :: args)) body in
-  for_all_vars_types vars g
 
 let show_statement multi s : string =
   let name = stmt_name s in
@@ -244,9 +237,9 @@ let module_env md existing : statement list =
 let expand_modules modules : (string * statement * statement list) list =
   let stmts =
     let+ m = modules in
-    let env = module_env m modules in
+    let env = map mono_statement (module_env m modules) in
     let+ (stmt, known) = expand_proofs (m.stmts) false in
-    [(m.filename, stmt, env @ rev known)] in
+    [(m.filename, mono_statement stmt, env @ rev known)] in
   let stmts = match !(opts.from_thm) with
     | Some id -> stmts |> drop_while (fun (_filename, stmt, _known) -> not (match_thm stmt id))
     | None -> stmts in

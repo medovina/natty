@@ -7,171 +7,10 @@ open Util
 
 exception Check_error of string * syntax
 
-let error s f = raise (Check_error (s, Formula f))
+let error s f = raise (Check_error (s, SFormula f))
 let errorf s f = error (sprintf "%s: %s" s (show_formula f)) f
 
-let type_error s typ = raise (Check_error (s, Type typ))
-
-let is_type_defined id env = exists (is_type_decl id) env
-
-let rec check_type env typ = match typ with
-  | Bool -> ()
-  | Fun (t, u) -> check_type env t; check_type env u
-  | Product typs -> iter (check_type env) typs
-  | Base id ->
-      if not (is_unknown typ) && not (is_type_defined id env) then
-        type_error ("undefined type " ^ id) typ
-      else ()
-
-let const_types1 env id : typ list = filter_map (is_const id) env
-
-let const_types formula env id : typ list =
-  match const_types1 env id with
-    | [] -> error (sprintf "undefined: %s\n" id) formula
-    | types -> types
-
-let rec subtype t u = t = u || match t, u with
-  | Fun (t, u), Fun (t', u') -> subtype t t' && subtype u u'
-  | _, Base "_" -> true
-  | _ -> false
-
-let rec possible_types env dot_types vars : formula -> typ list =
-  let rec possible formula : typ list = match formula with
-    | Const (id, typ) ->
-        if is_unknown typ then const_types formula env id
-        else [typ]
-    | Var (id, _) -> (
-        match assoc_opt id vars with
-          | Some typ -> [typ]
-          | None -> const_types formula env id)
-    | App (Const (":", Fun (t, t')), _) ->
-        assert (t = t'); [t]
-    | App (App (Const ("∈", _), _), _) -> [Bool]
-    | App (f, g) -> (
-        match is_untyped_tuple_apply formula with
-          | Some (_, args) ->
-              let rec poss = function
-                | [] -> [[]]
-                | x :: args ->
-                    let+ t = possible x in
-                    let+ u = poss args in
-                    [t :: u] in
-              map mk_product_type (poss args)
-          | _ -> unique @@
-              possible_app env dot_types vars formula f g true |>
-                map (fun (_t, _u, typ, _kind) -> typ))
-    | Lambda (id, typ, f) ->
-        possible_types env dot_types ((id, typ) :: vars) f |>
-          map (fun t -> Fun (typ, t))
-    | Eq (_, _) -> [Bool] in
-  possible
-
-(* returns list of (f type, g type, return type, is dot) *)
-and possible_app env dot_types vars formula f g with_dot : (typ * typ * typ * bool) list =
-  let possible : formula -> typ list = possible_types env dot_types vars in
-  let all =
-    let+ t = possible f in
-    let+ u = possible g in
-    let app = match t with
-      | Fun (v, w) -> if subtype u v then [(t, u, w, false)] else []
-      | _ -> [] in
-    let prod =
-      if with_dot then
-        let+ dot = dot_types in
-        match dot with
-          | Fun (w, Fun (x, y)) when w = t && x = u -> [(t, u, y, true)]
-          | _ -> []
-      else [] in
-    app @ prod in
-  match all with
-    | [] ->
-        printf "f types: %s\n" (comma_join (map show_type (possible f)));
-        printf "g types: %s\n" (comma_join (map show_type (possible g)));
-        errorf "can't apply" formula
-    | all -> all
-
-let tuple_cons_type typs : typ =
-  fold_right mk_fun_type typs (Product typs)
-
-let check_formula env vars formula as_type : formula =
-  let dot_types = const_types1 env "·" in
-  let type_opt t = if is_unknown t then None else Some t in
-  let rec check vars formula as_type : formula =
-    let possible = possible_types env dot_types vars in
-    let find_const id : formula =
-      let types = const_types formula env id in
-      match (types |> filter (fun typ -> opt_all_eq typ as_type)) with
-        | [typ] -> Const (id, typ)
-        | [] -> error ("expected " ^ show_type (Option.get as_type)) formula
-        | _ -> error "ambiguous type" formula in
-    let check_app f g with_dot : formula =
-      match possible_app env dot_types vars formula f g with_dot with
-        | [] -> errorf "can't apply" formula
-        | possible ->
-            let possible = possible |>
-              filter (fun (_t, _u, typ, _kind) -> opt_all_eq typ as_type) in
-            match possible with
-              | [(t, u, typ, dot)] ->
-                  let f, g = check vars f (Some t), check vars g (Some u) in
-                  if dot then
-                    App (App (Const ("·", (Fun (t, Fun (u, typ)))), f), g)
-                  else App (f, g)
-              | [] -> error (show_type (Option.get as_type) ^ " expected") formula
-              | _ ->
-                  possible |> iter (fun (t, u, ret, dot) ->
-                    printf "t = %s, u = %s, ret = %s, dot = %b\n"
-                      (show_type t) (show_type u) (show_type ret) dot);
-                  errorf "ambiguous" formula in
-    match formula with
-      | Const (id, typ) ->
-          if is_unknown typ then find_const id
-          else if opt_all_eq typ as_type then Const (id, typ)
-          else error "type_mismatch" formula
-      | Var (id, _) -> (
-          match assoc_opt id vars with
-            | Some typ ->
-                if opt_all_eq typ as_type then Var (id, typ)
-                else error "type_mismatch" formula
-            | None -> find_const id)
-      | App (Const (":", Fun (t, t')), f) ->
-          assert (t = t'); check vars f (Some t)
-      | App (App (Const ("∈", _), f), g) -> check_app g f false
-      | App (f, g) -> (
-          match is_untyped_tuple_apply formula with 
-            | Some (s, args) ->
-                let args = (match as_type with
-                  | Some (Product arg_types) ->
-                      map2 (check vars) args (map mk_some arg_types)
-                  | Some _ -> error "type mismatch" formula
-                  | None -> map (fun x -> check vars x None) args) in
-                apply (Const (s, tuple_cons_type (map type_of args)) :: args)
-            | _ -> check_app f g true)
-      | Lambda (id, typ, f) ->
-          let u = match as_type with
-            | Some (Fun (t, u)) when t = typ -> type_opt u
-            | Some __ -> error "type mismatch" formula
-            | None -> None in
-          Lambda (id, typ, check ((id, typ) :: vars) f u)
-      | Eq (f, g) ->
-          if opt_all_eq Bool as_type then
-            match intersect (possible f) (possible g) with
-              | [t] ->
-                  let f, g = check vars f (Some t), check vars g (Some t) in (
-                  match g with
-                    | Const (id, Fun (Base id', Bool)) when id = id' ->
-                        (* transform e.g. P = ℕ to ∀x:ℕ.P(x) *)
-                        let x = next_var "x" (free_vars f) in
-                        _for_all x (Base id) (App (f, Var (x, Base id)))
-                    | _ -> Eq (f, g))
-              | [] ->
-                  printf "left types = %s\n" (comma_join (map show_type (possible f)));
-                  printf "right types = %s\n" (comma_join (map show_type (possible g)));
-                  error "can't compare different types" formula
-              | _ -> error "ambiguous" formula
-          else error (show_type (Option.get as_type) ^ " expected") formula in
-  check vars formula (type_opt as_type)
-
-let top_check env f = b_reduce (check_formula env [] f Bool)
+let type_error s typ = raise (Check_error (s, SType typ))
 
 type block = Block of proof_step * range * block list
 
@@ -234,7 +73,7 @@ let infer_blocks steps : block list =
 
 let skolem_name id = if looks_like_var id then id ^ "0" else id
 
-let rec with_skolem_names ids = function
+let rec with_skolem_names ids f : formula = match f with
   | Const (id, typ) when mem id ids -> Const (skolem_name id, typ)
   | Var (id, typ) when mem id ids -> Var (skolem_name id, typ)
   | f -> map_formula (with_skolem_names ids) f
@@ -288,10 +127,102 @@ and block_steps (Block (step, range, children)) : statement list list * formula 
         ([Theorem ("", None, ex, None, range)] :: map (append stmts) fs,
          if any_free_in ids concl then exists_vars_typ (ids, typ) concl else concl)
     | Escape | Group _ -> failwith "block_formulas"
+let is_type_defined id env = exists (is_type_decl id) env
+
+let check_type1 env vars typ =
+  let rec check vars = function
+    | Bool | Type -> ()
+    | Base id ->
+        if not (is_unknown typ) && not (is_type_defined id env) then
+          type_error ("undefined type " ^ id) typ
+        else ()
+    | TypeVar id ->
+        if not (mem (id, Type) vars) then
+          type_error ("undefined type variable " ^ id) typ
+    | Fun (t, u) -> check vars t; check vars u
+    | Pi (id, t) -> check ((id, Type) :: vars) t
+    | Product typs -> iter (check vars) typs
+  in check vars typ
+
+let check_type env typ = check_type1 env [] typ
+
+let find_const env formula id : formula list =
+  let consts = filter_map (is_const id) env |> map (fun typ -> Const (id, typ)) in
+  match consts with
+    | [] -> error (sprintf "undefined: %s\n" id) formula
+    | _ -> consts
+
+let infer_formula env vars formula : typ * formula =
+  let new_type_var : unit -> typ =
+    let n = ref (-1) in
+    fun () -> incr n; TypeVar (sprintf "$%d" !n) in
+  let rec inst f typ : formula * typ = match typ with
+    | Pi (x, t) ->
+        let v = new_type_var () in
+          inst (App (f, Const (_type, v))) (type_subst t v x)
+    | _ -> (f, typ) in
+  let rec check vars tsubst formula : (tsubst * typ * formula) list =
+    match formula with
+      | Const (id, typ) ->
+          let+ c = if is_unknown typ
+                    then find_const env formula id else [formula] in
+          let (f, typ) = inst c (type_of c) in
+          [(tsubst, typ, f)]
+      | Var (id, _) -> (
+          match assoc_opt id vars with
+            | Some typ -> [(tsubst, typ, Var (id, typ))]
+            | None -> check vars tsubst (Const (id, unknown_type)))
+      | App (f, g) ->
+          let all =
+            let+ (tsubst, t, f) = check vars tsubst f in
+            let+ (tsubst, u, g) = check vars tsubst g in (
+            match t with
+              | Fun (v, w) -> (
+                  match unify_types tsubst v u with
+                    | Some tsubst -> [tsubst, w, App (f, g)]
+                    | None -> [])
+              | _ ->
+                  let h = apply [Const ("·", unknown_type); f; g] in
+                  check vars tsubst h) in (
+          match all with
+            | [] -> errorf "can't apply" formula
+            | [sol] -> [sol]
+            | _ ->
+                let types = all |> map (fun (tsubst, typ, _) -> subst_types tsubst typ) in
+                if all_same types
+                  then error "ambiguous application" formula
+                else all)
+      | Lambda (x, typ, f) ->
+          check_type1 env vars typ;
+          let+ (tsubst, t, f) = check ((x, typ) :: vars) tsubst f in
+          let return_type = if typ = Type then Pi (x, t) else Fun (typ, t) in
+          [(tsubst, return_type, Lambda (x, typ, f))]
+      | Eq (f, g) ->
+          let all =
+            let+ (tsubst, t, f) = check vars tsubst f in
+            let+ (tsubst, u, g) = check vars tsubst g in
+            match unify_types tsubst t u with
+              | Some tsubst -> [(tsubst, Bool, Eq (f, g))]
+              | None -> [] in
+          match all with
+            | [] -> error "incomparable types" formula
+            | [sol] -> [sol]
+            | _ -> error "ambiguous comparison" formula in
+  match check vars [] formula with
+    | [(tsubst, typ, f)] ->
+        (typ, subst_types_in_formula tsubst f)
+    | [] -> failwith "infer_formula"
+    | _ -> error "ambiguous" formula
+
+let top_infer_with_type env f =
+  let (typ, f) = infer_formula env [] f in
+  (typ, b_reduce f)
+
+let top_infer env f = snd (top_infer_with_type env f)
 
 let rec arg_vars f : id list = match f with 
   | Var (id, _) -> [id]
-  | _ -> match is_untyped_tuple_apply f with
+  | _ -> match is_tuple_apply f with
       | Some (_id, args) -> concat_map arg_vars args
       | None -> failwith "invalid argument in definition"
 
@@ -308,35 +239,27 @@ let rec expand_proof stmt env f range proof : proof option = match proof with
       let blocks = infer_blocks steps @ [Block (Assert f, range, [])] in
       if !debug > 0 then print_blocks blocks;
       let fs = fst (blocks_steps blocks) in
-      Some (ExpandedSteps (map (check_stmts env) fs))
+      Some (ExpandedSteps (map (infer_stmts env) fs))
   | _ -> assert false
 
-and check_stmt env stmt : statement =
+and infer_stmt env stmt : statement =
   match stmt with
     | TypeDecl _ -> stmt
     | ConstDecl (_, typ) -> check_type env typ; stmt      
-    | Axiom (id, f, name) -> Axiom (id, top_check env f, name)
-    | Hypothesis (id, f) -> Hypothesis (id, top_check env f)
-    | Definition (id, _typ, f) ->
-        let (vars, id', args, body) = expand_definition f in
-        assert (id = id');
-        let avars = concat_map arg_vars args in
-        let vars1, vars2 = std_sort (map fst vars), std_sort avars in
-        (if vars1 <> vars2 then
-          let s = sprintf "variable mismatch in definition (%s / %s)"
-            (comma_join vars1) (comma_join vars2) in
-          errorf s f);
-        let check f = check_formula env vars f unknown_type in
-        let (args, body) = (map check args, check body) in
-        let typ = fold_right mk_fun_type (map type_of args) (type_of body) in
-        Definition (id, typ, build_definition vars id typ args body)
+    | Axiom (id, f, name) -> Axiom (id, top_infer env f, name)
+    | Hypothesis (id, f) -> Hypothesis (id, top_infer env f)
+    | Definition (_id, _typ, f) ->
+        let (c, f) = raise_definition f in
+        let (typ, f) = top_infer_with_type env f in
+        let g = Option.get (lower_definition (Eq (Const (c, typ), f))) in
+        Definition (c, typ, g)
     | Theorem (num, name, f, proof, range) ->
-        let f1 = top_check env f in
+        let f1 = top_infer env f in
         Theorem (num, name, f1, Option.bind proof (expand_proof stmt env f range), range)
 
-and check_stmts initial_env stmts : statement list =
+and infer_stmts initial_env stmts : statement list =
   let check env stmt =
-    let stmt = check_stmt env stmt in
+    let stmt = infer_stmt env stmt in
     (stmt :: env, stmt) in
   snd (fold_left_map check initial_env stmts)
 
@@ -346,86 +269,140 @@ let rec syntax_pos item origin_map : range option = match origin_map with
       if syntax_ref_eq s item then Some range
       else syntax_pos item ss
 
-let check_module checked md : (_module list, string * frange) result =
+let infer_module checked md : (_module list, string * frange) result =
   let env : statement list = module_env md checked in
   try 
-    let modd = { md with stmts = check_stmts env md.stmts } in
+    let modd = { md with stmts = infer_stmts env md.stmts } in
     Ok (modd :: checked)
   with
     | Check_error (err, item) ->
         let pos = syntax_pos item md.syntax_map in
         Error (err, (md.filename, opt_default pos empty_range))
 
-let check_modules modules : (_module list, string * frange) result =
-  fold_left_res check_module [] modules |> Result.map rev
+let infer_modules modules : (_module list, string * frange) result =
+  fold_left_res infer_module [] modules |> Result.map rev
 
 let type_as_id typ = str_replace " " "" (show_type typ)
 
 let tuple_constructor types : string =
   String.concat "" (tuple_cons (length types) :: map show_type types)
 
-let encode_id id typ : id =
-  if mem id logical_ops then id
-  else if starts_with "(," id then
-    let types = collect_arg_types typ in
-    assert (length types = tuple_arity id);
-    tuple_constructor types
-  else if String.contains id ':' then failwith "encode_id: double encode"
+let encode_id consts typ id : id =
+  if id = _type || mem id logical_ops then id
   else
-    let id' = if id = "u-" then "-" else id in  (* 'u' prefix is unnecessary with explicit type *)
-    sprintf "%s:%s" id' (type_as_id typ)
+    let n = count_true (fun (c, _) -> c = id) consts in
+    if n > (if mem (id, typ) consts then 1 else 0) then (
+      let id' = if id = "u-" then "-" else id in  (* 'u' prefix is unnecessary with explicit type *)
+      sprintf "%s:%s" id' (type_as_id typ))
+    else id
 
-let rec encode_type tuple_types typ : typ = match typ with
-  | Product typs ->
-      tuple_types := union [typs] !tuple_types;
-      Base (type_as_id typ)
-  | Fun (t, u) -> Fun (encode_type tuple_types t, encode_type tuple_types u)
+let encode_type typ : typ = match typ with
+  | Fun (Product typs, u) ->
+        fold_right mk_fun_type typs u   (* curry type *)
   | _ -> typ
 
-let rec encode_formula tuple_types f : formula =
-  match f with
-    | Const (id, typ) -> Const (encode_id id typ, encode_type tuple_types typ)
-    | Var (id, typ) -> Var (id, encode_type tuple_types typ)
-    | Lambda (id, typ, f) ->
-        Lambda (id, encode_type tuple_types typ, encode_formula tuple_types f)
-    | f -> map_formula (encode_formula tuple_types) f
+let encode_formula consts f : formula =
+  let rec encode f =
+    match collect_args f with
+      | (Const (":", _), [g]) ->  (* type ascription *)
+          encode g
+      | (Const (c, typ), args) when is_tuple_constructor c ->
+          mono_const c typ (map encode args)
+      | (Const ("∈", _), [_type; x; set]) ->
+          encode (App (set, x))
+      | _ ->
+        match f with
+          | Const (id, typ) -> Const (encode_id consts typ id, encode_type typ)
+          | Var (id, typ) -> Var (id, encode_type typ)
+          | App (f, g) ->
+              let f, g = encode f, encode g in (
+              match collect_args g with
+                | (Const (c, _), args) when is_tuple_constructor c ->
+                    apply (f :: args)   (* curry arguments *)
+                | _ -> App (f, g))
+          | Lambda (id, typ, f) ->
+              Lambda (id, encode_type typ, encode f)
+          | Eq (f, Const (id, Fun (Base id', Bool))) when id = id' ->
+              (* transform e.g. P = ℕ to ∀x:ℕ.P(x) *)
+              let x = next_var "x" (free_vars f) in
+              let h = _for_all x (Base id) (App (f, Var (x, Base id))) in
+              encode h
+          | f -> map_formula encode f in
+  encode f
 
-let rec encode_stmts env stmts : statement list = match stmts with
-  | [] -> []
-  | stmt :: stmts ->
-      let tuple_types : typ list list ref = ref [] in
-      let encode f = encode_formula tuple_types f in
-      let stmt = match stmt with
-        | ConstDecl (id, typ) ->
-            ConstDecl (encode_id id typ, encode_type tuple_types typ)
-        | Definition (id, typ, f) ->
-            Definition (encode_id id typ, encode_type tuple_types typ, encode f)
-        | Theorem (num, name, f, proof, range) ->
-            let map_proof = function
-              | ExpandedSteps esteps ->
-                  ExpandedSteps (map (encode_stmts env) esteps)
-              | _ -> assert false in
-            Theorem (num, name, encode f, Option.map map_proof proof, range)
-        | _ -> map_stmt_formulas encode stmt in
-      let typs_id typs = type_as_id (Product typs) in
-      let new_tuple_types =
-        !tuple_types |> filter (fun typs -> not (is_type_defined (typs_id typs) env)) in
-      let tuple_defs typs =
-        let tuple_type_id = typs_id typs in
-        [TypeDecl (tuple_type_id, None);
-         ConstDecl (tuple_constructor typs,
-                    fold_right mk_fun_type typs (Base tuple_type_id))] in
-      let new_tuple_defs = concat_map tuple_defs new_tuple_types in
-      new_tuple_defs @ (stmt ::
-        encode_stmts (new_tuple_defs @ env) stmts)
+let encode_stmt consts stmt : statement =
+  let encode f = b_reduce (encode_formula consts f) in
+  map_statement1 (encode_id consts) encode_type encode stmt
 
-let encode_module encoded md : _module list =
-  let env : statement list = module_env md encoded in
-  { md with stmts = encode_stmts env md.stmts } :: encoded
+let encode_module consts md : _module =
+  { md with stmts = map (encode_stmt consts) md.stmts }
 
-let encode_modules modules : _module list =
-  rev (fold_left encode_module [] modules)
+let basic_check env f : typ * formula =
+  let rec check vars f = match f with
+    | Const (id, typ) -> (
+        match filter_map (is_const id) env with
+          | [] ->
+              if mem id logical_ops
+                then (typ, Const (id, typ))
+                else errorf "undefined constant" f
+          | [typ] -> (typ, Const (id, typ))
+          | _ -> failwith "ambiguous constant")
+    | Var (id, _) ->
+        let typ = assoc id vars in
+        (typ, Var (id, typ))
+    | App (f, g) ->
+        let (f_type, f) = check vars f in
+        let (g_type, g) = check vars g in
+        let typ = match f_type with
+          | Fun (t, u) when t = g_type -> u
+          | Pi (x, t) -> type_subst t (get_const_type g) x
+          | _ -> failwith "can't apply" in
+        (typ, App (f, g))
+    | Lambda (x, t, f) ->
+        check_type1 env vars t;
+        let (u, f) = check ((x, t) :: vars) f in
+        let typ = if t = Type then Pi (x, u) else Fun (t, u) in
+        (typ, Lambda (x, t, f))
+    | Eq (g, h) ->
+        let (g_type, g) = check vars g in
+        let (h_type, h) = check vars h in
+        if g_type <> h_type then (
+          printf "g_type = %s, h_type = %s\n" (show_type g_type) (show_type h_type);
+          errorf "can't compare" f);
+        (Bool, Eq (g, h)) in
+  check [] f
+
+let basic_check_stmt env stmt : statement =
+  let type_check typ = check_type env typ; typ in
+  let bool_check f = match basic_check env f with
+    | (Bool, f) -> f
+    | _ -> failwith "boolean expected" in
+  map_statement type_check bool_check stmt
+
+let basic_check_stmts stmts : statement list =
+  let rec check env = function
+    | [] -> rev env
+    | stmt :: stmts ->
+        let stmt = basic_check_stmt env stmt in
+        check (stmt :: env) stmts in
+  check [] stmts
+
+let check_module md : (_module, string * frange) result =
+  try 
+    Ok ({ md with stmts = basic_check_stmts md.stmts })
+  with
+    | Check_error (err, _item) ->
+        Error (err, (md.filename, empty_range))
+
+let check_modules modules : (_module list, string * frange) result =
+    match modules with
+      | [md] ->
+          let** md = check_module md in Ok [md]
+      | _ -> failwith "single module expected"
 
 let check from_thf modules : (_module list, string * frange) result =
-  let** modules = check_modules modules in
-  Ok (if from_thf then modules else encode_modules modules)
+  if from_thf then check_modules modules
+  else
+    let** modules = infer_modules modules in
+    let consts = filter_map decl_var (concat_map (fun m -> m.stmts) modules) in
+    Ok (map (encode_module consts) modules)

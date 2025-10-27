@@ -32,7 +32,7 @@ sub_sym = '₊' | '₋';
 
 type_op = '⨯' | '→';
 
-typ = id | typ type_op typ | '(' typ ')';
+typ = id | typ type_op typ | 'Set' '(' typ ')' | '(' typ ')';
 
 of_type = ':' | '∈';
 

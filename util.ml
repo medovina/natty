@@ -124,6 +124,29 @@ let indent_with_prefix prefix s =
   let lines = str_lines s in
   unlines ((prefix ^ hd lines) :: indent_by (String.length prefix) (tl lines))
 
+module StringSet = Set.Make (String)
+module StringMap = Map.Make (String)
+
+let singular s =
+  if last_char s = 's' then string_range s 0 (String.length s - 1)
+  else failwith "word must end with 's'"
+
+(* unicode *)
+
+let uchar s =
+  let u = String.get_utf_8_uchar s 0 in
+  assert (Uchar.utf_decode_is_valid u);
+  Uchar.utf_decode_uchar u
+
+let uchar_to_string u =
+  let b = Buffer.create 4 in
+  Buffer.add_utf_8_uchar b u;
+  Buffer.contents b
+
+let usplit s : string * string =
+  let i = Uchar.utf_8_decode_length_of_byte s.[0] in
+  (String.sub s 0 i, string_from s i)
+
 let ulen c =
   if c < 0x80 then 1
   else if c < 0xe0 then 2
@@ -144,16 +167,7 @@ let utf8_len = utf8_count (Fun.const 1)
  * occupy in UTF-16. *)
 let utf16_encode_len = utf8_count (fun n -> if n > 3 then 2 else 1)
 
-module StringSet = Set.Make (String)
-module StringMap = Map.Make (String)
-
-let singular s =
-  if last_char s = 's' then string_range s 0 (String.length s - 1)
-  else failwith "word must end with 's'"
-
 (* tuples *)
-
-let swap (x, y) = (y, x)
 
 let map_fst f = map (fun (x, y) -> (f x, y))
 let map_snd f = map (fun (x, y) -> (x, f y))
@@ -163,11 +177,6 @@ let map_snd f = map (fun (x, y) -> (x, f y))
 let (let+) = fun a f -> concat_map f a
 
 let head_opt xs = nth_opt xs 0
-
-let to_option = function
-  | [] -> None
-  | [x] -> Some x
-  | _ -> failwith "to_option"
 
 let rec last = function
   | [] -> failwith "last"
@@ -183,8 +192,6 @@ let rec split_last = function
 
 let index_of_opt x ys = find_index (fun z -> z = x) ys
 
-let index_of x ys = Option.get (index_of_opt x ys)
-
 let fold_left1 f = function
   | [] -> failwith "fold_left1: empty list"
   | x :: xs -> fold_left f x xs    
@@ -194,13 +201,11 @@ let rec fold_right1 f = function
   | [x] -> x
   | x :: xs -> f x (fold_right1 f xs)
 
-let fold_lefti (f: 'a -> int -> 'b -> 'a) (acc: 'a) (xs: 'b list): 'a =
-  let rec fn i acc xs = match xs with
-    | [] -> acc
-    | (x :: xs) -> fn (i + 1) (f acc i x) xs
-  in fn 0 acc xs
-
 let filter_mapi f list = filter_map (Fun.id) (mapi f list)
+
+let rec count_true p = function
+  | [] -> 0
+  | x :: xs -> (if p x then 1 else 0) + count_true p xs
 
 let rec all_pairs = function
   | [] -> []
@@ -222,8 +227,6 @@ let rec remove1_by op x = function
 let remove1 x xs = remove1_by (=) x xs
 let remove1q x xs = remove1_by (==) x xs
 
-let union xs ys = subtract xs ys @ ys
-
 (* Replace x by y exactly once in the list zs. *)
 let rec replace1 y x = function
   | [] -> failwith "replace1"
@@ -236,6 +239,10 @@ let std_sort xs = sort Stdlib.compare xs
 let sort_by f = sort (fun x y -> Stdlib.compare (f x) (f y))
 
 let unique l = sort_uniq Stdlib.compare l
+
+let all_same = function
+  | [] -> true
+  | (x :: xs) -> for_all ((=) x) xs
 
 let minimum (xs: 'a list) : 'a = fold_left1 min xs
 
