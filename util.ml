@@ -350,6 +350,8 @@ let pipe2a p1 p2 f =
 
 let triple p q r = pipe3 p q r (fun x y z -> (x, y, z))
 
+let many_concat p = many p |>> concat
+
 let trace msg s =
   (return () |>> (fun _ -> printf "entering %s\n" msg)) >>
   s |>> (fun x ->

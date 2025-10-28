@@ -518,7 +518,7 @@ let proof_prop : (formula * range) list p = pipe2 (choice [
 let proof_if_prop : proof_step_r list p = with_range (triple
   (with_range (str "if" >> small_prop))
   (opt_str "," >> str "then" >> proof_prop)
-  (many (str "," >> so >> proof_prop) |>> concat)) |>>
+  (many_concat (str "," >> so >> proof_prop))) |>>
   (fun (((f, range), gs, hs), outer_range) ->
     [(Group ((Assume f, range) :: map_fst mk_step (gs @ hs)), outer_range)])
 
@@ -544,7 +544,7 @@ let assert_step : proof_step_r list p =
 
 let assert_steps : proof_step_r list p =
   let join = str "," >> and_or_so in
-  pipe2 assert_step (many (join >> proof_prop |>> map_fst mk_step) |>> concat) (@)
+  pipe2 assert_step (many_concat (join >> proof_prop |>> map_fst mk_step)) (@)
 
 let now = any_str ["Conversely"; "Finally"; "Next"; "Now"; "Second"]
 
@@ -598,7 +598,7 @@ let proofs : (id * proof) list p = str "Proof." >> choice [
 
 let theorem_group : statement list p =
   any_str ["Corollary"; "Lemma"; "Theorem"] >> option stmt_name << str "." >>= fun name -> 
-  opt [] (str "Let" >> ids_types << str ".") >>=
+  many_concat (str "Let" >> ids_types << str ".") >>=
   fun ids_types ->
     let& st = get_user_state in
     incr st.theorem_count;

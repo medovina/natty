@@ -251,7 +251,7 @@ proofs = 'Proof.' (proof_item+ | proof_steps);
 
 (* theorems *)
 
-theorem_group = ('Corollary' | 'Lemma' | 'Theorem') [stmt_name] '.' ['Let' ids_types '.']
+theorem_group = ('Corollary' | 'Lemma' | 'Theorem') [stmt_name] '.' {'Let' ids_types '.'}
     top_prop_or_items [proofs];
 
 (* module *)
