@@ -39,7 +39,7 @@ let rec thf_type typ =
     | Pi _ ->
         let (xs, typ) = gather_pi typ in
         let decls = xs |> map (fun x -> to_var x ^ ": $tType") in
-        sprintf "!>[%s]: %s" (comma_join decls) (f false typ)
+        sprintf "!>[%s]: %s" (comma_join decls) (f true typ)
     | Product typs -> sprintf "[%s]" (comma_join (map thf_type typs))
   in f false typ
 

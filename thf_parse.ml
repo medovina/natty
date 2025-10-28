@@ -42,14 +42,17 @@ let type_operators = [
   [ infix ">" (fun t u -> Fun (t, u)) Assoc_right ]
 ]
 
+let pi_arg = var << str ":" << str "$tType"
+
 let rec type_term s = choice [
   parens typ;
   str "$o" >>$ Bool;
   str "$tType" >>$ Type;
   id |>> (fun id -> Base id);
   var |>> (fun id -> TypeVar id);
-  pipe2 (str "!>" >> brackets (var << str ":" << str "$tType"))
-        (str ":" >> type_term) (fun id typ -> Pi (id, typ))
+  pipe2 (str "!>" >> brackets (sep_by1 pi_arg (str ",")))
+        (str ":" >> type_term)
+        (fun ids typ -> fold_right mk_pi_type ids typ)
   ] s
 and typ s = expression type_operators type_term s
 

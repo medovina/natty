@@ -348,6 +348,7 @@ type formula_kind =
 
 let rec get_const_type f = match f with
   | Const (id, t) when id = _type -> t
+  | Var (v, Type) -> TypeVar v
   | _ ->
       printf "get_const_type: f = %s (%b)\n" (show_formula f) (is_const f);
       failwith "type expected"
@@ -586,7 +587,8 @@ let remove_quantifiers f : formula = fst (remove_quants true f)
 let rec mono_const c typ args : formula = match typ with
   | Pi (x, typ) -> (
       match args with
-        | (Const (d, t) :: args) when d = _type ->
+        | (arg :: args) ->
+            let t = get_const_type arg in
             mono_const c (type_subst typ t x) args
         | _ -> failwith "to_mono")
   | _ -> apply (Const (c, typ) :: args)
