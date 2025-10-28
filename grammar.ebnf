@@ -42,7 +42,7 @@ id_opt_type = id [of_type typ];
 
 ids = id {',' id}+;
 
-ids_type = ids of_type typ;
+ids_type = ids of_type typ | id 'be a type';
 
 ids_types = ids_type {'and' ids_type};
 

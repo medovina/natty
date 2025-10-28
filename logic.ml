@@ -500,6 +500,8 @@ let all_vars = find_vars false
 let free_vars = find_vars true
 let free_vars_types f = unique (find_vars_types true f)
 
+let free_vars_and_type_vars f = free_vars f @ free_type_vars_in_formula f
+
 let is_var_in v =
   let rec find_var = function
     | Const _ -> false
@@ -527,7 +529,7 @@ let exists_vars_types : (id * typ) list -> formula -> formula =
   fold_right _exists'
 
 let for_all_vars_typs_if_free ids_typs f : formula =
-  let fv = free_vars f in
+  let fv = free_vars_and_type_vars f in
   for_all_vars_types (ids_typs |> filter (fun (id, _typ) -> mem id fv)) f
 
 let rec gather_pi typ : id list * typ = match typ with
@@ -704,6 +706,13 @@ let unify_or_match_types is_unify tsubst t u : tsubst option =
   unify tsubst t u
 
 let unify_types tsubst t u = unify_or_match_types true tsubst t u
+
+(* Allow * → τ to match Πσ.τ.
+ * For example, in ∀(λσ:* ∀x:σ x = x) we have
+ * ∀ : [* → 𝔹] → 𝔹 applied to (∏σ.𝔹). *)
+let unify_types_or_pi tsubst t u = match t, u with
+  | Fun (Type, t), Pi (_, u) -> unify_types tsubst t u
+  | _ -> unify_types tsubst t u
 
 (* f and g unify if fσ = gσ for some substitution σ.
    f matches g if fσ = g for some substitution σ.   *)

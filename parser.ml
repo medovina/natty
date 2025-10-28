@@ -151,9 +151,12 @@ let id_type = pair id (of_type >> typ)
 
 let id_opt_type = pair id (opt unknown_type (of_type >> typ))
 
-let ids = sep_by1 id (str ",")
+let ids : (id list) p = sep_by1 id (str ",")
 
-let ids_type : (id list * typ) p = pair ids (of_type >> typ)
+let ids_type : (id list * typ) p = choice [
+  id <<? str "be a type" |>> (fun id -> ([id], Type));
+  pair ids (of_type >> typ)
+]
 
 let ids_types : ((id * typ) list) p =
   sep_by1 ids_type (str "and") |>> fun ids_typs ->

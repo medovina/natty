@@ -178,7 +178,7 @@ let infer_formula env vars formula : typ * formula =
             let+ (tsubst, u, g) = check vars tsubst g in (
             match t with
               | Fun (v, w) -> (
-                  match unify_types tsubst v u with
+                  match unify_types_or_pi tsubst v u with
                     | Some tsubst -> [tsubst, w, App (f, g)]
                     | None -> [])
               | _ ->
