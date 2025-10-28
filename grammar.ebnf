@@ -135,7 +135,7 @@ proposition =
 
 (* top propositions *)
 
-let_prop = 'Let' id_type '.' top_prop;
+let_prop = 'Let' ids_types '.' top_prop;
 
 suppose = ['Also'] ['assume' | 'suppose'] ['further'] 'that' proposition
             {[','] 'and that' proposition};
@@ -227,7 +227,7 @@ now = 'Conversely' | 'Finally' | 'Next' | 'Now' | 'Second';
 
 any_case = 'In any case' | 'In either case' | 'Putting the cases together';
 
-let_step = 'let' ids_type [with_exprs];
+let_step = 'let' ids_types [with_exprs];
 
 let_val_step = 'let' id_opt_type '=' expr;
 

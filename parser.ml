@@ -385,7 +385,8 @@ and proposition s : formula pr = choice [
 
 (* top propositions *)
 
-let rec let_prop s = pipe2 (str "Let" >> id_type << str ".") top_prop _for_all' s
+let rec let_prop s =
+  pipe2 (str "Let" >> ids_types << str ".") top_prop for_all_vars_types s
 
 and suppose s = (opt_str "also" >>? any_str ["assume"; "suppose"] >> opt_str "further" >>
     str "that" >> sep_by1 proposition (opt_str "," >> str "and that")) s
@@ -411,12 +412,12 @@ let proposition_item : (id * ((formula * range) * id option)) p =
 let prop_items : (id * ((formula * range) * id option)) list p =
   many1 proposition_item
 
-let top_prop_or_items (name: id option) ids_typ : (id * formula * id option * range) list p =
+let top_prop_or_items (name: id option) ids_types : (id * formula * id option * range) list p =
     choice [
         prop_items;
         top_sentence |>> fun (fr, name1) -> [("", (fr, opt_or_opt name1 name))]
     ] |>> map (fun (label, ((f, range), name)) ->
-      (label, for_all_vars_typs_if_free ids_typ f, name, range))
+      (label, for_all_vars_typs_if_free ids_types f, name, range))
 
 let propositions name : (id * formula * id option * range) list p =
   (opt [] (for_all_ids << str ",")) >>= top_prop_or_items name
@@ -551,8 +552,8 @@ let now = any_str ["Conversely"; "Finally"; "Next"; "Now"; "Second"]
 let any_case = any_str ["In any case"; "In either case"; "Putting the cases together"]
 
 let let_step : proof_step_r list p = pipe2 
-  (with_range (str "let" >> ids_type) |>>
-    fun ((ids, typ), range) -> [(Let (ids, typ), range)])
+  (with_range (str "let" >> ids_types) |>>
+    fun (ids_types, range) -> [(Let ids_types, range)])
   (opt [] (str "with" >> with_range exprs |>>
               fun (f, range) -> [(Assume f, range)]))
   (@)

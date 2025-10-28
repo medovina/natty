@@ -30,7 +30,7 @@ let syntax_ref_eq x y = match x, y with
 
 type proof_step =
   | Assert of formula
-  | Let of id list * typ
+  | Let of (id * typ) list
   | LetVal of id * typ * formula
   | Assume of formula
   | IsSome of id list * typ * formula
@@ -45,12 +45,13 @@ let is_assume = function
   | Assume _ -> true
   | _ -> false
 
-let step_types = function
-  | Let (_, typ) | LetVal (_, typ, _) | IsSome (_, typ, _) -> [typ]
+let step_types step : typ list = match step with
+  | Let ids_types -> unique (map snd ids_types)
+  | LetVal (_, typ, _) | IsSome (_, typ, _) -> [typ]
   | _ -> []
   
 let rec step_decl_vars = function
-  | Let (ids, _) -> ids
+  | Let ids_types -> map fst ids_types
   | LetVal (id, _, _) -> [id]
   | IsSome (ids, _, _) -> ids
   | Group steps -> unique (concat_map step_decl_vars (map fst steps))
@@ -66,7 +67,9 @@ let rec step_free_vars = function
 
 let rec show_proof_step = function
   | Assert f -> sprintf "assert %s" (show_formula f)
-  | Let (ids, typ) -> sprintf "let %s : %s" (comma_join ids) (show_type typ)
+  | Let ids_types ->
+      let show (id, typ) = sprintf "%s : %s" id (show_type typ) in
+      "let " ^ comma_join (map show ids_types)
   | LetVal (id, typ, f) -> sprintf "let_val %s : %s = %s"
       id (show_type typ) (show_formula f)
   | Assume f -> sprintf "assume %s" (show_formula f)

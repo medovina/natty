@@ -105,10 +105,9 @@ and block_steps (Block (step, range, children)) : statement list list * formula 
           | Some (eqs, concl) ->
               (map (fun eq -> [Theorem ("", None, eq, None, range)]) eqs, concl)
           | None -> ([[Theorem ("", None, f, None, range)]], f)  )
-    | Let (ids, typ) ->
-        let ids_typs = ids |> map (fun id -> (id, typ)) in
-        let (decls, fs) = const_decls ids_typs in
-        (map (append decls) fs, for_all_vars_typ (ids, typ) concl)
+    | Let ids_types ->
+        let (decls, fs) = const_decls ids_types in
+        (map (append decls) fs, for_all_vars_types ids_types concl)
     | LetVal (id, typ, value) ->
         let g = Eq (Const (id, typ), value) in
         (map (cons (Definition (id, typ, g))) fs, rsubst1 concl value id)
