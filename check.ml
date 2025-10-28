@@ -350,14 +350,18 @@ let basic_check env f : typ * formula =
     | Var (id, _) ->
         let typ = assoc id vars in
         (typ, Var (id, typ))
-    | App (f, g) ->
-        let (f_type, f) = check vars f in
+    | App (g, h) ->
         let (g_type, g) = check vars g in
-        let typ = match f_type with
-          | Fun (t, u) when t = g_type -> u
-          | Pi (x, t) -> type_subst t (get_const_type g) x
-          | _ -> failwith "can't apply" in
-        (typ, App (f, g))
+        let (h_type, h) = check vars h in
+        let typ = match g_type, h_type with
+          | Fun (Fun (Type, t), u), Pi (_, t') when t = t' ->
+              u (* allow * → τ to match Πσ.τ, like in unify_types_or_pi *)
+          | Fun (t, u), t' when t = t' -> u
+          | Pi (x, t), Type -> type_subst t (get_const_type h) x
+          | _ ->
+              printf "f = %s\n" (show_formula f);
+              failwith "can't apply" in
+        (typ, App (g, h))
     | Lambda (x, t, f) ->
         check_type1 env vars t;
         let (u, f) = check ((x, t) :: vars) f in

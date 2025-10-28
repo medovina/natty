@@ -47,6 +47,7 @@ let rec type_term s = choice [
   str "$o" >>$ Bool;
   str "$tType" >>$ Type;
   id |>> (fun id -> Base id);
+  var |>> (fun id -> TypeVar id);
   pipe2 (str "!>" >> brackets (var << str ":" << str "$tType"))
         (str ":" >> type_term) (fun id typ -> Pi (id, typ))
   ] s
@@ -70,7 +71,7 @@ let arg = pair (var << str ":") typ
 
 let build_quant quant args formula =
   let rec f = function
-    | ((id, typ) :: args) -> quant (to_lower id) typ (f args)
+    | ((id, typ) :: args) -> quant id typ (f args)
     | [] -> formula
   in f args
 
@@ -79,7 +80,7 @@ let rec term s = choice [
   str "$false" >>$ _false;
   str "$true" >>$ _true;
   id |>> (fun id -> Const (id, unknown_type));
-  var |>> (fun id -> Var (to_lower id, unknown_type));
+  var |>> (fun id -> Var (id, unknown_type));
   (str "~" >> term) |>> _not;
   quantifier "!" _for_all;
   quantifier "?" _exists;
