@@ -368,6 +368,7 @@ and fkind boolean f : formula_kind = match f with
   | Const ("⊥", _) -> False
   | App (Const ("¬", _), f) -> Not f
   | App (App (Const (op, typ), t), u)
+  | App (App (Var (op, typ), t), u)
       when mem op logical_binary || (not boolean) ->
         Binary (op, typ, t, u)
   | App (Const (q, _) as c, Lambda (id, typ, u)) when is_quantifier c ->
@@ -610,7 +611,7 @@ let raise_definition f : id * formula =
     | Eq (f, g) | App (App (Const ("↔", _), f), g) ->
         let (c, args) = collect_args f in (
         match c with
-          | Const (id, _) ->
+          | Const (id, _) | Var (id, _) ->
               let arg_vars = map get_var args in
               if std_sort (map fst vars) <> std_sort arg_vars
                 then failwith "raise";

@@ -181,7 +181,7 @@ let infer_formula env vars formula : typ * formula =
                     | Some tsubst -> [tsubst, w, App (f, g)]
                     | None -> [])
               | _ ->
-                  let h = apply [Const ("·", unknown_type); f; g] in
+                  let h = apply [Var ("·", unknown_type); f; g] in
                   check vars tsubst h) in (
           match all with
             | [] -> errorf "can't apply" formula

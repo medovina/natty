@@ -113,7 +113,7 @@ let const_op p sym neg =
     (* We append a unique integer to the unknown type "?" here to force different
      * syntactic occurrences to be distinct objects, so they will have distinct
      * positions for error reporting. *)
-    Const (sym, unknown_type_n !(st.unique_count))) |>> fun const ->
+    Var (sym, unknown_type_n !(st.unique_count))) |>> fun const ->
       fun f g ->
         let e = apply [const; f; g] in
         if neg then _not e else e
@@ -151,15 +151,12 @@ let id_type = pair id (of_type >> typ)
 
 let id_opt_type = pair id (opt unknown_type (of_type >> typ))
 
-let ids : (id list) p = sep_by1 id (str ",")
+let decl_ids : (id list) p = sep_by1 id_or_sym (str ",")
 
-let ids_type : (id list * typ) p = choice [
-  id <<? str "be a type" |>> (fun id -> ([id], Type));
-  pair ids (of_type >> typ)
-]
+let decl_ids_type : (id list * typ) p = pair decl_ids (of_type >> typ)
 
-let ids_types : ((id * typ) list) p =
-  sep_by1 ids_type (str "and") |>> fun ids_typs ->
+let decl_ids_types : ((id * typ) list) p =
+  sep_by1 decl_ids_type (str "and") |>> fun ids_typs ->
     let+ (ids, typ) = ids_typs in
     let+ id = ids in [(id, typ)]
 
@@ -338,7 +335,7 @@ and if_then_prop s : formula pr =
     implies s
 
 and for_all_ids s : (id * typ) list pr =
-    (str "For all" >> ids_types) s
+    (str "For all" >> decl_ids_types) s
 
 and for_all_prop s : formula pr = (pipe3
   for_all_ids (option with_exprs) (opt_str "," >> small_prop)
@@ -352,7 +349,7 @@ and with_exprs s = (str "with" >> exprs) s
 
 and exists_prop s : formula pr = pipe4
   (there_exists >> opt true ((str "some" >>$ true) <|> (str "no" >>$ false)))
-  ids_types (option with_exprs) (str "such that" >> small_prop)
+  decl_ids_types (option with_exprs) (str "such that" >> small_prop)
   (fun some ids_types with_exprs p ->
     (if some then Fun.id else _not) (exists_with ids_types p with_exprs)) s
 
@@ -385,8 +382,17 @@ and proposition s : formula pr = choice [
 
 (* top propositions *)
 
+let operation =
+  any_str ["a"; "an"] >>? optional (any_str ["binary"; "unary"]) >>
+    any_str ["operation"; "relation"]
+
+let let_decl : (id * typ) list p = str "Let" >> choice [
+  id <<? str "be a type" |>> (fun id -> [(id, Type)]);
+  decl_ids_types << optional (str "be" >> operation)
+]
+
 let rec let_prop s =
-  pipe2 (str "Let" >> ids_types << str ".") top_prop for_all_vars_types s
+  pipe2 (let_decl << str ".") top_prop for_all_vars_types s
 
 and suppose s = (opt_str "also" >>? any_str ["assume"; "suppose"] >> opt_str "further" >>
     str "that" >> sep_by1 proposition (opt_str "," >> str "and that")) s
@@ -423,10 +429,6 @@ let propositions name : (id * formula * id option * range) list p =
   (opt [] (for_all_ids << str ",")) >>= top_prop_or_items name
 
 (* axioms *)
-
-let operation =
-  any_str ["a"; "an"] >>? optional (any_str ["binary"; "unary"]) >>
-    any_str ["operation"; "relation"]
 
 let unary_prefix id typ =
   if arity typ = 1 && id = "-" then "u-" else id
@@ -552,7 +554,7 @@ let now = any_str ["Conversely"; "Finally"; "Next"; "Now"; "Second"]
 let any_case = any_str ["In any case"; "In either case"; "Putting the cases together"]
 
 let let_step : proof_step_r list p = pipe2 
-  (with_range (str "let" >> ids_types) |>>
+  (with_range let_decl |>>
     fun (ids_types, range) -> [(Let ids_types, range)])
   (opt [] (str "with" >> with_range exprs |>>
               fun (f, range) -> [(Assume f, range)]))
@@ -599,7 +601,7 @@ let proofs : (id * proof) list p = str "Proof." >> choice [
 
 let theorem_group : statement list p =
   any_str ["Corollary"; "Lemma"; "Theorem"] >> option stmt_name << str "." >>= fun name -> 
-  many_concat (str "Let" >> ids_types << str ".") >>=
+  many_concat (let_decl << str ".") >>=
   fun ids_types ->
     let& st = get_user_state in
     incr st.theorem_count;

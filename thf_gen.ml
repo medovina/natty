@@ -24,6 +24,7 @@ let to_var id =
       let i = Uchar.to_int (uchar v) - Uchar.to_int(uchar "α") in
       let c = Char.chr(i + Char.code('A')) in
       String.make 2 c  (* e.g. α → AA, β → BB *)
+    else if v = "·" then "Dot"
     else failwith "bad variable name" in
   v ^ String.make (strlen id - p) 'p'
 

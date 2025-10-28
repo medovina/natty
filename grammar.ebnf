@@ -40,11 +40,11 @@ id_type = id of_type typ;
 
 id_opt_type = id [of_type typ];
 
-ids = id {',' id}+;
+decl_ids = id_or_sym {',' id_or_sym}+;
 
-ids_type = ids of_type typ | id 'be a type';
+decl_ids_type = decl_ids of_type typ;
 
-ids_types = ids_type {'and' ids_type};
+decl_ids_types = decl_ids_type {'and' decl_ids_type};
 
 (* reasons *)
 
@@ -102,14 +102,14 @@ if_then_prop = 'if' small_prop [','] 'then' small_prop;
 
 with_exprs = 'with' exprs;
 
-for_all_ids = 'For all' ids_types;
+for_all_ids = 'For all' decl_ids_types;
 
 for_all_prop = for_all_ids [with_exprs] [','] small_prop;
 
 there_exists = 'There' ('is' | 'are' | 'exists' | ['must'] 'exist');
 
 exists_prop =
-    there_exists ['some' | 'no'] ids_types [with_exprs]
+    there_exists ['some' | 'no'] decl_ids_types [with_exprs]
     'such that' small_prop;
 
 prop_op = 'and' | 'or' | 'implies' ['that'] | 'if and only if' | 'iff' |
@@ -135,7 +135,12 @@ proposition =
 
 (* top propositions *)
 
-let_prop = 'Let' ids_types '.' top_prop;
+operation = ('a' | 'an') ['binary' | 'unary'] ('operation' | 'relation');
+
+let_decl = 'Let'
+    (decl_ids_types ['be' operation] | id 'be a type');
+
+let_prop = let_decl '.' top_prop;
 
 suppose = ['Also'] ['assume' | 'suppose'] ['further'] 'that' proposition
             {[','] 'and that' proposition};
@@ -161,8 +166,6 @@ top_prop_or_items = prop_items | top_sentence;
 propositions = [for_all_ids ','] top_prop_or_items;
 
 (* axioms *)
-
-operation = ('a' | 'an') ['binary' | 'unary'] ('operation' | 'relation');
 
 type_decl = 'a type' id ['(' 'the' word [word] ')'];
 
@@ -227,7 +230,7 @@ now = 'Conversely' | 'Finally' | 'Next' | 'Now' | 'Second';
 
 any_case = 'In any case' | 'In either case' | 'Putting the cases together';
 
-let_step = 'let' ids_types [with_exprs];
+let_step = let_decl [with_exprs];
 
 let_val_step = 'let' id_opt_type '=' expr;
 
@@ -251,7 +254,7 @@ proofs = 'Proof.' (proof_item+ | proof_steps);
 
 (* theorems *)
 
-theorem_group = ('Corollary' | 'Lemma' | 'Theorem') [stmt_name] '.' {'Let' ids_types '.'}
+theorem_group = ('Corollary' | 'Lemma' | 'Theorem') [stmt_name] '.' {let_decl '.'}
     top_prop_or_items [proofs];
 
 (* module *)
