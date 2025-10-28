@@ -9,32 +9,41 @@ let quote s =
   if is_lower (s.[0]) && String.for_all is_id_char s
     then s else sprintf "'%s'" (str_replace "'" "\\'" s)
 
+(* Prefix uppercase constants with _ to avoid possible name clashes with
+ * variables, which begin with uppercase letters. *)
+let prefix_upper s =
+    if is_upper s.[0] then "_" ^ s else s
+
+let to_var id =
+  let p = opt_default (String.index_opt id '\'') (strlen id) in
+  let v = String.sub id 0 p in
+  let v =
+    if "a" <= v && v <= "z" then String.uppercase_ascii v
+    else if "A" <= v && v <= "Z" then v ^ "_"
+    else if "α" <= v && v <= "ω" then
+      let i = Uchar.to_int (uchar v) - Uchar.to_int(uchar "α") in
+      let c = Char.chr(i + Char.code('A')) in
+      String.make 2 c  (* e.g. α → AA, β → BB *)
+    else failwith "bad variable name" in
+  v ^ String.make (strlen id - p) 'p'
+
 let rec thf_type typ =
   let rec f left typ = match typ with
     | Bool -> "$o"
     | Type -> "$tType"
-    | Base id | TypeVar id -> quote id
+    | Base id -> quote id
+    | TypeVar id -> to_var id
     | Fun (t, u) ->
         let s = sprintf "%s > %s" (f true t) (f false u) in
         if left then sprintf "(%s)" s else s
     | Pi _ ->
         let (xs, typ) = gather_pi typ in
-        let decls = xs |> map (fun x -> quote x ^ ": $tType") in
+        let decls = xs |> map (fun x -> to_var x ^ ": $tType") in
         sprintf "!>[%s]: %s" (comma_join decls) (f false typ)
     | Product typs -> sprintf "[%s]" (comma_join (map thf_type typs))
   in f false typ
 
 let binary = [("∧", "&"); ("∨", "|"); ("→", "=>"); ("↔", "<=>")]
-
-(* Suffix uppercase identifiers with _ to avoid name clashes e.g. between
- * variables G and g, since all variable names will be made uppercase. *)
-let suffix_upper s =
-    if is_upper s.[0] then
-        let (s, typ) = split_type_suffix s in
-        s ^ "_" ^ typ
-    else s
-
-let to_var id = capitalize (suffix_upper (str_replace "'" "_" id))
 
 let rec thf outer right f : string =
   let parens b s = if b && outer <> "" then sprintf "(%s)" s else s in
@@ -58,7 +67,7 @@ let rec thf outer right f : string =
             quant (if q = "∀" then "!" else "?") ((id, typ) :: ids_typs) f
         | _ -> match f with
           | Const (id, typ) ->
-              if id = _type then thf_type typ else quote (suffix_upper id)
+              if id = _type then thf_type typ else quote (prefix_upper id)
           | Var (id, _) -> to_var id
           | App (g, h) ->
               let s = sprintf "%s @ %s" (thf "@" false g) (thf "@" true h) in
@@ -77,7 +86,7 @@ and thf_formula f = thf "" false f
 let thf_statement is_conjecture f : string =
   let const id typ =
     sprintf "%s, type, %s: %s"
-      (quote (id ^ "_decl")) (quote (suffix_upper id)) (thf_type typ) in
+      (quote (id ^ "_decl")) (quote (prefix_upper id)) (thf_type typ) in
   let axiom name kind f =
     sprintf "%s, %s, %s" (quote name) kind (thf_formula f) in
   let type_decl t = sprintf "%s, type, %s: $tType" (quote (t ^ "_type")) (quote t) in
