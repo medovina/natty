@@ -82,14 +82,11 @@ let rec show_proof_step = function
 type statement =
   | TypeDecl of id * string option  (* e.g. "ℤ", "integer" *)
   | ConstDecl of id * typ
-  | Axiom of id * formula * id option (* num, formula, name *)
+  | Axiom of id * formula * string option (* num, formula, name *)
   | Hypothesis of id * formula
   | Definition of id * typ * formula
-  | Theorem of id * string option * formula * proof option * range
-
-and proof =
-  | Steps of (proof_step * range) list
-  | ExpandedSteps of statement list list
+  | Theorem of id * string option * formula * statement list list * range
+  | HTheorem of id * string option * formula * (proof_step * range) list * range
 
 let is_type_decl id = function
   | TypeDecl (id', _) when id = id' -> true
@@ -104,12 +101,13 @@ let is_theorem = function
   | _ -> false
 
 let stmt_id = function
-  | TypeDecl (id, _) -> id
-  | ConstDecl (id, _) -> id
-  | Axiom (id, _, _) -> id
-  | Hypothesis (id, _) -> id
-  | Definition (id, _, _) -> id
-  | Theorem (id, _, _, _, _) -> id
+  | TypeDecl (id, _)
+  | ConstDecl (id, _)
+  | Axiom (id, _, _)
+  | Hypothesis (id, _)
+  | Definition (id, _, _)
+  | Theorem (id, _, _, _, _)
+  | HTheorem (id, _, _, _, _) -> id
 
 let set_stmt_id id = function
   | Hypothesis (_, formula) -> Hypothesis (id, formula)
@@ -123,6 +121,7 @@ let stmt_kind = function
   | Hypothesis _ -> "hypothesis"
   | Definition _ -> "definition"
   | Theorem _ -> "theorem"
+  | HTheorem _ -> failwith "stmt_kind"
 
 let stmt_name stmt =
   let base = stmt_kind stmt ^ " " ^ stmt_id stmt in
@@ -145,12 +144,10 @@ let rec map_statement1 id_fn typ_fn fn stmt = match stmt with
   | Axiom (id, f, name) -> Axiom (id, fn f, name)
   | Hypothesis (id, f) -> Hypothesis (id, fn f)
   | Definition (id, typ, f) -> Definition (id_fn typ id, typ_fn typ, fn f)
-  | Theorem (id, name, f, proof, range) ->
-      let map_proof = function
-        | Steps steps -> Steps steps
-        | ExpandedSteps esteps ->
-            ExpandedSteps (map (map (map_statement1 id_fn typ_fn fn)) esteps) in
-      Theorem (id, name, fn f, Option.map map_proof proof, range)
+  | Theorem (id, name, f, esteps, range) ->
+      let map_proof esteps = map (map (map_statement1 id_fn typ_fn fn)) esteps in
+      Theorem (id, name, fn f, map_proof esteps, range)
+  | HTheorem _ -> failwith "map_statement1"
 
 let map_statement = map_statement1 (fun _typ id -> id)
 
@@ -181,6 +178,7 @@ let show_statement multi s : string =
           sprintf "definition (%s: %s): " (without_type_suffix id) (show_type typ) in
         show prefix f
     | Theorem (_, _, f, _, _) -> show (name ^ ": ") f
+    | HTheorem _ -> failwith "show_statement"
 
 let number_hypotheses name stmts =
   let f n = function
@@ -199,22 +197,19 @@ let expand_proofs stmts with_full : (statement * statement list) list =
   let rec expand known = function
     | stmt :: stmts ->
         let thms = match stmt with
-          | Theorem (id, _, _, proof, _) as thm -> (
+          | Theorem (id, _, _, fs, _) as thm ->
               let thm_known =
                 if opt_for_all (match_thm_id id) only_thm &&
-                  (with_full || proof = None)
+                  (with_full || fs = [])
                 then [(thm, known)] else [] in
-              thm_known @ match proof with
-                | Some (ExpandedSteps fs) ->
-                    fs |> filter_mapi (fun j stmts ->
-                      let step_name = sprintf "%s.s%d" id (j + 1) in
-                      if opt_for_all (match_thm_id step_name) only_thm then
-                        let (hypotheses, conjecture) = split_last stmts in
-                        Some (set_stmt_id step_name conjecture,
-                              rev (number_hypotheses id hypotheses) @ known)
-                      else None)
-                | Some (Steps _) -> assert false
-                | None -> [])
+              thm_known @
+                (fs |> filter_mapi (fun j stmts ->
+                  let step_name = sprintf "%s.s%d" id (j + 1) in
+                  if opt_for_all (match_thm_id step_name) only_thm then
+                    let (hypotheses, conjecture) = split_last stmts in
+                    Some (set_stmt_id step_name conjecture,
+                          rev (number_hypotheses id hypotheses) @ known)
+                  else None))
           | _ -> [] in
         thms @ expand (stmt :: known) stmts
     | [] -> [] in
@@ -253,12 +248,9 @@ let expand_modules modules : (string * statement * statement list) list =
 let write_thm_info md =
   let thms = filter is_theorem md.stmts in
   let thm_steps = function
-    | Theorem (_, _, _, proof, _) -> (match proof with
-        | Some (ExpandedSteps steps) -> Some steps
-        | Some (Steps _) -> assert false
-        | None -> None)
+    | Theorem (_, _, _, steps, _) -> steps
     | _ -> assert false in
-  let step_groups = filter_map thm_steps thms in
+  let step_groups = map thm_steps thms |> filter (fun steps -> steps <> []) in
   printf "%s: %d theorems (%d with proofs, %d without); %d proof steps\n"
     md.filename
     (length thms) (length step_groups) (length thms - length step_groups)

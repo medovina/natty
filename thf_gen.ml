@@ -104,7 +104,8 @@ let thf_statement is_conjecture f : string =
         ]
     | Theorem (num, _, f, _, _) ->
         let kind = if is_conjecture then "conjecture" else "theorem" in
-        thm_or_hyp num kind f in
+        thm_or_hyp num kind f
+    | HTheorem _ -> failwith "thf_statement" in
   unlines (map (sprintf "thf(%s).") (conv f))
 
 let thf_file dir name = mk_path dir (name ^ ".thf")

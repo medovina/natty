@@ -604,13 +604,13 @@ let proof_clause : proof_step_r list p = pipe2
 let proof_sentence : proof_step_r list p =
   (sep_by1 proof_clause (str ";") |>> concat) << str "."
 
-let proof_steps : proof p =
+let proof_steps : (proof_step * range) list p =
   many1 (not_followed_by new_paragraph "" >> proof_sentence) |>>
-    (fun steps -> Steps (concat steps))
+    (fun steps -> concat steps)
 
-let proof_item : (id * proof) p = pair label proof_steps
+let proof_item : (id * (proof_step * range) list) p = pair label proof_steps
 
-let proofs : (id * proof) list p = str "Proof." >> choice [
+let proofs : (id * (proof_step * range) list) list p = str "Proof." >> choice [
   many1 proof_item;
   proof_steps |>> (fun steps -> [("", steps)])]
 
@@ -625,7 +625,8 @@ let theorem_group : statement list p =
     pipe2 (top_prop_or_items name ids_types) (opt [] proofs)
     (fun props proofs ->
       props |> map (fun (label, f, name, range) ->
-        Theorem (count_label (!(st.theorem_count)) label, name, f, assoc_opt label proofs, range)))
+        HTheorem (count_label (!(st.theorem_count)) label, name, f,
+                  opt_default (assoc_opt label proofs) [], range)))
 
 (* module *)
 

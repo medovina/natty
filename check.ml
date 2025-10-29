@@ -103,8 +103,8 @@ and block_steps (Block (step, range, children)) : statement list list * formula 
     | Assert f -> (
         match expand_multi_eq f with
           | Some (eqs, concl) ->
-              (map (fun eq -> [Theorem ("", None, eq, None, range)]) eqs, concl)
-          | None -> ([[Theorem ("", None, f, None, range)]], f)  )
+              (map (fun eq -> [Theorem ("", None, eq, [], range)]) eqs, concl)
+          | None -> ([[Theorem ("", None, f, [], range)]], f)  )
     | Let ids_types ->
         let (decls, fs) = const_decls ids_types in
         (map (append decls) fs, for_all_vars_types ids_types concl)
@@ -123,7 +123,7 @@ and block_steps (Block (step, range, children)) : statement list list * formula 
           map (fun id -> ConstDecl (skolem_name id, typ)) ids @
             [Hypothesis ("hyp", with_skolem_names ids g)] in
         let fs = map (map (stmt_with_skolem_names ids)) fs in
-        ([Theorem ("", None, ex, None, range)] :: map (append stmts) fs,
+        ([Theorem ("", None, ex, [], range)] :: map (append stmts) fs,
          if any_free_in ids concl then exists_vars_typ (ids, typ) concl else concl)
     | Escape | Group _ -> failwith "block_formulas"
 let is_type_defined id env = exists (is_type_decl id) env
@@ -225,21 +225,20 @@ let rec arg_vars f : id list = match f with
       | Some (_id, args) -> concat_map arg_vars args
       | None -> failwith "invalid argument in definition"
 
-let rec expand_proof stmt env f range proof : proof option = match proof with
-  | Steps steps ->
-      if !debug > 0 then (
-        printf "%s:\n\n" (stmt_name stmt);
-        if !debug > 1 then (
-          steps |> iter (fun (s, _range) -> print_endline (show_proof_step s));
-          print_newline ()
-        );
+let rec expand_proof stmt env f range steps : statement list list =
+  if steps = [] then [] else (
+    if !debug > 0 then (
+      printf "%s:\n\n" (stmt_name stmt);
+      if !debug > 1 then (
+        steps |> iter (fun (s, _range) -> print_endline (show_proof_step s));
+        print_newline ()
       );
-      concat_map step_types (map fst steps) |> iter (check_type env);
-      let blocks = infer_blocks steps @ [Block (Assert f, range, [])] in
-      if !debug > 0 then print_blocks blocks;
-      let fs = fst (blocks_steps blocks) in
-      Some (ExpandedSteps (map (infer_stmts env) fs))
-  | _ -> assert false
+    );
+    concat_map step_types (map fst steps) |> iter (check_type env);
+    let blocks = infer_blocks steps @ [Block (Assert f, range, [])] in
+    if !debug > 0 then print_blocks blocks;
+    let fs = fst (blocks_steps blocks) in
+    map (infer_stmts env) fs)
 
 and infer_stmt env stmt : statement =
   match stmt with
@@ -252,9 +251,12 @@ and infer_stmt env stmt : statement =
         let (typ, f) = top_infer_with_type env f in
         let g = Option.get (lower_definition (Eq (Const (c, typ), f))) in
         Definition (c, typ, g)
-    | Theorem (num, name, f, proof, range) ->
+    | HTheorem (num, name, f, steps, range) ->
         let f1 = top_infer env f in
-        Theorem (num, name, f1, Option.bind proof (expand_proof stmt env f range), range)
+        Theorem (num, name, f1, expand_proof stmt env f range steps, range)
+    | Theorem (num, name, f, [], range) ->
+        Theorem (num, name, top_infer env f, [], range)
+    | Theorem _ -> failwith "infer_stmt"
 
 and infer_stmts initial_env stmts : statement list =
   let check env stmt =
