@@ -11,7 +11,7 @@ var = letter;
 id = 'gcd' | var | '𝔹' | 'ℕ' | 'ℤ' | 'π' | '∏';
 
 sym = digit |
-    '+' | '-' | '<' | '>' | '|' |
+    '+' | '-' | '<' | '>' | '|' | '~' | '^' |
     '·' | '≤' | '≥' | '≮' | '≯' | '−';
 
 id_or_sym = id | sym;
@@ -27,6 +27,8 @@ sub_digit = '₀' .. '₉';
 sub_var = 'ₐ' .. 'ₓ';
 
 sub_sym = '₊' | '₋';
+
+super_digit = '⁰' .. '⁹';
 
 (* types *)
 
@@ -64,12 +66,16 @@ sub_term = sub_digit | sub_var;
 
 sub_expr = sub_term {sub_sym sub_term};
 
+super_term = super_digit;
+
 term =
     sym | id [parens_exprs | sub_expr ["⋯" id sub_expr]]
   | '⊤' | '⊥' | parens_exprs
   | '{' var of_type typ '|' proposition '}';
 
-terms = term+;
+exp_term = term [super_term];
+
+terms = exp_term+;
 
 (* expressions *)
 
@@ -109,7 +115,7 @@ for_all_prop = for_all_ids [with_exprs] [','] small_prop;
 there_exists = 'There' ('is' | 'are' | 'exists' | ['must'] 'exist');
 
 exists_prop =
-    there_exists ['some' | 'no'] decl_ids_types [with_exprs]
+    there_exists ['some' | 'an operation' | 'no'] decl_ids_types [with_exprs]
     'such that' small_prop;
 
 prop_op = 'and' | 'or' | 'implies' ['that'] | 'if and only if' | 'iff' |
@@ -142,10 +148,10 @@ let_decl = 'Let'
 
 let_prop = let_decl '.' top_prop;
 
-suppose = ['Also'] ['assume' | 'suppose'] ['further'] 'that' proposition
+suppose = ['Also'] ('assume' | 'suppose') ['further'] ['that'] proposition
             {[','] 'and that' proposition};
 
-suppose_then = suppose '.' 'Then' proposition;
+suppose_then = suppose '.' ['Then'] proposition;
 
 top_prop = let_prop | suppose_then | proposition;
 

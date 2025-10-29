@@ -53,7 +53,7 @@ let id = str "gcd" <|> var <|>
   any_str ["𝔹"; "ℕ"; "ℤ"; "π"; "σ"; "τ"; "∏"]
 
 let sym = choice [
-  empty >>? (digit <|> any_of "+-<>|~") |>> char_to_string;
+  empty >>? (digit <|> any_of "+-<>|~^") |>> char_to_string;
   any_str ["·"; "≤"; "≥"; "≮"; "≯"];
   str "−" >>$ "-"]
 
@@ -69,11 +69,12 @@ let adjective = word
 
 let name = empty >>? many1_chars (alphanum <|> char '_')
 
+let to_digit base s : str =
+    string_of_int (Uchar.to_int (uchar s) - Uchar.to_int (uchar base))
+
 let sub_digit = choice [
   str "₀"; str "₁";	str "₂"; str "₃";	str "₄";
-  str "₅"; str "₆"; str "₇"; str "₈"; str "₉" ] |>> fun s ->
-    let c = Char.chr(Char.code('0') + Uchar.to_int (uchar s) - Uchar.to_int (uchar "₀")) in
-    char_to_string c
+  str "₅"; str "₆"; str "₇"; str "₈"; str "₉" ] |>> to_digit "₀"
 
 let sub_letter_map = [
   "ₐ", "a";	"ₑ", "e"; "ₕ", "h"; "ᵢ", "i"; "ⱼ", "j";	"ₖ", "k";	"ₗ", "l"; "ₘ", "m"; "ₙ", "n";
@@ -85,6 +86,16 @@ let sub_letters = map fst sub_letter_map
 let sub_var = any_str sub_letters |>> fun s -> assoc s sub_letter_map
 
 let sub_sym = (str "₊" >>$ "+") <|> (str "₋" >>$ "-")
+
+(* Unicode superscript digits are not at contiguous code points. *)
+let super_digit_map = [
+  "⁰", "0"; "¹", "1";	"²", "2"; "³", "3";	"⁴", "4";
+  "⁵", "5"; "⁶", "6"; "⁷", "7"; "⁸", "8"; "⁹", "9"
+]
+
+let super_digits = map fst super_digit_map
+
+let super_digit = any_str super_digits |>> fun s -> assoc s super_digit_map
 
 let keywords = ["axiom"; "corollary"; "definition"; "lemma"; "proof"; "theorem"]
 
@@ -217,6 +228,8 @@ let sub_term = (sub_digit |>> _const) <|> (sub_var |>> _var)
 let sub_expr = chain_left1 sub_term (sub_sym |>> fun sym e1 e2 ->
   apply [_const sym; e1; e2])
 
+let super_term = super_digit |>> _const
+
 let for_all_with ids_types prop opt_with : formula =
     for_all_vars_types ids_types (opt_fold implies opt_with prop)
 
@@ -237,7 +250,7 @@ and id_term s = (id |>> _var >>=
     return var
   ])) s
 
-and term s = (record_formula @@ choice [
+and term s : formula pr = (record_formula @@ choice [
   (sym |>> fun c -> Const (c, unknown_type));
   id_term;
   str "⊤" >>$ _true;
@@ -247,9 +260,12 @@ and term s = (record_formula @@ choice [
     (fun var typ expr -> Lambda (var, typ, expr))
  ]) s
 
-and next_term s = (not_followed_by space "" >>? term) s
+and exp_term s = pipe2 term (option super_term) (fun f super ->
+  opt_fold (fun c f -> apply [Var ("^", unknown_type); f; c]) super f) s
 
-and terms s = (term >>= fun t -> many_fold_left mk_app t next_term) s
+and next_term s = (not_followed_by space "" >>? exp_term) s
+
+and terms s = (exp_term >>= fun t -> many_fold_left mk_app t next_term) s
 
 (* expressions *)
 
@@ -348,7 +364,8 @@ and there_exists =
 and with_exprs s = (str "with" >> exprs) s
 
 and exists_prop s : formula pr = pipe4
-  (there_exists >> opt true ((str "some" >>$ true) <|> (str "no" >>$ false)))
+  (there_exists >>
+    opt true ((any_str ["some"; "an operation"] >>$ true) <|> (str "no" >>$ false)))
   decl_ids_types (option with_exprs) (str "such that" >> small_prop)
   (fun some ids_types with_exprs p ->
     (if some then Fun.id else _not) (exists_with ids_types p with_exprs)) s
@@ -395,9 +412,9 @@ let rec let_prop s =
   pipe2 (let_decl << str ".") top_prop for_all_vars_types s
 
 and suppose s = (opt_str "also" >>? any_str ["assume"; "suppose"] >> opt_str "further" >>
-    str "that" >> sep_by1 proposition (opt_str "," >> str "and that")) s
+    opt_str "that" >> sep_by1 proposition (opt_str "," >> str "and that")) s
 
-and suppose_then s = pipe2 (suppose << str ".") (str "Then" >> proposition)
+and suppose_then s = pipe2 (suppose << str ".") (opt_str "Then" >> proposition)
   (fold_right implies) s
 
 and top_prop s = (let_prop <|> suppose_then <|> proposition) s

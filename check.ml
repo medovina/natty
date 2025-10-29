@@ -148,7 +148,7 @@ let check_type env typ = check_type1 env [] typ
 let find_const env formula id : formula list =
   let consts = filter_map (is_const id) env |> map (fun typ -> Const (id, typ)) in
   match consts with
-    | [] -> error (sprintf "undefined: %s\n" id) formula
+    | [] -> errorf (sprintf "undefined: %s\n" id) formula
     | _ -> consts
 
 let infer_formula env vars formula : typ * formula =
