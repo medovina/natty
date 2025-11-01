@@ -58,10 +58,10 @@ let rec step_decl_vars = function
   | _ -> []
 
 let rec step_free_vars = function
-  | Assert f -> free_vars f
-  | LetVal (_, _, f) -> free_vars f
-  | Assume f -> free_vars f
-  | IsSome (ids, _, f) -> subtract (free_vars f) ids
+  | Assert f -> free_vars_and_type_vars f
+  | LetVal (_, _, f) -> free_vars_and_type_vars f
+  | Assume f -> free_vars_and_type_vars f
+  | IsSome (ids, _, f) -> subtract (free_vars_and_type_vars f) ids
   | Group steps -> unique (concat_map step_free_vars (map fst steps))
   | _ -> []
 
@@ -86,7 +86,9 @@ type statement =
   | Hypothesis of id * formula
   | Definition of id * typ * formula
   | Theorem of id * string option * formula * statement list list * range
-  | HTheorem of id * string option * formula * (proof_step * range) list * range
+  | HAxiom of id * proof_step_r list * string option (* num, steps, name *)
+  | HTheorem of
+      id * string option * proof_step_r list * proof_step_r list
 
 let is_type_decl id = function
   | TypeDecl (id', _) when id = id' -> true
@@ -107,21 +109,25 @@ let stmt_id = function
   | Hypothesis (id, _)
   | Definition (id, _, _)
   | Theorem (id, _, _, _, _)
-  | HTheorem (id, _, _, _, _) -> id
+  | HAxiom (id, _, _)
+  | HTheorem (id, _, _, _) -> id
 
-let set_stmt_id id = function
+let with_stmt_id id = function
   | Hypothesis (_, formula) -> Hypothesis (id, formula)
   | Theorem (_, name, formula, proof, range) -> Theorem (id, name, formula, proof, range)
   | _ -> assert false
 
+let with_stmt_name name = function
+  | Theorem (id, _, formula, proof, range) -> Theorem (id, name, formula, proof, range)
+  | _ -> failwith "with_stmt_name"
+
 let stmt_kind = function
   | TypeDecl _ -> "type"
   | ConstDecl _ -> "const"
-  | Axiom _ -> "axiom"
+  | Axiom _ | HAxiom _ -> "axiom"
   | Hypothesis _ -> "hypothesis"
   | Definition _ -> "definition"
-  | Theorem _ -> "theorem"
-  | HTheorem _ -> failwith "stmt_kind"
+  | Theorem _ | HTheorem _ -> "theorem"
 
 let stmt_name stmt =
   let base = stmt_kind stmt ^ " " ^ stmt_id stmt in
@@ -147,6 +153,7 @@ let rec map_statement1 id_fn typ_fn fn stmt = match stmt with
   | Theorem (id, name, f, esteps, range) ->
       let map_proof esteps = map (map (map_statement1 id_fn typ_fn fn)) esteps in
       Theorem (id, name, fn f, map_proof esteps, range)
+  | HAxiom _
   | HTheorem _ -> failwith "map_statement1"
 
 let map_statement = map_statement1 (fun _typ id -> id)
@@ -178,13 +185,14 @@ let show_statement multi s : string =
           sprintf "definition (%s: %s): " (without_type_suffix id) (show_type typ) in
         show prefix f
     | Theorem (_, _, f, _, _) -> show (name ^ ": ") f
+    | HAxiom _
     | HTheorem _ -> failwith "show_statement"
 
 let number_hypotheses name stmts =
   let f n = function
     | (Hypothesis _) as hyp ->
         let hyp_name = sprintf "%s.h%d" name n in
-        (n + 1, set_stmt_id hyp_name hyp)
+        (n + 1, with_stmt_id hyp_name hyp)
     | stmt -> (n, stmt) in
   snd (fold_left_map f 1 stmts)
 
@@ -207,7 +215,7 @@ let expand_proofs stmts with_full : (statement * statement list) list =
                   let step_name = sprintf "%s.s%d" id (j + 1) in
                   if opt_for_all (match_thm_id step_name) only_thm then
                     let (hypotheses, conjecture) = split_last stmts in
-                    Some (set_stmt_id step_name conjecture,
+                    Some (with_stmt_id step_name conjecture,
                           rev (number_hypotheses id hypotheses) @ known)
                   else None))
           | _ -> [] in

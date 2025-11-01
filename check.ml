@@ -22,6 +22,10 @@ let print_blocks blocks =
   print "" blocks;
   print_newline ()
 
+let rec chain_blocks steps : block list = match steps with
+  | [] -> []
+  | (step, range) :: steps -> [Block (step, range, chain_blocks steps)]
+
 let infer_blocks steps : block list =
   let rec all_vars : proof_step list -> id list = function
     | [] -> []
@@ -107,7 +111,7 @@ and block_steps (Block (step, range, children)) : statement list list * formula 
           | None -> ([[Theorem ("", None, f, [], range)]], f)  )
     | Let ids_types ->
         let (decls, fs) = const_decls ids_types in
-        (map (append decls) fs, for_all_vars_types ids_types concl)
+        (map (append decls) fs, for_all_vars_types_if_free ids_types concl)
     | LetVal (id, typ, value) ->
         let g = Eq (Const (id, typ), value) in
         (map (cons (Definition (id, typ, g))) fs, rsubst1 concl value id)
@@ -116,7 +120,9 @@ and block_steps (Block (step, range, children)) : statement list list * formula 
         let (decls, fs) = const_decls ids_typs in
         let f = with_skolem_names (map fst ids_typs) f in
         let decls = decls @ [Hypothesis ("hyp", f)] in
-        (map (append decls) fs, if concl = _true then _true else implies a concl)
+        (map (append decls) fs,
+          if concl = _true then _true
+            else for_all_vars_types ids_typs (implies f concl))
     | IsSome (ids, typ, g) ->
         let ex = exists_vars_typ (ids, typ) g in
         let stmts =
@@ -225,38 +231,77 @@ let rec arg_vars f : id list = match f with
       | Some (_id, args) -> concat_map arg_vars args
       | None -> failwith "invalid argument in definition"
 
-let rec expand_proof stmt env f range steps : statement list list =
-  if steps = [] then [] else (
+let trim_lets steps : (proof_step * range) list =
+  let vs = unique (steps |> concat_map (fun (step, _) -> step_free_vars step)) in
+  let+ (step, range) = steps in (
+  match step with
+    | Let ids_types ->
+        let ids_types = ids_types |> filter (fun (id, _) ->
+          mem id vs || id = "·") in  (* "·" may not be explicitly present *)
+        if ids_types = [] then [] else [(Let ids_types, range)]
+    | _ -> [(step, range)])
+
+let collect_lets steps : id list =
+  steps |> concat_map (function
+    | Let ids_types -> map fst ids_types
+    | _ -> [])
+
+let duplicate_lets vars steps : bool =
+  let rec check = function
+    | [] -> false
+    | (step, _range) :: steps ->
+        match step with
+          | Assert _ -> false
+          | Let ids_types ->
+              let ids = map fst ids_types in
+              overlap ids vars || check steps
+          | _ -> check steps in
+  check steps
+
+let rec expand_proof stmt env steps proof_steps : formula * statement list list =
+  let steps = trim_lets steps in
+  let blocks0 = chain_blocks steps in
+  let (_, concl) = blocks_steps blocks0 in
+  let stmtss = if proof_steps = [] then [] else
+    let (init, f) = split_last steps in
+    let proof_steps =
+      if duplicate_lets (collect_lets (map fst init)) proof_steps
+        then proof_steps @ [(Assert concl, snd f)]
+        else init @ proof_steps @ [f] in
     if !debug > 0 then (
       printf "%s:\n\n" (stmt_name stmt);
       if !debug > 1 then (
-        steps |> iter (fun (s, _range) -> print_endline (show_proof_step s));
+        proof_steps |> iter (fun (s, _range) -> print_endline (show_proof_step s));
         print_newline ()
       );
     );
-    concat_map step_types (map fst steps) |> iter (check_type env);
-    let blocks = infer_blocks steps @ [Block (Assert f, range, [])] in
+    let blocks = infer_blocks proof_steps in
     if !debug > 0 then print_blocks blocks;
-    let fs = fst (blocks_steps blocks) in
-    map (infer_stmts env) fs)
+    let (stmtss, _concl) = blocks_steps blocks in
+    stmtss in
+  (top_infer env concl, map (infer_stmts env) stmtss)
 
 and infer_stmt env stmt : statement =
   match stmt with
     | TypeDecl _ -> stmt
     | ConstDecl (_, typ) -> check_type env typ; stmt      
-    | Axiom (id, f, name) -> Axiom (id, top_infer env f, name)
+    | Axiom _ -> failwith "infer_stmt"
     | Hypothesis (id, f) -> Hypothesis (id, top_infer env f)
     | Definition (_id, _typ, f) ->
         let (c, f) = raise_definition f in
         let (typ, f) = top_infer_with_type env f in
         let g = Option.get (lower_definition (Eq (Const (c, typ), f))) in
         Definition (c, typ, g)
-    | HTheorem (num, name, f, steps, range) ->
-        let f1 = top_infer env f in
-        Theorem (num, name, f1, expand_proof stmt env f range steps, range)
     | Theorem (num, name, f, [], range) ->
         Theorem (num, name, top_infer env f, [], range)
     | Theorem _ -> failwith "infer_stmt"
+    | HAxiom (id, steps, name) ->
+        let blocks = infer_blocks steps in
+        let (_, f) = blocks_steps blocks in
+        Axiom (id, top_infer env f, name)
+    | HTheorem (num, name, steps, proof_steps) ->
+        let (f, stmts) = expand_proof stmt env steps proof_steps in
+        Theorem (num, name, f, stmts, snd (last steps))
 
 and infer_stmts initial_env stmts : statement list =
   let check env stmt =

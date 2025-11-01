@@ -25,6 +25,7 @@ let to_var id =
       let c = Char.chr(i + Char.code('A')) in
       String.make 2 c  (* e.g. α → AA, β → BB *)
     else if v = "·" then "Dot"
+    else if v = "^" then "Exp"
     else failwith "bad variable name" in
   v ^ String.make (strlen id - p) 'p'
 
@@ -105,6 +106,7 @@ let thf_statement is_conjecture f : string =
     | Theorem (num, _, f, _, _) ->
         let kind = if is_conjecture then "conjecture" else "theorem" in
         thm_or_hyp num kind f
+    | HAxiom _
     | HTheorem _ -> failwith "thf_statement" in
   unlines (map (sprintf "thf(%s).") (conv f))
 

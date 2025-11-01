@@ -106,14 +106,6 @@ let _tuple n : formula =
 
 let is_tuple_constructor = starts_with "(,"
 
-let tuple_arity s : int =
-  let s = match String.index_from_opt s 0 ')' with  (* remove type suffix if present *)
-    | Some i -> String.sub s 0 (i + 1)
-    | None -> s in
-  assert (is_tuple_constructor s);
-  assert (ends_with ",)" s);
-  strlen s - 1
-
 let mk_tuple = function
   | [] -> failwith "mk_tuple" 
   | [g] -> g
@@ -226,10 +218,7 @@ let rec next_var x avoid =
 let rec type_subst_in_formula (f: formula) (u: typ) (x: id) =
   let subst typ = type_subst typ u x in
   match f with
-    | Const (id, typ) ->
-        (* if id = "is_mapping" then
-          printf "is_mapping: typ = %s, u/x = %s/%s, result = %s\n" (show_type typ) (show_type u) x (show_type (subst typ)); *)
-        Const (id, subst typ)
+    | Const (id, typ) -> Const (id, subst typ)
     | Var (id, typ) -> Var (id, subst typ)
     | Lambda (id, typ, f) ->
         Lambda (id, subst typ, type_subst_in_formula f u x)
@@ -303,12 +292,12 @@ let binary_ops = [
   ("+", 7); ("-", 7);
   ("∈", 6); ("|", 6); ("~", 6);
   ("<", 5); ("≤", 5); (">", 5); ("≥", 5);
-  ("∧", 4); ("∨", 3); ("→", 1); ("↔", 0)
+  ("∧", 4); ("∨", 3); ("→", 2); ("↔", 1)
 ]
 
 let not_prec = 9
 let eq_prec = 5
-let quantifier_prec = 2
+let quantifier_prec = 0
 
 let single_letter = function
   | (Const (id, _) | Var (id, _)) when is_letter id.[0] -> Some id
@@ -530,9 +519,10 @@ let for_all_vars_types : (id * typ) list -> formula -> formula =
 let exists_vars_types : (id * typ) list -> formula -> formula =
   fold_right _exists'
 
-let for_all_vars_typs_if_free ids_typs f : formula =
+let for_all_vars_types_if_free ids_typs f : formula =
   let fv = free_vars_and_type_vars f in
-  for_all_vars_types (ids_typs |> filter (fun (id, _typ) -> mem id fv)) f
+  for_all_vars_types (ids_typs |> filter (fun (id, _typ) ->
+    mem id fv || id = "·")) f  (* "·" may not be explicitly present *)
 
 let rec gather_pi typ : id list * typ = match typ with
   | Pi (x, typ) ->

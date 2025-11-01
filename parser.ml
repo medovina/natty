@@ -99,7 +99,7 @@ let super_digit = any_str super_digits |>> fun s -> assoc s super_digit_map
 
 let keywords = ["axiom"; "corollary"; "definition"; "lemma"; "proof"; "theorem"]
 
-let with_range p = empty >>?
+let with_range (p : 'a p) : (('a * range) p) = empty >>?
   (get_pos >>= fun (_index, line1, col1) ->
   p >>= fun x ->
   get_pos |>> fun (_index, line2, col2) ->
@@ -370,16 +370,6 @@ and exists_prop s : formula pr = pipe4
   (fun some ids_types with_exprs p ->
     (if some then Fun.id else _not) (exists_with ids_types p with_exprs)) s
 
-and small_prop s : formula pr = expression prop_operators
-  (if_then_prop <|> for_all_prop <|> exists_prop <|> atomic) s
-
-(* propositions *)
-
-and either_or_prop s : formula pr =
-  (str "either" >> small_prop >>= fun f -> match bool_kind f with
-    | Binary ("∨", _, _, _) -> return f
-    | _ -> fail "either: expected or") s
-
 and precisely_prop s : formula pr = (
   any_str ["Exactly"; "Precisely"] >> str "one of" >> small_prop << str "holds" |>>
     fun f ->
@@ -388,6 +378,16 @@ and precisely_prop s : formula pr = (
       let ns = all_pairs gs |> map (fun (f, g) -> _not (_and f g)) in
       multi_and (f :: ns)
   ) s
+
+and small_prop s : formula pr = expression prop_operators
+  (if_then_prop <|> for_all_prop <|> exists_prop <|> precisely_prop <|> atomic) s
+
+(* propositions *)
+
+and either_or_prop s : formula pr =
+  (str "either" >> small_prop >>= fun f -> match bool_kind f with
+    | Binary ("∨", _, _, _) -> return f
+    | _ -> fail "either: expected or") s
 
 and cannot_prop s : formula pr = (
   str "It cannot be that" >> proposition |>> _not) s
@@ -408,16 +408,31 @@ let let_decl : (id * typ) list p = str "Let" >> choice [
   decl_ids_types << optional (str "be" >> operation)
 ]
 
-let rec let_prop s =
-  pipe2 (let_decl << str ".") top_prop for_all_vars_types s
+let let_step : proof_step_r list p = pipe2 
+  (with_range let_decl |>>
+    fun (ids_types, range) -> [(Let ids_types, range)])
+  (opt [] (str "with" >> with_range exprs |>>
+              fun (f, range) -> [(Assume f, range)]))
+  (@)
 
-and suppose s = (opt_str "also" >>? any_str ["assume"; "suppose"] >> opt_str "further" >>
-    opt_str "that" >> sep_by1 proposition (opt_str "," >> str "and that")) s
+let let_val_step : proof_step_r p = 
+  with_range (pair (str "let" >>? id_opt_type <<? str "=") expr) |>>
+    fun (((id, typ), f), range) -> (LetVal (id, typ, f), range)
 
-and suppose_then s = pipe2 (suppose << str ".") (opt_str "Then" >> proposition)
-  (fold_right implies) s
+let suppose = (opt_str "also" >>? any_str ["assume"; "suppose"] >> opt_str "further" >>
+    opt_str "that" >> sep_by1 proposition (opt_str "," >> str "and that"))
 
-and top_prop s = (let_prop <|> suppose_then <|> proposition) s
+let assume_step : proof_step_r p = (
+  with_range suppose |>>
+    fun (fs, range) -> (Assume (multi_and fs), range))
+
+let let_or_assume : proof_step_r list p =
+  single let_val_step <|> let_step <|> single assume_step
+
+let top_prop : proof_step_r list p =
+  pipe2 (many_concat (let_or_assume << str "."))
+  (opt_str "Then" >> with_range proposition)
+  (fun lets (p, range) -> lets @ [(Assert p, range)])
 
 (* proposition lists *)
 
@@ -426,24 +441,26 @@ let label : id p =
 
 let stmt_name = parens name
 
-let top_sentence : ((formula * range) * id option) p =
-    pair (with_range (top_prop << str ".")) (option (brackets name))
+let top_sentence : (proof_step_r list * id option) p =
+    pair (top_prop << str ".") (option (brackets name))
 
-let proposition_item : (id * ((formula * range) * id option)) p =
+let proposition_item : (id * (proof_step_r list * id option)) p =
   pair label top_sentence
 
-let prop_items : (id * ((formula * range) * id option)) list p =
+let prop_items : (id * ((proof_step_r list) * id option)) list p =
   many1 proposition_item
 
-let top_prop_or_items (name: id option) ids_types : (id * formula * id option * range) list p =
+let top_prop_or_items (name: id option):
+  (id * proof_step_r list * id option) list p =
     choice [
         prop_items;
         top_sentence |>> fun (fr, name1) -> [("", (fr, opt_or_opt name1 name))]
-    ] |>> map (fun (label, ((f, range), name)) ->
-      (label, for_all_vars_typs_if_free ids_types f, name, range))
+    ] |>> map (fun (label, (steps, name)) -> (label, steps, name))
 
-let propositions name : (id * formula * id option * range) list p =
-  (opt [] (for_all_ids << str ",")) >>= top_prop_or_items name
+let propositions name : (id * proof_step_r list * id option) list p =
+  pipe2 (with_range (opt [] (for_all_ids << str ","))) (top_prop_or_items name)
+  (fun (vars, range) props ->
+    props |> map (fun (id, steps, name) -> (id, (Let vars, range) :: steps, name)))
 
 (* axioms *)
 
@@ -472,8 +489,8 @@ let count_label num label =
 let axiom_propositions name : statement list p =
   let& st = get_user_state in
   incr st.axiom_count;
-  propositions name |>> map (fun (label, f, name, _range) ->
-    Axiom (count_label (!(st.axiom_count)) label, f, name))
+  propositions name |>> map (fun (label, steps, name) ->
+    HAxiom (count_label (!(st.axiom_count)) label, steps, name))
 
 let axiom_exists name : statement list p =
   there_exists >>? pipe2
@@ -570,24 +587,6 @@ let now = any_str ["Conversely"; "Finally"; "Next"; "Now"; "Second"]
 
 let any_case = any_str ["In any case"; "In either case"; "Putting the cases together"]
 
-let let_step : proof_step_r list p = pipe2 
-  (with_range let_decl |>>
-    fun (ids_types, range) -> [(Let ids_types, range)])
-  (opt [] (str "with" >> with_range exprs |>>
-              fun (f, range) -> [(Assume f, range)]))
-  (@)
-
-let let_val_step : proof_step_r p = 
-  with_range (pair (str "let" >>? id_opt_type <<? str "=") expr) |>>
-    fun (((id, typ), f), range) -> (LetVal (id, typ, f), range)
-
-let assume_step : proof_step_r p =
-  with_range suppose |>>
-    fun (fs, range) -> (Assume (multi_and fs), range)
-
-let let_or_assume : proof_step_r list p =
-  single let_val_step <|> let_step <|> single assume_step
-
 let let_or_assumes : proof_step_r list p =
   sep_by1 let_or_assume (str "," >> str "and") |>> concat
 
@@ -604,13 +603,13 @@ let proof_clause : proof_step_r list p = pipe2
 let proof_sentence : proof_step_r list p =
   (sep_by1 proof_clause (str ";") |>> concat) << str "."
 
-let proof_steps : (proof_step * range) list p =
+let proof_steps : proof_step_r list p =
   many1 (not_followed_by new_paragraph "" >> proof_sentence) |>>
     (fun steps -> concat steps)
 
-let proof_item : (id * (proof_step * range) list) p = pair label proof_steps
+let proof_item : (id * proof_step_r list) p = pair label proof_steps
 
-let proofs : (id * (proof_step * range) list) list p = str "Proof." >> choice [
+let proofs : (id * proof_step_r list) list p = str "Proof." >> choice [
   many1 proof_item;
   proof_steps |>> (fun steps -> [("", steps)])]
 
@@ -618,15 +617,16 @@ let proofs : (id * (proof_step * range) list) list p = str "Proof." >> choice [
 
 let theorem_group : statement list p =
   any_str ["Corollary"; "Lemma"; "Theorem"] >> option stmt_name << str "." >>= fun name -> 
-  many_concat (let_decl << str ".") >>=
-  fun ids_types ->
+  many_concat (let_step << str ".") >>=
+  fun let_steps ->
     let& st = get_user_state in
     incr st.theorem_count;
-    pipe2 (top_prop_or_items name ids_types) (opt [] proofs)
+    pipe2 (top_prop_or_items name) (opt [] proofs)
     (fun props proofs ->
-      props |> map (fun (label, f, name, range) ->
-        HTheorem (count_label (!(st.theorem_count)) label, name, f,
-                  opt_default (assoc_opt label proofs) [], range)))
+      props |> map (fun (label, steps, name) ->
+        HTheorem (count_label (!(st.theorem_count)) label, name,
+                  let_steps @ steps,
+                  opt_default (assoc_opt label proofs) [])))
 
 (* module *)
 

@@ -183,8 +183,8 @@ let rec last = function
   | [x] -> x
   | _ :: xs -> last xs
 
-let rec split_last = function
-  | [] -> failwith "chop_last"
+let rec split_last (xs : 'a list) : ('a list * 'a) = match xs with
+  | [] -> failwith "split_last"
   | [x] -> ([], x)
   | x :: xs ->
       let (ys, last) = split_last xs in
