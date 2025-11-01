@@ -89,7 +89,9 @@ base_expr = terms |
 
 eq_op = '=' | '≠' | '<' | '≤' | '>' | '≥' | '≮';
 
-expr = base_expr { eq_op base_expr [reason] };
+eq_chain = base_expr { eq_op base_expr [reason] };
+
+expr = { '∀' decl_ids_type '.' } eq_chain;
 
 exprs = expr { 'and' expr };
 

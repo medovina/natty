@@ -315,7 +315,12 @@ and eq_op s = choice ([
 
 and eq_expr s = pair eq_op (base_expr << optional reason) s
 
-and expr s = record_formula (pair base_expr (many eq_expr) |>> chain_ops) s
+and eq_chain s = (pair base_expr (many eq_expr) |>> chain_ops) s
+
+and expr s = record_formula (
+  pipe2 (many (str "∀" >> decl_ids_type << str ".")) eq_chain
+    (fold_right for_all_vars_typ)
+  ) s
 
 and exprs s = (sep_by1 expr (str "and") |>> multi_and) s
 
