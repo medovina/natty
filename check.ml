@@ -167,6 +167,7 @@ and block_steps (Block (step, range, children)) : statement list list * formula 
         ([Theorem ("", None, ex, [], range)] :: map (append stmts) fs,
          if any_free_in ids concl then exists_vars_typ (ids, typ) concl else concl)
     | Escape | Group _ -> failwith "block_formulas"
+
 let is_type_defined id env = exists (is_type_decl id) env
 
 let check_type1 env vars typ =
@@ -186,8 +187,10 @@ let check_type1 env vars typ =
 
 let check_type env typ = check_type1 env [] typ
 
+let id_types env id = filter_map (is_const_decl id) env
+
 let find_const env formula id : formula list =
-  let consts = filter_map (is_const id) env |> map (fun typ -> Const (id, typ)) in
+  let consts = id_types env id |> map (fun typ -> Const (id, typ)) in
   match consts with
     | [] -> errorf (sprintf "undefined: %s\n" id) formula
     | _ -> consts
@@ -318,16 +321,29 @@ let rec expand_proof stmt env steps proof_steps : formula * statement list list 
     stmtss in
   (top_infer env concl, map (infer_stmts env) stmtss)
 
+and check_dup_const env id typ kind =
+  if mem typ (id_types env id) then (
+    printf "duplicate %s: %s : %s\n" kind id (show_type typ);
+    failwith "check_dup_const");
+
 and infer_stmt env stmt : statement =
   match stmt with
-    | TypeDecl _ -> stmt
-    | ConstDecl (_, typ) -> check_type env typ; stmt      
+    | TypeDecl (id, _) ->
+        if is_type_defined id env then (
+          printf "duplicate type definition: %s\n" id;
+          failwith "infer_stmt");
+        stmt
+    | ConstDecl (id, typ) ->
+        check_type env typ;
+        check_dup_const env id typ "constant declaration";
+        stmt
     | Axiom _ -> failwith "infer_stmt"
     | Hypothesis (id, f) -> Hypothesis (id, top_infer env f)
     | Definition (_id, _typ, f) ->
         let (c, f) = raise_definition f in
         let (typ, f) = top_infer_with_type env f in
         let g = Option.get (lower_definition (Eq (Const (c, typ), f))) in
+        check_dup_const env c typ "definition";
         Definition (c, typ, g)
     | Theorem (num, name, f, [], range) ->
         Theorem (num, name, top_infer env f, [], range)
@@ -423,7 +439,7 @@ let encode_module consts md : _module =
 let basic_check env f : typ * formula =
   let rec check vars f = match f with
     | Const (id, typ) -> (
-        match filter_map (is_const id) env with
+        match filter_map (is_const_decl id) env with
           | [] ->
               if mem id logical_ops
                 then (typ, Const (id, typ))

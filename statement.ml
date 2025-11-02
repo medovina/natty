@@ -168,7 +168,7 @@ let decl_var = function
   | Definition (i, typ, _f) -> Some (i, typ)
   | _ -> None
 
-let is_const id def =
+let is_const_decl id def =
   let* (i, typ) = decl_var def in
   if i = id then Some typ else None
 
