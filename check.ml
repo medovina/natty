@@ -27,7 +27,7 @@ let rec chain_blocks steps : block list = match steps with
   | (step, range) :: steps -> [Block (step, range, chain_blocks steps)]
 
 let infer_blocks steps : block list =
-  let rec all_vars : proof_step list -> id list = function
+  let rec all_vars steps : id list = match steps with
     | [] -> []
     | step :: steps ->
         subtract (step_free_vars step @ all_vars steps) (step_decl_vars step) in
@@ -38,7 +38,7 @@ let infer_blocks steps : block list =
           if overlap (step_decl_vars step) (concat vars) then ([], steps, false)
           else let in_use = match vars with
             | [] -> true
-            | top_vars :: _ -> overlap top_vars (all_vars (map fst steps)) in
+            | top_vars :: _ -> overlap top_vars ("·" :: all_vars (map fst steps)) in
           if step <> Assert _false && not in_use then ([], steps, false)
           else match step with
             | Escape ->
@@ -129,9 +129,11 @@ let rec blocks_steps blocks : statement list list * formula =
 
 and block_steps (Block (step, range, children)) : statement list list * formula =
   let (fs, concl) = blocks_steps children in
+  let const_decl (id, typ) =
+    if typ = Type then TypeDecl (id, None) else ConstDecl (skolem_name id, typ) in
   let const_decls ids_typs : statement list * statement list list =
     if ids_typs = [] then ([], fs) else
-    let decls = map (fun (id, typ) -> ConstDecl (skolem_name id, typ)) ids_typs in
+    let decls = map const_decl ids_typs in
     let fs = map (map (stmt_with_skolem_names (map fst ids_typs))) fs in
     (decls, fs) in
   match step with
@@ -170,19 +172,20 @@ and block_steps (Block (step, range, children)) : statement list list * formula 
 
 let is_type_defined id env = exists (is_type_decl id) env
 
-let check_type1 env vars typ =
-  let rec check vars = function
-    | Bool | Type -> ()
+let check_type1 env vars typ : typ =
+  let rec check vars typ = match typ with
+    | Bool | Type -> typ
     | Base id ->
         if not (is_unknown typ) && not (is_type_defined id env) then
           type_error ("undefined type " ^ id) typ
-        else ()
+        else typ
     | TypeVar id ->
-        if not (mem (id, Type) vars) then
-          type_error ("undefined type variable " ^ id) typ
-    | Fun (t, u) -> check vars t; check vars u
-    | Pi (id, t) -> check ((id, Type) :: vars) t
-    | Product typs -> iter (check vars) typs
+        if mem (id, Type) vars then TypeVar id
+        else if is_type_defined id env then Base id
+        else type_error ("undefined type variable " ^ id) typ
+    | Fun (t, u) -> Fun (check vars t, check vars u)
+    | Pi (id, t) -> Pi (id, check ((id, Type) :: vars) t)
+    | Product typs -> Product (map (check vars) typs)
   in check vars typ
 
 let check_type env typ = check_type1 env [] typ
@@ -194,6 +197,11 @@ let find_const env formula id : formula list =
   match consts with
     | [] -> errorf (sprintf "undefined: %s\n" id) formula
     | _ -> consts
+
+let univ f : formula = match f with
+  | Var (id, Type) -> Lambda ("x", TypeVar id,  _true)
+  | Const (id, Type) -> Lambda ("x", Base id, _true)
+  | f -> f
 
 let infer_formula env vars formula : typ * formula =
   let formula = expand_chains formula in
@@ -210,14 +218,16 @@ let infer_formula env vars formula : typ * formula =
     match formula with
       | Const (id, typ) ->
           let+ c = if is_unknown typ
-                    then find_const env formula id else [formula] in
+                    then find_const env formula id
+                    else [Const (id, check_type1 env vars typ)] in
+          let c = univ c in
           let (f, typ) = inst c (type_of c) in
           [(tsubst, typ, f)]
       | Var (id, _) -> (
           match assoc_opt id vars with
-            | Some Type ->  (* interpret as universal function for type *)
-                [(tsubst, Fun (TypeVar id, Bool), Lambda ("x", TypeVar id,  _true))]
-            | Some typ -> [(tsubst, typ, Var (id, typ))]
+            | Some typ ->
+                let f = univ (Var (id, typ)) in
+                [(tsubst, type_of f, f)]
             | None -> check vars tsubst (Const (id, unknown_type)))
       | App (f, g) ->
           let all =
@@ -240,7 +250,7 @@ let infer_formula env vars formula : typ * formula =
                   then error "ambiguous application" formula
                 else all)
       | Lambda (x, typ, f) ->
-          check_type1 env vars typ;
+          let typ = check_type1 env vars typ in
           let+ (tsubst, t, f) = check ((x, typ) :: vars) tsubst f in
           let return_type = if typ = Type then Pi (x, t) else Fun (typ, t) in
           [(tsubst, return_type, Lambda (x, typ, f))]
@@ -336,9 +346,9 @@ and infer_stmt env stmt : statement =
           failwith "infer_stmt");
         stmt
     | ConstDecl (id, typ) ->
-        check_type env typ;
+        let typ = check_type env typ in
         check_dup_const env id typ "constant declaration";
-        stmt
+        ConstDecl (id, typ)
     | Axiom _ -> failwith "infer_stmt"
     | Hypothesis (id, f) -> Hypothesis (id, top_infer env f)
     | Definition (_id, _typ, f) ->
@@ -423,10 +433,10 @@ let encode_formula consts f : formula =
                 | _ -> App (f, g))
           | Lambda (id, typ, f) ->
               Lambda (id, encode_type typ, encode f)
-          | Eq (f, Const (id, Fun (Base id', Bool))) when id = id' ->
-              (* transform e.g. P = ℕ to ∀x:ℕ.P(x) *)
+          | Eq (f, Lambda (_, typ, tr)) when tr = _true ->
+              (* apply functional extensionality *)
               let x = next_var "x" (free_vars f) in
-              let h = _for_all x (Base id) (App (f, Var (x, Base id))) in
+              let h = _for_all x typ (App (f, Var (x, typ))) in
               encode h
           | f -> map_formula encode f in
   encode f
@@ -464,7 +474,7 @@ let basic_check env f : typ * formula =
               failwith "can't apply" in
         (typ, App (g, h))
     | Lambda (x, t, f) ->
-        check_type1 env vars t;
+        let t = check_type1 env vars t in
         let (u, f) = check ((x, t) :: vars) f in
         let typ = if t = Type then Pi (x, u) else Fun (t, u) in
         (typ, Lambda (x, t, f))
@@ -478,11 +488,10 @@ let basic_check env f : typ * formula =
   check [] f
 
 let basic_check_stmt env stmt : statement =
-  let type_check typ = check_type env typ; typ in
   let bool_check f = match basic_check env f with
     | (Bool, f) -> f
     | _ -> failwith "boolean expected" in
-  map_statement type_check bool_check stmt
+  map_statement (check_type env) bool_check stmt
 
 let basic_check_stmts stmts : statement list =
   let rec check env = function

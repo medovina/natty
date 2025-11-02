@@ -163,7 +163,7 @@ let map_stmt_formulas fn = map_statement Fun.id fn
 let mono_statement = map_statement without_pi implicit_formula
 
 let decl_var = function
-  | TypeDecl (id, _) -> Some (id, Fun (Base id, Bool))   (* universal set for type *)
+  | TypeDecl (id, _) -> Some (id, Type)
   | ConstDecl (i, typ) -> Some (i, typ)
   | Definition (i, typ, _f) -> Some (i, typ)
   | _ -> None
@@ -185,8 +185,8 @@ let show_statement multi s : string =
           sprintf "definition (%s: %s): " (without_type_suffix id) (show_type typ) in
         show prefix f
     | Theorem (_, _, f, _, _) -> show (name ^ ": ") f
-    | HAxiom _
-    | HTheorem _ -> failwith "show_statement"
+    | HAxiom (id, _, _) -> "haxiom: " ^ id
+    | HTheorem (id, _, _, _) -> "htheorem: " ^ id
 
 let number_hypotheses name stmts =
   let f n = function
