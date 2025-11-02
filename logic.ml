@@ -674,9 +674,9 @@ let eta = function
 
 (* t and u unify if tσ = uσ for some type substitution σ.
    t matches u if tσ = u for some type substitution σ.   *)
-let unify_or_match_types is_unify tsubst t u : tsubst option =
+let unify_or_match_types is_unify is_var tsubst t u : tsubst option =
   let rec unify tsubst t u : tsubst option = match t, u with
-    | TypeVar x, t ->
+    | TypeVar x, t when is_var x ->
         if t = TypeVar x then Some tsubst
         else (match assoc_opt x tsubst with
           | Some u ->
@@ -687,7 +687,7 @@ let unify_or_match_types is_unify tsubst t u : tsubst option =
               if mem x (free_type_vars t) then None else
                 let tsubst = tsubst |> map (fun (y, u) -> (y, type_subst u t x)) in
                 Some ((x, u) :: tsubst))
-    | _t, TypeVar _x when is_unify -> unify tsubst u t
+    | _t, TypeVar x when is_unify && is_var x -> unify tsubst u t
     | Fun (t, u), Fun (t', u') ->
         let* tsubst = unify tsubst t t' in
         unify tsubst u u'
@@ -698,14 +698,14 @@ let unify_or_match_types is_unify tsubst t u : tsubst option =
     | t, u -> if t = u then Some tsubst else None in
   unify tsubst t u
 
-let unify_types tsubst t u = unify_or_match_types true tsubst t u
+let unify_types is_var tsubst t u = unify_or_match_types true is_var tsubst t u
 
 (* Allow * → τ to match Πσ.τ.
  * For example, in ∀(λσ:* ∀x:σ x = x) we have
  * ∀ : [* → 𝔹] → 𝔹 applied to (∏σ.𝔹). *)
-let unify_types_or_pi tsubst t u = match t, u with
-  | Fun (Type, t), Pi (_, u) -> unify_types tsubst t u
-  | _ -> unify_types tsubst t u
+let unify_types_or_pi is_var tsubst t u = match t, u with
+  | Fun (Type, t), Pi (_, u) -> unify_types is_var tsubst t u
+  | _ -> unify_types is_var tsubst t u
 
 (* f and g unify if fσ = gσ for some substitution σ.
    f matches g if fσ = g for some substitution σ.   *)
@@ -720,7 +720,7 @@ let unify_or_match is_unify subst t u : subst option =
       | Var (x, typ), f ->
           if f = Var (x, typ) then Some subst
           else
-            let* tsubst = unify_or_match_types is_unify tsubst typ (type_of f) in
+            let* tsubst = unify_or_match_types is_unify (Fun.const true) tsubst typ (type_of f) in
             let subst = (tsubst, vsubst) in(
             match assoc_opt x vsubst with
               | Some g ->
@@ -739,7 +739,7 @@ let unify_or_match is_unify subst t u : subst option =
             | Some subst -> Some subst
             | None -> unify_pairs f g g' f')
       | Lambda (x, xtyp, f), Lambda (y, ytyp, g) ->
-          let* tsubst = unify_or_match_types is_unify tsubst xtyp ytyp in
+          let* tsubst = unify_or_match_types is_unify (Fun.const true) tsubst xtyp ytyp in
           let* (tsubst, vsubst) = unify' (tsubst, vsubst) f g in
           let x', y' = assoc_opt x vsubst, assoc_opt y vsubst in
           if (x' = None || x' = Some (Var (y, ytyp))) &&
@@ -756,7 +756,7 @@ let unify = unify_or_match true ([], [])
 let _match = unify_or_match false ([], [])
 let try_match = unify_or_match false
 
-let rec chain_ops (f, ops_exprs) = match ops_exprs with
+let rec chain_ops (f, ops_exprs) : formula = match ops_exprs with
   | [] -> f
   | [(op, g)] -> op f g
   | (op, g) :: ops_exprs -> _and (op f g) (chain_ops (g, ops_exprs))

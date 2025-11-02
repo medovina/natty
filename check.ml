@@ -161,6 +161,7 @@ let infer_formula env vars formula : typ * formula =
   let new_type_var : unit -> typ =
     let n = ref (-1) in
     fun () -> incr n; TypeVar (sprintf "$%d" !n) in
+  let is_var x = x.[0] = '$' in
   let rec inst f typ : formula * typ = match typ with
     | Pi (x, t) ->
         let v = new_type_var () in
@@ -183,7 +184,7 @@ let infer_formula env vars formula : typ * formula =
             let+ (tsubst, u, g) = check vars tsubst g in (
             match t with
               | Fun (v, w) -> (
-                  match unify_types_or_pi tsubst v u with
+                  match unify_types_or_pi is_var tsubst v u with
                     | Some tsubst -> [tsubst, w, App (f, g)]
                     | None -> [])
               | _ ->
@@ -206,7 +207,7 @@ let infer_formula env vars formula : typ * formula =
           let all =
             let+ (tsubst, t, f) = check vars tsubst f in
             let+ (tsubst, u, g) = check vars tsubst g in
-            match unify_types tsubst t u with
+            match unify_types is_var tsubst t u with
               | Some tsubst -> [(tsubst, Bool, Eq (f, g))]
               | None -> [] in
           match all with
