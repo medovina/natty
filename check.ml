@@ -215,6 +215,8 @@ let infer_formula env vars formula : typ * formula =
           [(tsubst, typ, f)]
       | Var (id, _) -> (
           match assoc_opt id vars with
+            | Some Type ->  (* interpret as universal function for type *)
+                [(tsubst, Fun (TypeVar id, Bool), Lambda ("x", TypeVar id,  _true))]
             | Some typ -> [(tsubst, typ, Var (id, typ))]
             | None -> check vars tsubst (Const (id, unknown_type)))
       | App (f, g) ->
