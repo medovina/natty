@@ -75,6 +75,37 @@ let infer_blocks steps : block list =
   assert (rest = []);
   blocks
 
+let is_comparison f =
+  match f with
+    | Eq (g, h) -> Some ("=", g, h)
+    | App (App (Var (c, _), g), h) when mem c Parser.compare_ops -> Some (c, g, h)
+    | _ -> None
+
+let rec collect_cmp f : formula list * id list = match is_comparison f with
+  | Some (op, g, h) ->
+      let (gs, g_ops), (hs, h_ops) = collect_cmp g, collect_cmp h in
+      (gs @ hs, g_ops @ [op] @ h_ops)
+  | None -> ([f], [])
+
+let rec join_cmp fs ops : formula list =
+  let app op f g : formula =
+    if op = "=" then Eq (f, g) else apply [Var (op, unknown_type); f; g] in
+  match fs, ops with
+    | [f], [] -> [f]
+    | [f; g], [op] -> [app op f g]
+    | f :: g :: fs, op :: ops ->
+        app op f g :: join_cmp (g :: fs) ops
+    | _ -> failwith "join_cmp"
+
+let chain_comparisons f : formula list =
+  let fs, ops = collect_cmp f in
+  join_cmp fs ops
+
+let rec expand_chains f : formula =
+  match collect_cmp f with
+    | [f], [] -> map_formula expand_chains f
+    | fs, ops -> multi_and (join_cmp fs ops)
+
 let skolem_name id = if looks_like_var id then id ^ "0" else id
 
 let rec with_skolem_names ids f : formula = match f with
@@ -104,11 +135,15 @@ and block_steps (Block (step, range, children)) : statement list list * formula 
     let fs = map (map (stmt_with_skolem_names (map fst ids_typs))) fs in
     (decls, fs) in
   match step with
-    | Assert f -> (
-        match expand_multi_eq f with
-          | Some (eqs, concl) ->
-              (map (fun eq -> [Theorem ("", None, eq, [], range)]) eqs, concl)
-          | None -> ([[Theorem ("", None, f, [], range)]], f)  )
+    | Assert f ->
+        let eqs = chain_comparisons f in
+        let concl =
+          if length eqs > 2 && for_all is_eq eqs then
+            match hd eqs, last eqs with
+              | Eq (a, _), Eq (_, b) -> Eq (a, b)
+              | _ -> failwith "block_steps"
+          else f in
+        (map (fun eq -> [Theorem ("", None, eq, [], range)]) eqs, concl)
     | Let ids_types ->
         let (decls, fs) = const_decls ids_types in
         (map (append decls) fs, for_all_vars_types_if_free ids_types concl)
@@ -158,6 +193,7 @@ let find_const env formula id : formula list =
     | _ -> consts
 
 let infer_formula env vars formula : typ * formula =
+  let formula = expand_chains formula in
   let new_type_var : unit -> typ =
     let n = ref (-1) in
     fun () -> incr n; TypeVar (sprintf "$%d" !n) in

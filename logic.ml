@@ -756,30 +756,6 @@ let unify = unify_or_match true ([], [])
 let _match = unify_or_match false ([], [])
 let try_match = unify_or_match false
 
-let rec chain_ops (f, ops_exprs) : formula = match ops_exprs with
-  | [] -> f
-  | [(op, g)] -> op f g
-  | (op, g) :: ops_exprs -> _and (op f g) (chain_ops (g, ops_exprs))
-
-let expand_multi_eq f : (formula list * formula) option =
-  let rec expand = function
-    | [] -> Some []
-    | Eq (_, g) as eq :: rest -> (
-        match expand rest with
-          | Some [] -> Some [eq]
-          | Some ((Eq (g', _) :: _) as eqs) when g = g' ->
-              Some (eq :: eqs)
-          | _ -> None)
-    | _ -> None in
-  match expand (gather_and f) with
-    | Some eqs ->
-        let concl = if length eqs <= 2 then multi_and eqs else
-          match hd eqs, last eqs with
-            | Eq (a, _), Eq (_, b) -> Eq (a, b)
-            | _ -> assert false in
-        Some (eqs, concl)
-    | None -> None
-
 let first_var start_var = function
   | Fun (_, Bool) -> "P"
   | _ -> start_var

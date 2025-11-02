@@ -269,6 +269,15 @@ and terms s = (exp_term >>= fun t -> many_fold_left mk_app t next_term) s
 
 (* expressions *)
 
+and compare_ops = ["<"; "≤"; ">"; "≥"]
+
+and eq_op s = choice ([
+  str "=" >>$ mk_eq;
+  str "≠" >>$ mk_neq;
+  str "≮" >>$ mk_not_less;
+  str "≯" >>$ mk_not_greater] @
+  map (fun op -> const_op (str op) op false) compare_ops) s
+
 and operators = [
   [ Postfix (str ":" >> typ |>> ascribe) ];
   [ Prefix (minus >>$ unary_minus) ];
@@ -281,11 +290,18 @@ and operators = [
     infix_binop "|" Assoc_none;
     infix_negop "∤" "|" Assoc_none ;  (* does not divide *)
     infix_binop "~" Assoc_none ];
+  [ Infix (eq_op,  Assoc_left) ];
   [ infix "∧" _and Assoc_left ];
   [ infix "∨" _or Assoc_left ];
   [ infix "→" implies Assoc_right ];
-  [ infix "↔" _iff Assoc_right ]
+  [ infix "↔" _iff Assoc_right ];
+  [ Prefix (str "∀" >> decl_ids_type << str "." |>>
+             (fun ids_type -> for_all_vars_typ ids_type)) ] 
 ]
+
+and expr s = record_formula (expression operators terms) s
+
+and exprs s = (sep_by1 expr (str "and") |>> multi_and) s
 
 and predicate_target word =
   let app xs f = apply ([Const ("is_" ^ word, unknown_type); f] @ xs) in
@@ -303,26 +319,6 @@ and predicate s : (formula -> formula) pr = choice [
     let g = App (Const (word, unknown_type), f) in
     if Option.is_some neg then _not g else g)
 ] s
-
-and base_expr s = expression operators terms s
-
-and eq_op s = choice ([
-  str "=" >>$ mk_eq;
-  str "≠" >>$ mk_neq;
-  str "≮" >>$ mk_not_less;
-  str "≯" >>$ mk_not_greater] @
-  map (fun op -> const_op (str op) op false) ["<"; "≤"; ">"; "≥"]) s
-
-and eq_expr s = pair eq_op (base_expr << optional reason) s
-
-and eq_chain s = (pair base_expr (many eq_expr) |>> chain_ops) s
-
-and expr s = record_formula (
-  pipe2 (many (str "∀" >> decl_ids_type << str ".")) eq_chain
-    (fold_right for_all_vars_typ)
-  ) s
-
-and exprs s = (sep_by1 expr (str "and") |>> multi_and) s
 
 and atomic s = (
   pipe2 expr (choice [
@@ -552,9 +548,16 @@ let opt_contra : (formula * range) list p = opt []
     (optional (str "to" >> reference))) |>>
       fun (_, range) -> [(_false, range)])
 
+let rec proof_eq_props s : formula pr =
+  pipe2 proposition (option (reason >> option (pair eq_op proof_eq_props)))
+  (fun f -> function
+    | Some (Some (eq, g)) -> eq f g
+    | _ -> f)
+  s
+
 let proof_prop : (formula * range) list p = pipe2 (choice [
   reason >> opt_str "," >> optional have >> with_range proposition;
-  optional have >> with_range proposition << optional reason
+  optional have >> with_range proof_eq_props
   ]) opt_contra cons
 
 let proof_if_prop : proof_step_r list p = with_range (triple

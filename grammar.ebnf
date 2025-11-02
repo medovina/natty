@@ -81,17 +81,15 @@ terms = exp_term+;
 
 binary_op = '·' | '+' | '-' | '∈' | '∉' | '|' | '∤' | '∧' | '∨' | '→' | '↔';
 
-base_expr = terms |
-    base_expr binary_op base_expr |
-    base_expr ':' typ |
-    '-' base_expr |
-    '¬' base_expr;
+eq_op = '=' | '≠' | '<' | '≤' | '>' | '≥' | '≮' | '≯';
 
-eq_op = '=' | '≠' | '<' | '≤' | '>' | '≥' | '≮';
-
-eq_chain = base_expr { eq_op base_expr [reason] };
-
-expr = { '∀' decl_ids_type '.' } eq_chain;
+expr = terms |
+    expr binary_op expr |
+    expr eq_op expr |
+    expr ':' typ |
+    '-' expr |
+    '¬' expr |
+    '∀' decl_ids_type '.' expr;
 
 exprs = expr { 'and' expr };
 
@@ -214,8 +212,10 @@ have = 'clearly' |
 
 contra = ',' ['which is'] ['again' | 'also' | 'similarly'] 'a contradiction' ['to' reference];
 
+proof_eq_props = proposition [reason [eq_op proof_eq_props]];
+
 proof_prop = (reason [','] [have] proposition |
-              [have] proposition [reason]) [contra];
+              [have] proof_eq_props) [contra];
 
 proof_if_prop = 'if' small_prop [','] 'then' proof_prop {',' so proof_prop};
 
