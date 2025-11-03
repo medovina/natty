@@ -1058,10 +1058,9 @@ let ac_complete formulas : (id * formula * bool * bool) list =
   scan [] formulas
 
 let to_pformula name f =
-  let (f, is_def) = match lower_definition f with
-    | Some f -> (f, true)
-    | _ -> (f, false) in
-  { (create_pformula name [] (rename_vars f)) with definition = is_def }
+  let f' = lower_definition f in
+  let is_def = f <> f' in
+  { (create_pformula name [] (rename_vars f')) with definition = is_def }
 
 let prove known_stmts thm cancel_check =
   consts := filter_map decl_var known_stmts;

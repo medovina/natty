@@ -211,6 +211,11 @@ let rec all_pairs = function
   | [] -> []
   | x :: xs -> map (fun y -> (x, y)) xs @ all_pairs xs
 
+let rec unzip = function
+  | [] -> ([], [])
+  | (x, y) :: ps ->
+      let (xs, ys) = unzip ps in (x :: xs, y :: ys)
+
 let intersect xs ys = filter (fun x -> mem x ys) xs
 
 let overlap xs ys = intersect xs ys <> []

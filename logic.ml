@@ -22,6 +22,9 @@ let mk_fun_type t u = Fun (t, u)
 let mk_pi_type x t = Pi (x, t)
 let mk_product_type ts = Product ts
 
+let mk_fun_types ts u : typ = fold_right mk_fun_type ts u
+let mk_pi_types xs u : typ = fold_right mk_pi_type xs u
+
 let show_type t =
   let rec show outer left typ : string =
     let op prec sym t u =
@@ -90,6 +93,8 @@ let mk_eq f g = Eq (f, g)
 
 (* Const ("_type", τ) is the type τ itself. *)
 let _type = "_type"
+
+let type_const typ = Const (_type, typ)
 
 let apply formulas : formula = fold_left1 mk_app formulas
 
@@ -591,40 +596,23 @@ let rec implicit_formula f : formula = match f with
     | _ -> map_formula implicit_formula f)
   | _ -> map_formula implicit_formula f
 
-let raise_definition f : id * formula =
-  (* Transform ∀σ₁...σₙ v₁...vₙ (C v₁ ... vₙ = φ) to C = λσ₁... σₙ v₁...vₙ.φ .
-     This is applied before type inference, so we don't expect C to be applied
-     to type arguments. *)
-  let (xs, f) = gather_quant "∀" f in
-  let (type_vars, vars) = xs |> partition (fun (_, typ) -> typ = Type) in
-  match f with
-    | Eq (f, g) | App (App (Const ("↔", _), f), g) ->
-        let (c, args) = collect_args f in (
-        match c with
-          | Const (id, _) | Var (id, _) ->
-              let arg_vars = map get_var args in
-              if std_sort (map fst vars) <> std_sort arg_vars
-                then failwith "raise: var mismatch";
-              let h = fold_right (fun v f -> lambda v (assoc v vars) f) arg_vars g in
-              let h = fold_right (fun (x, _) f -> lambda x Type f) type_vars h in
-              (id, h)
-          | _ -> failwith "raise: not a const or var")
-    | _ -> failwith "raise: not an equality"
-
-let definition_id f : id = fst (raise_definition f)
+let definition_id f : id =
+  match remove_universal f with
+    | Eq (f, _g) | App (App (Const ("↔", _), f), _g) ->
+        get_const_or_var (fst (collect_args f))
+    | _ -> failwith "definition expected"
 
 let mk_var_or_type_const (id, typ) =
-  if typ = Type then Const (_type, TypeVar id) else Var (id, typ)
+  if typ = Type then type_const (TypeVar id) else Var (id, typ)
 
-let lower_definition f : formula option = match f with
-  (* Transform C = λσ₁... σₙ v₁...vₙ.φ to ∀σ₁...σₙ v₁...vₙ (C σ₁...σₙ v₁ ... vₙ = φ) .*)
+let lower_definition f : formula = match f with
+  (* Transform C = λv₁...vₙ.φ to ∀v₁...vₙ (C v₁ ... vₙ = φ) .*)
   | Eq ((Const (_, typ) as c), f) ->
       let (vars_typs, g) = gather_lambdas f in
       let eq = if target_type typ = Bool then _iff else mk_eq in
-      let f = for_all_vars_types vars_typs (
-                eq (apply (c :: map mk_var_or_type_const vars_typs)) g) in
-      Some f
-  | _ -> None
+      for_all_vars_types vars_typs (
+        eq (apply (c :: map mk_var_or_type_const vars_typs)) g)
+  | _ -> f
 
 let suffix id avoid : id =
   let rec try_suffix n =

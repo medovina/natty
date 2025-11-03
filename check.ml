@@ -214,7 +214,7 @@ let infer_formula env vars formula : typ * formula =
   let rec inst f typ : formula * typ = match typ with
     | Pi (x, t) ->
         let v = new_type_var () in
-          inst (App (f, Const (_type, v))) (type_subst t v x)
+          inst (App (f, type_const v)) (type_subst t v x)
     | _ -> (f, typ) in
   let rec check vars tsubst formula : (tsubst * typ * formula) list =
     match formula with
@@ -340,6 +340,33 @@ and check_dup_const env id typ kind =
     printf "duplicate %s: %s : %s\n" kind id (show_type typ);
     failwith "check_dup_const");
 
+and infer_definition env f =
+  (* f has the form ∀σ₁...σₙ v₁...vₙ (C φ₁ ... φₙ = ψ) .  We check types and build
+    * a formula of the form ∀σ₁...σₙ v₁...vₙ (C σ₁...σₙ φ₁ ... φₙ = ψ) .*)
+  let (vs, f) = gather_quant "∀" f in
+  let f = lower_definition f in
+  let (vs2, f) = gather_quant "∀" f in
+  let (type_vars, vars) = (vs @ vs2) |> partition (fun (_, typ) -> typ = Type) in
+  let univ = map fst type_vars in
+  let vars = vars |> map (fun (v, typ) -> (v, check_type1 env type_vars typ)) in
+  let vs = type_vars @ vars in (
+  match f with
+    | Eq (f, g) | App (App (Const ("↔", _), f), g) ->
+        let (c, args) = collect_args f in (
+        match c with
+          | Const (id, _) | Var (id, _) ->
+              let infer f = infer_formula env vs f in
+              let arg_types, args = unzip (map infer args) in
+              let g_type, g = infer g in
+              let c_type = mk_pi_types univ (mk_fun_types arg_types g_type) in
+              let type_args = univ |> map (fun v -> type_const (TypeVar v)) in
+              let eq = if g_type = Bool then _iff else mk_eq in
+              let body = for_all_vars_types vs @@
+                eq (apply (Const (id, c_type) :: type_args @ args)) g in
+              Definition (id, c_type, body)
+          | _ -> failwith "definition expected")
+    | _ -> failwith "definition expected")
+
 and infer_stmt env stmt : statement =
   match stmt with
     | TypeDecl (id, _) ->
@@ -353,12 +380,7 @@ and infer_stmt env stmt : statement =
         ConstDecl (id, typ)
     | Axiom _ -> failwith "infer_stmt"
     | Hypothesis (id, f) -> Hypothesis (id, top_infer env f)
-    | Definition (_id, _typ, f) ->
-        let (c, f) = raise_definition f in
-        let (typ, f) = top_infer_with_type env f in
-        let g = Option.get (lower_definition (Eq (Const (c, typ), f))) in
-        check_dup_const env c typ "definition";
-        Definition (c, typ, g)
+    | Definition (_id, _typ, f) -> infer_definition env f
     | Theorem (num, name, f, [], range) ->
         Theorem (num, name, top_infer env f, [], range)
     | Theorem _ -> failwith "infer_stmt"
