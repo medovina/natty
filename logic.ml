@@ -604,12 +604,14 @@ let raise_definition f : id * formula =
           | Const (id, _) | Var (id, _) ->
               let arg_vars = map get_var args in
               if std_sort (map fst vars) <> std_sort arg_vars
-                then failwith "raise";
+                then failwith "raise: var mismatch";
               let h = fold_right (fun v f -> lambda v (assoc v vars) f) arg_vars g in
               let h = fold_right (fun (x, _) f -> lambda x Type f) type_vars h in
               (id, h)
-          | _ -> failwith "raise")
-    | _ -> failwith "raise"
+          | _ -> failwith "raise: not a const or var")
+    | _ -> failwith "raise: not an equality"
+
+let definition_id f : id = fst (raise_definition f)
 
 let mk_var_or_type_const (id, typ) =
   if typ = Type then Const (_type, TypeVar id) else Var (id, typ)

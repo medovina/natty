@@ -391,10 +391,10 @@ and either_or_prop s : formula pr =
     | _ -> fail "either: expected or") s
 
 and cannot_prop s : formula pr = (
-  str "It cannot be that" >> proposition |>> _not) s
+  str "It cannot be that" >> small_prop |>> _not) s
 
 and proposition s : formula pr = choice [
-  either_or_prop; precisely_prop; cannot_prop;
+  either_or_prop; cannot_prop;
   small_prop
 ] s
 
@@ -416,9 +416,17 @@ let let_step : proof_step_r list p = pipe2
               fun (f, range) -> [(Assume f, range)]))
   (@)
 
-let let_val_step : proof_step_r p = 
-  with_range (pair (str "let" >>? id_opt_type <<? str "=") expr) |>>
-    fun (((id, typ), f), range) -> (LetVal (id, typ, f), range)
+let let_val_step : proof_step p = 
+  pipe2 (str "let" >>? id_opt_type <<? str "=") expr
+    (fun (id, typ) f ->
+      (LetDef (id, typ, Eq (Const (id, typ), f))))
+
+let define_step : proof_step p =
+  pipe2 (str "define" >> atomic) for_all_ids (fun f ids_types ->
+    let g = for_all_vars_types ids_types f in
+    LetDef (definition_id g, unknown_type, g))
+
+let let_def_step : proof_step_r p = with_range (let_val_step <|> define_step)
 
 let suppose = (opt_str "also" >>? any_str ["assume"; "suppose"] >> opt_str "further" >>
     opt_str "that" >> sep_by1 proposition (opt_str "," >> str "and that"))
@@ -428,7 +436,7 @@ let assume_step : proof_step_r p = (
     fun (fs, range) -> (Assume (multi_and fs), range))
 
 let let_or_assume : proof_step_r list p =
-  single let_val_step <|> let_step <|> single assume_step
+  single let_def_step <|> let_step <|> single assume_step
 
 let top_prop : proof_step_r list p =
   pipe2 (many_concat (let_or_assume << str "."))
@@ -523,7 +531,7 @@ let define ids_types prop : statement p =
   return @@ Definition ("_", unknown_type, generalize prop)
 
 let def_prop ids_types : statement p = 
-    (not_followed_by new_paragraph "" >> opt_str "we write" >> proposition << str ".") >>=
+    (not_followed_by new_paragraph "" >> opt_str "we write" >> small_prop << str ".") >>=
     define ids_types
 
 let definition : statement list p = str "Definition." >>

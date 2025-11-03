@@ -133,13 +133,13 @@ small_prop =
 
 either_or_prop = 'either' small_prop;
 
-cannot_prop = 'It cannot be that' proposition;
+cannot_prop = 'It cannot be that' small_prop;
 
 proposition =
-    either_or_prop | precisely_prop | cannot_prop |
+    either_or_prop | cannot_prop |
     small_prop;
 
-(* top propositions *)
+(* top propositions, which may include steps *)
 
 operation = ('a' | 'an') ['binary' | 'unary'] ('operation' | 'relation');
 
@@ -150,12 +150,16 @@ let_step = let_decl [with_exprs];
 
 let_val_step = 'let' id_opt_type '=' expr;
 
+define_step = 'define' atomic for_all_ids;
+
+let_def_step = let_val_step | define_step;
+
 suppose = ['Also'] ('assume' | 'suppose') ['further'] ['that'] proposition
             {[','] 'and that' proposition};
 
 assume_step = suppose;
 
-let_or_assume = let_val_step | let_step | assume_step;
+let_or_assume = let_step | let_def_step | assume_step;
 
 top_prop = {let_or_assume '.'} ['Then'] proposition;
 
@@ -193,7 +197,7 @@ axiom_group = 'Axiom' [stmt_name] '.' (axiom_exists | propositions);
 
 eq_definition = 'Let' sym ':' typ '=' term '.';
 
-def_prop = ['we write'] proposition '.';
+def_prop = ['we write'] small_prop '.';
 
 definition = 'Definition.' ({eq_definition}+ | for_all_ids ',' {def_prop});
 

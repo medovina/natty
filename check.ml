@@ -149,9 +149,11 @@ and block_steps (Block (step, range, children)) : statement list list * formula 
     | Let ids_types ->
         let (decls, fs) = const_decls ids_types in
         (map (append decls) fs, for_all_vars_types_if_free ids_types concl)
-    | LetVal (id, typ, value) ->
-        let g = Eq (Const (id, typ), value) in
-        (map (cons (Definition (id, typ, g))) fs, rsubst1 concl value id)
+    | LetDef (id, typ, g) ->
+        let concl = match g with
+          | Eq (Const (id, _typ), value) -> rsubst1 concl value id
+          | _ -> concl in
+        (map (cons (Definition (id, typ, g))) fs, concl)
     | Assume a ->
         let (ids_typs, f) = remove_exists a in
         let (decls, fs) = const_decls ids_typs in
