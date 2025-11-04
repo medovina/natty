@@ -106,15 +106,6 @@ let rec expand_chains f : formula =
     | [f], [] -> map_formula expand_chains f
     | fs, ops -> multi_and (join_cmp fs ops)
 
-let skolem_name id = if looks_like_var id then id ^ "0" else id
-
-let rec with_skolem_names ids f : formula = match f with
-  | Const (id, typ) when mem id ids -> Const (skolem_name id, typ)
-  | Var (id, typ) when mem id ids -> Var (skolem_name id, typ)
-  | f -> map_formula (with_skolem_names ids) f
-
-let stmt_with_skolem_names ids = map_stmt_formulas (with_skolem_names ids)
-
 let rec blocks_steps blocks : statement list list * formula =
   match blocks with
     | [] -> ([], _true)
@@ -130,12 +121,8 @@ let rec blocks_steps blocks : statement list list * formula =
 and block_steps (Block (step, range, children)) : statement list list * formula =
   let (fs, concl) = blocks_steps children in
   let const_decl (id, typ) =
-    if typ = Type then TypeDecl (id, None) else ConstDecl (skolem_name id, typ) in
-  let const_decls ids_typs : statement list * statement list list =
-    if ids_typs = [] then ([], fs) else
-    let decls = map const_decl ids_typs in
-    let fs = map (map (stmt_with_skolem_names (map fst ids_typs))) fs in
-    (decls, fs) in
+    if typ = Type then TypeDecl (id, None) else ConstDecl (id, typ) in
+  let const_decls ids_typs = map const_decl ids_typs in
   match step with
     | Assert f ->
         let eqs = chain_comparisons f in
@@ -147,7 +134,7 @@ and block_steps (Block (step, range, children)) : statement list list * formula 
           else f in
         (map (fun eq -> [Theorem ("", None, eq, [], range)]) eqs, concl)
     | Let ids_types ->
-        let (decls, fs) = const_decls ids_types in
+        let decls = const_decls ids_types in
         (map (append decls) fs, for_all_vars_types_if_free ids_types concl)
     | LetDef (id, typ, g) ->
         let concl = match g with
@@ -156,18 +143,15 @@ and block_steps (Block (step, range, children)) : statement list list * formula 
         (map (cons (Definition (id, typ, g))) fs, concl)
     | Assume a ->
         let (ids_typs, f) = remove_exists a in
-        let (decls, fs) = const_decls ids_typs in
-        let f = with_skolem_names (map fst ids_typs) f in
-        let decls = decls @ [Hypothesis ("hyp", f)] in
+        let decls = const_decls ids_typs @ [Hypothesis ("hyp", f)] in
         (map (append decls) fs,
           if concl = _true then _true
             else for_all_vars_types ids_typs (implies f concl))
     | IsSome (ids, typ, g) ->
         let ex = exists_vars_typ (ids, typ) g in
         let stmts =
-          map (fun id -> ConstDecl (skolem_name id, typ)) ids @
-            [Hypothesis ("hyp", with_skolem_names ids g)] in
-        let fs = map (map (stmt_with_skolem_names ids)) fs in
+          map (fun id -> ConstDecl (id, typ)) ids @
+            [Hypothesis ("hyp", g)] in
         ([Theorem ("", None, ex, [], range)] :: map (append stmts) fs,
          if any_free_in ids concl then exists_vars_typ (ids, typ) concl else concl)
     | Escape | Group _ -> failwith "block_formulas"
