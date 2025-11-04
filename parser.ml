@@ -225,8 +225,13 @@ let ascribe typ f =
 
 let sub_term = (sub_digit |>> _const) <|> (sub_var |>> _var)
 
-let sub_expr = chain_left1 sub_term (sub_sym |>> fun sym e1 e2 ->
-  apply [_const sym; e1; e2])
+let small_term = (number |>> _const) <|> (var |>> _var)
+
+let sub_expr = choice [
+  chain_left1 sub_term (sub_sym |>> fun sym e1 e2 ->
+    apply [_const sym; e1; e2]);
+  str "_" >> small_term
+]
 
 let super_term = super_digit |>> _const
 

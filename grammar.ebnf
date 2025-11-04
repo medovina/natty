@@ -64,7 +64,9 @@ parens_exprs = '(' expr {',' expr} ')';
 
 sub_term = sub_digit | sub_var;
 
-sub_expr = sub_term {sub_sym sub_term};
+small_term = number | var;
+
+sub_expr = '_' small_term | sub_term {sub_sym sub_term};
 
 super_term = super_digit;
 
