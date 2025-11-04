@@ -7,7 +7,7 @@ Axiom.  There exists a type ℤ (the integers) with a function z : ℕ ⨯ ℕ �
   a. For all a, b, c, d ∈ ℕ, z(a, b) = z(c, d) if and only if a + d = b + c.  [int_eq_def]
   b. For all x ∈ ℤ, there exist some a, b ∈ ℕ such that x = z(a, b).
 
-Definition.  Let 0 : ℤ = z(0, 0).  Let 1 : ℤ = z(1, 0).  Let 2 : ℤ = z(2, 0).
+Definition.  Let 0 : ℤ = z(0, 0).  Let 1 : ℤ = z(1, 0).  Let 2 : ℤ = z(s(1), 0).
 
 Lemma (int_z_zero).  For all a, b ∈ ℕ, z(a, b) = 0 if and only if a = b.
 

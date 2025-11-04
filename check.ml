@@ -256,6 +256,13 @@ let infer_definition env f : id * typ * formula =
           | _ -> failwith "definition expected")
     | _ -> failwith "definition expected")
 
+(* Restore type variables for any type that has become a constant in the
+ * local environment. *)
+let rec with_type_vars env typ : typ = match typ with
+  | Base id ->
+      if is_type_defined id env then TypeVar id else typ
+  | _ -> map_type (with_type_vars env) typ
+
 let rec blocks_steps env lenv blocks : statement list list * formula =
   match blocks with
     | [] -> ([], _true)
@@ -294,7 +301,7 @@ and block_steps env lenv (Block (step, range, children)) : statement list list *
         let (fs, concl) = child_steps [Definition (id, typ, f)] in
         let concl = match g with
           | Eq (Const (id, _typ), value) -> rsubst1 concl value id
-          | _ -> _for_all id typ (implies g concl) in
+          | _ -> _for_all id (with_type_vars lenv typ) (implies g concl) in
         (fs, concl)
     | Assume a ->
         let (ids_typs, f) = remove_exists a in
