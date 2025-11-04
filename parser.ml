@@ -51,10 +51,13 @@ let sub_digit = choice [
   str "₀"; str "₁";	str "₂"; str "₃";	str "₄";
   str "₅"; str "₆"; str "₇"; str "₈"; str "₉" ]
 
-let var = empty >>? letter1
+let var = pipe2 (empty >>? letter1) (opt "" sub_digit) (^)
 
-let id = str "gcd" <|> var <|>
-  any_str ["𝔹"; "ℕ"; "ℤ"; "π"; "σ"; "τ"; "∏"]
+let long_id = any_str ["𝔹"; "ℕ"; "ℤ"; "π"; "σ"; "τ"; "∏"; "gcd"]
+
+let base_id = long_id <|> (empty >>? letter1)
+
+let id = long_id <|> var
 
 let sym = choice [
   empty >>? (digit <|> any_of "+-<>|~^") |>> char_to_string;
@@ -218,7 +221,7 @@ let mk_not_greater f g = _not (binop_unknown ">" f g)
 
 (* We use separate constant names for unary and binary minus so that
  * a - b cannot be interpreted as (-a)(b) using implicit multiplication. *)
-let unary_minus f = App (Const ("u-", unknown_type), f)
+let unary_minus f = App (_const "u-", f)
 
 let ascribe typ f =
   App (Const (":", Fun (typ, typ)), f)
@@ -241,22 +244,36 @@ let for_all_with ids_types prop opt_with : formula =
 let exists_with ids_types prop opt_with : formula =
     exists_vars_types ids_types (opt_fold _and opt_with prop)
 
+let id_sub : (formula * formula option) p =
+  pair (base_id |>> _var) (option sub_expr)
+
+let mk_sub f sub : formula = match sub with
+  | Some (Const (c, _) as g) when strlen c = 1 && is_digit c.[0] ->
+      (* This could be either a variable x₀ or a sequence element x₀.
+         Let the type checker resolve it. *)
+      apply [_const "_"; f; g]
+  | Some sub -> App (f, sub)  (* not a variable *)
+  | None -> f
+
 let rec parens_exprs s = (str "(" >> (sep_by1 expr (str ",") << str ")")) s
 
-and id_term s = (id |>> _var >>=
-  (fun var -> choice [
-    parens_exprs |>> (fun args -> App (var, mk_tuple args));
-    pipe2 sub_expr (option (pair (mid_ellipsis >> id |>> _var) sub_expr))
-      (fun sub range -> match range with
-        | Some (var2, sub2) ->
-            assert (var = var2);
-            App ((Const ("∏", unknown_type), mk_tuple [var; sub; sub2]))
-        | None -> App (var, sub));
-    return var
+and range_term f f_sub =
+  mid_ellipsis >> id_sub |>> (fun (g, g_sub) ->
+    match f_sub, g_sub with
+      | Some f_sub, Some g_sub ->
+          assert (f = g);
+          App (_const "∏", mk_tuple [f; f_sub; g_sub])
+      | _ -> failwith "subscript expected");
+
+and id_term s = (id_sub >>=
+  (fun (f, f_sub) -> choice [
+    parens_exprs |>> (fun args -> App (mk_sub f f_sub, mk_tuple args));
+    range_term f f_sub;
+    return (mk_sub f f_sub)
   ])) s
 
 and term s : formula pr = (record_formula @@ choice [
-  (sym |>> fun c -> Const (c, unknown_type));
+  (sym |>> _const);
   id_term;
   str "⊤" >>$ _true;
   str "⊥" >>$ _false;
@@ -266,7 +283,7 @@ and term s : formula pr = (record_formula @@ choice [
  ]) s
 
 and exp_term s = pipe2 term (option super_term) (fun f super ->
-  opt_fold (fun c f -> apply [Var ("^", unknown_type); f; c]) super f) s
+  opt_fold (fun c f -> apply [_var "^"; f; c]) super f) s
 
 and next_term s = (not_followed_by space "" >>? exp_term) s
 
@@ -309,7 +326,7 @@ and expr s = record_formula (expression operators terms) s
 and exprs s = (sep_by1 expr (str "and") |>> multi_and) s
 
 and predicate_target word =
-  let app xs f = apply ([Const ("is_" ^ word, unknown_type); f] @ xs) in
+  let app xs f = apply ([_const ("is_" ^ word); f] @ xs) in
   choice [
     str "as" >> atomic |>> (fun x -> app [x]);
     pipe2 (str "of" >> atomic) (opt [] (single (str "and" >> atomic)))
@@ -321,7 +338,7 @@ and predicate s : (formula -> formula) pr = choice [
   any_str ["a"; "an"; "the"] >> word >>= (fun w ->
     predicate_target w <|> (word >>= fun x -> predicate_target (w ^ "_" ^ x)));
   pipe2 (option (str "not")) adjective (fun neg word f ->
-    let g = App (Const (word, unknown_type), f) in
+    let g = App (_const word, f) in
     if Option.is_some neg then _not g else g)
 ] s
 

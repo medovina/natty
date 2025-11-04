@@ -89,7 +89,7 @@ let rec collect_cmp f : formula list * id list = match is_comparison f with
 
 let rec join_cmp fs ops : formula list =
   let app op f g : formula =
-    if op = "=" then Eq (f, g) else apply [Var (op, unknown_type); f; g] in
+    if op = "=" then Eq (f, g) else apply [_var op; f; g] in
   match fs, ops with
     | [f], [] -> [f]
     | [f; g], [op] -> [app op f g]
@@ -124,9 +124,9 @@ let check_type1 env vars typ : typ =
     | Product typs -> Product (map (check vars) typs)
   in check vars typ
 
-let check_type env typ = check_type1 env [] typ
+let check_type env typ : typ = check_type1 env [] typ
 
-let id_types env id = filter_map (is_const_decl id) env
+let id_types env id : typ list = filter_map (is_const_decl id) env
 
 let find_const env formula id : formula list =
   let consts = id_types env id |> map (fun typ -> Const (id, typ)) in
@@ -138,6 +138,11 @@ let univ f : formula = match f with
   | Var (id, Type) -> Lambda ("x", TypeVar id,  _true)
   | Const (id, Type) -> Lambda ("x", Base id, _true)
   | f -> f
+
+let is_declared env id =
+  env |> exists (fun stmt -> match decl_var stmt with
+    | Some (id', _) when id' = id -> true
+    | _ -> false)
 
 let infer_formula env vars formula : typ * formula =
   let formula = expand_chains formula in
@@ -164,7 +169,15 @@ let infer_formula env vars formula : typ * formula =
             | Some typ ->
                 let f = univ (Var (id, typ)) in
                 [(tsubst, type_of f, f)]
-            | None -> check vars tsubst (Const (id, unknown_type)))
+            | None -> check vars tsubst (_const id))
+      | App (App (Const ("_", _), f), g) ->
+          let h = match f, g with
+            | Var (v, _), Const (c, _) ->
+                let name = v ^ digit_to_sub c in
+                if mem name (map fst vars) || is_declared env name
+                  then _var name else App (f, g)
+            | _ -> failwith "infer_formula" in
+          check vars tsubst h
       | App (f, g) ->
           let all =
             let+ (tsubst, t, f) = check vars tsubst f in

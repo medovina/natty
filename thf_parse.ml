@@ -82,8 +82,8 @@ let rec term s = choice [
   parens formula;
   str "$false" >>$ _false;
   str "$true" >>$ _true;
-  id |>> (fun id -> Const (id, unknown_type));
-  var |>> (fun id -> Var (id, unknown_type));
+  id |>> _const;
+  var |>> _var;
   (str "~" >> term) |>> _not;
   quantifier "!" _for_all;
   quantifier "?" _exists;

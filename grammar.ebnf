@@ -8,9 +8,13 @@ letter = 'a' .. 'z';
 
 sub_digit = '₀' .. '₉';
 
-var = letter;
+var = letter [sub_digit];
 
-id = 'gcd' | var | '𝔹' | 'ℕ' | 'ℤ' | 'π' | '∏';
+long_id = '𝔹' | 'ℕ' | 'ℤ' | 'π' | 'σ' | 'τ' | '∏' | 'gcd';
+
+base_id = letter | long_id;
+
+id = var | long_id;
 
 sym = digit |
     '+' | '-' | '<' | '>' | '|' | '~' | '^' |
@@ -70,8 +74,10 @@ sub_expr = '_' small_term | sub_term {sub_sym sub_term};
 
 super_term = super_digit;
 
+id_sub = base_id [sub_expr];
+
 term =
-    sym | id [parens_exprs | sub_expr ["⋯" id sub_expr]]
+    sym | id_sub [parens_exprs | "⋯" id_sub]
   | '⊤' | '⊥' | parens_exprs
   | '{' var of_type typ '|' proposition '}';
 

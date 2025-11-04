@@ -157,6 +157,9 @@ let to_digit base s : string =
 
 let sub_to_digit = to_digit "₀"  (* map e.g. "₀" to "0" *)
 
+let digit_to_sub d : string =  (* map e.g. "0" to "₀" *)
+  uchar_to_string (Uchar.of_int (Uchar.to_int (uchar "₀") + int_of_string d))
+
 let usplit s : string * string =
   let i = Uchar.utf_8_decode_length_of_byte s.[0] in
   (String.sub s 0 i, string_from s i)
