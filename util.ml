@@ -143,6 +143,20 @@ let uchar_to_string u =
   Buffer.add_utf_8_uchar b u;
   Buffer.contents b
 
+let uchars s : string list =
+  let rec from i =
+    if i >= strlen s then []
+    else
+      let d = String.get_utf_8_uchar s i in
+      let c = uchar_to_string (Uchar.utf_decode_uchar d) in
+      c :: from (i + Uchar.utf_decode_length d)
+  in from 0
+
+let to_digit base s : string =
+    string_of_int (Uchar.to_int (uchar s) - Uchar.to_int (uchar base))
+
+let sub_to_digit = to_digit "₀"  (* map e.g. "₀" to "0" *)
+
 let usplit s : string * string =
   let i = Uchar.utf_8_decode_length_of_byte s.[0] in
   (String.sub s 0 i, string_from s i)

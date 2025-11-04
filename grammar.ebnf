@@ -6,6 +6,8 @@ number = {digit}+;
 
 letter = 'a' .. 'z';
 
+sub_digit = '₀' .. '₉';
+
 var = letter;
 
 id = 'gcd' | var | '𝔹' | 'ℕ' | 'ℤ' | 'π' | '∏';
@@ -22,9 +24,7 @@ adjective = word;
 
 name = {letter | digit | '_'}+;
 
-sub_digit = '₀' .. '₉';
-
-sub_var = 'ₐ' .. 'ₓ';
+sub_letter = 'ₐ' .. 'ₓ';
 
 sub_sym = '₊' | '₋';
 
@@ -62,9 +62,9 @@ reason = (('by' | 'using') reference) |
 
 parens_exprs = '(' expr {',' expr} ')';
 
-sub_term = sub_digit | sub_var;
+sub_term = sub_digit | sub_letter;
 
-small_term = number | var;
+small_term = number | letter;
 
 sub_expr = '_' small_term | sub_term {sub_sym sub_term};
 
@@ -102,7 +102,8 @@ predicate =
     ['not'] adjective |
     ('a' | 'an' | 'the') word [word] predicate_target;
 
-atomic = expr ['is true' | 'always holds' | 'is' predicate];
+atomic =
+    expr ['is true' | 'always holds' | ('is' | 'must' ['also'] 'be') predicate];
 
 (* small propositions *)
 
@@ -212,7 +213,7 @@ have = 'clearly' |
     'it' ['then'] 'follows' ['from' reference | reason] 'that' |
     'it is clear that' | 'it must be that' |
     'on the other hand' [','] | 'similarly' [','] |
-    'the only alternative is' | 'this shows that' | 'trivially' |
+    'the only alternative is' | 'this means that' | 'this shows that' | 'trivially' |
     'we conclude that' | 'we deduce that' | 'we have' ['shown that'] |
     'we know that' | 'we must have' | 'we see that';
 

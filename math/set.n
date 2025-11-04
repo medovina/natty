@@ -6,7 +6,11 @@ Definition.  For all S : Set(σ) and T : Set(τ) and f : σ → τ, f is a mappi
 
 Definition.  For all S : Set(σ) and T : Set(τ) and f : σ → τ, f is an injection from S to T iff f is a mapping from S to T and for all x, y : σ, if x ∈ S and y ∈ S and f(x) = f(y) then x = y.
 
+Definition.  For all f : σ → τ, f is injective iff f is an injection from σ to τ.
+
 Definition. For all S : Set(σ) and T : Set(τ) and f : σ → τ, f is a surjection from S to T iff f is a mapping from S to T and for all y : τ, if y ∈ T then there exists some x : σ such that x ∈ S and f(x) = y.
+
+Definition.  For all f : σ → τ, f is surjective iff f is a surjection from σ to τ.
 
 Definition. For all S : Set(σ) and T : Set(τ) and f : σ → τ, f is a bijection from S to T iff f is an injection from S to T and f is a surjection from S to T.
 

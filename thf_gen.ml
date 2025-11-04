@@ -14,20 +14,21 @@ let quote s =
 let prefix_upper s =
     if is_upper s.[0] then "_" ^ s else s
 
-let to_var id =
-  let p = opt_default (String.index_opt id '\'') (strlen id) in
-  let v = String.sub id 0 p in
-  let v =
-    if "a" <= v && v <= "z" then String.uppercase_ascii v
-    else if "A" <= v && v <= "Z" then v ^ "_"
-    else if "α" <= v && v <= "ω" then
-      let i = Uchar.to_int (uchar v) - Uchar.to_int(uchar "α") in
-      let c = Char.chr(i + Char.code('A')) in
-      String.make 2 c  (* e.g. α → AA, β → BB *)
-    else if v = "·" then "Dot"
-    else if v = "^" then "Exp"
-    else failwith "bad variable name" in
-  v ^ String.make (strlen id - p) 'p'
+let var_char v : string =
+  if "a" <= v && v <= "z" then String.uppercase_ascii v
+  else if "A" <= v && v <= "Z" then v ^ "_"
+  else if "α" <= v && v <= "ω" then
+    let i = Uchar.to_int (uchar v) - Uchar.to_int(uchar "α") in
+    let c = Char.chr(i + Char.code('A')) in
+    String.make 2 c  (* e.g. α → AA, β → BB *)
+  else if v = "'" then "p"
+  else if v = "·" then "Dot"
+  else if v = "^" then "Exp"
+  else if "₀" <= v && v <= "₉" then "_" ^ sub_to_digit v
+  else failwith "bad variable name"
+
+let to_var id : string =
+  String.concat "" (map var_char (uchars id))
 
 let rec thf_type typ =
   let rec f left typ = match typ with

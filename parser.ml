@@ -47,6 +47,10 @@ let brackets s = str "[" >> s << str "]"
 
 let letter1 = letter |>> char_to_string
 
+let sub_digit = choice [
+  str "₀"; str "₁";	str "₂"; str "₃";	str "₄";
+  str "₅"; str "₆"; str "₇"; str "₈"; str "₉" ]
+
 let var = empty >>? letter1
 
 let id = str "gcd" <|> var <|>
@@ -69,12 +73,7 @@ let adjective = word
 
 let name = empty >>? many1_chars (alphanum <|> char '_')
 
-let to_digit base s : str =
-    string_of_int (Uchar.to_int (uchar s) - Uchar.to_int (uchar base))
-
-let sub_digit = choice [
-  str "₀"; str "₁";	str "₂"; str "₃";	str "₄";
-  str "₅"; str "₆"; str "₇"; str "₈"; str "₉" ] |>> to_digit "₀"
+let sub_digit1 = sub_digit |>> sub_to_digit
 
 let sub_letter_map = [
   "ₐ", "a";	"ₑ", "e"; "ₕ", "h"; "ᵢ", "i"; "ⱼ", "j";	"ₖ", "k";	"ₗ", "l"; "ₘ", "m"; "ₙ", "n";
@@ -83,11 +82,11 @@ let sub_letter_map = [
 
 let sub_letters = map fst sub_letter_map
 
-let sub_var = any_str sub_letters |>> fun s -> assoc s sub_letter_map
+let sub_letter = any_str sub_letters |>> fun s -> assoc s sub_letter_map
 
 let sub_sym = (str "₊" >>$ "+") <|> (str "₋" >>$ "-")
 
-(* Unicode superscript digits are not at contiguous code points. *)
+(* Unicode superscript digits are not at contiguous code points! *)
 let super_digit_map = [
   "⁰", "0"; "¹", "1";	"²", "2"; "³", "3";	"⁴", "4";
   "⁵", "5"; "⁶", "6"; "⁷", "7"; "⁸", "8"; "⁹", "9"
@@ -196,7 +195,8 @@ let so = choice [
 
 let have = any_str 
   ["clearly"; "it is clear that"; "it must be that";
-   "the only alternative is"; "this shows that"; "trivially";
+   "the only alternative is"; "this means that";
+   "this shows that"; "trivially";
    "we conclude that"; "we deduce that";
    "we know that"; "we must have"; "we see that"] <|>
    (str "we have" << opt_str "shown that") <|>
@@ -223,9 +223,9 @@ let unary_minus f = App (Const ("u-", unknown_type), f)
 let ascribe typ f =
   App (Const (":", Fun (typ, typ)), f)
 
-let sub_term = (sub_digit |>> _const) <|> (sub_var |>> _var)
+let sub_term = (sub_digit1 |>> _const) <|> (sub_letter |>> _var)
 
-let small_term = (number |>> _const) <|> (var |>> _var)
+let small_term = (number |>> _const) <|> (letter1 |>> _var)
 
 let sub_expr = choice [
   chain_left1 sub_term (sub_sym |>> fun sym e1 e2 ->
@@ -328,7 +328,7 @@ and predicate s : (formula -> formula) pr = choice [
 and atomic s = (
   pipe2 expr (choice [
     any_str ["is true"; "always holds"] >>$ Fun.id;
-    str "is" >> predicate;
+    any_str ["is"; "must be"; "must also be"] >> predicate;
     return Fun.id
    ]) (fun e f -> f e)) s
 
