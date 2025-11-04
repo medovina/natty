@@ -205,7 +205,7 @@ let infer_formula env vars formula : typ * formula =
     | [(tsubst, typ, f)] ->
         (typ, subst_types_in_formula tsubst f)
     | [] -> failwith "infer_formula"
-    | _ -> error "ambiguous" formula
+    | _ -> errorf "ambiguous" formula
 
 let top_infer_with_type env f =
   let (typ, f) = infer_formula env [] f in
@@ -213,23 +213,68 @@ let top_infer_with_type env f =
 
 let top_infer env f = snd (top_infer_with_type env f)
 
-let rec blocks_steps blocks : statement list list * formula =
+let infer_type_decl env id name =
+  if is_type_defined id env then (
+    printf "duplicate type definition: %s\n" id;
+    failwith "infer_type_decl");
+  TypeDecl (id, name)
+
+let check_dup_const env id typ kind =
+  if mem typ (id_types env id) then (
+    printf "duplicate %s: %s : %s\n" kind id (show_type typ);
+    failwith "check_dup_const")
+
+let infer_const_decl env id typ =
+  let typ = check_type env typ in
+  check_dup_const env id typ "constant declaration";
+  ConstDecl (id, typ)
+
+let infer_definition env f : id * typ * formula =
+  (* f has the form ∀σ₁...σₙ v₁...vₙ (C φ₁ ... φₙ = ψ) .  We check types and build
+    * a formula of the form ∀σ₁...σₙ v₁...vₙ (C σ₁...σₙ φ₁ ... φₙ = ψ) .*)
+  let (vs, f) = gather_quant "∀" f in
+  let f = lower_definition f in
+  let (vs2, f) = gather_quant "∀" f in
+  let (type_vars, vars) = (vs @ vs2) |> partition (fun (_, typ) -> typ = Type) in
+  let univ = map fst type_vars in
+  let vars = vars |> map (fun (v, typ) -> (v, check_type1 env type_vars typ)) in
+  let vs = type_vars @ vars in (
+  match f with
+    | Eq (f, g) | App (App (Const ("↔", _), f), g) ->
+        let (c, args) = collect_args f in (
+        match c with
+          | Const (id, _) | Var (id, _) ->
+              let infer f = infer_formula env vs f in
+              let arg_types, args = unzip (map infer args) in
+              let g_type, g = infer g in
+              let c_type = mk_pi_types univ (mk_fun_types arg_types g_type) in
+              let type_args = univ |> map (fun v -> type_const (TypeVar v)) in
+              let eq = if g_type = Bool then _iff else mk_eq in
+              let body = for_all_vars_types vs @@
+                eq (apply (Const (id, c_type) :: type_args @ args)) g in
+              (id, c_type, body)
+          | _ -> failwith "definition expected")
+    | _ -> failwith "definition expected")
+
+let rec blocks_steps env lenv blocks : statement list list * formula =
   match blocks with
     | [] -> ([], _true)
     | block :: rest ->
-        let (fs, concl) = block_steps block in
-        let (gs, final_concl) = blocks_steps rest in
-        (fs @ map (cons (Hypothesis ("hyp", concl))) gs,
-        if rest = [] then concl
-        else match last blocks with
-          | Block (Assume _, _, _) -> _and concl final_concl
-          | _ -> final_concl)
+        let (fs, concl) = block_steps env lenv block in
+        let hyp = Hypothesis ("hyp", top_infer env concl) in
+        let (gs, final_concl) = blocks_steps (hyp :: env) (hyp :: lenv) rest in
+        ( fs @ gs,
+          if rest = [] then concl
+          else match last blocks with
+            | Block (Assume _, _, _) -> _and concl final_concl
+            | _ -> final_concl)
 
-and block_steps (Block (step, range, children)) : statement list list * formula =
-  let (fs, concl) = blocks_steps children in
+and block_steps env lenv (Block (step, range, children)) : statement list list * formula =
+  let child_steps stmts = blocks_steps (stmts @ env) (stmts @ lenv) children in
   let const_decl (id, typ) =
-    if typ = Type then TypeDecl (id, None) else ConstDecl (id, typ) in
-  let const_decls ids_typs = map const_decl ids_typs in
+    if typ = Type then infer_type_decl env id None else infer_const_decl env id typ in
+  let const_decls ids_typs = rev (map const_decl ids_typs) in
+  let mk_thm eq = Theorem ("", None, top_infer env eq, [], range) :: lenv in
   match step with
     | Assert f ->
         let eqs = chain_comparisons f in
@@ -239,27 +284,31 @@ and block_steps (Block (step, range, children)) : statement list list * formula 
               | Eq (a, _), Eq (_, b) -> Eq (a, b)
               | _ -> failwith "block_steps"
           else f in
-        (map (fun eq -> [Theorem ("", None, eq, [], range)]) eqs, concl)
+        (map mk_thm eqs, concl)
     | Let ids_types ->
         let decls = const_decls ids_types in
-        (map (append decls) fs, for_all_vars_types_if_free ids_types concl)
-    | LetDef (id, typ, g) ->
+        let (fs, concl) = child_steps decls in
+        (fs, for_all_vars_types_if_free ids_types concl)
+    | LetDef (_id, _typ, g) ->
+        let (id, typ, f) = infer_definition env g in
+        let (fs, concl) = child_steps [Definition (id, typ, f)] in
         let concl = match g with
           | Eq (Const (id, _typ), value) -> rsubst1 concl value id
-          | _ -> concl in
-        (map (cons (Definition (id, typ, g))) fs, concl)
+          | _ -> _for_all id typ (implies g concl) in
+        (fs, concl)
     | Assume a ->
         let (ids_typs, f) = remove_exists a in
-        let decls = const_decls ids_typs @ [Hypothesis ("hyp", f)] in
-        (map (append decls) fs,
-          if concl = _true then _true
-            else for_all_vars_types ids_typs (implies f concl))
+        let decls = const_decls ids_typs in
+        let decls = Hypothesis ("hyp", top_infer (decls @ env) f) :: decls in
+        let (fs, concl) = child_steps decls in
+        (fs, if concl = _true then _true
+             else for_all_vars_types ids_typs (implies f concl))
     | IsSome (ids, typ, g) ->
         let ex = exists_vars_typ (ids, typ) g in
-        let stmts =
-          map (fun id -> ConstDecl (id, typ)) ids @
-            [Hypothesis ("hyp", g)] in
-        ([Theorem ("", None, ex, [], range)] :: map (append stmts) fs,
+        let decls = rev (map (fun id -> infer_const_decl env id typ) ids) in
+        let stmts = Hypothesis ("hyp", top_infer (decls @ env) g) :: decls in
+        let (fs, concl) = child_steps stmts in
+        (mk_thm ex :: fs,
          if any_free_in ids concl then exists_vars_typ (ids, typ) concl else concl)
     | Escape | Group _ -> failwith "block_formulas"
 
@@ -293,7 +342,7 @@ let duplicate_lets vars steps : bool =
 let rec expand_proof stmt env steps proof_steps : formula * statement list list =
   let steps = trim_lets steps in
   let blocks0 = chain_blocks steps in
-  let (_, concl) = blocks_steps blocks0 in
+  let (_, concl) = blocks_steps env [] blocks0 in
   let stmtss = if proof_steps = [] then [] else
     let (init, f) = split_last steps in
     let proof_steps =
@@ -309,62 +358,23 @@ let rec expand_proof stmt env steps proof_steps : formula * statement list list 
     );
     let blocks = infer_blocks proof_steps in
     if !debug > 0 then print_blocks blocks;
-    let (stmtss, _concl) = blocks_steps blocks in
-    stmtss in
-  (top_infer env concl, map (infer_stmts env) stmtss)
-
-and check_dup_const env id typ kind =
-  if mem typ (id_types env id) then (
-    printf "duplicate %s: %s : %s\n" kind id (show_type typ);
-    failwith "check_dup_const");
-
-and infer_definition env f =
-  (* f has the form ∀σ₁...σₙ v₁...vₙ (C φ₁ ... φₙ = ψ) .  We check types and build
-    * a formula of the form ∀σ₁...σₙ v₁...vₙ (C σ₁...σₙ φ₁ ... φₙ = ψ) .*)
-  let (vs, f) = gather_quant "∀" f in
-  let f = lower_definition f in
-  let (vs2, f) = gather_quant "∀" f in
-  let (type_vars, vars) = (vs @ vs2) |> partition (fun (_, typ) -> typ = Type) in
-  let univ = map fst type_vars in
-  let vars = vars |> map (fun (v, typ) -> (v, check_type1 env type_vars typ)) in
-  let vs = type_vars @ vars in (
-  match f with
-    | Eq (f, g) | App (App (Const ("↔", _), f), g) ->
-        let (c, args) = collect_args f in (
-        match c with
-          | Const (id, _) | Var (id, _) ->
-              let infer f = infer_formula env vs f in
-              let arg_types, args = unzip (map infer args) in
-              let g_type, g = infer g in
-              let c_type = mk_pi_types univ (mk_fun_types arg_types g_type) in
-              let type_args = univ |> map (fun v -> type_const (TypeVar v)) in
-              let eq = if g_type = Bool then _iff else mk_eq in
-              let body = for_all_vars_types vs @@
-                eq (apply (Const (id, c_type) :: type_args @ args)) g in
-              Definition (id, c_type, body)
-          | _ -> failwith "definition expected")
-    | _ -> failwith "definition expected")
+    let (stmtss, _concl) = blocks_steps env [] blocks in
+    map rev stmtss in
+  (top_infer env concl, stmtss)
 
 and infer_stmt env stmt : statement =
   match stmt with
-    | TypeDecl (id, _) ->
-        if is_type_defined id env then (
-          printf "duplicate type definition: %s\n" id;
-          failwith "infer_stmt");
-        stmt
-    | ConstDecl (id, typ) ->
-        let typ = check_type env typ in
-        check_dup_const env id typ "constant declaration";
-        ConstDecl (id, typ)
+    | TypeDecl (id, name) -> infer_type_decl env id name
+    | ConstDecl (id, typ) -> infer_const_decl env id typ
     | Axiom _ -> failwith "infer_stmt"
     | Hypothesis (id, f) -> Hypothesis (id, top_infer env f)
-    | Definition (_id, _typ, f) -> infer_definition env f
-    | Theorem (num, name, f, [], range) ->
-        Theorem (num, name, top_infer env f, [], range)
+    | Definition (_id, _typ, f) ->
+        let (id, typ, f) = infer_definition env f in
+        Definition (id, typ, f)
     | Theorem _ -> failwith "infer_stmt"
     | HAxiom (id, steps, name) ->
         let blocks = infer_blocks steps in
-        let (_, f) = blocks_steps blocks in
+        let (_, f) = blocks_steps env [] blocks in
         Axiom (id, top_infer env f, name)
     | HTheorem (num, name, steps, proof_steps) ->
         let (f, stmts) = expand_proof stmt env steps proof_steps in
