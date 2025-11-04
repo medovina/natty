@@ -568,10 +568,10 @@ let rec proof_eq_props s : formula pr =
     | _ -> f)
   s
 
-let proof_prop : (formula * range) list p = pipe2 (choice [
-  reason >> opt_str "," >> optional have >> with_range proposition;
+let proof_prop : (formula * range) list p = pipe2 (
+  optional (reason >> opt_str ",") >>
   optional have >> with_range proof_eq_props
-  ]) opt_contra cons
+  ) opt_contra cons
 
 let proof_if_prop : proof_step_r list p = with_range (triple
   (with_range (str "if" >> small_prop))

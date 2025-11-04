@@ -220,8 +220,7 @@ contra = ',' ['which is'] ['again' | 'also' | 'similarly'] 'a contradiction' ['t
 
 proof_eq_props = proposition [reason [eq_op proof_eq_props]];
 
-proof_prop = (reason [','] [have] proposition |
-              [have] proof_eq_props) [contra];
+proof_prop = ([reason [',']] [have] proof_eq_props) [contra];
 
 proof_if_prop = 'if' small_prop [','] 'then' proof_prop {',' so proof_prop};
 
