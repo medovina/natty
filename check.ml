@@ -106,56 +106,6 @@ let rec expand_chains f : formula =
     | [f], [] -> map_formula expand_chains f
     | fs, ops -> multi_and (join_cmp fs ops)
 
-let rec blocks_steps blocks : statement list list * formula =
-  match blocks with
-    | [] -> ([], _true)
-    | block :: rest ->
-        let (fs, concl) = block_steps block in
-        let (gs, final_concl) = blocks_steps rest in
-        (fs @ map (cons (Hypothesis ("hyp", concl))) gs,
-        if rest = [] then concl
-        else match last blocks with
-          | Block (Assume _, _, _) -> _and concl final_concl
-          | _ -> final_concl)
-
-and block_steps (Block (step, range, children)) : statement list list * formula =
-  let (fs, concl) = blocks_steps children in
-  let const_decl (id, typ) =
-    if typ = Type then TypeDecl (id, None) else ConstDecl (id, typ) in
-  let const_decls ids_typs = map const_decl ids_typs in
-  match step with
-    | Assert f ->
-        let eqs = chain_comparisons f in
-        let concl =
-          if length eqs > 2 && for_all is_eq eqs then
-            match hd eqs, last eqs with
-              | Eq (a, _), Eq (_, b) -> Eq (a, b)
-              | _ -> failwith "block_steps"
-          else f in
-        (map (fun eq -> [Theorem ("", None, eq, [], range)]) eqs, concl)
-    | Let ids_types ->
-        let decls = const_decls ids_types in
-        (map (append decls) fs, for_all_vars_types_if_free ids_types concl)
-    | LetDef (id, typ, g) ->
-        let concl = match g with
-          | Eq (Const (id, _typ), value) -> rsubst1 concl value id
-          | _ -> concl in
-        (map (cons (Definition (id, typ, g))) fs, concl)
-    | Assume a ->
-        let (ids_typs, f) = remove_exists a in
-        let decls = const_decls ids_typs @ [Hypothesis ("hyp", f)] in
-        (map (append decls) fs,
-          if concl = _true then _true
-            else for_all_vars_types ids_typs (implies f concl))
-    | IsSome (ids, typ, g) ->
-        let ex = exists_vars_typ (ids, typ) g in
-        let stmts =
-          map (fun id -> ConstDecl (id, typ)) ids @
-            [Hypothesis ("hyp", g)] in
-        ([Theorem ("", None, ex, [], range)] :: map (append stmts) fs,
-         if any_free_in ids concl then exists_vars_typ (ids, typ) concl else concl)
-    | Escape | Group _ -> failwith "block_formulas"
-
 let is_type_defined id env = exists (is_type_decl id) env
 
 let check_type1 env vars typ : typ =
@@ -263,11 +213,55 @@ let top_infer_with_type env f =
 
 let top_infer env f = snd (top_infer_with_type env f)
 
-let rec arg_vars f : id list = match f with 
-  | Var (id, _) -> [id]
-  | _ -> match is_tuple_apply f with
-      | Some (_id, args) -> concat_map arg_vars args
-      | None -> failwith "invalid argument in definition"
+let rec blocks_steps blocks : statement list list * formula =
+  match blocks with
+    | [] -> ([], _true)
+    | block :: rest ->
+        let (fs, concl) = block_steps block in
+        let (gs, final_concl) = blocks_steps rest in
+        (fs @ map (cons (Hypothesis ("hyp", concl))) gs,
+        if rest = [] then concl
+        else match last blocks with
+          | Block (Assume _, _, _) -> _and concl final_concl
+          | _ -> final_concl)
+
+and block_steps (Block (step, range, children)) : statement list list * formula =
+  let (fs, concl) = blocks_steps children in
+  let const_decl (id, typ) =
+    if typ = Type then TypeDecl (id, None) else ConstDecl (id, typ) in
+  let const_decls ids_typs = map const_decl ids_typs in
+  match step with
+    | Assert f ->
+        let eqs = chain_comparisons f in
+        let concl =
+          if length eqs > 2 && for_all is_eq eqs then
+            match hd eqs, last eqs with
+              | Eq (a, _), Eq (_, b) -> Eq (a, b)
+              | _ -> failwith "block_steps"
+          else f in
+        (map (fun eq -> [Theorem ("", None, eq, [], range)]) eqs, concl)
+    | Let ids_types ->
+        let decls = const_decls ids_types in
+        (map (append decls) fs, for_all_vars_types_if_free ids_types concl)
+    | LetDef (id, typ, g) ->
+        let concl = match g with
+          | Eq (Const (id, _typ), value) -> rsubst1 concl value id
+          | _ -> concl in
+        (map (cons (Definition (id, typ, g))) fs, concl)
+    | Assume a ->
+        let (ids_typs, f) = remove_exists a in
+        let decls = const_decls ids_typs @ [Hypothesis ("hyp", f)] in
+        (map (append decls) fs,
+          if concl = _true then _true
+            else for_all_vars_types ids_typs (implies f concl))
+    | IsSome (ids, typ, g) ->
+        let ex = exists_vars_typ (ids, typ) g in
+        let stmts =
+          map (fun id -> ConstDecl (id, typ)) ids @
+            [Hypothesis ("hyp", g)] in
+        ([Theorem ("", None, ex, [], range)] :: map (append stmts) fs,
+         if any_free_in ids concl then exists_vars_typ (ids, typ) concl else concl)
+    | Escape | Group _ -> failwith "block_formulas"
 
 let trim_lets steps : (proof_step * range) list =
   let vs = unique (steps |> concat_map (fun (step, _) -> step_free_vars step)) in
