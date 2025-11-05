@@ -28,6 +28,14 @@ let decode_range s : range =
     | [line1; col1; line2; col2] -> ((line1, col1), (line2, col2))
     | _ -> failwith "decode_range"
 
+let strip_range f : formula = match f with
+  | App (Const (c, _), g) when starts_with "@" c -> g
+  | _ -> f
+
+let range_of f : str = match f with
+  | App (Const (c, _), _) when starts_with "@" c -> c
+  | _ -> ""
+
 type frange = string * range
 
 type proof_step =
@@ -170,6 +178,12 @@ let decl_var = function
 let is_const_decl id def =
   let* (i, typ) = decl_var def in
   if i = id then Some typ else None
+
+let definition_id f : id =
+  match strip_range (remove_universal f) with
+    | Eq (f, _g) | App (App (Const ("↔", _), f), _g) ->
+        get_const_or_var (fst (collect_args f))
+    | _ -> failwith "definition_id: definition expected"
 
 let show_statement multi s : string =
   let name = stmt_name s in

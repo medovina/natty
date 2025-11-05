@@ -605,12 +605,6 @@ let rec implicit_formula f : formula = match f with
     | _ -> map_formula implicit_formula f)
   | _ -> map_formula implicit_formula f
 
-let definition_id f : id =
-  match remove_universal f with
-    | Eq (f, _g) | App (App (Const ("↔", _), f), _g) ->
-        get_const_or_var (fst (collect_args f))
-    | _ -> failwith "definition expected"
-
 let mk_var_or_type_const (id, typ) =
   if typ = Type then type_const (TypeVar id) else Var (id, typ)
 
