@@ -5,12 +5,18 @@ open Options
 open Statement
 open Util
 
-exception Check_error of string * syntax
+exception Check_error of string * range
 
-let error s f = raise (Check_error (s, SFormula f))
-let errorf s f = error (sprintf "%s: %s" s (show_formula f)) f
+let error s range = raise (Check_error (s, decode_range range))
+let errorf s f range = error (sprintf "%s: %s" s (show_formula f)) range
 
-let type_error s typ = raise (Check_error (s, SType typ))
+let strip_range f : formula = match f with
+  | App (Const (c, _), g) when starts_with "@" c -> g
+  | _ -> f
+
+let range_of f : str = match f with
+  | App (Const (c, _), _) when starts_with "@" c -> c
+  | _ -> ""
 
 type block = Block of proof_step * range * block list
 
@@ -43,9 +49,9 @@ let infer_blocks steps : block list =
           else match step with
             | Escape ->
                 if in_assume then ([], rest, true) else infer vars false rest
-            | Assert f when f = _false ->
+            | Assert f when strip_range f = _false ->
                 if in_assume then ([Block (step, range, [])], rest, true)
-                  else error "contradiction without assumption" f
+                  else error "contradiction without assumption" (range_of f)
             | Group steps ->
                 let rec group_blocks = function
                   | [] -> []
@@ -76,16 +82,17 @@ let infer_blocks steps : block list =
   blocks
 
 let is_comparison f =
-  match f with
+  match strip_range f with
     | Eq (g, h) -> Some ("=", g, h)
     | App (App (Var (c, _), g), h) when mem c Parser.compare_ops -> Some (c, g, h)
     | _ -> None
 
-let rec collect_cmp f : formula list * id list = match is_comparison f with
-  | Some (op, g, h) ->
-      let (gs, g_ops), (hs, h_ops) = collect_cmp g, collect_cmp h in
-      (gs @ hs, g_ops @ [op] @ h_ops)
-  | None -> ([f], [])
+let rec collect_cmp f : formula list * id list =
+  match is_comparison f with
+    | Some (op, g, h) ->
+        let (gs, g_ops), (hs, h_ops) = collect_cmp g, collect_cmp h in
+        (gs @ hs, g_ops @ [op] @ h_ops)
+    | None -> ([f], [])
 
 let rec join_cmp fs ops : formula list =
   let app op f g : formula =
@@ -109,29 +116,31 @@ let rec expand_chains f : formula =
 let is_type_defined id env = exists (is_type_decl id) env
 
 let check_type1 env vars typ : typ =
-  let rec check vars typ = match typ with
+  let rec check range vars typ = match typ with
     | Bool | Type -> typ
     | Base id ->
         if not (is_unknown typ) && not (is_type_defined id env) then
-          type_error ("undefined type " ^ id) typ
+          error ("undefined type " ^ id) range
         else typ
     | TypeVar id ->
         if mem (id, Type) vars then TypeVar id
         else if is_type_defined id env then Base id
-        else type_error ("undefined type variable " ^ id) typ
-    | Fun (t, u) -> Fun (check vars t, check vars u)
-    | Pi (id, t) -> Pi (id, check ((id, Type) :: vars) t)
-    | Product typs -> Product (map (check vars) typs)
-  in check vars typ
+        else error ("undefined type variable " ^ id) range
+    | Fun (t, u) -> Fun (check range vars t, check range vars u)
+    | Pi (id, t) -> Pi (id, check range ((id, Type) :: vars) t)
+    | Product typs -> Product (map (check range vars) typs)
+    | TypeApp (c, [typ]) when c.[0] = '@' -> check c vars typ
+    | TypeApp _ -> failwith "check_type1"
+  in check "" vars typ
 
 let check_type env typ : typ = check_type1 env [] typ
 
 let id_types env id : typ list = filter_map (is_const_decl id) env
 
-let find_const env formula id : formula list =
+let find_const env formula range id : formula list =
   let consts = id_types env id |> map (fun typ -> Const (id, typ)) in
   match consts with
-    | [] -> errorf (sprintf "undefined: %s\n" id) formula
+    | [] -> errorf (sprintf "undefined: %s\n" id) formula range
     | _ -> consts
 
 let univ f : formula = match f with
@@ -155,11 +164,11 @@ let infer_formula env vars formula : typ * formula =
         let v = new_type_var () in
           inst (App (f, type_const v)) (type_subst t v x)
     | _ -> (f, typ) in
-  let rec check vars tsubst formula : (tsubst * typ * formula) list =
+  let rec check range vars tsubst formula : (tsubst * typ * formula) list =
     match formula with
       | Const (id, typ) ->
           let+ c = if is_unknown typ
-                    then find_const env formula id
+                    then find_const env formula range id
                     else [Const (id, check_type1 env vars typ)] in
           let c = univ c in
           let (f, typ) = inst c (type_of c) in
@@ -169,7 +178,9 @@ let infer_formula env vars formula : typ * formula =
             | Some typ ->
                 let f = univ (Var (id, typ)) in
                 [(tsubst, type_of f, f)]
-            | None -> check vars tsubst (_const id))
+            | None -> check range vars tsubst (_const id))
+      | App (Const (c, _), f) when c.[0] = '@' ->
+          check c vars tsubst f
       | App (App (Const ("_", _), f), g) ->
           let h = match f, g with
             | Var (v, _), Const (c, _) ->
@@ -177,11 +188,11 @@ let infer_formula env vars formula : typ * formula =
                 if mem name (map fst vars) || is_declared env name
                   then _var name else App (f, g)
             | _ -> failwith "infer_formula" in
-          check vars tsubst h
+          check range vars tsubst h
       | App (f, g) ->
           let all =
-            let+ (tsubst, t, f) = check vars tsubst f in
-            let+ (tsubst, u, g) = check vars tsubst g in (
+            let+ (tsubst, t, f) = check range vars tsubst f in
+            let+ (tsubst, u, g) = check range vars tsubst g in (
             match t with
               | Fun (v, w) -> (
                   match unify_types_or_pi is_var tsubst v u with
@@ -189,36 +200,36 @@ let infer_formula env vars formula : typ * formula =
                     | None -> [])
               | _ ->
                   let h = apply [Var ("·", unknown_type); f; g] in
-                  check vars tsubst h) in (
+                  check range vars tsubst h) in (
           match all with
-            | [] -> errorf "can't apply" formula
+            | [] -> errorf "can't apply" formula range
             | [sol] -> [sol]
             | _ ->
                 let types = all |> map (fun (tsubst, typ, _) -> subst_types tsubst typ) in
                 if all_same types
-                  then error "ambiguous application" formula
+                  then errorf "ambiguous application" formula range
                 else all)
       | Lambda (x, typ, f) ->
           let typ = check_type1 env vars typ in
-          let+ (tsubst, t, f) = check ((x, typ) :: vars) tsubst f in
+          let+ (tsubst, t, f) = check range ((x, typ) :: vars) tsubst f in
           let return_type = if typ = Type then Pi (x, t) else Fun (typ, t) in
           [(tsubst, return_type, Lambda (x, typ, f))]
       | Eq (f, g) ->
           let all =
-            let+ (tsubst, t, f) = check vars tsubst f in
-            let+ (tsubst, u, g) = check vars tsubst g in
+            let+ (tsubst, t, f) = check range vars tsubst f in
+            let+ (tsubst, u, g) = check range vars tsubst g in
             match unify_types is_var tsubst t u with
               | Some tsubst -> [(tsubst, Bool, Eq (f, g))]
               | None -> [] in
           match all with
-            | [] -> error "incomparable types" formula
+            | [] -> errorf "incomparable types" formula range
             | [sol] -> [sol]
-            | _ -> error "ambiguous comparison" formula in
-  match check vars [] formula with
+            | _ -> errorf "ambiguous comparison" formula range in
+  match check "" vars [] formula with
     | [(tsubst, typ, f)] ->
         (typ, subst_types_in_formula tsubst f)
     | [] -> failwith "infer_formula"
-    | _ -> errorf "ambiguous" formula
+    | _ -> errorf "ambiguous" formula (range_of formula)
 
 let top_infer_with_type env f =
   let (typ, f) = infer_formula env [] f in
@@ -245,17 +256,17 @@ let infer_const_decl env id typ =
 let infer_definition env f : id * typ * formula =
   (* f has the form ∀σ₁...σₙ v₁...vₙ (C φ₁ ... φₙ = ψ) .  We check types and build
     * a formula of the form ∀σ₁...σₙ v₁...vₙ (C σ₁...σₙ φ₁ ... φₙ = ψ) .*)
-  let (vs, f) = gather_quant "∀" f in
+  let (vs, f) = gather_quant "∀" (strip_range f) in
   let f = lower_definition f in
   let (vs2, f) = gather_quant "∀" f in
   let (type_vars, vars) = (vs @ vs2) |> partition (fun (_, typ) -> typ = Type) in
   let univ = map fst type_vars in
   let vars = vars |> map (fun (v, typ) -> (v, check_type1 env type_vars typ)) in
   let vs = type_vars @ vars in (
-  match f with
+  match strip_range f with
     | Eq (f, g) | App (App (Const ("↔", _), f), g) ->
-        let (c, args) = collect_args f in (
-        match c with
+        let (c, args) = collect_args (strip_range f) in (
+        match strip_range c with
           | Const (id, _) | Var (id, _) ->
               let infer f = infer_formula env vs f in
               let arg_types, args = unzip (map infer args) in
@@ -406,21 +417,14 @@ and infer_stmts initial_env stmts : statement list =
     (stmt :: env, stmt) in
   snd (fold_left_map check initial_env stmts)
 
-let rec syntax_pos item origin_map : range option = match origin_map with
-  | [] -> None
-  | (s, range) :: ss ->
-      if syntax_ref_eq s item then Some range
-      else syntax_pos item ss
-
 let infer_module checked md : (_module list, string * frange) result =
   let env : statement list = module_env md checked in
   try 
     let modd = { md with stmts = infer_stmts env md.stmts } in
     Ok (modd :: checked)
   with
-    | Check_error (err, item) ->
-        let pos = syntax_pos item md.syntax_map in
-        Error (err, (md.filename, opt_default pos empty_range))
+    | Check_error (err, pos) ->
+        Error (err, (md.filename, pos))
 
 let infer_modules modules : (_module list, string * frange) result =
   fold_left_res infer_module [] modules |> Result.map rev
@@ -487,7 +491,7 @@ let basic_check env f : typ * formula =
           | [] ->
               if mem id logical_ops
                 then (typ, Const (id, typ))
-                else errorf "undefined constant" f
+                else errorf "undefined constant" f ""
           | [typ] -> (typ, Const (id, typ))
           | _ -> failwith "ambiguous constant")
     | Var (id, _) ->
@@ -515,7 +519,7 @@ let basic_check env f : typ * formula =
         let (h_type, h) = check vars h in
         if g_type <> h_type then (
           printf "g_type = %s, h_type = %s\n" (show_type g_type) (show_type h_type);
-          errorf "can't compare" f);
+          errorf "can't compare" f "");
         (Bool, Eq (g, h)) in
   check [] f
 

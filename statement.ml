@@ -6,27 +6,29 @@ open Util
 
 type str = string
 
-type pos = int * int   (* line number, colum number *)
+type pos = int * int   (* line number, column number *)
 
 type range = pos * pos
 let empty_range = ((0, 0), (0, 0))
 
 let show_pos (line, col) = sprintf "%d:%d" line col
 
-let show_range (pos1, pos2) =
+let show_range (pos1, pos2) : string =
   if pos2 = (0, 0) then show_pos pos1
   else sprintf "%s - %s" (show_pos pos1) (show_pos pos2)
 
+let encode_range ((line1, col1), (line2, col2)) : string =
+  sprintf "@ %d %d %d %d" line1 col1 line2 col2
+
+let decode_range s : range =
+  if s = "" then empty_range else
+  let words = String.split_on_char ' ' (string_from s 1) |>
+    filter ((<>) "") |> map int_of_string in
+  match words with
+    | [line1; col1; line2; col2] -> ((line1, col1), (line2, col2))
+    | _ -> failwith "decode_range"
+
 type frange = string * range
-
-type syntax = SType of typ | SFormula of formula
-let mk_type_syntax t = SType t
-let mk_formula_syntax f = SFormula f
-
-let syntax_ref_eq x y = match x, y with
-  | SType t, SType u -> t == u
-  | SFormula f, SFormula g -> f == g
-  | _, _ -> false
 
 type proof_step =
   | Assert of formula
@@ -70,8 +72,7 @@ let rec show_proof_step = function
   | Let ids_types ->
       let show (id, typ) = sprintf "%s : %s" id (show_type typ) in
       "let " ^ comma_join (map show ids_types)
-  | LetDef (id, typ, f) -> sprintf "let_val %s : %s = %s"
-      id (show_type typ) (show_formula f)
+  | LetDef (_id, _typ, f) -> sprintf "let_def : %s" (show_formula f)
   | Assume f -> sprintf "assume %s" (show_formula f)
   | IsSome (ids, typ, f) -> sprintf "is_some %s : %s : %s"
       (comma_join ids) (show_type typ) (show_formula f)
@@ -227,7 +228,6 @@ type _module = {
   filename: string;
   using: string list;
   stmts: statement list;
-  syntax_map : (syntax * range) list; 
 }
 
 let find_module modules name : _module =

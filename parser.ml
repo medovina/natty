@@ -9,13 +9,11 @@ open Util
 let (let&) = bind
 
 type state = {
-    syntax_map : (syntax * range) list;
     axiom_count : int ref; theorem_count : int ref;
-    unique_count : int ref
 }
 
 let empty_state () = {
-    syntax_map = []; axiom_count = ref 0; theorem_count = ref 0; unique_count = ref 0
+    axiom_count = ref 0; theorem_count = ref 0
 }
 
 type 'a p = ('a, state) t   (* parser type *)
@@ -107,29 +105,22 @@ let with_range (p : 'a p) : (('a * range) p) = empty >>?
   get_pos |>> fun (_index, line2, col2) ->
     (x, ((line1, col1), (line2, col2))))
 
-let add_syntax pair state = { state with syntax_map = pair :: state.syntax_map }
+let record_formula (p : formula p) : formula p = with_range p |>>
+  fun (f, range) -> match f with
+    | App (Const (c, _), g) when c.[0] = '@' -> g   (* avoid double record *)
+    | _ -> App (_const (encode_range range), f)
 
-let record kind p = with_range p >>=
-  fun (f, range) -> update_user_state (add_syntax (kind f, range)) >>$ f
-
-let record_formula = record mk_formula_syntax
-let record_type = record mk_type_syntax
+let record_type p = with_range p |>>
+  fun (t, range) -> TypeApp (encode_range range, [t])
 
 (* types *)
 
 let infix sym f assoc = Infix (str sym >>$ f, assoc)
 
-let const_op p sym neg =
-  record_formula (p >>
-    get_user_state |>> fun st ->
-    incr st.unique_count;
-    (* We append a unique integer to the unknown type "?" here to force different
-     * syntactic occurrences to be distinct objects, so they will have distinct
-     * positions for error reporting. *)
-    Var (sym, unknown_type_n !(st.unique_count))) |>> fun const ->
-      fun f g ->
-        let e = apply [const; f; g] in
-        if neg then _not e else e
+let const_op p sym neg : (formula -> formula -> formula) p = p >>$
+  fun f g ->
+    let e = apply [_var sym; f; g] in
+    if neg then _not e else e
 
 let infix_binop1 p sym assoc =
   Infix (const_op p sym false, assoc)
@@ -696,8 +687,8 @@ let parse_files filenames sources : (_module list, string * frange) Stdlib.resul
       let** (modules, state) = fold_left_res parse (modules, state) using in
       match parse_module_text text state with
         | Success (stmts, state) ->
-            let modd = { filename; using; stmts; syntax_map = state.syntax_map } in
-            Ok (modd :: modules, { state with syntax_map = [] })
+            let modd = { filename; using; stmts } in
+            Ok (modd :: modules, state)
         | Failed (err, Parse_error ((_index, line, col), _)) ->
             Error (err, (filename, ((line, col), (0, 0))))
         | Failed _ -> failwith "parse_files" in

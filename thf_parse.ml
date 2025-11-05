@@ -131,7 +131,7 @@ let parse_thf source : (_module list, string * frange) Stdlib.result =
           Error (err, (source, ((line, col), (0, 0))))
       | _ -> failwith "parse_thf" in
   let** stmts = parse source in
-  Ok [{ filename = source; using = []; stmts; syntax_map = [] }]
+  Ok [{ filename = source; using = []; stmts }]
 
 type derivation =
   | Step of id

@@ -11,6 +11,7 @@ type typ =
   | TypeVar of id
   | Fun of typ * typ
   | Pi of id * typ
+  | TypeApp of id * typ list
   | Product of typ list
 
 let mk_base_type = function
@@ -25,7 +26,7 @@ let mk_product_type ts = Product ts
 let mk_fun_types ts u : typ = fold_right mk_fun_type ts u
 let mk_pi_types xs u : typ = fold_right mk_pi_type xs u
 
-let show_type t =
+let rec show_type t =
   let rec show outer left typ : string =
     let op prec sym t u =
       parens_if (outer > prec || outer = prec && left) @@
@@ -38,6 +39,9 @@ let show_type t =
       | Fun (t, u) -> op 1 "→" t u
       | Pi (id, t) ->
           parens_if (0 < outer) (sprintf "Π%s.%s" id (show 0 false t))
+      | TypeApp (c, [typ]) when c.[0] = '@' -> show outer left typ
+      | TypeApp (id, typs) ->
+          sprintf "%s(%s)" id (comma_join (map show_type typs))
       | Product typs ->
           parens_if (outer >= 2) @@
           String.concat " ⨯ " (map (show 2 true) typs) in
@@ -174,7 +178,7 @@ let type_vars only_free typ =
     | Fun (t, u) -> find t @ find u
     | Pi (id, t) -> 
         if only_free then remove id (find t) else find t
-    | Product ts -> concat_map find ts in
+    | TypeApp (_, ts) | Product ts -> concat_map find ts in
   unique (find typ)
 
 let free_type_vars = type_vars true
@@ -194,16 +198,19 @@ let free_type_vars_in_formula = type_vars_in_formula true
 let all_type_vars_in_formula = type_vars_in_formula false
 
 (* t[u/x] *)
-let rec type_subst (t: typ) (u: typ) (x: id) = match t with
-  | Bool | Type | Base _ -> t
-  | TypeVar y -> if x = y then u else t
-  | Fun (v, w) -> Fun (type_subst v u x, type_subst w u x)
-  | Product typs -> Product (typs |> map (fun t -> type_subst t u x))
-  | Pi (y, t') -> if x = y then t else
-      if mem y (free_type_vars u) && mem x (free_type_vars t')
-        then let y' = rename y (x :: free_type_vars t') in
-             Pi (y', type_subst (type_subst t' (TypeVar y') y) u x)
-        else Pi (y, type_subst t' u x)
+let rec type_subst (t: typ) (u: typ) (x: id) =
+  let subst w = type_subst w u x in
+  match t with
+    | Bool | Type | Base _ -> t
+    | TypeVar y -> if x = y then u else t
+    | Fun (v, w) -> Fun (subst v, subst w)
+    | TypeApp (id, typs) -> TypeApp (id, map subst typs)
+    | Product typs -> Product (map subst typs)
+    | Pi (y, t') -> if x = y then t else
+        if mem y (free_type_vars u) && mem x (free_type_vars t')
+          then let y' = rename y (x :: free_type_vars t') in
+              Pi (y', subst (type_subst t' (TypeVar y') y))
+          else Pi (y, subst t')
 
 let subst_types tsubst t : typ =
   fold_left (fun t (x, u) -> type_subst t u x) t tsubst
@@ -429,6 +436,8 @@ and show_formula_multi multi f =
         | App _ ->
             let (head, args) = collect_args f in (
             match head with
+              (* | Const (c, _) when c.[0] = '@' ->
+                  show1 outer right (hd args) *)
               | Const (c, _typ) when is_tuple_constructor c ->
                   parens_if (outer > -2) @@
                     comma_join (map (show1 (-1) false) args)
