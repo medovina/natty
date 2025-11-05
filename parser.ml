@@ -467,16 +467,18 @@ let top_prop : proof_step_r list p =
 
 (* proposition lists *)
 
-let label : id p = 
+let sub_index : id p = 
   ((empty >>? letter |>> char_to_string) <|> number) <<? string "."
 
 let stmt_name = parens name
 
+let label = brackets name
+
 let top_sentence : (proof_step_r list * id option) p =
-    pair (top_prop << str ".") (option (brackets name))
+    pair (top_prop << str ".") (option label)
 
 let proposition_item : (id * (proof_step_r list * id option)) p =
-  pair label top_sentence
+  pair sub_index top_sentence
 
 let prop_items : (id * ((proof_step_r list) * id option)) list p =
   many1 proposition_item
@@ -486,7 +488,7 @@ let top_prop_or_items (name: id option):
     choice [
         prop_items;
         top_sentence |>> fun (fr, name1) -> [("", (fr, opt_or_opt name1 name))]
-    ] |>> map (fun (label, (steps, name)) -> (label, steps, name))
+    ] |>> map (fun (sub_index, (steps, name)) -> (sub_index, steps, name))
 
 let propositions name : (id * proof_step_r list * id option) list p =
   pipe2 (with_range (opt [] (for_all_ids << str ","))) (top_prop_or_items name)
@@ -513,15 +515,15 @@ let const_decl : statement p =
 
 let axiom_decl : statement p = type_decl <|> const_decl
 
-let count_label num label =
-  if label = "" then sprintf "%d" num
-  else sprintf "%d.%s" num label
+let count_sub_index num sub_index =
+  if sub_index = "" then sprintf "%d" num
+  else sprintf "%d.%s" num sub_index
 
 let axiom_propositions name : statement list p =
   let& st = get_user_state in
   incr st.axiom_count;
-  propositions name |>> map (fun (label, steps, name) ->
-    HAxiom (count_label (!(st.axiom_count)) label, steps, name))
+  propositions name |>> map (fun (sub_index, steps, name) ->
+    HAxiom (count_sub_index (!(st.axiom_count)) sub_index, steps, name))
 
 let axiom_exists name : statement list p =
   there_exists >>? pipe2
@@ -541,7 +543,7 @@ let eq_definition : statement p = pipe3
   (str "Let" >> sym) (str ":" >> typ) (str "=" >> term << str ".")
   mk_def
 
-let new_paragraph : id p = empty >>? (any_str keywords <|> label)
+let new_paragraph : id p = empty >>? (any_str keywords <|> sub_index)
 
 let generalize f : formula =
   let vs = free_type_vars_in_formula f in
@@ -639,13 +641,13 @@ let proof_clause : proof_step_r list p = pipe2
     in esc @ steps)
 
 let proof_sentence : proof_step_r list p =
-  (sep_by1 proof_clause (str ";") |>> concat) << str "."
+  (sep_by1 proof_clause (str ";") |>> concat) << str "." << optional label
 
 let proof_steps : proof_step_r list p =
   many1 (not_followed_by new_paragraph "" >> proof_sentence) |>>
     (fun steps -> concat steps)
 
-let proof_item : (id * proof_step_r list) p = pair label proof_steps
+let proof_item : (id * proof_step_r list) p = pair sub_index proof_steps
 
 let proofs : (id * proof_step_r list) list p = str "Proof." >> choice [
   many1 proof_item;
@@ -661,10 +663,10 @@ let theorem_group : statement list p =
     incr st.theorem_count;
     pipe2 (top_prop_or_items name) (opt [] proofs)
     (fun props proofs ->
-      props |> map (fun (label, steps, name) ->
-        HTheorem (count_label (!(st.theorem_count)) label, name,
+      props |> map (fun (sub_index, steps, name) ->
+        HTheorem (count_sub_index (!(st.theorem_count)) sub_index, name,
                   let_steps @ steps,
-                  opt_default (assoc_opt label proofs) [])))
+                  opt_default (assoc_opt sub_index proofs) [])))
 
 (* module *)
 

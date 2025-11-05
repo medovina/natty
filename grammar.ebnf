@@ -174,13 +174,15 @@ top_prop = {let_or_assume '.'} ['Then'] proposition;
 
 (* proposition lists *)
 
-label = (letter | number) '.';
+sub_index = (letter | number) '.';
 
-top_sentence = top_prop '.' ['[' name ']'];
+label = '[' name ']';
+
+top_sentence = top_prop '.' [label];
 
 stmt_name = '(' name ')';
 
-proposition_item = label top_sentence;
+proposition_item = sub_index top_sentence;
 
 prop_items = proposition_item+;
 
@@ -260,11 +262,11 @@ clause_intro = 'First' | now | any_case;
 
 proof_clause = [clause_intro [',']] (let_or_assumes | assert_steps);
 
-proof_sentence = proof_clause {';' proof_clause} '.';
+proof_sentence = proof_clause {';' proof_clause} '.' [label];
 
 proof_steps = proof_sentence+;
 
-proof_item = label proof_steps;
+proof_item = sub_index proof_steps;
 
 proofs = 'Proof.' (proof_item+ | proof_steps);
 
