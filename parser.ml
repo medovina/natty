@@ -74,7 +74,7 @@ let word = empty >>? many1_chars letter
 
 let adjective = word
 
-let name = empty >>? many1_chars (alphanum <|> char '_')
+let name = empty >>? many1_chars (alphanum <|> char '_' <|> char ' ')
 
 let sub_digit1 = sub_digit |>> sub_to_digit
 
@@ -173,45 +173,6 @@ let decl_ids_types : ((id * typ) list) p =
     let+ (ids, typ) = ids_typs in
     let+ id = ids in [(id, typ)]
 
-(* reasons *)
-
-let theorem_ref = brackets name
-
-let reference = choice [
-  theorem_ref;
-  str "part" >> parens number << opt_str "of this theorem"
-  ]
-
-let reason = choice [
-  any_str ["by"; "using"] >>? reference;
-  str "by" >>? optional (any_str ["the inductive"; "the induction"]) >>?
-    any_str ["assumption"; "hypothesis"];
-  str "by definition" ]
-
-(* operators for small propositions *)
-
-let so = choice [
-  any_str ["also"; "consequently"; "hence"; "however"; "so";
-           "then"; "therefore"; "which means that"];
-  str "but" << opt_str "then";
-  str "which implies" << opt_str "that" ]
-
-let have = any_str 
-  ["clearly"; "it is clear that"; "it must be that";
-   "the only alternative is"; "this means that";
-   "this shows that"; "trivially";
-   "we conclude that"; "we deduce that";
-   "we know that"; "we must have"; "we see that"] <|>
-   (str "we have" << opt_str "shown that") <|>
-   (any_str ["on the other hand"; "similarly"] << opt_str ",") <|>
-   (any_str ["it follows"; "it then follows"] >>
-      optional ((str "from" >> reference) <|> reason) >>
-      str "that")
-
-let new_phrase = so <|> (optional reason >> have) <|> str "that"
-
-let and_op = str "and" <<? not_followed_by new_phrase ""
-
 (* terms *)
 
 let compare_op op = infix op (binop_unknown op) Assoc_right
@@ -272,7 +233,7 @@ and id_term s = (id_sub >>=
     return (mk_sub f f_sub)
   ])) s
 
-and term s : formula pr = (record_formula @@ choice [
+and base_term s : formula pr = (record_formula @@ choice [
   (sym |>> _const);
   id_term;
   str "⊤" >>$ _true;
@@ -282,12 +243,12 @@ and term s : formula pr = (record_formula @@ choice [
     (fun var typ expr -> Lambda (var, typ, expr))
  ]) s
 
-and exp_term s = pipe2 term (option super_term) (fun f super ->
+and term s = pipe2 base_term (option super_term) (fun f super ->
   opt_fold (fun c f -> apply [_var "^"; f; c]) super f) s
 
-and next_term s = (not_followed_by space "" >>? exp_term) s
+and next_term s = (not_followed_by space "" >>? term) s
 
-and terms s = (exp_term >>= fun t -> many_fold_left mk_app t next_term) s
+and terms s = (term >>= fun t -> many_fold_left mk_app t next_term) s
 
 (* expressions *)
 
@@ -349,6 +310,48 @@ and atomic s = (
     return Fun.id
    ]) (fun e f -> f e)) s
 
+(* reasons *)
+
+and id_eq_term s = (id >> str "=" >> term) s
+
+and theorem_ref s = brackets (
+  name << optional (str ":" << sep_by1 id_eq_term (str ","))) s
+
+and reference s = choice [
+  theorem_ref;
+  str "part" >> parens number << opt_str "of this theorem"
+  ] s
+
+and reason s = choice [
+  any_str ["by"; "using"] >>? reference;
+  str "by" >>? optional (any_str ["the inductive"; "the induction"]) >>?
+    any_str ["assumption"; "hypothesis"];
+  str "by definition" ] s
+
+(* so / have *)
+
+and so = choice [
+  any_str ["also"; "consequently"; "hence"; "however"; "so";
+           "then"; "therefore"; "which means that"];
+  str "but" << opt_str "then";
+  str "which implies" << opt_str "that" ]
+
+and have s = (any_str 
+  ["clearly"; "it is clear that"; "it must be that";
+   "the only alternative is"; "this means that";
+   "this shows that"; "trivially";
+   "we conclude that"; "we deduce that";
+   "we know that"; "we must have"; "we see that"] <|>
+   (str "we have" << opt_str "shown that") <|>
+   (any_str ["on the other hand"; "similarly"] << opt_str ",") <|>
+   (any_str ["it follows"; "it then follows"] >>
+      optional ((str "from" >> reference) <|> reason) >>
+      str "that")) s
+
+and new_phrase s = (so <|> (optional reason >> have) <|> str "that") s
+
+and and_op s = (str "and" <<? not_followed_by new_phrase "") s
+
 (* small propositions *)
 
 and for_with text q s =
@@ -358,7 +361,7 @@ and for_with text q s =
 and post_for_all_with s = for_with "for all" for_all_with s
 and post_for_some_with s = for_with "for some" exists_with s
 
-and prop_operators = [
+and prop_operators () = [
   [ Infix (and_op >>$ _and, Assoc_left) ];
   [ infix "or" _or Assoc_left ];
   [ Infix (str "implies" << opt_str "that" >>$ implies, Assoc_right) ];
@@ -402,7 +405,7 @@ and precisely_prop s : formula pr = (
       multi_and (f :: ns)
   ) s
 
-and small_prop s : formula pr = expression prop_operators
+and small_prop s : formula pr = expression (prop_operators ())
   (if_then_prop <|> for_all_prop <|> exists_prop <|> precisely_prop <|> atomic) s
 
 (* propositions *)
@@ -540,7 +543,7 @@ let axiom_group : statement list p =
 let mk_def id typ formula = Definition (id, typ, Eq (Const (id, typ), formula))
 
 let eq_definition : statement p = pipe3
-  (str "Let" >> sym) (str ":" >> typ) (str "=" >> term << str ".")
+  (str "Let" >> sym) (str ":" >> typ) (str "=" >> base_term << str ".")
   mk_def
 
 let new_paragraph : id p = empty >>? (any_str keywords <|> sub_index)

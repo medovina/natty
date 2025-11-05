@@ -26,7 +26,7 @@ word = letter {letter};
 
 adjective = word;
 
-name = {letter | digit | '_'}+;
+name = {letter | digit | '_' | ' '}+;
 
 sub_letter = 'ₐ' .. 'ₓ';
 
@@ -46,21 +46,11 @@ id_type = id of_type typ;
 
 id_opt_type = id [of_type typ];
 
-decl_ids = id_or_sym {',' id_or_sym}+;
+decl_ids = id_or_sym {',' id_or_sym};
 
 decl_ids_type = decl_ids of_type typ;
 
 decl_ids_types = decl_ids_type {'and' decl_ids_type};
-
-(* reasons *)
-
-theorem_ref = '[' name ']';
-
-reference = theorem_ref | 'part (' number ')' ['of this theorem'];
-
-reason = (('by' | 'using') reference) |
-          'by' ['the' ('inductive' | 'induction')] ('assumption' | 'hypothesis') |
-          'by definition';
 
 (* terms *)
 
@@ -76,14 +66,14 @@ super_term = super_digit;
 
 id_sub = base_id [sub_expr];
 
-term =
+base_term =
     sym | id_sub [parens_exprs | "⋯" id_sub]
   | '⊤' | '⊥' | parens_exprs
   | '{' var of_type typ '|' proposition '}';
 
-exp_term = term [super_term];
+term = base_term [super_term];
 
-terms = exp_term+;
+terms = term+;
 
 (* expressions *)
 
@@ -110,6 +100,31 @@ predicate =
 
 atomic =
     expr ['is true' | 'always holds' | ('is' | 'must' ['also'] 'be') predicate];
+
+(* reasons *)
+
+id_eq_term = id '=' term;
+
+theorem_ref = '[' name [':' id_eq_term {',' id_eq_term}] ']';
+
+reference = theorem_ref | 'part (' number ')' ['of this theorem'];
+
+reason = (('by' | 'using') reference) |
+          'by' ['the' ('inductive' | 'induction')] ('assumption' | 'hypothesis') |
+          'by definition';
+
+(* so / have *)
+
+so = 'also' | 'but' ['then'] | 'consequently' | 'hence' | 'however' | 'so' | 'then' | 'therefore' |
+    'which implies' ['that'] | 'which means that';
+    
+have = 'clearly' |
+    'it' ['then'] 'follows' ['from' reference | reason] 'that' |
+    'it is clear that' | 'it must be that' |
+    'on the other hand' [','] | 'similarly' [','] |
+    'the only alternative is' | 'this means that' | 'this shows that' | 'trivially' |
+    'we conclude that' | 'we deduce that' | 'we have' ['shown that'] |
+    'we know that' | 'we must have' | 'we see that';
 
 (* small propositions *)
 
@@ -213,17 +228,6 @@ def_prop = ['we write'] small_prop '.';
 definition = 'Definition.' ({eq_definition}+ | for_all_ids ',' {def_prop});
 
 (* proofs *)
-
-so = 'also' | 'but' ['then'] | 'consequently' | 'hence' | 'however' | 'so' | 'then' | 'therefore' |
-    'which implies' ['that'] | 'which means that';
-    
-have = 'clearly' |
-    'it' ['then'] 'follows' ['from' reference | reason] 'that' |
-    'it is clear that' | 'it must be that' |
-    'on the other hand' [','] | 'similarly' [','] |
-    'the only alternative is' | 'this means that' | 'this shows that' | 'trivially' |
-    'we conclude that' | 'we deduce that' | 'we have' ['shown that'] |
-    'we know that' | 'we must have' | 'we see that';
 
 contra = ',' ['which is'] ['again' | 'also' | 'similarly'] 'a contradiction' ['to' reference];
 
