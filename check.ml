@@ -18,11 +18,11 @@ let range_of f : str = match f with
   | App (Const (c, _), _) when starts_with "@" c -> c
   | _ -> ""
 
-type block = Block of proof_step * range * block list
+type block = Block of proof_step * block list
 
 let print_blocks blocks =
   let rec print indent blocks =
-    blocks |> iter (fun (Block (step, _range, children)) ->
+    blocks |> iter (fun (Block (step, children)) ->
       printf "%s%s\n" indent (show_proof_step step);
       print (indent ^ "  ") children) in
   print "" blocks;
@@ -30,27 +30,27 @@ let print_blocks blocks =
 
 let rec chain_blocks steps : block list = match steps with
   | [] -> []
-  | (step, range) :: steps -> [Block (step, range, chain_blocks steps)]
+  | step :: steps -> [Block (step, chain_blocks steps)]
 
 let infer_blocks steps : block list =
   let rec all_vars steps : id list = match steps with
     | [] -> []
     | step :: steps ->
         subtract (step_free_vars step @ all_vars steps) (step_decl_vars step) in
-  let rec infer vars in_assume steps : block list * (proof_step * range) list * bool =
+  let rec infer vars in_assume steps : block list * proof_step list * bool =
     match steps with
       | [] -> ([], steps, false)
-      | (step, range) :: rest ->
+      | step :: rest ->
           if overlap (step_decl_vars step) (concat vars) then ([], steps, false)
           else let in_use = match vars with
             | [] -> true
-            | top_vars :: _ -> overlap top_vars ("·" :: all_vars (map fst steps)) in
+            | top_vars :: _ -> overlap top_vars ("·" :: all_vars steps) in
           if step <> Assert _false && not in_use then ([], steps, false)
           else match step with
             | Escape ->
                 if in_assume then ([], rest, true) else infer vars false rest
             | Assert f when strip_range f = _false ->
-                if in_assume then ([Block (step, range, [])], rest, true)
+                if in_assume then ([Block (step, [])], rest, true)
                   else error "contradiction without assumption" (range_of f)
             | Group steps ->
                 let rec group_blocks = function
@@ -74,8 +74,8 @@ let infer_blocks steps : block list =
                 if bail then ([], rest1, true) else infer vars in_assume rest1 in
               let out_blocks = match step with
                 | IsSome _ ->
-                    [Block (step, range, children @ blocks)]  (* pull siblings into block *)
-                | _ -> Block (step, range, children) :: blocks in
+                    [Block (step, children @ blocks)]  (* pull siblings into block *)
+                | _ -> Block (step, children) :: blocks in
               (out_blocks, rest2, bail) in
   let (blocks, rest, _bail) = infer [] false steps in
   assert (rest = []);
@@ -297,15 +297,15 @@ let rec blocks_steps env lenv blocks : statement list list * formula =
         ( fs @ gs,
           if rest = [] then concl
           else match last blocks with
-            | Block (Assume _, _, _) -> _and concl final_concl
+            | Block (Assume _, _) -> _and concl final_concl
             | _ -> final_concl)
 
-and block_steps env lenv (Block (step, range, children)) : statement list list * formula =
+and block_steps env lenv (Block (step, children)) : statement list list * formula =
   let child_steps stmts = blocks_steps (stmts @ env) (stmts @ lenv) children in
   let const_decl (id, typ) =
     if typ = Type then infer_type_decl env id None else infer_const_decl env id typ in
   let const_decls ids_typs = rev (map const_decl ids_typs) in
-  let mk_thm eq = Theorem ("", None, top_infer env eq, [], range) :: lenv in
+  let mk_thm eq = Theorem ("", None, top_infer env eq, [], decode_range (range_of eq)) :: lenv in
   match step with
     | Assert f ->
         let eqs = chain_comparisons f in
@@ -343,15 +343,15 @@ and block_steps env lenv (Block (step, range, children)) : statement list list *
          if any_free_in ids concl then exists_vars_typ (ids, typ) concl else concl)
     | Escape | Group _ -> failwith "block_formulas"
 
-let trim_lets steps : (proof_step * range) list =
-  let vs = unique (steps |> concat_map (fun (step, _) -> step_free_vars step)) in
-  let+ (step, range) = steps in (
+let trim_lets steps : proof_step list =
+  let vs = unique (steps |> concat_map step_free_vars) in
+  let+ step = steps in (
   match step with
     | Let ids_types ->
         let ids_types = ids_types |> filter (fun (id, _) ->
           mem id vs || id = "·") in  (* "·" may not be explicitly present *)
-        if ids_types = [] then [] else [(Let ids_types, range)]
-    | _ -> [(step, range)])
+        if ids_types = [] then [] else [Let ids_types]
+    | _ -> [step])
 
 let collect_lets steps : id list =
   steps |> concat_map (function
@@ -361,7 +361,7 @@ let collect_lets steps : id list =
 let duplicate_lets vars steps : bool =
   let rec check = function
     | [] -> false
-    | (step, _range) :: steps ->
+    | step :: steps ->
         match step with
           | Assert _ -> false
           | Let ids_types ->
@@ -370,20 +370,20 @@ let duplicate_lets vars steps : bool =
           | _ -> check steps in
   check steps
 
-let rec expand_proof stmt env steps proof_steps : formula * statement list list =
+let rec expand_proof stmt env (steps : proof_step list) (proof_steps : proof_step list) : formula * statement list list =
   let steps = trim_lets steps in
   let blocks0 = chain_blocks steps in
   let (_, concl) = blocks_steps env [] blocks0 in
   let stmtss = if proof_steps = [] then [] else
     let (init, f) = split_last steps in
     let proof_steps =
-      if duplicate_lets (collect_lets (map fst init)) proof_steps
-        then proof_steps @ [(Assert concl, snd f)]
+      if duplicate_lets (collect_lets init) proof_steps
+        then proof_steps @ [Assert concl]
         else init @ proof_steps @ [f] in
     if !debug > 0 then (
       printf "%s:\n\n" (stmt_name stmt);
       if !debug > 1 then (
-        proof_steps |> iter (fun (s, _range) -> print_endline (show_proof_step s));
+        proof_steps |> iter (fun s -> print_endline (show_proof_step s));
         print_newline ()
       );
     );
@@ -409,7 +409,10 @@ and infer_stmt env stmt : statement =
         Axiom (id, top_infer env f, name)
     | HTheorem (num, name, steps, proof_steps) ->
         let (f, stmts) = expand_proof stmt env steps proof_steps in
-        Theorem (num, name, f, stmts, snd (last steps))
+        let range = match (last steps) with
+          | Assert f -> decode_range (range_of f)
+          | _ -> failwith "assert expected" in
+        Theorem (num, name, f, stmts, range)
 
 and infer_stmts initial_env stmts : statement list =
   let check env stmt =

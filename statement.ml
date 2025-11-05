@@ -37,9 +37,7 @@ type proof_step =
   | Assume of formula
   | IsSome of id list * typ * formula
   | Escape
-  | Group of (proof_step * range) list
-
-type proof_step_r = proof_step * range
+  | Group of proof_step list
 
 let mk_assert f = Assert f
 
@@ -56,7 +54,7 @@ let rec step_decl_vars = function
   | Let ids_types -> map fst ids_types
   | LetDef (id, _, _) -> [id]
   | IsSome (ids, _, _) -> ids
-  | Group steps -> unique (concat_map step_decl_vars (map fst steps))
+  | Group steps -> unique (concat_map step_decl_vars steps)
   | _ -> []
 
 let rec step_free_vars = function
@@ -64,7 +62,7 @@ let rec step_free_vars = function
   | LetDef (_, _, f) -> free_vars_and_type_vars f
   | Assume f -> free_vars_and_type_vars f
   | IsSome (ids, _, f) -> subtract (free_vars_and_type_vars f) ids
-  | Group steps -> unique (concat_map step_free_vars (map fst steps))
+  | Group steps -> unique (concat_map step_free_vars steps)
   | _ -> []
 
 let rec show_proof_step = function
@@ -78,7 +76,7 @@ let rec show_proof_step = function
       (comma_join ids) (show_type typ) (show_formula f)
   | Escape -> "escape"
   | Group steps ->
-      sprintf "[%s]" (comma_join (map show_proof_step (map fst steps)))
+      sprintf "[%s]" (comma_join (map show_proof_step steps))
 
 type statement =
   | TypeDecl of id * string option  (* e.g. "ℤ", "integer" *)
@@ -87,9 +85,9 @@ type statement =
   | Hypothesis of id * formula
   | Definition of id * typ * formula
   | Theorem of id * string option * formula * statement list list * range
-  | HAxiom of id * proof_step_r list * string option (* num, steps, name *)
+  | HAxiom of id * proof_step list * string option (* num, steps, name *)
   | HTheorem of
-      id * string option * proof_step_r list * proof_step_r list
+      id * string option * proof_step list * proof_step list
 
 let is_type_decl id = function
   | TypeDecl (id', _) when id = id' -> true

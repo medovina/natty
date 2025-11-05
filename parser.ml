@@ -427,11 +427,9 @@ let let_decl : (id * typ) list p = str "Let" >> choice [
   decl_ids_types << optional (str "be" >> operation)
 ]
 
-let let_step : proof_step_r list p = pipe2 
-  (with_range let_decl |>>
-    fun (ids_types, range) -> [(Let ids_types, range)])
-  (opt [] (str "with" >> with_range exprs |>>
-              fun (f, range) -> [(Assume f, range)]))
+let let_step : proof_step list p = pipe2 
+  (let_decl |>> fun ids_types -> [Let ids_types])
+  (opt [] (str "with" >> exprs |>> fun f -> [Assume f]))
   (@)
 
 let let_val_step : proof_step p = 
@@ -444,22 +442,20 @@ let define_step : proof_step p =
     let g = for_all_vars_types ids_types f in
     LetDef (definition_id g, unknown_type, g))
 
-let let_def_step : proof_step_r p = with_range (let_val_step <|> define_step)
+let let_def_step : proof_step p = let_val_step <|> define_step
 
 let suppose = (opt_str "also" >>? any_str ["assume"; "suppose"] >> opt_str "further" >>
     opt_str "that" >> sep_by1 proposition (opt_str "," >> str "and that"))
 
-let assume_step : proof_step_r p = (
-  with_range suppose |>>
-    fun (fs, range) -> (Assume (multi_and fs), range))
+let assume_step : proof_step p = suppose |>> fun fs -> Assume (multi_and fs)
 
-let let_or_assume : proof_step_r list p =
+let let_or_assume : proof_step list p =
   single let_def_step <|> let_step <|> single assume_step
 
-let top_prop : proof_step_r list p =
+let top_prop : proof_step list p =
   pipe2 (many_concat (let_or_assume << str "."))
-  (opt_str "Then" >> with_range proposition)
-  (fun lets (p, range) -> lets @ [(Assert p, range)])
+  (opt_str "Then" >> proposition)
+  (fun lets p -> lets @ [Assert p])
 
 (* proposition lists *)
 
@@ -470,26 +466,26 @@ let stmt_name = parens name
 
 let label = brackets name
 
-let top_sentence : (proof_step_r list * id option) p =
+let top_sentence : (proof_step list * id option) p =
     pair (top_prop << str ".") (option label)
 
-let proposition_item : (id * (proof_step_r list * id option)) p =
+let proposition_item : (id * (proof_step list * id option)) p =
   pair sub_index top_sentence
 
-let prop_items : (id * ((proof_step_r list) * id option)) list p =
+let prop_items : (id * ((proof_step list) * id option)) list p =
   many1 proposition_item
 
 let top_prop_or_items (name: id option):
-  (id * proof_step_r list * id option) list p =
+  (id * proof_step list * id option) list p =
     choice [
         prop_items;
         top_sentence |>> fun (fr, name1) -> [("", (fr, opt_or_opt name1 name))]
     ] |>> map (fun (sub_index, (steps, name)) -> (sub_index, steps, name))
 
-let propositions name : (id * proof_step_r list * id option) list p =
-  pipe2 (with_range (opt [] (for_all_ids << str ","))) (top_prop_or_items name)
-  (fun (vars, range) props ->
-    props |> map (fun (id, steps, name) -> (id, (Let vars, range) :: steps, name)))
+let propositions name : (id * proof_step list * id option) list p =
+  pipe2 (opt [] (for_all_ids << str ",")) (top_prop_or_items name)
+  (fun vars props ->
+    props |> map (fun (id, steps, name) -> (id, Let vars :: steps, name)))
 
 (* axioms *)
 
@@ -569,12 +565,11 @@ let mk_step f : proof_step =
         IsSome (ids, typ, f)
     | _ -> mk_assert f
 
-let opt_contra : (formula * range) list p = opt []
-  (str "," >>? with_range (opt_str "which is " >>?
+let opt_contra : formula list p = opt []
+  (str "," >>? (opt_str "which is " >>?
     optional (any_str ["again"; "also"; "similarly"]) >>?
     str "a contradiction" >>
-    (optional (str "to" >> reference))) |>>
-      fun (_, range) -> [(_false, range)])
+    (optional (str "to" >> reference))) >>$ [_false])
 
 let rec proof_eq_props s : formula pr =
   pipe2 proposition (option (reason >> option (pair eq_op proof_eq_props)))
@@ -583,17 +578,16 @@ let rec proof_eq_props s : formula pr =
     | _ -> f)
   s
 
-let proof_prop : (formula * range) list p = pipe2 (
+let proof_prop : formula list p = pipe2 (
   optional (reason >> opt_str ",") >>
-  optional have >> with_range proof_eq_props
+  optional have >> proof_eq_props
   ) opt_contra cons
 
-let proof_if_prop : proof_step_r list p = with_range (triple
-  (with_range (str "if" >> small_prop))
+let proof_if_prop : proof_step list p = pipe3
+  (str "if" >> small_prop)
   (opt_str "," >> str "then" >> proof_prop)
-  (many_concat (str "," >> so >> proof_prop))) |>>
-  (fun (((f, range), gs, hs), outer_range) ->
-    [(Group ((Assume f, range) :: map_fst mk_step (gs @ hs)), outer_range)])
+  (many_concat (str "," >> so >> proof_prop))
+  (fun f gs hs -> [Group (Assume f :: map mk_step (gs @ hs))])
 
 let and_or_so = (str "and" << optional so) <|> so
 
@@ -605,47 +599,47 @@ let will_show = choice [
 
 let to_show = str "To show that" >> small_prop << str ","
 
-let assert_step : proof_step_r list p =
+let assert_step : proof_step list p =
   (optional have >>? proof_if_prop) <|> (choice [
     pipe2 (any_str ["Because"; "Since"] >> proof_prop) (opt_str "," >> proof_prop) (@);
     optional to_show >> will_show >> proposition >>$ [];
     str "The result follows" >> reason >>$ [];
-    single (with_range (str "This is a contradiction" >>
-        optional (str "to" >> reference) >>$ _false));
+    single (str "This is a contradiction" >>
+        optional (str "to" >> reference) >>$ _false);
     optional and_or_so >> proof_prop
-    ] |>> map_fst mk_step)
+    ] |>> map mk_step)
 
-let assert_steps : proof_step_r list p =
+let assert_steps : proof_step list p =
   let join = str "," >> and_or_so in
-  pipe2 assert_step (many_concat (join >> proof_prop |>> map_fst mk_step)) (@)
+  pipe2 assert_step (many_concat (join >> proof_prop |>> map mk_step)) (@)
 
 let now = any_str ["Conversely"; "Finally"; "Next"; "Now"; "Second"]
 
 let any_case = any_str ["In any case"; "In either case"; "Putting the cases together"]
 
-let let_or_assumes : proof_step_r list p =
+let let_or_assumes : proof_step list p =
   sep_by1 let_or_assume (str "," >> str "and") |>> concat
 
 let clause_intro = choice [ str "First" >>$ 0; now >>$ 1; any_case >>$ 2]
 
-let proof_clause : proof_step_r list p = pipe2
+let proof_clause : proof_step list p = pipe2
   (opt 0 (clause_intro << opt_str ","))
   (let_or_assumes <|> assert_steps)
   (fun now steps ->
-    let esc = if now = 1 && is_assume (fst (hd steps)) || now = 2
-                then [(Escape, empty_range)] else []
+    let esc = if now = 1 && is_assume (hd steps) || now = 2
+                then [Escape] else []
     in esc @ steps)
 
-let proof_sentence : proof_step_r list p =
+let proof_sentence : proof_step list p =
   (sep_by1 proof_clause (str ";") |>> concat) << str "." << optional label
 
-let proof_steps : proof_step_r list p =
+let proof_steps : proof_step list p =
   many1 (not_followed_by new_paragraph "" >> proof_sentence) |>>
     (fun steps -> concat steps)
 
-let proof_item : (id * proof_step_r list) p = pair sub_index proof_steps
+let proof_item : (id * proof_step list) p = pair sub_index proof_steps
 
-let proofs : (id * proof_step_r list) list p = str "Proof." >> choice [
+let proofs : (id * proof_step list) list p = str "Proof." >> choice [
   many1 proof_item;
   proof_steps |>> (fun steps -> [("", steps)])]
 
