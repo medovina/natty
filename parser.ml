@@ -175,7 +175,7 @@ let decl_ids_types : ((id * typ) list) p =
 
 (* reasons *)
 
-let theorem_ref = str ":" >> name
+let theorem_ref = brackets name
 
 let reference = choice [
   theorem_ref;

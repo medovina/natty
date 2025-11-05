@@ -56,7 +56,7 @@ Proof.
 
   2. Let a, b ∈ ℕ.  If a = 1 and b = 1, then ab = 1.
   
-  Now suppose that ab = 1.  If a = 0 then ab = 0, a contradiction.  Similarly, if b = 0 then ab = 0, a contradiction.  So a ≠ 0 and b ≠ 0.  Then by :nat_prec there exist c, d ∈ ℕ such that a = s(c) and b = s(d).
+  Now suppose that ab = 1.  If a = 0 then ab = 0, a contradiction.  Similarly, if b = 0 then ab = 0, a contradiction.  So a ≠ 0 and b ≠ 0.  Then by [nat_prec]there exist c, d ∈ ℕ such that a = s(c) and b = s(d).
 
   Suppose that c ≠ 0.  Then there exists e ∈ ℕ such that c = s(e), so a = s(s(e)).  Then
 
@@ -67,7 +67,7 @@ Proof.
                    = s(e · s(d) + d + s(d))
                    = s(s(e · s(d) + d + d)).
 
-  By :nat_succ_injective, 0 = s(e · s(d) + d + d).  This is a contradiction to :nat_succ_zero.  So it must be that c = 0.  Therefore a = s(0) = 1.  Then 1 · b = 1.  By :nat_mul_ident 1 · b = b, so we have b = 1.  And so a = b = 1.
+  By [nat_succ_injective], 0 = s(e · s(d) + d + d).  This is a contradiction to [nat_succ_zero].  So it must be that c = 0.  Therefore a = s(0) = 1.  Then 1 · b = 1.  By [nat_mul_ident] 1 · b = b, so we have b = 1.  And so a = b = 1.
 
 # Right cancellation of multiplication
 
@@ -77,9 +77,9 @@ Proof. Let
 
         G = { x ∈ ℕ | for all y, z ∈ ℕ, if z ≠ 0 and xz = yz then x = y }.
 
-  Let b, c ∈ ℕ with c ≠ 0 and 0 · c = bc. Then bc = 0.  Since c ≠ 0, we must have b = 0 by :nat_prod_0.  So 0 = b, and hence 0 ∈ G.
+  Let b, c ∈ ℕ with c ≠ 0 and 0 · c = bc. Then bc = 0.  Since c ≠ 0, we must have b = 0 by [nat_prod_0].  So 0 = b, and hence 0 ∈ G.
 
-  Now let a ∈ ℕ, and suppose that a ∈ G.  Let b, c ∈ ℕ, and suppose that c ≠ 0 and s(a) · c = bc.  Then by :nat_succ_mul we deduce that ca + c = bc.  If b = 0, then either s(a) = 0 or c = 0, which is a contradiction.  Hence b ≠ 0.  By :nat_prec there is some p ∈ ℕ such that b = s(p).  Therefore ca + c = s(p) · c, and we see that ca + c = cp + c.  It follows by :nat_add_cancel that ca = cp, so ac = pc.  By hypothesis it follows that a = p.  Therefore s(a) = s(p) = b.  Hence s(a) ∈ G, and we deduce that G = ℕ.
+  Now let a ∈ ℕ, and suppose that a ∈ G.  Let b, c ∈ ℕ, and suppose that c ≠ 0 and s(a) · c = bc.  Then by [nat_succ_mul] we deduce that ca + c = bc.  If b = 0, then either s(a) = 0 or c = 0, which is a contradiction.  Hence b ≠ 0.  By [nat_prec] there is some p ∈ ℕ such that b = s(p).  Therefore ca + c = s(p) · c, and we see that ca + c = cp + c.  It follows by [nat_add_cancel] that ca = cp, so ac = pc.  By hypothesis it follows that a = p.  Therefore s(a) = s(p) = b.  Hence s(a) ∈ G, and we deduce that G = ℕ.
 
 # Natural numbers: inequalities
 
@@ -113,19 +113,19 @@ Theorem.  Let a, b ∈ ℕ.
 
 Proof.
 
-  1. Let a, b ∈ ℕ.  Suppose that a < b and a = b.  It then follows that a < a, which is a contradiction to :nat_lt.  Now suppose that a = b and a > b.  It follows that a > a, which is similarly a contradiction.  Now suppose that a < b and b < a.  By :nat_lt_trans we deduce that a < a, again a contradiction.
+  1. Let a, b ∈ ℕ.  Suppose that a < b and a = b.  It then follows that a < a, which is a contradiction to [nat_lt].  Now suppose that a = b and a > b.  It follows that a > a, which is similarly a contradiction.  Now suppose that a < b and b < a.  By [nat_lt_trans] we deduce that a < a, again a contradiction.
 
   Now let
 
       G = { x ∈ ℕ | for all y ∈ ℕ, x < y or x = y or x > y }.
 
-  We will show that x ∈ G for all x ∈ ℕ.  We start by showing that 0 ∈ G.  Let y ∈ ℕ.  By :nat_ge_0 we know that 0 ≤ y.  It follows that y = 0 or y > 0.  Hence 0 ∈ G.
+  We will show that x ∈ G for all x ∈ ℕ.  We start by showing that 0 ∈ G.  Let y ∈ ℕ.  By [nat_ge_0] we know that 0 ≤ y.  It follows that y = 0 or y > 0.  Hence 0 ∈ G.
 
   Now let x ∈ ℕ, and suppose that x ∈ G.  We will show that s(x) ∈ G.  Let y ∈ ℕ.  By hypothesis we know that x < y or x = y or x > y.
   
-  First suppose that x < y.  Then there is some p ∈ ℕ such that x + p = y.  If p = 0, then x = y, so s(x) > y by :nat_lt.  If p ≠ 0, then by :nat_prec there is some r ∈ ℕ such that p = s(r), which implies that x + s(r) = y, which implies s(x) + r = y, so s(x) ≤ y, so either s(x) < y or s(x) = y.
+  First suppose that x < y.  Then there is some p ∈ ℕ such that x + p = y.  If p = 0, then x = y, so s(x) > y by [nat_lt].  If p ≠ 0, then by [nat_prec] there is some r ∈ ℕ such that p = s(r), which implies that x + s(r) = y, which implies s(x) + r = y, so s(x) ≤ y, so either s(x) < y or s(x) = y.
 
-  Next suppose that x = y.  Then by :nat_lt it follows that s(x) > x = y.  Finally, suppose that x > y.  We know that s(x) > x, and by :nat_lt_trans it follows that s(x) > y.
+  Next suppose that x = y.  Then by [nat_lt] it follows that s(x) > x = y.  Finally, suppose that x > y.  We know that s(x) > x, and by [nat_lt_trans] it follows that s(x) > y.
 
   Putting the cases together, we see that s(x) < y or s(x) = y or s(x) > y always holds.  Hence s(x) ∈ G, and we conclude that G = ℕ.
 
@@ -153,15 +153,15 @@ Proof.
 
   Clearly 0 ∈ G.  Let c ∈ ℕ, and suppose that c ∈ G.  Then a + c < b + c, so s(a + c) < s(b + c) by part (1) of this theorem.  Then a + s(c) < b + s(c), so s(c) ∈ G.  Hence G = ℕ.
 
-  3. Let a, b, c ∈ ℕ, and suppose that a + c < b + c.  If a = b then b + c < b + c, a contradiction. If b < a then b + c < a + c by part (2) of this theorem, so b + c < a + c < b + c, also a contradiction.  By :nat_trichotomy, the only alternative is a < b.
+  3. Let a, b, c ∈ ℕ, and suppose that a + c < b + c.  If a = b then b + c < b + c, a contradiction. If b < a then b + c < a + c by part (2) of this theorem, so b + c < a + c < b + c, also a contradiction.  By [nat_trichotomy], the only alternative is a < b.
 
   4. Let a, b ∈ ℕ, and suppose that a < b.  Let
 
     G = { c ∈ ℕ | if c ≠ 0, then ac < bc }.
 
-  Clearly 0 ∈ G.  Let c ∈ ℕ, and suppose that c ∈ G.  We will show that s(c) ∈ G.  We know that a · 1 < b · 1.  Suppose that c = 0. Then a · s(c) < b · s(c), so s(c) ∈ G.  Conversely, suppose that c ≠ 0.  By hypothesis we know that ac < bc.  Then by :nat_lt_add_right we have ac + a < bc + a, and also bc + a < bc + b.  So ac + a < bc + b, so a · s(c) < b · s(c), so s(c) ∈ G.  And so G = ℕ.
+  Clearly 0 ∈ G.  Let c ∈ ℕ, and suppose that c ∈ G.  We will show that s(c) ∈ G.  We know that a · 1 < b · 1.  Suppose that c = 0. Then a · s(c) < b · s(c), so s(c) ∈ G.  Conversely, suppose that c ≠ 0.  By hypothesis we know that ac < bc.  Then by [nat_lt_add_right] we have ac + a < bc + a, and also bc + a < bc + b.  So ac + a < bc + b, so a · s(c) < b · s(c), so s(c) ∈ G.  And so G = ℕ.
 
-  5. Let a, b, c ∈ ℕ, and suppose that ac < bc.  If c = 0 then 0 < 0, which is a contradiction.  So c ≠ 0.  If a = b then bc < bc, a contradiction.  If b < a then bc < ac by part (4) of this theorem, so bc < ac < bc, also a contradiction.  By :nat_trichotomy, the only alternative is a < b.
+  5. Let a, b, c ∈ ℕ, and suppose that ac < bc.  If c = 0 then 0 < 0, which is a contradiction.  So c ≠ 0.  If a = b then bc < bc, a contradiction.  If b < a then bc < ac by part (4) of this theorem, so bc < ac < bc, also a contradiction.  By [nat_trichotomy], the only alternative is a < b.
 
 Theorem.  Let a, b ∈ ℕ.
 
@@ -171,11 +171,11 @@ Theorem.  Let a, b ∈ ℕ.
 
 Proof.
 
-  1. Let a, b ∈ ℕ.  Suppose that b < a < b + 1.  Then there are g, h ∈ ℕ such that b + g = a and a + h = b + 1.  Then (b + g) + h = b + 1, so (g + h) + b = 1 + b, so g + h = 1.  If g = 0 then b = a, which is a contradiction.  So there is some j ∈ ℕ such that g = s(j).  Similarly, if h = 0 then a = b + 1, which is a contradiction.  So there is some k ∈ ℕ such that h = s(k).  Therefore s(j) + s(k) = 1.  This is a contradiction to :nat_no_sum_one.
+  1. Let a, b ∈ ℕ.  Suppose that b < a < b + 1.  Then there are g, h ∈ ℕ such that b + g = a and a + h = b + 1.  Then (b + g) + h = b + 1, so (g + h) + b = 1 + b, so g + h = 1.  If g = 0 then b = a, which is a contradiction.  So there is some j ∈ ℕ such that g = s(j).  Similarly, if h = 0 then a = b + 1, which is a contradiction.  So there is some k ∈ ℕ such that h = s(k).  Therefore s(j) + s(k) = 1.  This is a contradiction to [nat_no_sum_one].
 
-  2. Let a, b ∈ ℕ.  First suppose that a ≤ b.  Suppose further that a ≥ b + 1.  Then by :nat_le_trans we deduce that b + 1 ≤ b, which is a contradiction to :nat_lt.  So it must be that a < b + 1.  Second, suppose that a < b + 1.  Suppose further that a > b.  It follows that b < a < b + 1, which is a contradiction to part (1) of this theorem.  So it must be that a ≤ b.
+  2. Let a, b ∈ ℕ.  First suppose that a ≤ b.  Suppose further that a ≥ b + 1.  Then by [nat_le_trans] we deduce that b + 1 ≤ b, which is a contradiction to [nat_lt].  So it must be that a < b + 1.  Second, suppose that a < b + 1.  Suppose further that a > b.  It follows that b < a < b + 1, which is a contradiction to part (1) of this theorem.  So it must be that a ≤ b.
 
-  3. Let a, b ∈ ℕ.  First suppose that a < b.  Suppose further that a + 1 > b.  It follows that a < b < a + 1, which is a contradiction to part (1) of this theorem.  So it must be that a + 1 ≤ b. Second, suppose that a + 1 ≤ b.  Suppose further that a ≥ b.  Then by :nat_le_trans we deduce that a + 1 ≤ a, which is a contradiction to :nat_lt.  So it must be that a < b.
+  3. Let a, b ∈ ℕ.  First suppose that a < b.  Suppose further that a + 1 > b.  It follows that a < b < a + 1, which is a contradiction to part (1) of this theorem.  So it must be that a + 1 ≤ b. Second, suppose that a + 1 ≤ b.  Suppose further that a ≥ b.  Then by [nat_le_trans] we deduce that a + 1 ≤ a, which is a contradiction to [nat_lt].  So it must be that a < b.
 
 Lemma (nat_add_prod).  Let a, b, c, d ∈ ℕ.  If a < b and c < d, then bc + ad < ac + bd.
 
@@ -207,9 +207,9 @@ Proof.  Let G : ℕ → 𝔹, and suppose that G is nonempty.  Suppose that ther
 
 We will show that H = ℕ.
 
-Suppose that 0 ∉ H.  Then there is some q ∈ ℕ such that q ≤ 0 and q ∈ G.  By :nat_le_antisymm we see that q = 0.  Hence 0 ∈ G.  It then follows from :nat_ge_0 that for all g ∈ ℕ, if g ∈ G then 0 ≤ g, which is a contradiction.  Therefore 0 ∈ H.
+Suppose that 0 ∉ H.  Then there is some q ∈ ℕ such that q ≤ 0 and q ∈ G.  By [nat_le_antisymm] we see that q = 0.  Hence 0 ∈ G.  It then follows from [nat_ge_0] that for all g ∈ ℕ, if g ∈ G then 0 ≤ g, which is a contradiction.  Therefore 0 ∈ H.
 
-Now let a : ℕ, and suppose that a ∈ H.  Suppose further that a + 1 ∉ H.  Then there is some p ∈ ℕ such that p ≤ a + 1 and p ∈ G.  If p ≤ a, then we have p ∉ G, which is a contradiction.  Hence by :nat_trichotomy we deduce that a < p.  Therefore a < p ≤ a + 1, and it follows from :nat_discrete that p = a + 1.  Hence a + 1 ∈ G.  Now let x : ℕ, and suppose that x ∈ G.  Suppose that x < a + 1.  Then x ≤ a by :nat_discrete_le.  Because a ∈ H, it follows that x ∉ G, which is a contradiction.  Hence a + 1 ≤ x by :nat_trichotomy.  So for all g : ℕ, if g ∈ G then a + 1 ≤ g.  This is a contradiction.  It follows that a + 1 ∈ H, and hence H = ℕ.
+Now let a : ℕ, and suppose that a ∈ H.  Suppose further that a + 1 ∉ H.  Then there is some p ∈ ℕ such that p ≤ a + 1 and p ∈ G.  If p ≤ a, then we have p ∉ G, which is a contradiction.  Hence by [nat_trichotomy] we deduce that a < p.  Therefore a < p ≤ a + 1, and it follows from [nat_discrete] that p = a + 1.  Hence a + 1 ∈ G.  Now let x : ℕ, and suppose that x ∈ G.  Suppose that x < a + 1.  Then x ≤ a by [nat_discrete_le].  Because a ∈ H, it follows that x ∉ G, which is a contradiction.  Hence a + 1 ≤ x by [nat_trichotomy].  So for all g : ℕ, if g ∈ G then a + 1 ≤ g.  This is a contradiction.  It follows that a + 1 ∈ H, and hence H = ℕ.
 
 Let b : ℕ.  We know that b ∈ H. Since b ≤ b, we have b ∉ G.  And so G is empty, which is a contradiction.
 

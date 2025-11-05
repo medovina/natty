@@ -54,7 +54,7 @@ decl_ids_types = decl_ids_type {'and' decl_ids_type};
 
 (* reasons *)
 
-theorem_ref = ':' name;
+theorem_ref = '[' name ']';
 
 reference = theorem_ref | 'part (' number ')' ['of this theorem'];
 
