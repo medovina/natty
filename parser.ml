@@ -323,10 +323,12 @@ and reference s = choice [
   ] s
 
 and reason s = choice [
-  any_str ["by"; "using"] >>? reference;
+  any_str ["by contradiction with"; "by"; "using"] >>? reference;
   str "by" >>? optional (any_str ["the inductive"; "the induction"]) >>?
     any_str ["assumption"; "hypothesis"];
-  str "by definition" ] s
+  str "by definition";
+  str "by the definition of" << term;
+  str "by transitivity of ="] s
 
 (* so / have *)
 
