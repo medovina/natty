@@ -86,6 +86,12 @@ let rec show_proof_step = function
   | Group steps ->
       sprintf "[%s]" (comma_join (map show_proof_step steps))
 
+let is_function_definition = function
+  | LetDef (_id, _typ, f) -> (match strip_range f with
+      | Eq _ -> false
+      | _ -> true)
+  | _ -> false
+
 type statement =
   | TypeDecl of id * string option  (* e.g. "ℤ", "integer" *)
   | ConstDecl of id * typ

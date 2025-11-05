@@ -32,23 +32,27 @@ let rec chain_blocks steps : block list = match steps with
   | [] -> []
   | step :: steps -> [Block (step, chain_blocks steps)]
 
+let rec all_vars steps : id list = match steps with
+  | [] -> []
+  | step :: steps ->
+      subtract (step_free_vars step @ all_vars steps) (step_decl_vars step)
+
 let infer_blocks steps : block list =
-  let rec all_vars steps : id list = match steps with
-    | [] -> []
-    | step :: steps ->
-        subtract (step_free_vars step @ all_vars steps) (step_decl_vars step) in
-  let rec infer vars in_assume steps : block list * proof_step list * bool =
+  let rec infer vars scope_vars in_assume steps : block list * proof_step list * bool =
     match steps with
       | [] -> ([], steps, false)
       | step :: rest ->
-          if overlap (step_decl_vars step) (concat vars) then ([], steps, false)
-          else let in_use = match vars with
-            | [] -> true
-            | top_vars :: _ -> overlap top_vars ("·" :: all_vars steps) in
-          if step <> Assert _false && not in_use then ([], steps, false)
+          if overlap (step_decl_vars step) (concat vars) then ([], steps, false) else
+          let in_use = "·" :: all_vars steps in
+          let vars_in_use = head_opt vars |> opt_for_all (fun top_vars
+            -> overlap top_vars in_use) in
+          let let_vars_in_use = head_opt scope_vars |> opt_for_all (fun top_vars
+            -> overlap top_vars in_use) in
+          if step <> Assert _false && not vars_in_use && not let_vars_in_use
+            then ([], steps, false)
           else match step with
             | Escape ->
-                if in_assume then ([], rest, true) else infer vars false rest
+                if in_assume then ([], rest, true) else infer vars scope_vars false rest
             | Assert f when strip_range f = _false ->
                 if in_assume then ([Block (step, [])], rest, true)
                   else error "contradiction without assumption" (range_of f)
@@ -56,28 +60,31 @@ let infer_blocks steps : block list =
                 let rec group_blocks = function
                   | [] -> []
                   | steps ->
-                      let (blocks, rest, _bail) = infer [] false steps in
+                      let (blocks, rest, _bail) = infer [] [] false steps in
                       blocks @ group_blocks rest in
                 let blocks = group_blocks steps in
-                let (blocks2, rest2, bail) = infer vars in_assume rest in
+                let (blocks2, rest2, bail) = infer vars scope_vars in_assume rest in
                 (blocks @ blocks2, rest2, bail)
             | _ ->
               let (children, rest1, bail) =
                 match step with
                   | Assume _ ->
-                      let (blocks, rest, _bail) = infer vars true rest in
+                      let (blocks, rest, _bail) = infer vars scope_vars true rest in
                       (blocks, rest, false)
                   | _ -> match step_decl_vars step with
                     | [] -> ([], rest, false)
-                    | step_vars -> infer (step_vars :: vars) in_assume rest in
+                    | step_vars ->
+                        let scope_vars = if is_function_definition step
+                          then scope_vars else step_vars :: scope_vars in
+                        infer (step_vars :: vars) scope_vars in_assume rest in
               let (blocks, rest2, bail) =
-                if bail then ([], rest1, true) else infer vars in_assume rest1 in
+                if bail then ([], rest1, true) else infer vars scope_vars in_assume rest1 in
               let out_blocks = match step with
                 | IsSome _ ->
                     [Block (step, children @ blocks)]  (* pull siblings into block *)
                 | _ -> Block (step, children) :: blocks in
               (out_blocks, rest2, bail) in
-  let (blocks, rest, _bail) = infer [] false steps in
+  let (blocks, rest, _bail) = infer [] [] false steps in
   assert (rest = []);
   blocks
 
