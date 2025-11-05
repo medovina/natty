@@ -349,6 +349,7 @@ type formula_kind =
 
 let rec get_const_type f = match f with
   | Const (id, t) when id = _type -> t
+  | Const (id, Type) -> Base id
   | Var (v, Type) -> TypeVar v
   | _ ->
       printf "get_const_type: f = %s (%b)\n" (show_formula f) (is_const f);
