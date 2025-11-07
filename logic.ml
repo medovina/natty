@@ -300,6 +300,7 @@ let mk_neq f g = _not (mk_eq f g)
 let mk_eq' eq f g = (if eq then mk_eq else mk_neq) f g
 
 let binary_ops = [
+  ("^", 9);
   ("·", 8);
   ("+", 7); ("-", 7);
   ("∈", 6); ("|", 6); ("~", 6);
@@ -413,7 +414,8 @@ and show_formula_multi multi f =
               | Some t, Some u when op = "·" && strlen t = 1 && strlen u = 1
                   -> t ^ u
               | _ ->
-                  sprintf "%s %s %s" (show indent multi prec false t) op
+                  let sep = if op = "^" then "" else " " in
+                  sprintf "%s%s%s%s%s" (show indent multi prec false t) sep op sep
                                      (show indent multi prec true u) in
           let s = if (op = "→" || op = "∧" || op = "∨") && multi then
             let line = layout false in
