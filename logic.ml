@@ -592,21 +592,21 @@ let remove_quants with_existential : formula -> formula * id list =
 let remove_universal f : formula = fst (remove_quants false f)
 let remove_quantifiers f : formula = fst (remove_quants true f)
 
-let rec mono_const c typ args : formula = match typ with
+let rec apply_types c typ args : formula = match typ with
   | Pi (x, typ) -> (
       match args with
         | (arg :: args) ->
             let t = get_const_type arg in
-            mono_const c (type_subst typ t x) args
+            apply_types c (type_subst typ t x) args
         | _ -> failwith "to_mono")
   | _ -> apply (Const (c, typ) :: args)
 
-let rec implicit_formula f : formula = match f with
-  | App (Const ("∀", _), Lambda (_, Type, f)) -> implicit_formula f
+let rec apply_types_in_formula f : formula = match f with
+  | App (Const ("∀", _), Lambda (_, Type, f)) -> apply_types_in_formula f
   | App _ -> (match collect_args f with
-    | (Const (c, typ), args) -> mono_const c typ (map implicit_formula args)
-    | _ -> map_formula implicit_formula f)
-  | _ -> map_formula implicit_formula f
+    | (Const (c, typ), args) -> apply_types c typ (map apply_types_in_formula args)
+    | _ -> map_formula apply_types_in_formula f)
+  | _ -> map_formula apply_types_in_formula f
 
 let mk_var_or_type_const (id, typ) =
   if typ = Type then type_const (TypeVar id) else Var (id, typ)

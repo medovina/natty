@@ -464,7 +464,7 @@ let encode_formula consts f : formula =
       | (Const (":", _), [g]) ->  (* type ascription *)
           encode g
       | (Const (c, typ), args) when is_tuple_constructor c ->
-          mono_const c typ (map encode args)
+          apply_types c typ (map encode args)
       | (Const ("∈", _), [_type; x; set]) ->
           encode (App (set, x))
       | _ ->

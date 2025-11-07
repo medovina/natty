@@ -56,7 +56,7 @@ Proof.
 
   2. Let a, b ∈ ℕ.  If a = 1 and b = 1, then ab = 1.
   
-  Now suppose that ab = 1.  If a = 0 then ab = 0, a contradiction.  Similarly, if b = 0 then ab = 0, a contradiction.  So a ≠ 0 and b ≠ 0.  Then by [nat_prec]there exist c, d ∈ ℕ such that a = s(c) and b = s(d).
+  Now suppose that ab = 1.  If a = 0 then ab = 0, a contradiction.  Similarly, if b = 0 then ab = 0, a contradiction.  So a ≠ 0 and b ≠ 0.  Then by [nat_prec] there exist c, d ∈ ℕ such that a = s(c) and b = s(d).
 
   Suppose that c ≠ 0.  Then there exists e ∈ ℕ such that c = s(e), so a = s(s(e)).  Then
 

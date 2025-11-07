@@ -173,7 +173,7 @@ let map_statement = map_statement1 (fun _typ id -> id)
 
 let map_stmt_formulas fn = map_statement Fun.id fn
 
-let mono_statement = map_statement without_pi implicit_formula
+let apply_types_in_stmt = map_statement without_pi apply_types_in_formula
 
 let decl_var = function
   | TypeDecl (id, _) -> Some (id, Type)
@@ -233,7 +233,7 @@ let expand_proofs stmts with_full : (statement * statement list) list =
                 (fs |> filter_mapi (fun j stmts ->
                   let step_name = sprintf "%s.s%d" id (j + 1) in
                   if opt_for_all (match_thm_id step_name) only_thm then
-                    let (hypotheses, conjecture) = split_last stmts in
+                    let (hypotheses, conjecture) = split_last (map apply_types_in_stmt stmts) in
                     Some (with_stmt_id step_name conjecture,
                           rev (number_hypotheses id hypotheses) @ known)
                   else None))
@@ -261,9 +261,9 @@ let module_env md existing : statement list =
 let expand_modules modules : (string * statement * statement list) list =
   let stmts =
     let+ m = modules in
-    let env = map mono_statement (module_env m modules) in
-    let+ (stmt, known) = expand_proofs (m.stmts) false in
-    [(m.filename, mono_statement stmt, env @ rev known)] in
+    let env = map apply_types_in_stmt (module_env m modules) in
+    let+ (stmt, known) = expand_proofs (map apply_types_in_stmt m.stmts) false in
+    [(m.filename, stmt, env @ rev known)] in
   let stmts = match !(opts.from_thm) with
     | Some id -> stmts |> drop_while (fun (_filename, stmt, _known) -> not (match_thm stmt id))
     | None -> stmts in

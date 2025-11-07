@@ -127,7 +127,7 @@ let write_thf dir name using proven (stmt: statement option) =
       fprintf out "include('../%s/%s.thf').\n" name name);
     if using <> [] then fprintf out "\n";
     let write is_last stmt = (
-      fprintf out "%% %s\n" (show_statement false (mono_statement stmt));
+      fprintf out "%% %s\n" (show_statement false (apply_types_in_stmt stmt));
       fprintf out "%s\n\n" (thf_statement is_last stmt)) in
     iter (write false) proven;
     Option.iter (write true) stmt;

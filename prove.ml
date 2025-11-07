@@ -1065,7 +1065,7 @@ let to_pformula name f =
   let is_def = f <> f' in
   { (create_pformula name [] (rename_vars f')) with definition = is_def }
 
-let prove known_stmts thm cancel_check =
+let prove known_stmts thm cancel_check : proof_result * float =
   consts := filter_map decl_var known_stmts;
   ac_ops := [];
   let formulas = known_stmts |> filter_map (fun stmt ->
