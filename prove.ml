@@ -9,6 +9,8 @@ let formula_counter = ref 0
 let consts = ref ([] : (id * typ) list)
 let ac_ops = ref ([] : (id * typ) list)
 
+let output = ref false
+
 type pformula = {
   id: int;
   rule: string;
@@ -246,7 +248,7 @@ let de_bruijn_encode x =
  * all the f_k, then order by arity in lpo_gt.
  * We do not implement the transformation to terms ∀_1', ∃_1', z_u', which is
  * intended for the Knuth-Bendix ordering. *)
-let encode_term type_map fluid_map t =
+let encode_term type_map fluid_map t : formula =
   let encode_fluid t = _var ("@v" ^ string_of_int (get_index t fluid_map)) in
   let encode_type typ = _const ("@t" ^ string_of_int (get_index typ type_map)) in
   let rec encode t =
@@ -265,10 +267,10 @@ let encode_term type_map fluid_map t =
                   | [Lambda (x, typ, f)] ->
                       let q1 = _const ("@" ^ q) in
                       apply [q1; encode_type typ; encode (de_bruijn_encode x f)]
-                  | _ -> failwith "encode_term")
+                  | _ -> failwith "encode_term: quantifier not applied to lambda")
             | Const _ ->
                 apply (head :: map encode args)
-            | _ -> failwith "encode_term")
+            | _ -> failwith "encode_term: head is not var or const")
       | Lambda (x, typ, f) ->
           if is_ground t then
             apply [_const "@lam"; encode_type typ; encode (de_bruijn_encode x f)]
@@ -785,6 +787,7 @@ let is_tautology f =
   exists taut_lit pos || intersect pos neg <> []
 
 let print_formula with_origin prefix pf =
+  output := true;
   let prefix =
     if pf.id > 0 then prefix ^ sprintf "%d. " (pf.id) else prefix in
   let origin =
@@ -851,7 +854,7 @@ let queue_add queue pformulas =
   queue := PFQueue.(++) !queue extra
 
 let dbg_newline () =
-  if !debug > 0 then print_newline ()
+  if !debug > 0 && !output then (print_newline (); output := false)
 
 let rewrite_opt dp cp c_subterms = head_opt (rewrite false dp cp c_subterms)
 
@@ -983,6 +986,7 @@ let refute pformulas cancel_check : proof_result =
     { initial = length pformulas;
       given = !count; generated = !num_generated; max_cost = !max_cost} in
   let rec loop () =
+    dbg_newline();
     let elapsed = Sys.time () -. start in
     if timeout > 0.0 && elapsed > timeout then Timeout
     else if cancel_check () then Stopped
@@ -1013,7 +1017,6 @@ let refute pformulas cancel_check : proof_result =
           num_generated := !num_generated + length generated;
           let new_pformulas =
             rw_simplify_all queue used found (rev (rewritten @ generated)) in
-          dbg_newline ();
           match find_opt (fun p -> p.formula = _false) new_pformulas with
             | Some p -> Proof (p, stats ())
             | None ->
