@@ -10,7 +10,7 @@ sub_digit = '₀' .. '₉';
 
 var = letter [sub_digit];
 
-long_id = '𝔹' | 'ℕ' | 'ℤ' | 'π' | 'σ' | 'τ' | '∏' | 'gcd';
+long_id = 'π' | 'σ' | 'τ' | '∏' | '𝔹' | 'ℕ' | 'ℤ' | '𝒫' | 'gcd';
 
 base_id = letter | long_id;
 

@@ -118,7 +118,7 @@ let chain_comparisons f : formula list =
 let rec expand_chains f : formula =
   match collect_cmp f with
     | [f], [] -> map_formula expand_chains f
-    | fs, ops -> multi_and (join_cmp fs ops)
+    | fs, ops -> multi_and (join_cmp (map expand_chains fs) ops)
 
 let is_type_defined id env = exists (is_type_decl id) env
 

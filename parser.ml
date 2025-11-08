@@ -55,7 +55,7 @@ let sub_digit = choice [
 
 let var = pipe2 (empty >>? letter1) (opt "" sub_digit) (^)
 
-let long_id = any_str ["𝔹"; "ℕ"; "ℤ"; "π"; "σ"; "τ"; "∏"; "gcd"]
+let long_id = any_str ["π"; "σ"; "τ"; "∏"; "𝔹"; "ℕ"; "ℤ"; "𝒫"; "gcd"]
 
 let base_id = long_id <|> (empty >>? letter1)
 
@@ -63,7 +63,7 @@ let id = long_id <|> var
 
 let sym = choice [
   empty >>? (digit <|> any_of "+-<>|~^") |>> char_to_string;
-  any_str ["·"; "≤"; "≥"; "≮"; "≯"; "⊆"];
+  any_str ["·"; "≤"; "≥"; "≮"; "≯"; "≁"; "⊆"];
   str "−" >>$ "-"]
 
 let minus = any_str ["-"; "−"]
@@ -172,8 +172,7 @@ let decl_ids_types : ((id * typ) list) p =
 
 let compare_op op = infix op (binop_unknown op) Assoc_right
 
-let mk_not_less f g = _not (binop_unknown "<" f g)
-let mk_not_greater f g = _not (binop_unknown ">" f g)
+let mk_not_binop op f g = _not (binop_unknown op f g)
 
 (* We use separate constant names for unary and binary minus so that
  * a - b cannot be interpreted as (-a)(b) using implicit multiplication. *)
@@ -247,13 +246,14 @@ and terms s = (term >>= fun t -> many_fold_left mk_app t next_term) s
 
 (* expressions *)
 
-and compare_ops = ["<"; "≤"; ">"; "≥"; "⊆"]
+and compare_ops = ["<"; "≤"; ">"; "≥"; "~"; "⊆"]
 
 and eq_op s = choice ([
   str "=" >>$ mk_eq;
   str "≠" >>$ mk_neq;
-  str "≮" >>$ mk_not_less;
-  str "≯" >>$ mk_not_greater] @
+  str "≮" >>$ mk_not_binop "<";
+  str "≯" >>$ mk_not_binop ">";
+  str "≁" >>$ mk_not_binop "~" ] @
   map (fun op -> const_op (str op) op false) compare_ops) s
 
 and operators = [
@@ -266,8 +266,8 @@ and operators = [
   [ infix "∈" elem Assoc_none ;
     infix "∉" not_elem Assoc_none ;
     infix_binop "|" Assoc_none;
-    infix_negop "∤" "|" Assoc_none ;  (* does not divide *)
-    infix_binop "~" Assoc_none ];
+    infix_negop "∤" "|" Assoc_none   (* does not divide *)
+    ];
   [ Infix (eq_op,  Assoc_left) ];
   [ infix "∧" _and Assoc_left ];
   [ infix "∨" _or Assoc_left ];
