@@ -25,3 +25,5 @@ Definition.  For all S : Set(σ) and T : Set(τ), S ~ T iff there exists some f 
 # Cantor's Theorem, Wiedijk #63
 
 Theorem.  Let A : Set(σ).  Then A ≁ 𝒫(A).
+
+Proof.  Suppose that A ~ 𝒫(A).  Then there is some f : σ → Set(σ) such that f is a bijection from A to 𝒫(A).  Let D = {a ∈ σ | a ∉ f(a) }. Observe that D ⊆ A, and so D ∈ 𝒫(A).

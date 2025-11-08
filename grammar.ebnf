@@ -121,7 +121,7 @@ so = 'also' | 'but' ['then'] | 'consequently' | 'hence' | 'however' | 'so' | 'th
     
 have = 'clearly' |
     'it' ['then'] 'follows' ['from' reference | reason] 'that' |
-    'it is clear that' | 'it must be that' |
+    'it is clear that' | 'it must be that' | 'observe that' |
     'on the other hand' [','] | 'similarly' [','] |
     'the only alternative is' | 'this means that' | 'this shows that' | 'trivially' |
     'we conclude that' | 'we deduce that' | 'we have' ['shown that'] |

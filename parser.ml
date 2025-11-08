@@ -335,7 +335,7 @@ and so = choice [
 
 and have s = (any_str 
   ["clearly"; "it is clear that"; "it must be that";
-   "the only alternative is"; "this means that";
+   "observe that"; "the only alternative is"; "this means that";
    "this shows that"; "trivially";
    "we conclude that"; "we deduce that";
    "we know that"; "we must have"; "we see that"] <|>

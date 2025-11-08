@@ -390,8 +390,7 @@ let free_type_vars_in_steps steps : id list =
   let rec find steps = match steps with
     | [] -> []
     | step :: steps ->
-        let type_vars = concat_map free_type_vars (step_types step) @
-          concat_map free_type_vars_in_formula (step_formulas step) @ find steps in
+        let type_vars = step_free_type_vars step @ find steps in
         match step with
           | Let ids_typs ->
               let decl_types = map fst (ids_typs |> filter (fun (_, typ) -> typ = Type)) in
