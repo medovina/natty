@@ -600,7 +600,7 @@ let assert_step : proof_step list p =
     pipe2 (any_str ["Because"; "Since"] >> proof_prop) (opt_str "," >> proof_prop) (@);
     optional to_show >> will_show >> proposition >>$ [];
     str "The result follows" >> reason >>$ [];
-    single (str "This is a contradiction" >>
+    single (any_str ["This is"; "We have"] >>? str "a contradiction" >>
         optional (str "to" >> reference) >>$ _false);
     optional and_or_so >> proof_prop
     ] |>> map mk_step)

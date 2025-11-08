@@ -251,7 +251,7 @@ assert_step =
     ['Because' | 'Since'] proof_prop [','] proof_prop |
     [to_show] will_show proposition |
     'The result follows' reason |
-    'This is a contradiction' ['to' reference] |
+    ('This is' | 'We have') 'a contradiction' ['to' reference] |
     [and_or_so] proof_prop;
 
 assert_steps = assert_step {',' and_or_so proof_prop};

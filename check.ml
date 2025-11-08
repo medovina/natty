@@ -54,7 +54,11 @@ let infer_blocks steps : block list =
             | Escape ->
                 if in_assume then ([], rest, true) else infer vars scope_vars false rest
             | Assert f when strip_range f = _false ->
-                if in_assume then ([Block (step, [])], rest, true)
+                if in_assume then
+                  let rest = match rest with
+                    | Escape :: rest -> rest  (* ignore an escape that immediately follows *)
+                    | _ -> rest in
+                  ([Block (step, [])], rest, true)
                   else error "contradiction without assumption" (range_of f)
             | Group steps ->
                 let rec group_blocks = function
