@@ -18,24 +18,24 @@ $ opam install mparser mparser-re psq yojson
 
 Natty's math library contains several files that develop some basic mathematics:
 
-* [nat.n](math/nat.n) - defines the natural numbers using the Peano axioms, then asserts many identities about them
-* [int.n](math/int.n) - defines the integers using the natural numbers, then asserts many identities about them
-* [set.n](math/set.n) - contains a few definitions about functions and sets
-* [num.n](math/num.n) - a development of elementary number theory including the infinite of primes, Bezout's theorem and the Euclidean algorithm
+* [nat1.n](math/nat1.n) - defines the natural numbers using the Peano axioms, then asserts many identities about them
+* [int1.n](math/int1.n) - defines the integers using the natural numbers, then asserts many identities about them
+* [set1.n](math/set1.n) - contains a few definitions about functions and sets
+* [num1.n](math/num1.n) - a development of elementary number theory including the infinite of primes, Bezout's theorem and the Euclidean algorithm
 
 You can run Natty on any of these files from the command line.  For example:
 
 ```
-$ ./natty math/nat.n
+$ ./natty math/nat1.n
 ```
 
 The `-p` option asks Natty to output a proof of each theorem that it proves:
 
 ```
-$ ./natty -p math/nat.n
+$ ./natty -p math/nat1.n
 ```
 
-When you run Natty on any input file, it will prove all theorems in all files that the input file depends on.  For example, `num.n` depends on `int.n` and `set.n`.  Also, `int.n` depends on `nat.n`.  So if you invoke Natty on `num.n`, it will first attempt to prove all theorems in `nat.n`, then in `int.n`, `set.n` and finally in `num.n` itself.
+When you run Natty on any input file, it will prove all theorems in all files that the input file depends on.  For example, `num1.n` depends on `int1.n` and `set1.n`.  Also, `int1.n` depends on `nat1.n`.  So if you invoke Natty on `num1.n`, it will first attempt to prove all theorems in `nat1.n`, then in `int1.n`, `set1.n` and finally in `num1.n` itself.
 
 The `-d` option will print verbose debug output, showing all inferences that Natty makes as it searches for proofs.
 
@@ -43,12 +43,12 @@ By default, Natty will stop as soon as it fails to prove any theorem.  The `-a` 
 
 The `-t` option specifies a time limit for searching for a proof.  For example, `-t2` specifies a limit of 2 seconds.  The default limit is 5 seconds.
 
-The `-x` option will cause Natty to export each theorem from the input file (and its dependencies) to a file in the standard THF format.  The output files will appear in the `thf` subdirectory, e.g. in the `thf/nat` directory for theorems from `nat.n`.  In this mode Natty will not attempt to prove any theorems.
+The `-x` option will cause Natty to export each theorem from the input file (and its dependencies) to a file in the standard THF format.  The output files will appear in the `thf` subdirectory, e.g. in the `thf/nat1` directory for theorems from `nat1.n`.  In this mode Natty will not attempt to prove any theorems.
 
 You can also run Natty on a THF file directly:
 
 ```
-$ ./natty thf/nat/1.thf
+$ ./natty thf/nat1/1.thf
 ```
 
 To see a list of other available options, run Natty with no command-line arguments:
@@ -61,26 +61,26 @@ $ ./natty
 
 At this stage there is basically none, aside from what you see in this README file.  I'll try to improve this over time.
 
-Reading [`nat.n`](nat.n) may give you an idea of the syntactic constructs that Natty currently understands.  You could try running Natty on your own input file with custom axioms and theorems, but be warned that syntax not already present in `nat.n` is very unlikely to work.
+Reading [`nat1.n`](nat1.n) and other input files may give you an idea of the syntactic constructs that Natty currently understands.  You could try running Natty on your own input file with custom axioms and theorems, but be warned that syntax not already present in `nat1.n` or other files is very unlikely to work.
 
 ### Evaluation
 
-The Python program `eval.py` evaluates Natty and several other provers (E, Vampire, Zipperposition) on a set of THF files.  To use it, first use Natty to export the theorems from `nat.n` to THF files:
+The Python program `eval.py` evaluates Natty and several other provers (E, Vampire, Zipperposition) on a set of THF files.  To use it, first use Natty to export the theorems from `nat1.n` to THF files:
 
 ```
-$ natty -x math/nat.n
+$ natty -x math/nat1.n
 ```
 
 After that, run
 
 ```
-$ python eval.py -pnatty thf/nat
+$ python eval.py -pnatty thf/nat1
 ```
 
-That will run Natty on all the THF files in the `nat` subdirectory, and generate a results file `nat_results.csv` that you can open in any spreadsheet program.  After '-p' you may alternately specify the name of a different prover to evaluate, one of 'e', 'vampire' or 'zipperposition'.  Any such prover will need to be in your `PATH`. To evaluate all of these provers at once, run
+That will run Natty on all the THF files in the `nat1` subdirectory, and generate a results file `nat1_results.csv` that you can open in any spreadsheet program.  After '-p' you may alternately specify the name of a different prover to evaluate, one of 'e', 'vampire' or 'zipperposition'.  Any such prover will need to be in your `PATH`. To evaluate all of these provers at once, run
 
 ```
-$ python eval.py -a thf/nat
+$ python eval.py -a thf/nat1
 ```
 
 ### References

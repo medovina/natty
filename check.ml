@@ -272,13 +272,22 @@ let infer_definition env f : id * typ * formula =
   let vs = type_vars @ vars in (
   match strip_range f with
     | Eq (f, g) | App (App (Const ("↔", _), f), g) ->
-        let (c, args) = collect_args (strip_range f) in (
+        let (c, args) = collect_args (strip_range f) in
+        let (c, decl_type, args) = match c with
+          | Const (":", Fun (typ, _)) -> (hd args, Some (check_type env typ), tl args)
+          | _ -> (c, None, args) in (
         match strip_range c with
           | Const (id, _) | Var (id, _) ->
               let infer f = infer_formula env vs f in
               let arg_types, args = unzip (map infer args) in
               let g_type, g = infer g in
-              let c_type = mk_pi_types univ (mk_fun_types arg_types g_type) in
+              let c_type = mk_fun_types arg_types g_type in
+              decl_type |> Option.iter (fun t -> if t <> c_type then (
+                  printf "infer_definition: declared type = %s, actual = %s\n"
+                    (show_type t) (show_type c_type);
+                  failwith "infer_definition")
+              );
+              let c_type = mk_pi_types univ c_type in
               let type_args = univ |> map (fun v -> type_const (TypeVar v)) in
               let eq = if g_type = Bool then _iff else mk_eq in
               let body = for_all_vars_types vs @@

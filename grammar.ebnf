@@ -18,7 +18,7 @@ id = var | long_id;
 
 sym = digit |
     '+' | '-' | '<' | '>' | '|' | '~' | '^' |
-    '·' | '≤' | '≥' | '≮' | '≯' | '−';
+    '·' | '≤' | '≥' | '≮' | '≯' | '−' | '⊆';
 
 id_or_sym = id | sym;
 
@@ -222,11 +222,10 @@ axiom_group = 'Axiom' [stmt_name] '.' (axiom_exists | propositions);
 
 (* definitions *)
 
-eq_definition = 'Let' sym ':' typ '=' term '.';
-
 def_prop = ['we write'] small_prop '.';
 
-definition = 'Definition.' ({eq_definition}+ | for_all_ids ',' {def_prop});
+definition =
+    'Definition.' {let_decl '.'} [for_all_ids ','] {['Let'] def_prop}+;
 
 (* proofs *)
 

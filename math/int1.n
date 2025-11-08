@@ -1,4 +1,4 @@
-using nat;
+using nat1;
 
 # Integers: definition
 

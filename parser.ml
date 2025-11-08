@@ -6,7 +6,11 @@ open Logic
 open Statement
 open Util
 
-let (let&) = bind
+let (let>) = bind
+
+let bind_ret p f = p >>= (fun x -> return (f x))
+
+let (let$) = bind_ret
 
 type state = {
     axiom_count : int ref; theorem_count : int ref;
@@ -59,7 +63,7 @@ let id = long_id <|> var
 
 let sym = choice [
   empty >>? (digit <|> any_of "+-<>|~^") |>> char_to_string;
-  any_str ["·"; "≤"; "≥"; "≮"; "≯"];
+  any_str ["·"; "≤"; "≥"; "≮"; "≯"; "⊆"];
   str "−" >>$ "-"]
 
 let minus = any_str ["-"; "−"]
@@ -243,7 +247,7 @@ and terms s = (term >>= fun t -> many_fold_left mk_app t next_term) s
 
 (* expressions *)
 
-and compare_ops = ["<"; "≤"; ">"; "≥"]
+and compare_ops = ["<"; "≤"; ">"; "≥"; "⊆"]
 
 and eq_op s = choice ([
   str "=" >>$ mk_eq;
@@ -512,7 +516,7 @@ let count_sub_index num sub_index =
   else sprintf "%d.%s" num sub_index
 
 let axiom_propositions name : statement list p =
-  let& st = get_user_state in
+  let> st = get_user_state in
   incr st.axiom_count;
   propositions name |>> map (fun (sub_index, steps, name) ->
     HAxiom (count_sub_index (!(st.axiom_count)) sub_index, steps, name))
@@ -531,10 +535,6 @@ let axiom_group : statement list p =
 
 let mk_def id typ formula = Definition (id, typ, Eq (Const (id, typ), formula))
 
-let eq_definition : statement p = pipe3
-  (str "Let" >> sym) (str ":" >> typ) (str "=" >> base_term << str ".")
-  mk_def
-
 let new_paragraph : id p = empty >>? (any_str keywords <|> sub_index)
 
 let generalize f : formula =
@@ -542,18 +542,19 @@ let generalize f : formula =
   let all_type x f = _for_all x Type f in
   fold_right all_type vs f
 
-let define ids_types prop : statement p =
+let define ids_types prop : statement =
   let prop = for_all_vars_types ids_types prop in
-  return @@ Definition ("_", unknown_type, generalize prop)
+  Definition ("_", unknown_type, generalize prop)
 
-let def_prop ids_types : statement p = 
-    (not_followed_by new_paragraph "" >> opt_str "we write" >> small_prop << str ".") >>=
-    define ids_types
+let def_prop : formula p = 
+    not_followed_by new_paragraph "" >> opt_str "we write" >> small_prop << str "."
 
 let definition : statement list p = str "Definition." >>
   choice [
-    many1 eq_definition;
-    (for_all_ids << str ",") >>= fun ids_types -> many1 (def_prop ids_types)
+    let> let_ids_types = many (let_decl <<? str ".") in
+    let> ids_types = opt [] (for_all_ids << str ",") in
+    let$ props = many1 (opt_str "Let" >> def_prop) in
+    map (define (concat let_ids_types @ ids_types)) props
   ]
 
 (* proofs *)
@@ -649,7 +650,7 @@ let theorem_group : statement list p =
   any_str ["Corollary"; "Lemma"; "Theorem"] >> option stmt_name << str "." >>= fun name -> 
   many_concat (let_step << str ".") >>=
   fun let_steps ->
-    let& st = get_user_state in
+    let> st = get_user_state in
     incr st.theorem_count;
     pipe2 (top_prop_or_items name) (opt [] proofs)
     (fun props proofs ->

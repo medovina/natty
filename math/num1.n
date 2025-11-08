@@ -1,4 +1,4 @@
-using int, set;
+using int1, set1;
 
 # Divisibility
 
