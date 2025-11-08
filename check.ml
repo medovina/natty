@@ -386,8 +386,23 @@ let duplicate_lets vars steps : bool =
           | _ -> check steps in
   check steps
 
+let free_type_vars_in_steps steps : id list =
+  let rec find steps = match steps with
+    | [] -> []
+    | step :: steps ->
+        let type_vars = concat_map free_type_vars (step_types step) @
+          concat_map free_type_vars_in_formula (step_formulas step) @ find steps in
+        match step with
+          | Let ids_typs ->
+              let decl_types = map fst (ids_typs |> filter (fun (_, typ) -> typ = Type)) in
+              subtract type_vars decl_types
+          | _ -> type_vars in
+  unique (find steps)
+
 let rec expand_proof stmt env (steps : proof_step list) (proof_steps : proof_step list) : formula * statement list list =
   let steps = trim_lets steps in
+  let type_vars = free_type_vars_in_steps steps in
+  let steps = (type_vars |> map (fun id -> Let [(id, Type)])) @ steps in
   let blocks0 = chain_blocks steps in
   let (_, concl) = blocks_steps env [] blocks0 in
   let stmtss = if proof_steps = [] then [] else
@@ -416,7 +431,7 @@ and infer_stmt env stmt : statement =
     | Axiom _ -> failwith "infer_stmt"
     | Hypothesis (id, f) -> Hypothesis (id, top_infer env f)
     | Definition (_id, _typ, f) ->
-        let (id, typ, f) = infer_definition env f in
+        let (id, typ, f) = infer_definition env (generalize f) in
         Definition (id, typ, f)
     | Theorem _ -> failwith "infer_stmt"
     | HAxiom (id, steps, name) ->

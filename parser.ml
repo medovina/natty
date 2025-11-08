@@ -537,14 +537,9 @@ let mk_def id typ formula = Definition (id, typ, Eq (Const (id, typ), formula))
 
 let new_paragraph : id p = empty >>? (any_str keywords <|> sub_index)
 
-let generalize f : formula =
-  let vs = free_type_vars_in_formula f in
-  let all_type x f = _for_all x Type f in
-  fold_right all_type vs f
-
 let define ids_types prop : statement =
   let prop = for_all_vars_types ids_types prop in
-  Definition ("_", unknown_type, generalize prop)
+  Definition ("_", unknown_type, prop)
 
 let def_prop : formula p = 
     not_followed_by new_paragraph "" >> opt_str "we write" >> small_prop << str "."

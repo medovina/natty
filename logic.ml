@@ -290,6 +290,11 @@ let _for_all' = quant' "∀"
 let _exists = quant "∃"
 let _exists' = quant' "∃"
 
+let generalize f : formula =
+  let vs = free_type_vars_in_formula f in
+  let all_type x f = _for_all x Type f in
+  fold_right all_type vs f
+
 let c_and = Const("∧", logical_op_type)
 
 let is_quantifier = function

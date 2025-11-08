@@ -65,13 +65,17 @@ let rec step_decl_vars = function
   | Group steps -> unique (concat_map step_decl_vars steps)
   | _ -> []
 
-let rec step_free_vars = function
-  | Assert f -> free_vars_and_type_vars f
-  | LetDef (_, _, f) -> free_vars_and_type_vars f
-  | Assume f -> free_vars_and_type_vars f
+let rec step_formulas = function
+  | Assert f -> [f]
+  | Let _ | Escape -> []
+  | LetDef (_, _, f) -> [f]
+  | Assume f -> [f]
+  | IsSome (_, _, f) -> [f]
+  | Group steps -> concat_map step_formulas steps
+
+let step_free_vars step = match step with
   | IsSome (ids, _, f) -> subtract (free_vars_and_type_vars f) ids
-  | Group steps -> unique (concat_map step_free_vars steps)
-  | _ -> []
+  | _ -> unique (concat_map free_vars_and_type_vars (step_formulas step))
 
 let rec show_proof_step = function
   | Assert f -> sprintf "assert %s" (show_formula f)
