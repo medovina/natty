@@ -140,7 +140,7 @@ let export_module dir all_modules md =
   let subdir = mk_path dir module_name in
   mk_dir subdir;
   let using = map base_name (all_using md all_modules) in
-  expand_proofs md.stmts true |> iter (fun (thm, known) ->
+  expand_proofs Fun.id md.stmts true |> iter (fun (thm, known) ->
     match thm with
       | Theorem (num, name, _, _, _) ->
           let filename = String.concat ":" ([num] @ Option.to_list name) in

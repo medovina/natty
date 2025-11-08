@@ -231,7 +231,7 @@ let match_thm_id thm_id selector = starts_with selector thm_id
 
 let match_thm thm selector = match_thm_id (stmt_id thm) selector
 
-let expand_proofs stmts with_full : (statement * statement list) list =
+let expand_proofs apply_types stmts with_full : (statement * statement list) list =
   let only_thm = !(opts.only_thm) in
   let rec expand known = function
     | stmt :: stmts ->
@@ -245,7 +245,7 @@ let expand_proofs stmts with_full : (statement * statement list) list =
                 (fs |> filter_mapi (fun j stmts ->
                   let step_name = sprintf "%s.s%d" id (j + 1) in
                   if opt_for_all (match_thm_id step_name) only_thm then
-                    let (hypotheses, conjecture) = split_last (map apply_types_in_stmt stmts) in
+                    let (hypotheses, conjecture) = split_last (map apply_types stmts) in
                     Some (with_stmt_id step_name conjecture,
                           rev (number_hypotheses id hypotheses) @ known)
                   else None))
@@ -274,7 +274,8 @@ let expand_modules modules : (string * statement * statement list) list =
   let stmts =
     let+ m = modules in
     let env = map apply_types_in_stmt (module_env m modules) in
-    let+ (stmt, known) = expand_proofs (map apply_types_in_stmt m.stmts) false in
+    let+ (stmt, known) =
+      expand_proofs apply_types_in_stmt (map apply_types_in_stmt m.stmts) false in
     [(m.filename, stmt, env @ rev known)] in
   let stmts = match !(opts.from_thm) with
     | Some id -> stmts |> drop_while (fun (_filename, stmt, _known) -> not (match_thm stmt id))
