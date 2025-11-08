@@ -79,7 +79,7 @@ let build_quant quant args formula =
   in f args
 
 let rec term s = choice [
-  parens formula;
+  attempt (parens (formula));
   str "$false" >>$ _false;
   str "$true" >>$ _true;
   id |>> _const;
@@ -87,7 +87,8 @@ let rec term s = choice [
   (str "~" >> term) |>> _not;
   quantifier "!" _for_all;
   quantifier "?" _exists;
-  quantifier "^" lambda
+  quantifier "^" lambda;
+  typ |>> type_const
   ] s
 and quantifier s mk =
   pipe2 (str s >> brackets (comma_sep1 arg) << str ":") term

@@ -522,8 +522,9 @@ let encode_module consts md : _module =
   { md with stmts = map (encode_stmt consts) md.stmts }
 
 let basic_check env f : typ * formula =
-  let rec check vars f = match f with
+  let rec check vars f : typ * formula = match f with
     | Const (id, typ) -> (
+        if id = _type then (Type, f) else
         match filter_map (is_const_decl id) env with
           | [] ->
               if mem id logical_ops
