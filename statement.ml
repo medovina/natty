@@ -187,13 +187,13 @@ let map_stmt_formulas fn = map_statement Fun.id fn
 
 let apply_types_in_stmt = map_statement without_pi apply_types_in_formula
 
-let decl_var = function
+let decl_var stmt : (id * typ) option = match stmt with
   | TypeDecl (id, _) -> Some (id, Type)
   | ConstDecl (i, typ) -> Some (i, typ)
   | Definition (i, typ, _f) -> Some (i, typ)
   | _ -> None
 
-let is_const_decl id def =
+let is_const_decl id def : typ option =
   let* (i, typ) = decl_var def in
   if i = id then Some typ else None
 

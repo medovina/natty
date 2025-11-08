@@ -6,7 +6,7 @@ open Statement
 open Util
 
 let formula_counter = ref 0
-let consts = ref ([] : (id * typ) list)
+let consts = ref ([] : id list)
 let ac_ops = ref ([] : (id * typ) list)
 
 let output = ref false
@@ -179,8 +179,8 @@ let is_skolem s = is_letter s.[0] && is_digit s.[strlen s - 1]
  *   T 
  *)
 let const_gt f g : bool =
-  let prio (c, c_type) =
-    let index = match find_index (fun x -> x = (c, c_type)) !consts with
+  let prio (c, _c_type) =
+    let index = match index_of_opt c !consts with
       | None ->
           if is_skolem c then Some (length !consts)
           else (
@@ -1075,7 +1075,7 @@ let to_pformula name f =
   { (create_pformula name [] (rename_vars f')) with definition = is_def }
 
 let prove known_stmts thm cancel_check : proof_result * float =
-  consts := filter_map decl_var known_stmts;
+  consts := map fst (filter_map decl_var known_stmts);
   ac_ops := [];
   let formulas = known_stmts |> filter_map (fun stmt ->
     stmt_formula stmt |> Option.map (fun f ->

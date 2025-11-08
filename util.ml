@@ -207,7 +207,7 @@ let rec split_last (xs : 'a list) : ('a list * 'a) = match xs with
       let (ys, last) = split_last xs in
       (x :: ys, last)
 
-let index_of_opt x ys = find_index (fun z -> z = x) ys
+let index_of_opt x ys = find_index ((=) x) ys
 
 let fold_left1 f = function
   | [] -> failwith "fold_left1: empty list"
