@@ -81,8 +81,14 @@ let unprefix_vars f : formula =
     | f -> map_formula (fix outer) f in
   fix [] f
 
-let is_inductive pformula = match kind pformula.formula with
-  | Quant ("∀", _, Fun (_, Bool), _) -> true
+let is_inductive pformula =
+  let f = pformula.formula in
+  match kind f with
+  | Quant ("∀", p, Fun (_, Bool), _) -> (
+      match kind (last (gather_implies (remove_universal f))) with
+        | Quant ("∀", x, _, App (Var (p', _), Var (x', _)))
+            when p = p' && x = x' -> true
+        | _ -> false)
   | _ -> false
   
 let associative_axiom f : (str * typ) option =
@@ -334,7 +340,8 @@ let rec mini_clausify f = match or_split f with
         y̅ are all free variables in ∃x.s
 *)
 
-let clausify_step id lits in_use =
+let clausify_step id lits in_use :
+      (formula list * formula list * formula list) option =
   let rec new_lits f = match or_split f with
     | Some (s, t) -> Some ([s; t], [])
     | None -> match bool_kind f with
@@ -378,21 +385,23 @@ let clausify_step id lits in_use =
 let initial_step pformula =
   let f = pformula.formula in ([f], [f], [f])
 
-let clausify_steps1 id lits in_use =
+let clausify_steps1 id lits in_use :
+      (formula list * formula list * formula list) list =
   let rec run ((lits, _, _) as step) =
     step :: match clausify_step id lits in_use with
       | None -> []
       | Some step -> run step in
   run (lits, lits, lits)
 
-let clausify_steps p = clausify_steps1 p.id [p.formula] None
+let clausify_steps p : (formula list * formula list * formula list) list =
+  clausify_steps1 p.id [p.formula] None
 
 let run_clausify pformula rule =
   let+ (lits, new_lits, _) = clausify_steps pformula in
   let+ f = new_lits in
   rule pformula (remove1 f lits) f
   
-let clausify1 id lits in_use =
+let clausify1 id lits in_use : formula list =
   let (lits, _, _) = last (clausify_steps1 id lits in_use) in
   lits
 
@@ -616,7 +625,7 @@ let all_eres cp = run_clausify cp eres
 let all_split p : pformula list =
   let skolem_names = ref [] in
   let rec run lits : formula list list =
-    let lits1 = clausify1 p.id lits (Some skolem_names) in
+    let lits1 : formula list = clausify1 p.id lits (Some skolem_names) in
     let split lit f g =
       let top = if lits1 = lits then [] else [lits] in
       let children = [f; g] |> concat_map (fun t -> run (replace1 t lit lits1)) in

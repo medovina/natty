@@ -476,8 +476,6 @@ let gather_or = gather_associative "∨"
 
 let implies f g = fold_right implies1 (gather_and f) g
 
-let premises f = split_last (gather_implies f)
-
 let is_ground f =
   let rec has_free outer = function
     | Const _ -> false
