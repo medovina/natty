@@ -30,7 +30,7 @@ let var_char v : string =
 let to_var id : string =
   String.concat "" (map var_char (uchars id))
 
-let rec thf_type typ =
+let rec thf_type1 left typ =
   let rec f left typ = match typ with
     | Bool -> "$o"
     | Type -> "$tType"
@@ -45,7 +45,9 @@ let rec thf_type typ =
         sprintf "!>[%s]: %s" (comma_join decls) (f true typ)
     | Product typs -> sprintf "[%s]" (comma_join (map thf_type typs))
     | TypeApp _ -> failwith "thf_type: unimplemented"
-  in f false typ
+  in f left typ
+
+and thf_type typ = thf_type1 false typ
 
 let binary = [("∧", "&"); ("∨", "|"); ("→", "=>"); ("↔", "<=>")]
 
@@ -71,7 +73,7 @@ let rec thf outer right f : string =
             quant (if q = "∀" then "!" else "?") ((id, typ) :: ids_typs) f
         | _ -> match f with
           | Const (id, typ) ->
-              if id = _type then thf_type typ else quote (prefix_upper id)
+              if id = _type then thf_type1 (outer != "") typ else quote (prefix_upper id)
           | Var (id, _) -> to_var id
           | App (g, h) ->
               let s = sprintf "%s @ %s" (thf "@" false g) (thf "@" true h) in
