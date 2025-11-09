@@ -237,7 +237,8 @@ and base_term s : formula pr = (record_formula @@ choice [
   str "⊥" >>$ _false;
   parens_exprs |>> mk_tuple;
   pipe3 (str "{" >> var) of_type (str "|" >> proposition << str "}")
-    (fun var typ expr -> Lambda (var, typ, expr))
+    (fun var typ expr ->
+      App (Const ("{}", unknown_type), Lambda (var, typ, expr)))
  ]) s
 
 and term s = pipe2 base_term (option super_term) (fun f super ->

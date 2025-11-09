@@ -144,6 +144,9 @@ let is_declared env id =
     | Some (id', _) when id' = id -> true
     | _ -> false)
 
+let quant1 q id typ f =
+  if q = "{}" then Lambda (id, typ, f) else quant q id typ f
+
 let rec check_type1 env vars typ : typ =
   let rec check range vars typ =
     let lookup_type id =
@@ -209,6 +212,16 @@ and infer_formula env vars formula : typ * formula =
                   then _var name else App (f, g)
             | _ -> failwith "infer_formula" in
           check range vars tsubst h
+      | App (Const (q, _), Lambda (x, (Sub _ as typ), g))
+            when q = "∀" || q = "∃" || q = "{}" ->
+          let join = if q = "∀" then implies else _and in
+          let typ, g = match check_type1 env vars typ with
+            | Sub p ->
+                let typ = erase_sub (Sub p) in
+                typ, join (App (p, Var (x, typ))) g
+            | typ -> typ, g in
+          check range vars tsubst (quant1 q x typ g)
+      | App (Const ("{}", _), f) -> check range vars tsubst f
       | App (f, g) ->
           let all =
             let+ (tsubst, t, f) = check range vars tsubst f in
@@ -277,7 +290,6 @@ let infer_definition env f : id * typ * formula =
   (* f has the form ∀σ₁...σₙ v₁...vₙ (C φ₁ ... φₙ = ψ) .  We check types and build
     * a formula of the form ∀σ₁...σₙ v₁...vₙ (C σ₁...σₙ φ₁ ... φₙ = ψ) .*)
   let (vs, f) = gather_quant "∀" (strip_range f) in
-  let f = lower_definition f in
   let (vs2, f) = gather_quant "∀" f in
   let (type_vars, vars) = (vs @ vs2) |> partition (fun (_, typ) -> typ = Type) in
   let univ = map fst type_vars in
@@ -305,7 +317,7 @@ let infer_definition env f : id * typ * formula =
               let eq = if g_type = Bool then _iff else mk_eq in
               let body = for_all_vars_types vs @@
                 eq (apply (Const (id, c_type) :: type_args @ args)) g in
-              (id, c_type, body)
+              (id, c_type, lower_definition body)
           | _ -> failwith "definition expected")
     | _ -> failwith "definition expected")
 
@@ -517,15 +529,10 @@ let encode_formula consts f : formula =
           | Var (id, typ) -> Var (id, encode_type typ)
           | App (f, g) ->
               let f, g = encode f, encode g in (
-              match f, g with
-                | Const ("∀", _), Lambda (x, Sub p, h) ->
-                    let typ = erase_sub (Sub p) in
-                    _for_all x typ (implies (App (p, Var (x, typ))) h)
-                | _ ->
-                    match collect_args g with
-                      | (Const (c, _), args) when is_tuple_constructor c ->
-                          apply (f :: args)   (* curry arguments *)
-                      | _ -> App (f, g))
+              match collect_args g with
+                | (Const (c, _), args) when is_tuple_constructor c ->
+                    apply (f :: args)   (* curry arguments *)
+                | _ -> App (f, g))
           | Lambda (id, typ, f) ->
               Lambda (id, encode_type typ, encode f)
           | Eq (f, Lambda (_, typ, tr)) when tr = _true ->
