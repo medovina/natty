@@ -372,6 +372,8 @@ let pipe2a p1 p2 f =
 
 let triple p q r = pipe3 p q r (fun x y z -> (x, y, z))
 
+let not_before p = not_followed_by p ""
+
 let many_concat p = many p |>> concat
 
 let trace msg s =

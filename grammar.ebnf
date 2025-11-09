@@ -145,7 +145,7 @@ exists_prop =
 
 precisely_prop = ('Exactly' | 'Precisely') 'one of' small_prop 'holds';
 
-prop_op = 'and' | 'or' | 'implies' ['that'] | 'if and only if' | 'iff' |
+prop_op = 'and' | 'or' | 'if' | 'implies' ['that'] | 'if and only if' | 'iff' |
           ', and' | ', or';
 
 small_prop =

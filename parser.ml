@@ -37,7 +37,7 @@ let str s =
   let match_first c =
     Char.lowercase_ascii c = Char.lowercase_ascii (s.[0]) in
   (empty >>? satisfy match_first >>? string (string_from s 1) >>=? fun _ ->
-    if is_letter (last_char s) then not_followed_by letter "" else return ()) >>$ s
+    if is_letter (last_char s) then not_before letter else return ()) >>$ s
 
 let opt_str s = optional (str s)
 
@@ -240,7 +240,7 @@ and base_term s : formula pr = (record_formula @@ choice [
 and term s = pipe2 base_term (option super_term) (fun f super ->
   opt_fold (fun c f -> apply [_var "^"; f; c]) super f) s
 
-and next_term s = (not_followed_by space "" >>? term) s
+and next_term s = (not_before space >>? term) s
 
 and terms s = (term >>= fun t -> many_fold_left mk_app t next_term) s
 
@@ -347,7 +347,7 @@ and have s = (any_str
 
 and new_phrase s = (so <|> (optional reason >> have) <|> str "that") s
 
-and and_op s = (str "and" <<? not_followed_by new_phrase "") s
+and and_op s = (str "and" <<? not_before new_phrase) s
 
 (* small propositions *)
 
@@ -358,13 +358,16 @@ and for_with text q s =
 and post_for_all_with s = for_with "for all" for_all_with s
 and post_for_some_with s = for_with "for some" exists_with s
 
+and _if = str "if" <<? not_before (str "and only")
+
 and prop_operators () = [
   [ Infix (and_op >>$ _and, Assoc_left) ];
   [ infix "or" _or Assoc_left ];
   [ Infix (str "implies" << opt_str "that" >>$ implies, Assoc_right) ];
   [ Postfix post_for_all_with ];
   [ Postfix post_for_some_with ];
-  [ Infix (any_str ["iff"; "if and only if"] >>$ _iff, Assoc_right) ];
+  [ Infix (any_str ["iff"; "if and only if"] >>$ _iff, Assoc_right);
+    Infix (_if >>$ Fun.flip implies1, Assoc_right) ];
   [ Infix (str "," >>? and_op >>$ _and, Assoc_left) ];
   [ Infix (str "," >>? str "or" >>$ _or, Assoc_left) ];
 ]
@@ -542,7 +545,7 @@ let define ids_types prop : statement =
   Definition ("_", unknown_type, prop)
 
 let def_prop : formula p = 
-    not_followed_by new_paragraph "" >> opt_str "we write" >> small_prop << str "."
+    not_before new_paragraph >> opt_str "we write" >> small_prop << str "."
 
 let definition : statement list p = str "Definition." >>
   choice [
@@ -630,7 +633,7 @@ let proof_sentence : proof_step list p =
   (sep_by1 proof_clause (str ";") |>> concat) << str "." << optional label
 
 let proof_steps : proof_step list p =
-  many1 (not_followed_by new_paragraph "" >> proof_sentence) |>>
+  many1 (not_before new_paragraph >> proof_sentence) |>>
     (fun steps -> concat steps)
 
 let proof_item : (id * proof_step list) p = pair sub_index proof_steps

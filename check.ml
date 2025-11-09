@@ -275,7 +275,7 @@ let infer_definition env f : id * typ * formula =
   let vars = vars |> map (fun (v, typ) -> (v, check_type1 env type_vars typ)) in
   let vs = type_vars @ vars in (
   match strip_range f with
-    | Eq (f, g) | App (App (Const ("↔", _), f), g) ->
+    | Eq (f, g) | App (App (Const ("↔", _), f), g) | App (App (Const ("→", _), g), f)->
         let (c, args) = collect_args (strip_range f) in
         let (c, decl_type, args) = match c with
           | Const (":", Fun (typ, _)) -> (hd args, Some (check_type env typ), tl args)
