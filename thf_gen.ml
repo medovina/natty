@@ -44,7 +44,7 @@ let rec thf_type1 left typ =
         let decls = xs |> map (fun x -> to_var x ^ ": $tType") in
         sprintf "!>[%s]: %s" (comma_join decls) (f true typ)
     | Product typs -> sprintf "[%s]" (comma_join (map thf_type typs))
-    | TypeApp _ -> failwith "thf_type: unimplemented"
+    | TypeApp _ | Sub _ -> failwith "thf_type: unimplemented"
   in f left typ
 
 and thf_type typ = thf_type1 false typ

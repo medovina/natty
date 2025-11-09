@@ -146,9 +146,9 @@ Lemma (divides_other_factor).  For all a, b, c ∈ ℤ with a > 0 and b > 0 and 
 
 Proof.  Let a, b, c ∈ ℤ, and suppose that a > 0 and b > 0 and c > 0 and gcd(a, b) = 1 and a | bc.  Then by [bezout] there exist x, y : ℤ such that ax + by = 1.  So acx + bcy = c.  acx + bcy is a linear combination of a and bc, and a | a and a | bc.  So by [int_divides_linear_combo] a | acx + bcy.  Hence a | c.
 
-Lemma.  For all p, n ∈ ℤ and a ∈ ℤ → ℤ, if p is prime and n ≥ 1 and p | a₁ ⋯ aₙ, then there exists i ∈ ℤ such that 1 ≤ i ≤ n and p | aᵢ.
+Lemma.  For all p, n : ℤ and a : ℤ → ℤ, if p is prime and n ≥ 1 and p | a₁ ⋯ aₙ, then there exists i ∈ ℤ such that 1 ≤ i ≤ n and p | aᵢ.
 
-Proof.  Let p ∈ ℤ, and suppose that p is prime.  Let a ∈ ℤ → ℤ.  Let
+Proof.  Let p : ℤ, and suppose that p is prime.  Let a : ℤ → ℤ.  Let
 
     S = { n ∈ ℤ | if p | a₁ ⋯ aₙ, then there exists i ∈ ℤ such that 1 ≤ i ≤ n and p | aᵢ }.
 

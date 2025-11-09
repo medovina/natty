@@ -126,26 +126,6 @@ let rec expand_chains f : formula =
 
 let is_type_defined id env = exists (is_type_decl id) env
 
-let check_type1 env vars typ : typ =
-  let rec check range vars typ = match typ with
-    | Bool | Type -> typ
-    | Base id ->
-        if not (is_unknown typ) && not (is_type_defined id env) then
-          error ("undefined type " ^ id) range
-        else typ
-    | TypeVar id ->
-        if mem (id, Type) vars then TypeVar id
-        else if is_type_defined id env then Base id
-        else error ("undefined type variable " ^ id) range
-    | Fun (t, u) -> Fun (check range vars t, check range vars u)
-    | Pi (id, t) -> Pi (id, check range ((id, Type) :: vars) t)
-    | Product typs -> Product (map (check range vars) typs)
-    | TypeApp (c, [typ]) when c.[0] = '@' -> check c vars typ
-    | TypeApp _ -> failwith "check_type1"
-  in check "" vars typ
-
-let check_type env typ : typ = check_type1 env [] typ
-
 let id_types env id : typ list = filter_map (is_const_decl id) env
 
 let find_const env formula range id : formula list =
@@ -164,7 +144,36 @@ let is_declared env id =
     | Some (id', _) when id' = id -> true
     | _ -> false)
 
-let infer_formula env vars formula : typ * formula =
+let rec check_type1 env vars typ : typ =
+  let rec check range vars typ =
+    let lookup_type id =
+      if mem (id, Type) vars then Some (TypeVar id)
+      else if is_type_defined id env then Some (Base id)
+      else None in
+    match typ with
+      | Bool | Type -> typ
+      | Base id ->
+          if not (is_unknown typ) && not (is_type_defined id env) then
+            error ("undefined type " ^ id) range
+          else typ
+      | TypeVar id -> (match lookup_type id with
+          | Some typ -> typ
+          | None -> error ("undefined type variable " ^ id) range)
+      | Fun (t, u) -> Fun (check range vars t, check range vars u)
+      | Pi (id, t) -> Pi (id, check range ((id, Type) :: vars) t)
+      | Product typs -> Product (map (check range vars) typs)
+      | TypeApp (c, [typ]) when c.[0] = '@' -> check c vars typ
+      | TypeApp _ -> failwith "check_type1: typeapp"
+      | Sub (Var (id, _) as f) ->
+          opt_or (lookup_type id) (fun () ->
+            let (_typ, f) = infer_formula env vars f in
+            Sub f)
+      | Sub _ -> failwith "check_type1: sub"
+  in check "" vars typ
+
+and check_type env typ : typ = check_type1 env [] typ
+
+and infer_formula env vars formula : typ * formula =
   let formula = expand_chains formula in
   let new_type_var : unit -> typ =
     let n = ref (-1) in
@@ -222,7 +231,7 @@ let infer_formula env vars formula : typ * formula =
                 else all)
       | Lambda (x, typ, f) ->
           let typ = check_type1 env vars typ in
-          let+ (tsubst, t, f) = check range ((x, typ) :: vars) tsubst f in
+          let+ (tsubst, t, f) = check range ((x, erase_sub typ) :: vars) tsubst f in
           let return_type = if typ = Type then Pi (x, t) else Fun (typ, t) in
           [(tsubst, return_type, Lambda (x, typ, f))]
       | Eq (f, g) ->
@@ -485,6 +494,14 @@ let encode_type typ : typ = match typ with
         fold_right mk_fun_type typs u   (* curry type *)
   | _ -> typ
 
+let check_subtypes typ : unit =
+  let rec check typ = match typ with
+    | Sub _ -> failwith "unencoded subtype"
+    | _ -> map_type check typ
+  in ignore (check typ)
+
+let check_formula_subtypes f = iter check_subtypes (formula_types f)
+  
 let encode_formula consts f : formula =
   let rec encode f =
     match collect_args f with
@@ -500,10 +517,15 @@ let encode_formula consts f : formula =
           | Var (id, typ) -> Var (id, encode_type typ)
           | App (f, g) ->
               let f, g = encode f, encode g in (
-              match collect_args g with
-                | (Const (c, _), args) when is_tuple_constructor c ->
-                    apply (f :: args)   (* curry arguments *)
-                | _ -> App (f, g))
+              match f, g with
+                | Const ("∀", _), Lambda (x, Sub p, h) ->
+                    let typ = erase_sub (Sub p) in
+                    _for_all x typ (implies (App (p, Var (x, typ))) h)
+                | _ ->
+                    match collect_args g with
+                      | (Const (c, _), args) when is_tuple_constructor c ->
+                          apply (f :: args)   (* curry arguments *)
+                      | _ -> App (f, g))
           | Lambda (id, typ, f) ->
               Lambda (id, encode_type typ, encode f)
           | Eq (f, Lambda (_, typ, tr)) when tr = _true ->
@@ -512,7 +534,9 @@ let encode_formula consts f : formula =
               let h = _for_all x typ (App (f, Var (x, typ))) in
               encode h
           | f -> map_formula encode f in
-  encode f
+  let f = encode f in
+  check_formula_subtypes f;
+  f
 
 let encode_stmt consts stmt : statement =
   let encode f = b_reduce (encode_formula consts f) in

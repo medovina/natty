@@ -153,15 +153,18 @@ and typ_terms s = (sep_by1 typ_term (str "⨯") |>> function
 
 and typ s = (expression type_operators typ_terms) s
 
-let of_type = any_str [":"; "∈"]
+let of_type = choice [
+  str ":" >> typ;
+  str "∈" >> let$ id in Sub (_var id)
+]
 
-let id_type = pair id (of_type >> typ)
+let id_type = pair id of_type
 
-let id_opt_type = pair id (opt unknown_type (of_type >> typ))
+let id_opt_type = pair id (opt unknown_type of_type)
 
 let decl_ids : (id list) p = sep_by1 id_or_sym (str ",")
 
-let decl_ids_type : (id list * typ) p = pair decl_ids (of_type >> typ)
+let decl_ids_type : (id list * typ) p = pair decl_ids of_type
 
 let decl_ids_types : ((id * typ) list) p =
   sep_by1 decl_ids_type (str "and") |>> fun ids_typs ->
@@ -233,7 +236,7 @@ and base_term s : formula pr = (record_formula @@ choice [
   str "⊤" >>$ _true;
   str "⊥" >>$ _false;
   parens_exprs |>> mk_tuple;
-  pipe3 (str "{" >> var) (of_type >> typ) (str "|" >> proposition << str "}")
+  pipe3 (str "{" >> var) of_type (str "|" >> proposition << str "}")
     (fun var typ expr -> Lambda (var, typ, expr))
  ]) s
 
@@ -509,7 +512,7 @@ let type_decl : statement p =
 
 let const_decl : statement p =
     pipe2 ((any_str ["a constant"; "an element"; "a function"] <|> operation) >> id_or_sym)
-        (of_type >> typ)
+        of_type
         (fun c typ -> ConstDecl (unary_prefix c typ, typ))
 
 let axiom_decl : statement p = type_decl <|> const_decl

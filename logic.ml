@@ -13,6 +13,14 @@ type typ =
   | Pi of id * typ
   | TypeApp of id * typ list
   | Product of typ list
+  | Sub of formula
+
+and formula =
+  | Const of id * typ
+  | Var of id * typ
+  | App of formula * formula
+  | Lambda of id * typ * formula
+  | Eq of formula * formula
 
 let mk_base_type = function
   | "𝔹" -> Bool
@@ -25,27 +33,6 @@ let mk_product_type ts = Product ts
 
 let mk_fun_types ts u : typ = fold_right mk_fun_type ts u
 let mk_pi_types xs u : typ = fold_right mk_pi_type xs u
-
-let rec show_type t =
-  let rec show outer left typ : string =
-    let op prec sym t u =
-      parens_if (outer > prec || outer = prec && left) @@
-      sprintf "%s %s %s" (show prec true t) sym (show prec false u) in
-    match typ with
-      | Bool -> "𝔹"
-      | Type -> "*"
-      | Base id -> id
-      | TypeVar id -> id
-      | Fun (t, u) -> op 1 "→" t u
-      | Pi (id, t) ->
-          parens_if (0 < outer) (sprintf "Π%s.%s" id (show 0 false t))
-      | TypeApp (c, [typ]) when c.[0] = '@' -> show outer left typ
-      | TypeApp (id, typs) ->
-          sprintf "%s(%s)" id (comma_join (map show_type typs))
-      | Product typs ->
-          parens_if (outer >= 2) @@
-          String.concat " ⨯ " (map (show 2 true) typs) in
-  show (-1) false t
 
 let rec target_type = function
   | Fun (_, u) -> target_type u
@@ -69,6 +56,7 @@ let rec collect_arg_types = function
 let map_type fn = function
   | Fun (t, u) -> Fun (fn t, fn u)
   | Pi (id, t) -> Pi (id, fn t)
+  | TypeApp (x, typs) -> TypeApp (x, map fn typs)
   | Product typs -> Product (map fn typs)
   | t -> t
 
@@ -79,13 +67,6 @@ let is_prefixed var = var.[0] = '$'
 let rec prefix_type_vars t : typ = match t with
   | TypeVar id -> TypeVar (prefix_var id)
   | t -> map_type prefix_type_vars t
-
-type formula =
-  | Const of id * typ
-  | Var of id * typ
-  | App of formula * formula
-  | Lambda of id * typ * formula
-  | Eq of formula * formula
 
 let _const c = Const (c, unknown_type)
 let _var v = Var (v, unknown_type)
@@ -163,28 +144,29 @@ let map_formula fn = function
   | Eq (f, g) -> Eq (fn f, fn g)
   | f -> f
 
-let fold_left_formula fn acc = function
-  | App (f, g) | Eq (f, g) -> fn (fn acc f) g
-  | Lambda (_id, _typ, f) -> fn acc f
-  | _ -> acc
+let rec formula_types f = match f with
+  | Const (_, typ) | Var (_, typ) -> [typ]
+  | App (f, g) | Eq (f, g) -> concat_map formula_types [f; g]
+  | Lambda (_, typ, f) -> typ :: formula_types f
 
 let rec rename id avoid =
   if mem id avoid then rename (id ^ "'") avoid else id
 
-let type_vars only_free typ =
+let rec type_vars only_free typ =
   let rec find = function
     | Bool | Type | Base _ -> []
     | TypeVar id -> [id]
     | Fun (t, u) -> find t @ find u
     | Pi (id, t) -> 
         if only_free then remove id (find t) else find t
-    | TypeApp (_, ts) | Product ts -> concat_map find ts in
+    | TypeApp (_, ts) | Product ts -> concat_map find ts
+    | Sub f -> type_vars_in_formula only_free f in
   unique (find typ)
 
-let free_type_vars = type_vars true
-let all_type_vars = type_vars false
+and free_type_vars f = type_vars true f
+and all_type_vars f = type_vars false f
 
-let type_vars_in_formula only_free f =
+and type_vars_in_formula only_free f =
   let rec find = function
     | Const _ -> []
     | Var (_id, typ) -> all_type_vars typ
@@ -196,6 +178,17 @@ let type_vars_in_formula only_free f =
 
 let free_type_vars_in_formula = type_vars_in_formula true
 let all_type_vars_in_formula = type_vars_in_formula false
+
+let rec next_var x avoid =
+  if mem x avoid then
+    let c, rest = usplit x in
+    let t = match c with
+      | "o" -> "a'"  (* constants a .. o *)
+      | "z" -> "q'"  (* variables q .. z *)
+      | "ω" -> "σ'"  (* type variables σ .. ω *)
+      | _ -> uchar_to_string (Uchar.succ (uchar c)) in
+    next_var (t ^ rest) avoid
+  else x
 
 (* t[u/x] *)
 let rec type_subst (t: typ) (u: typ) (x: id) =
@@ -211,23 +204,10 @@ let rec type_subst (t: typ) (u: typ) (x: id) =
           then let y' = rename y (x :: free_type_vars t') in
               Pi (y', subst (type_subst t' (TypeVar y') y))
           else Pi (y, subst t')
-
-let subst_types tsubst t : typ =
-  fold_left (fun t (x, u) -> type_subst t u x) t tsubst
-
-let rec next_var x avoid =
-  if mem x avoid then
-    let c, rest = usplit x in
-    let t = match c with
-      | "o" -> "a'"  (* constants a .. o *)
-      | "z" -> "q'"  (* variables q .. z *)
-      | "ω" -> "σ'"  (* type variables σ .. ω *)
-      | _ -> uchar_to_string (Uchar.succ (uchar c)) in
-    next_var (t ^ rest) avoid
-  else x
+    | Sub f -> Sub (type_subst_in_formula f u x)
 
 (* f[u/x] *)
-let rec type_subst_in_formula (f: formula) (u: typ) (x: id) =
+and type_subst_in_formula (f: formula) (u: typ) (x: id) =
   let subst typ = type_subst typ u x in
   match f with
     | Const (id, typ) -> Const (id, subst typ)
@@ -235,6 +215,9 @@ let rec type_subst_in_formula (f: formula) (u: typ) (x: id) =
     | Lambda (id, typ, f) ->
         Lambda (id, subst typ, type_subst_in_formula f u x)
     | _ -> map_formula (fun f -> type_subst_in_formula f u x) f
+
+let subst_types tsubst t : typ =
+  fold_left (fun t (x, u) -> type_subst t u x) t tsubst
 
 let subst_types_in_formula tsubst f : formula =
   fold_left (fun f (x, t) -> type_subst_in_formula f t x) f tsubst
@@ -398,6 +381,28 @@ and gather_implies f = match bool_kind f with
   | Binary ("→", _, f, g) -> f :: gather_implies g
   | _ -> [f]
 
+and show_type t =
+  let rec show outer left typ : string =
+    let op prec sym t u =
+      parens_if (outer > prec || outer = prec && left) @@
+      sprintf "%s %s %s" (show prec true t) sym (show prec false u) in
+    match typ with
+      | Bool -> "𝔹"
+      | Type -> "*"
+      | Base id -> id
+      | TypeVar id -> id
+      | Fun (t, u) -> op 1 "→" t u
+      | Pi (id, t) ->
+          parens_if (0 < outer) (sprintf "Π%s.%s" id (show 0 false t))
+      | TypeApp (c, [typ]) when c.[0] = '@' -> show outer left typ
+      | TypeApp (id, typs) ->
+          sprintf "%s(%s)" id (comma_join (map show_type typs))
+      | Product typs ->
+          parens_if (outer >= 2) @@
+          String.concat " ⨯ " (map (show 2 true) typs)
+      | Sub f -> sprintf "[%s]" (show_formula f) in
+  show (-1) false t
+
 and show_formula_multi multi f =
   let rec show indent multi outer right f =
     let show1 outer right f = show indent multi outer right f in
@@ -466,6 +471,12 @@ let show_multi = show_formula_multi true
 
 let prefix_show prefix f =
   indent_with_prefix prefix (show_multi f)
+
+let erase_sub typ = match typ with
+  | Sub f -> (match type_of f with
+      | Fun (t, Bool) -> t
+      | _ -> failwith "erase_sub")
+  | typ -> typ
 
 let negate f = match bool_kind f with
   | Not f -> f

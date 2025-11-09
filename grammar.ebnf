@@ -40,15 +40,15 @@ type_op = '⨯' | '→';
 
 typ = id | typ type_op typ | 'Set' '(' typ ')' | '(' typ ')';
 
-of_type = ':' | '∈';
+of_type = (':' typ | '∈' id);
 
-id_type = id of_type typ;
+id_type = id of_type;
 
-id_opt_type = id [of_type typ];
+id_opt_type = id [of_type];
 
 decl_ids = id_or_sym {',' id_or_sym};
 
-decl_ids_type = decl_ids of_type typ;
+decl_ids_type = decl_ids of_type;
 
 decl_ids_types = decl_ids_type {'and' decl_ids_type};
 
@@ -69,7 +69,7 @@ id_sub = base_id [sub_expr];
 base_term =
     sym | id_sub [parens_exprs | "⋯" id_sub]
   | '⊤' | '⊥' | parens_exprs
-  | '{' var of_type typ '|' proposition '}';
+  | '{' var of_type '|' proposition '}';
 
 term = base_term [super_term];
 
@@ -210,7 +210,7 @@ propositions = [for_all_ids ','] top_prop_or_items;
 
 type_decl = 'a type' id ['(' 'the' word [word] ')'];
 
-const_decl = ('a constant' | 'an element' | 'a function' | operation) id_or_sym of_type typ;
+const_decl = ('a constant' | 'an element' | 'a function' | operation) id_or_sym of_type;
 
 axiom_decl = type_decl | const_decl;
 
