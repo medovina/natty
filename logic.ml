@@ -347,7 +347,14 @@ let rec get_const_type f = match f with
 and type_of f : typ = match f with
   | Const (_, typ) | Var (_, typ) -> typ
   | App (f, g) -> (match type_of f with
-      | Fun (_, u) -> u
+      | Fun (t, u) ->
+        if type_of g <> t then (
+          printf "f = %s, type(f) = %s, g = %s, type(g) = %s\n"
+            (show_formula f) (show_type (type_of f))
+            (show_formula g) (show_type (type_of g));
+          failwith "type_of"
+        );
+        u
       | Pi (x, t) -> type_subst t (get_const_type g) x
       | _ -> assert false)
   | Lambda (id, Type, f) -> Pi (id, type_of f)
@@ -806,7 +813,7 @@ let rename_vars f : formula =
     | t -> t in
   let rec rename h : formula =
     match h with
-      | Const _ -> h
+      | Const (c, typ) -> Const (c, map_type typ)
       | Var (id, typ) -> (
           let typ = map_type typ in
           match assoc_opt id !name_map with

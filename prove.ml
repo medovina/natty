@@ -48,6 +48,7 @@ let weight f =
 
 let prefix_vars f : formula =
   let rec prefix outer = function
+    | Const (x, typ) -> Const (x, prefix_type_vars typ)
     | Var (x, typ) ->
         let x = if mem x outer then x else prefix_var x in
         Var (x, prefix_type_vars typ)
