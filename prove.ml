@@ -69,11 +69,12 @@ let unprefix_vars f : formula =
   let var_map = build_map (all_vars f) (free_vars f) in
   let type_vars = all_type_vars_in_formula f in
   let type_map = build_map type_vars type_vars in
-  let unprefix_type t = match t with
+  let rec unprefix_type t = match t with
     | TypeVar x ->
         if is_prefixed x then TypeVar (assoc x type_map) else t
-    | t -> t in
+    | t -> map_type unprefix_type t in
   let rec fix outer = function
+    | Const (c, typ) -> Const (c, unprefix_type typ)
     | Var (v, typ) ->
         let v = if is_prefixed v then assoc v var_map else v in
         Var (v, unprefix_type typ)
@@ -283,7 +284,7 @@ let encode_term type_map fluid_map t : formula =
             apply [_const "@lam"; encode_type typ; encode (de_bruijn_encode x f)]
           else encode_fluid t (* assume fluid *)
       | Eq (t, u) ->
-          apply [_const "@="; encode_type (type_of t); encode t; encode u] in
+          apply [_const "@="; encode t; encode u] in
   encode t
 
 let term_gt s t =
