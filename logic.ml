@@ -731,15 +731,17 @@ let unify_or_match is_unify subst t u : subst option =
     let unify_pairs f g f' g' : subst option =
       let* subst = unify' subst f f' in
       unify' subst g g' in
+    let unify_term_types = unify_or_match_types is_unify (Fun.const true) tsubst in
     match eta t, eta u with
-      | Const (c, typ), Const (c', typ') ->
-          if c = c' && typ = typ' then Some subst else None
+      | Const (c, t), Const (c', u) when c = c' ->
+          let* tsubst = unify_term_types t u in
+          Some (tsubst, vsubst)
       | Var _, App (Const ("∨", _), _) -> None
       | Var (x, typ), f ->
           if f = Var (x, typ) then Some subst
           else
-            let* tsubst = unify_or_match_types is_unify (Fun.const true) tsubst typ (type_of f) in
-            let subst = (tsubst, vsubst) in(
+            let* tsubst = unify_term_types typ (type_of f) in
+            let subst = (tsubst, vsubst) in (
             match assoc_opt x vsubst with
               | Some g ->
                   if is_unify then unify' subst f g
@@ -757,7 +759,7 @@ let unify_or_match is_unify subst t u : subst option =
             | Some subst -> Some subst
             | None -> unify_pairs f g g' f')
       | Lambda (x, xtyp, f), Lambda (y, ytyp, g) ->
-          let* tsubst = unify_or_match_types is_unify (Fun.const true) tsubst xtyp ytyp in
+          let* tsubst = unify_term_types xtyp ytyp in
           let* (tsubst, vsubst) = unify' (tsubst, vsubst) f g in
           let x', y' = assoc_opt x vsubst, assoc_opt y vsubst in
           if (x' = None || x' = Some (Var (y, ytyp))) &&
