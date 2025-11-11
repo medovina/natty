@@ -736,6 +736,7 @@ let unify_or_match is_unify subst t u : subst option =
       | Const (c, t), Const (c', u) when c = c' ->
           let* tsubst = unify_term_types t u in
           Some (tsubst, vsubst)
+      | Var _, Const ("¬", _) -> None
       | Var _, App (Const ("∨", _), _) -> None
       | Var (x, typ), f ->
           if f = Var (x, typ) then Some subst
