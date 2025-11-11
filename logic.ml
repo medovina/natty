@@ -734,6 +734,7 @@ let unify_or_match is_unify subst t u : subst option =
     match eta t, eta u with
       | Const (c, typ), Const (c', typ') ->
           if c = c' && typ = typ' then Some subst else None
+      | Var _, App (Const ("∨", _), _) -> None
       | Var (x, typ), f ->
           if f = Var (x, typ) then Some subst
           else
