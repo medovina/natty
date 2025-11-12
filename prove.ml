@@ -590,14 +590,16 @@ let all_super queue dp cp : pformula list =
     num_literals p.formula = 1 in
   if dp.id = cp.id || not (allow dp || allow cp) || no_induct dp cp || no_induct cp dp
   then [] else
-    let cost = match PFQueue.min !queue with
-      | Some (_, (cost, _, _)) -> cost
-      | None -> 10.0 in
-    let min_cost = merge_cost [cp; dp] +. step_cost in
-    if min_cost <= cost then all_super1 dp cp else (
-      queue := PFQueue.add (Deferred (dp, cp)) (min_cost, 0., 0) !queue;
-      []
-    )
+    if !(opts.deferred) then
+      let cost = match PFQueue.min !queue with
+        | Some (_, (cost, _, _)) -> cost
+        | None -> 10.0 in
+      let min_cost = merge_cost [cp; dp] +. step_cost in
+      if min_cost <= cost then all_super1 dp cp else (
+        queue := PFQueue.add (Deferred (dp, cp)) (min_cost, 0., 0) !queue;
+        []
+      )
+    else all_super1 dp cp
 
 (*      C' ∨ u ≠ u'
  *     ────────────   eres

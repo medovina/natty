@@ -1,6 +1,7 @@
 open Util
 
 type options = {
+  deferred: bool ref;
   disprove: bool ref;
   e_proof: bool ref;
   export: bool ref;
@@ -17,6 +18,7 @@ type options = {
 }
 
 let opts = {
+  deferred = ref true;
   disprove = ref false;
   e_proof = ref false;
   export = ref false;
@@ -47,6 +49,7 @@ let usage () =
       -h                print this help message
       -i                print proof statistics
       -l                run as language server
+      -n                do not use deferred superposition
       -o<name>          only prove/export given theorem or proof step
       -p[<id>]          output proof of theorems, or only of given formula
       --pipe=<name>     pipe name for language server
@@ -76,6 +79,7 @@ let parse_args args =
             | 'h' -> usage ()
             | 'i' -> opts.stats := true
             | 'l' -> opts.server := true
+            | 'n' -> opts.deferred := false
             | 'o' -> opts.only_thm := Some value
             | 'p' -> if arg = "-p" then opts.show_proofs := true
                      else opts.show_proof_of := int_val ()

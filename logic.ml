@@ -344,22 +344,26 @@ let rec get_const_type f = match f with
       printf "get_const_type: f = %s (%b)\n" (show_formula f) (is_const f);
       failwith "type expected"
 
-and type_of f : typ = match f with
+and type_of1 tsubst f : typ = match f with
   | Const (_, typ) | Var (_, typ) -> typ
   | App (f, g) -> (match type_of f with
       | Fun (t, u) ->
-        if type_of g <> t then (
-          printf "f = %s, type(f) = %s, g = %s, type(g) = %s\n"
-            (show_formula f) (show_type (type_of f))
-            (show_formula g) (show_type (type_of g));
-          failwith "type_of"
-        );
-        u
+          let g_type = type_of g in
+          if g_type <> t &&  (* optimization: try direct comparison first *)
+              subst_types tsubst g_type <> subst_types tsubst t then (
+            printf "f = %s, type(f) = %s, g = %s, type(g) = %s\n"
+              (show_formula f) (show_type (type_of f))
+              (show_formula g) (show_type (type_of g));
+            failwith "type_of"
+          );
+          u
       | Pi (x, t) -> type_subst t (get_const_type g) x
       | _ -> assert false)
   | Lambda (id, Type, f) -> Pi (id, type_of f)
   | Lambda (_, typ, f) -> Fun (typ, type_of f)
   | Eq (_, _) -> Bool
+
+and type_of f : typ = type_of1 [] f
 
 and fkind boolean f : formula_kind = match f with
   | Const ("⊤", _) -> True
@@ -748,7 +752,7 @@ let unify_or_match is_unify subst t u : subst option =
       | Var (x, typ), f ->
           if f = Var (x, typ) then Some subst
           else
-            let* tsubst = unify_term_types typ (type_of f) in
+            let* tsubst = unify_term_types typ (type_of1 tsubst f) in
             let subst = (tsubst, vsubst) in (
             match assoc_opt x vsubst with
               | Some g ->
