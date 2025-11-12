@@ -632,14 +632,21 @@ let rec apply_types_in_formula f : formula = match f with
 let mk_var_or_type_const (id, typ) =
   if typ = Type then type_const (TypeVar id) else Var (id, typ)
 
-let lower_definition f : formula = match f with
-  (* Transform C = λv₁...vₙ.φ to ∀v₁...vₙ (C v₁ ... vₙ = φ) .*)
-  | Eq ((Const (_, typ) as c), f) ->
-      let (vars_typs, g) = gather_lambdas f in
-      let eq = if target_type typ = Bool then _iff else mk_eq in
-      for_all_vars_types vars_typs (
-        eq (apply (c :: map mk_var_or_type_const vars_typs)) g)
-  | _ -> f
+let lower_definition f : formula =
+  (* Transform ∀x₁...xₙ C x₁...xₙ = λy₁...yₙ.φ to
+               ∀x₁...xₙ y₁...yₙ (C x₁...xₙ y₁...yₙ = φ) .*)
+  let (xs, f') = remove_for_all f in
+  match f' with
+    | Eq (head, g) | App (App (Const ("↔", _), head), g) ->
+        let (c, xargs) = collect_args head in (
+        match c with
+          | Const _ when map mk_var' xs = xargs ->
+              let (ys, g) = gather_lambdas g in
+              let eq = if type_of g = Bool then _iff else mk_eq in
+              for_all_vars_types (xs @ ys) (
+                eq (apply (head :: map mk_var_or_type_const ys)) g)
+          | _ -> f)
+    | _ -> f
 
 let suffix id avoid : id =
   let rec try_suffix n =

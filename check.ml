@@ -313,7 +313,7 @@ let infer_definition env f : id * typ * formula =
                   failwith "infer_definition")
               );
               let c_type = mk_pi_types univ c_type in
-              let type_args = univ |> map (fun v -> type_const (TypeVar v)) in
+              let type_args = univ |> map (fun v -> Var (v, Type)) in
               let eq = if g_type = Bool then _iff else mk_eq in
               let body = for_all_vars_types vs @@
                 eq (apply (Const (id, c_type) :: type_args @ args)) g in
