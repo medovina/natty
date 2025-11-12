@@ -538,7 +538,6 @@ let super dp d' t_t' cp c c1 : pformula list =
   let+ (t, t') = pairs in
   let+ (u, parent_eq) = green_subterms c1 |>
     filter (fun (u, _) -> not (is_var u || is_fluid u)) in  (* i, ii *)
-  if dbg then printf "t = %s, u = %s\n" (show_formula t) (show_formula u);
   match unify t u with
     | None -> []
     | Some sub ->
@@ -591,15 +590,14 @@ let all_super queue dp cp : pformula list =
     num_literals p.formula = 1 in
   if dp.id = cp.id || not (allow dp || allow cp) || no_induct dp cp || no_induct cp dp
   then [] else
-    let _cost = match PFQueue.min !queue with
+    let cost = match PFQueue.min !queue with
       | Some (_, (cost, _, _)) -> cost
       | None -> 10.0 in
-    let _min_cost = merge_cost [cp; dp] +. step_cost in
-    all_super1 dp cp
-    (* if min_cost <= cost then all_super1 dp cp else (
+    let min_cost = merge_cost [cp; dp] +. step_cost in
+    if min_cost <= cost then all_super1 dp cp else (
       queue := PFQueue.add (Deferred (dp, cp)) (min_cost, 0., 0) !queue;
       []
-    ) *)
+    )
 
 (*      C' ∨ u ≠ u'
  *     ────────────   eres

@@ -1,0 +1,29 @@
+# Natural numbers: definition
+
+Axiom.  There exists a type ℕ (the natural numbers) with an element 0 ∈ ℕ and a function s : ℕ → ℕ such that
+
+  a. There is no n ∈ ℕ such that s(n) = 0.  [nat_succ_zero]
+  b. For all n, m ∈ ℕ, if s(n) = s(m) then n = m.  [nat_succ_injective]
+  c. Let P : ℕ → 𝔹.  If 0 ∈ P, and k ∈ P implies s(k) ∈ P for all k ∈ ℕ, then P = ℕ.  [nat_induction]
+
+Definition.  Let 1 : ℕ = s(0).
+
+# Natural numbers: addition
+
+Axiom.  There is a binary operation + : ℕ → ℕ → ℕ such that for all n, m ∈ ℕ,
+
+  a. n + 0 = n.
+  b. n + s(m) = s(n + m).
+
+# Natural numbers: multiplication
+
+Axiom.  There is a binary operation · : ℕ → ℕ → ℕ such that for all n, m ∈ ℕ,
+
+  a. n · 0 = 0.
+  b. n · s(m) = (n · m) + n.
+
+# Natural numbers: inequalities
+
+Definition.  For all a, b ∈ ℕ, a ≤ b iff there is some c ∈ ℕ such that a + c = b.  a < b iff a ≤ b and a ≠ b.
+
+Definition.  For all a, b ∈ ℕ, we write a ≥ b iff b ≤ a.  We write a > b iff b < a.

@@ -1,0 +1,38 @@
+using nat;
+
+# Integers: definition
+
+Axiom.  There exists a type ℤ (the integers) with a function z : ℕ ⨯ ℕ → ℤ such that
+
+  a. For all a, b, c, d ∈ ℕ, z(a, b) = z(c, d) if and only if a + d = b + c.  [int_eq_def]
+  b. For all x ∈ ℤ, there exist some a, b ∈ ℕ such that x = z(a, b).
+
+Definition.  Let 0 : ℤ = z(0, 0).  Let 1 : ℤ = z(1, 0).
+
+# Integers: addition
+
+Axiom (int_ax_add).  There is a binary operation + : ℤ → ℤ → ℤ such that for all a, b, c, d ∈ ℕ,
+
+    z(a, b) + z(c, d) = z(a + c, b + d).
+
+Axiom.  There is a unary operation − : ℤ → ℤ such that for all a, b ∈ ℕ,
+
+  −z(a, b) = z(b, a).
+
+Definition.  For all i, j ∈ ℤ, i − j = i + (−j).
+
+# Integers: multiplication
+
+Axiom.  There is a binary operation · : ℤ → ℤ → ℤ such that for all a, b, c, d ∈ ℕ,
+
+    z(a, b) · z(c, d) = z(ac + bd, ad + bc).        [int_mul_def]
+
+# Integers: inequalities
+
+Axiom.  There is a relation < : ℤ → ℤ → 𝔹 such that for all a, b, c, d ∈ ℕ,
+
+    z(a, b) < z(c, d) if and only if a + d < b + c.     [int_lt_def]
+
+Definition.  For all i, j ∈ ℤ, i ≤ j iff i < j or i = j.
+
+Definition.  For all i, j ∈ ℤ, we write i > j iff j < i.  We write i ≥ j iff j ≤ i.

@@ -1,5 +1,0 @@
-using int1, set;
-
-# Finite and infinite sets
-
-Definition.  For all S : Set(σ), S is finite iff there exists n : ℤ such that S ~ { x ∈ ℤ | 0 ≤ x < n }.   S is infinite iff S is not finite.
