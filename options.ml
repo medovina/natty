@@ -18,7 +18,7 @@ type options = {
 }
 
 let opts = {
-  deferred = ref true;
+  deferred = ref false;
   disprove = ref false;
   e_proof = ref false;
   export = ref false;
@@ -49,13 +49,13 @@ let usage () =
       -h                print this help message
       -i                print proof statistics
       -l                run as language server
-      -n                do not use deferred superposition
       -o<name>          only prove/export given theorem or proof step
       -p[<id>]          output proof of theorems, or only of given formula
       --pipe=<name>     pipe name for language server
       -r                profile performance
       -s<id>,<id>       debug superposition of given formulas
       -t<num>           time limit in seconds
+      -u                use deferred superposition
       -v                verbose output
       -x                export theorems to THF files
       |};
@@ -79,7 +79,6 @@ let parse_args args =
             | 'h' -> usage ()
             | 'i' -> opts.stats := true
             | 'l' -> opts.server := true
-            | 'n' -> opts.deferred := false
             | 'o' -> opts.only_thm := Some value
             | 'p' -> if arg = "-p" then opts.show_proofs := true
                      else opts.show_proof_of := int_val ()
@@ -89,6 +88,7 @@ let parse_args args =
                 | [i; j] -> debug_super := (int_of_string i, int_of_string j)
                 | _ -> failwith "expected formula ids")
             | 't' -> opts.timeout := float_of_string value
+            | 'u' -> opts.deferred := true
             | 'v' -> opts.verbose := true
             | 'x' -> opts.export := true
             | '-' -> (match opt_remove_prefix "--pipe=" arg with

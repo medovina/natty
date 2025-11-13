@@ -53,6 +53,10 @@ let rec collect_arg_types = function
   | Fun (t, u) -> t :: collect_arg_types u
   | _ -> []
 
+let rec lambda_count = function
+  | Lambda (_, _, f) -> 1 + lambda_count f
+  | _ -> 0
+
 let map_type fn = function
   | Fun (t, u) -> Fun (fn t, fn u)
   | Pi (id, t) -> Pi (id, fn t)
@@ -114,7 +118,7 @@ let is_var = function
   | _ -> false
 
 let get_var = function
-  | Var (v, _) -> v
+  | Var (v, typ) -> (v, typ)
   | _ -> failwith "variable expected"
 
 let get_const_or_var = function
@@ -327,6 +331,10 @@ let is_tuple_apply f : (id * formula list) option =
   match head with
     | Const (s, _) when is_tuple_constructor s -> Some (s, args)
     | _ -> None
+
+let is_eq_or_iff f = match f with
+  | Eq (f, g) | App (App (Const ("↔", _), f), g) -> Some (f, g)
+  | _ -> None
 
 type formula_kind =
   | True
@@ -636,21 +644,35 @@ let rec apply_types_in_formula f : formula = match f with
 let mk_var_or_type_const (id, typ) =
   if typ = Type then type_const (TypeVar id) else Var (id, typ)
 
-let lower_definition f : formula =
-  (* Transform ∀x₁...xₙ C x₁...xₙ = λy₁...yₙ.φ to
-               ∀x₁...xₙ y₁...yₙ (C x₁...xₙ y₁...yₙ = φ) .*)
-  let (xs, f') = remove_for_all f in
-  match f' with
-    | Eq (head, g) | App (App (Const ("↔", _), head), g) ->
-        let (c, xargs) = collect_args head in (
+let extract_definition f : (formula * (id * typ) list * formula) option =
+  (* Look for f of the form ∀x₁...xₙ C y₁...yₙ = D. Each yᵢ must be
+     one of the variables xⱼ.  *)
+  let (xs, f) = remove_for_all f in
+  match is_eq_or_iff f with
+    | Some (head, g) ->
+        let (c, ys) = collect_args head in (
         match c with
-          | Const _ when map mk_var' xs = xargs ->
-              let (ys, g) = gather_lambdas g in
-              let eq = if type_of g = Bool then _iff else mk_eq in
-              for_all_vars_types (xs @ ys) (
-                eq (apply (head :: map mk_var_or_type_const ys)) g)
-          | _ -> f)
-    | _ -> f
+          | Const _ when subset ys (map mk_var' xs) ->
+              Some (c, map get_var ys, g)
+          | _ -> None)
+    | _ -> None
+
+(* Transform ∀x₁...xₙ C x₁...xₙ = λy₁...yₙ.φ to
+              ∀x₁...xₙ y₁...yₙ (C x₁...xₙ y₁...yₙ = φ) .*)
+let lower_definition f : formula =
+  match extract_definition f with
+    | Some (c, xs, g) ->
+        let (ys, g) = gather_lambdas g in
+        let eq = if type_of g = Bool then _iff else mk_eq in
+        for_all_vars_types (xs @ ys) (
+          eq (apply (c :: map mk_var' xs @ map mk_var_or_type_const ys)) g)
+    | None -> f
+
+(* Transform ∀x₁...xₙ C x₁...xₙ = D to C = λx₁...xₙ.D . *)
+let raise_definition f : formula =
+  match extract_definition f with
+    | Some (c, xs, d) -> Eq (c, fold_right lambda' xs d)
+    | None -> f
 
 let suffix id avoid : id =
   let rec try_suffix n =

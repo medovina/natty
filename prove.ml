@@ -20,13 +20,15 @@ type pformula = {
   formula: formula;
   delta: float;
   cost: float;
-  hypothesis: bool;
+  definition: bool;
+  hypothesis: int;
   goal: bool;
-  derived: bool;
-  definition: bool
+  derived: bool
 }
 
 let id_of pf = pf.id
+
+let is_hyp p = p.hypothesis > 0
 
 let ac_axioms = ref ([] : pformula list)
 
@@ -130,7 +132,7 @@ let is_distributive_axiom p =
 
 let orig_goal p = p.goal && not p.derived
 
-let orig_hyp p = p.hypothesis && not p.derived
+let orig_hyp p = is_hyp p && not p.derived
 
 type queue_item =
   | Unprocessed of pformula
@@ -154,13 +156,15 @@ let merge_cost parents = match unique parents with
 let inducted p =
   searchq [p] (fun p -> p.parents) |> exists (fun p -> is_inductive p)
 
-let cost_limit = 1.5
+let cost_limit = 1.0
 
 let mk_pformula rule parents step formula =
   { id = 0; rule; rewrites = []; simp = false; parents; formula;
     goal = exists (fun p -> p.goal) parents;
     delta = 0.0; cost = 0.0;
-    hypothesis = exists (fun p -> p.hypothesis) parents;
+    hypothesis =
+      if parents = [] then 0
+      else maximum (map (fun p -> p.hypothesis) parents);
     derived = step || exists (fun p -> p.derived) parents;
     definition = not step && exists (fun p -> p.definition) parents }
 
@@ -472,9 +476,9 @@ let trim_rule rule =
     | Some i -> String.sub rule 0 i
     | None -> rule
 
-let origin pf =
+let origin pf : string =
   if pf.parents = [] then "axiom"
-  else if pf.rule = "negate" || pf.rule = "negate1" then "goal"
+  else if pf.rule = "negate" then "goal"
   else trim_rule pf.rule
 
 let is_para pf = match trim_rule pf.rule with
@@ -488,34 +492,22 @@ let all_steps pformula =
   searchq [pformula] (fun p -> unique (p.parents @ p.rewrites))
 
 let step_cost = 0.01
-let big_cost = 0.03
 let inf_cost = 10.0
 
+let rank p =
+  if p.goal then 0
+  else if is_hyp p then 1
+  else 2
+
 let cost p =
-  match p.parents with
-    | [_; _] ->
-        let definition = p.parents |> exists (fun q -> q.definition) in
-        let commutative = p.parents |> exists (fun q -> is_commutative_axiom q) in
-        let orig_hyp = p.parents |> exists (fun p -> orig_hyp p) in
-        let parent_lits = p.parents |> map (fun q -> num_literals q.formula) in
-        let parent_weights = p.parents |> map (fun q -> weight q.formula) in
-        let min_lits, max_lits = minimum parent_lits, maximum parent_lits in
-        let min_weight, max_weight = minimum parent_weights, maximum parent_weights in
-        let lits, w = num_literals p.formula, weight p.formula in
-
-        if by_induction p then big_cost
-        else if lits < min_lits then 0.0
-        else if lits > max_lits then inf_cost
-        else if is_resolution p then
-          if lits = max_lits && not (p.goal || definition) then inf_cost else
-          if w < min_weight then 0.0 else
-          if w <= max_weight || orig_hyp then step_cost else big_cost
-        else (* paramodulation *)
-          if commutative then step_cost
-          else if w <= max_weight + 2 && lits <= 2 then big_cost
-          else inf_cost
+  match p.parents, p.rule with
+    | _, "expand" -> 1.0
+    | [_; _], _ ->
+        let r = minimum (map rank p.parents) in
+        let qs = p.parents |> filter (fun p -> rank p = r) in
+        let w = weight p.formula in
+        if qs |> for_all (fun q -> weight q.formula >= w) then 0.0 else inf_cost
     | _ -> 0.0
-
 
 (*      D:[D' ∨ t = t']    C⟨u⟩
  *    ───────────────────────────   sup
@@ -585,9 +577,7 @@ let all_super queue dp cp : pformula list =
   if dbg then printf "all_super\n";
   let no_induct d c = is_inductive c &&
     (not (orig_goal d) && not (orig_hyp d) || inducted d) in
-  let allow p =
-    p.hypothesis || p.goal || p.definition || is_commutative_axiom p ||
-    num_literals p.formula = 1 in
+  let allow p = is_hyp p || p.goal in
   if dp.id = cp.id || not (allow dp || allow cp) || no_induct dp cp || no_induct cp dp
   then [] else
     if !(opts.deferred) then
@@ -816,7 +806,8 @@ let print_formula with_origin prefix pf =
       sprintf " [%s]" (comma_join all)
     else "" in
   let mark b c = if b then " " ^ (if pf.derived then c else to_upper c) else "" in
-  let annotate = mark pf.definition "d" ^ mark pf.goal "g" ^ mark pf.hypothesis "h" in
+  let annotate =
+    mark pf.definition "d" ^ mark pf.goal "g" ^ mark (is_hyp pf) "h" in
   printf "%s%s {%d/%d: %.2f%s}\n"
     (indent_with_prefix prefix (show_multi pf.formula))
     origin (num_literals pf.formula) (weight pf.formula) pf.cost annotate
@@ -976,9 +967,38 @@ let back_simplify from used : pformula list =
   used := new_used;
   rewritten
 
-let generate queue p used =
+let rec expand_with c c_type d f : formula list =
+  let expand = expand_with c c_type d in
+  let expand2 f g mk =
+    (let+ f' = expand f in [mk f' g]) @
+    (let+ g' = expand g in [mk f g']) in
+  match collect_args f with
+    | Const (c', c'_type), args when c' = c && length args = lambda_count d ->
+        let+ tsubst =
+          Option.to_list (unify_types (Fun.const true) [] c_type c'_type) in
+        [b_reduce (subst_types_in_formula tsubst (apply (d :: args)))]
+    | _ -> match f with
+      | App (f, g) -> expand2 f g mk_app
+      | Lambda (x, typ, f) ->
+          let+ f = expand f in [Lambda (x, typ, f)]
+      | Eq (f, g) -> expand2 f g mk_eq
+      | _ -> []
+
+let all_expand1 p q : pformula list =
+  if not p.derived && (p.goal || p.hypothesis = 1) && q.definition then
+    match is_eq_or_iff (raise_definition q.formula) with
+      | Some (Const (c, c_type), d) ->
+          let+ f = expand_with c c_type d p.formula in
+          [mk_pformula "expand" [p; q] false f]
+      | _ -> []
+  else []
+
+let all_expand p q : pformula list = all_expand1 p q @ all_expand1 q p
+
+let generate queue p used : pformula list =
   profile "generate" @@ fun () ->
-  concat_map (all_super queue p) !used @ all_eres p @ all_split p
+  concat_map (all_super queue p) !used @ concat_map (all_expand p) !used @
+  all_eres p @ all_split p
 
 let rw_simplify_all queue used found ps =
   profile "rw_simplify_all" @@ fun () ->
@@ -1051,15 +1071,15 @@ let ac_axiom (op, typ) =
 
 type ac_type = Assoc | Comm
 
-let ac_complete formulas : (id * formula * bool * bool) list =
+let ac_complete formulas : (id * formula * int * bool * bool) list =
   let rec scan ops = function
-    | (name, f, is_hyp) :: rest -> 
+    | (name, f, is_hyp, is_def) :: rest -> 
         let kind = match associative_axiom f with
           | Some op_typ -> Some (Assoc, op_typ)
           | None -> match commutative_axiom f with
             | Some op_typ -> Some (Comm, op_typ)
             | None -> None in
-        (name, f, is_hyp, Option.is_some kind) ::
+        (name, f, is_hyp, is_def, Option.is_some kind) ::
         (match kind with
           | Some (kind, ((op, _typ) as op_typ)) ->
               let other = match kind with Assoc -> Comm | Comm -> Assoc in
@@ -1067,7 +1087,8 @@ let ac_complete formulas : (id * formula * bool * bool) list =
                 if !debug > 0 then printf "AC operator: %s\n\n" op;
                 ac_ops := op_typ :: !ac_ops;
                 let axiom =
-                  ("AC completion: " ^ without_type_suffix op, ac_axiom op_typ, false, true) in
+                  ("AC completion: " ^ without_type_suffix op,
+                      ac_axiom op_typ, 0, false, true) in
                 axiom :: scan (remove (kind, op_typ) ops) rest
               ) else scan ((kind, op_typ) :: ops) rest
           | None -> scan ops rest)
@@ -1075,26 +1096,32 @@ let ac_complete formulas : (id * formula * bool * bool) list =
   scan [] formulas
 
 let to_pformula name f =
-  let f' = lower_definition f in
-  let is_def = f <> f' in
-  { (create_pformula name [] (rename_vars f')) with definition = is_def }
+  create_pformula name [] (rename_vars (lower_definition f))
+
+let gen_formulas stmts : (id * formula * int * bool) list =
+  let gen hyp_count stmt =
+    match stmt_formula stmt with
+      | Some f ->
+          let hyp, hyp_count =
+            if is_hypothesis stmt then hyp_count + 1, hyp_count + 1 else 0, hyp_count in
+          (hyp_count, [(stmt_name stmt, f, hyp, is_definition stmt)])
+      | None -> (hyp_count, []) in
+  rev (concat (snd (fold_left_map gen 0 (rev stmts))))
 
 let prove known_stmts thm cancel_check : proof_result * float =
   consts := map fst (filter_map decl_var known_stmts);
   ac_ops := [];
-  let formulas = known_stmts |> filter_map (fun stmt ->
-    stmt_formula stmt |> Option.map (fun f ->
-      (stmt_name stmt, f, is_hypothesis stmt))) in
+  let formulas = gen_formulas known_stmts in
   formula_counter := 0;
   let formulas = ac_complete formulas in
-  let known = formulas |> map (fun (name, f, is_hyp, is_ac_axiom) ->
-    let p = {(to_pformula name f) with hypothesis = is_hyp } in
+  let known = formulas |> map (fun (name, f, hyp, is_def, is_ac_axiom) ->
+    let p = {(to_pformula name f)
+      with hypothesis = hyp; definition = is_def } in
     if is_ac_axiom then ac_axioms := p :: !ac_axioms;
     dbg_newline (); p) in
   let goal = to_pformula (stmt_name thm) (Option.get (stmt_formula thm)) in
   let goals = if !(opts.disprove) then [goal] else
-    ["negate1"; "negate"] |> map (fun rule ->
-      create_pformula rule [goal] (_not goal.formula)) in
+      [create_pformula "negate" [goal] (_not goal.formula)] in
   let goals = goals |> map (fun g -> {g with goal = true}) in
   let all = known @ goals in
   dbg_newline ();

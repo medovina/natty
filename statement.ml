@@ -120,12 +120,13 @@ let is_type_decl id = function
   | _ -> false
 
 let is_hypothesis = function
-  | Hypothesis _ -> true
-  | _ -> false
+  | Hypothesis _ -> true | _ -> false
+
+let is_definition = function
+  | Definition _ -> true | _ -> false
 
 let is_theorem = function
-  | Theorem _ -> true
-  | _ -> false
+  | Theorem _ -> true | _ -> false
 
 let stmt_id = function
   | TypeDecl (id, _)
@@ -198,8 +199,8 @@ let is_const_decl id def : typ option =
   if i = id then Some typ else None
 
 let definition_id f : id =
-  match strip_range (remove_universal f) with
-    | Eq (f, _g) | App (App (Const ("↔", _), f), _g) ->
+  match is_eq_or_iff (strip_range (remove_universal f)) with
+    | Some (f, _g) ->
         get_const_or_var (fst (collect_args f))
     | _ -> failwith "definition_id: definition expected"
 
@@ -227,7 +228,10 @@ let number_hypotheses name stmts =
     | stmt -> (n, stmt) in
   snd (fold_left_map f 1 stmts)
 
-let match_thm_id thm_id selector = starts_with selector thm_id
+let match_thm_id thm_id selector =
+  if Option.is_some (String.index_opt selector 's')
+    then thm_id = selector
+  else starts_with selector thm_id
 
 let match_thm thm selector = match_thm_id (stmt_id thm) selector
 

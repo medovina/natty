@@ -233,6 +233,8 @@ let rec unzip = function
   | (x, y) :: ps ->
       let (xs, ys) = unzip ps in (x :: xs, y :: ys)
 
+let subset xs ys = for_all (fun x -> mem x ys) xs
+
 let intersect xs ys = filter (fun x -> mem x ys) xs
 
 let overlap xs ys = intersect xs ys <> []
