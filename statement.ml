@@ -274,10 +274,10 @@ let all_using md existing : _module list =
 let module_env md existing : statement list =
   concat_map (fun m -> m.stmts) (all_using md existing)
 
-let expand_modules modules : (string * statement * statement list) list =
+let expand_modules1 modules all_modules : (string * statement * statement list) list =
   let stmts =
     let+ m = modules in
-    let env = map apply_types_in_stmt (module_env m modules) in
+    let env = map apply_types_in_stmt (module_env m all_modules) in
     let+ (stmt, known) =
       expand_proofs apply_types_in_stmt (map apply_types_in_stmt m.stmts) false in
     [(m.filename, stmt, env @ rev known)] in
@@ -287,6 +287,8 @@ let expand_modules modules : (string * statement * statement list) list =
   if (Option.is_some !(opts.only_thm) || Option.is_some !(opts.from_thm)) && stmts = [] then
     failwith "theorem not found";
   stmts
+
+let expand_modules modules = expand_modules1 modules modules
 
 let write_thm_info md =
   let thms = filter is_theorem md.stmts in

@@ -1,6 +1,7 @@
 open Util
 
 type options = {
+  all_modules: bool ref;
   deferred: bool ref;
   disprove: bool ref;
   e_proof: bool ref;
@@ -18,6 +19,7 @@ type options = {
 }
 
 let opts = {
+  all_modules = ref false;
   deferred = ref false;
   disprove = ref false;
   e_proof = ref false;
@@ -49,6 +51,7 @@ let usage () =
       -h                print this help message
       -i                print proof statistics
       -l                run as language server
+      -m                prove theorems in all modules
       -o<name>          only prove/export given theorem or proof step
       -p[<id>]          output proof of theorems, or only of given formula
       --pipe=<name>     pipe name for language server
@@ -79,6 +82,7 @@ let parse_args args =
             | 'h' -> usage ()
             | 'i' -> opts.stats := true
             | 'l' -> opts.server := true
+            | 'm' -> opts.all_modules := true
             | 'o' -> opts.only_thm := Some value
             | 'p' -> if arg = "-p" then opts.show_proofs := true
                      else opts.show_proof_of := int_val ()

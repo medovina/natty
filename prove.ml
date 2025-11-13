@@ -1171,4 +1171,5 @@ let prove_all thf modules =
         let (succeeded, failed) = (succeeded + int_of_bool succeed), (failed + int_of_bool fail) in
         if failed = 0 || !(opts.keep_going) then
           prove_stmts succeeded failed rest in
-  prove_stmts 0 0 (expand_modules modules)
+  let prove_modules = if !(opts.all_modules) then modules else [last modules] in
+  prove_stmts 0 0 (expand_modules1 prove_modules modules)
