@@ -34,8 +34,8 @@ Thus s(z) ∈ A.  We have shown that for all z : ℕ, z ∈ A implies s(z) ∈ A
 
 Lemma.
 
-    a. For all x ∈ ℕ, 0 + x = x.
-    b. For all x, y ∈ ℕ, s(x) + y = s(x + y).
+    a. For all x ∈ ℕ, 0 + x = x.                   [comm lemma a]
+    b. For all x, y ∈ ℕ, s(x) + y = s(x + y).   [comm lemma b]
 
 Proof.
 
@@ -53,3 +53,15 @@ Proof.
                           = s(x + s(y))   by [add succ].
 
     This shows that s(y) ∈ B.  Hence B = ℕ.
+
+Theorem (commutativity of addition).  For all x, y : ℕ,
+
+    x + y = y + x.
+
+Proof.  Let y : ℕ.  Let C = { x ∈ ℕ | x + y = y + x }.  By [comm lemma a] 0 + y = y = y + 0, whence 0 ∈ C.  Suppose that x ∈ C.  Then
+
+    s(x) + y = s(x + y)     by [comm lemma b]
+                  = s(y + x)     by the inductive hypothesis
+                  = y + s(x)     by [add succ].
+
+So s(x) ∈ C.  Hence C = ℕ.

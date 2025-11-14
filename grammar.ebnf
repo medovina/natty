@@ -117,7 +117,7 @@ reason = (('by' ['contradiction with'] | 'using') reference) |
 (* so / have *)
 
 so = 'also' | 'but' ['then'] | 'consequently' | 'hence' | 'however' | 'so' | 'then' | 'therefore' |
-    'thus' | 'which implies' ['that'] | 'which means that';
+    'thus' | 'which implies' ['that'] | 'whence' | 'which means that';
     
 have = 'clearly' |
     'it' ['then'] 'follows' ['from' reference | reason] 'that' |

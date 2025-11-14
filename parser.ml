@@ -333,7 +333,7 @@ and reason s = choice [
 
 and so = choice [
   any_str ["also"; "consequently"; "hence"; "however"; "so";
-           "then"; "therefore"; "thus"; "which means that"];
+           "then"; "therefore"; "thus"; "whence"; "which means that"];
   str "but" << opt_str "then";
   str "which implies" << opt_str "that" ]
 
