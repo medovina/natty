@@ -124,7 +124,7 @@ so = 'also' | 'but' ['then'] | 'consequently' | 'hence' | 'however' |
     
 have = 'clearly' |
     'it' ['then'] 'follows' ['from' reference | reason] 'that' |
-    'it is clear that' | 'it must be that' | 'observe that' |
+    'it is' ('clear' | 'obvious') 'that' | 'it must be that' | 'observe that' |
     'on the other hand' [','] | 'similarly' [','] |
     'the only alternative is' | 'this means that' | 'this shows that' | 'trivially' |
     'we conclude that' | 'we deduce that' | 'we have' ['shown that'] |
@@ -155,7 +155,7 @@ small_prop =
     atomic | if_then_prop | for_all_prop | exists_prop | precisely_prop |
     small_prop prop_op small_prop |
     small_prop 'is' predicate |
-    small_prop 'for' ('all' | 'some') id_type [with_exprs];
+    small_prop 'for' ('all' | 'some') decl_ids_type [with_exprs];
 
 (* propositions *)
 

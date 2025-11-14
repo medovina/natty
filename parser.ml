@@ -340,17 +340,18 @@ and so = choice [
   str "but" << opt_str "then";
   str "which implies" << opt_str "that" ]
 
-and have s = (any_str 
-  ["clearly"; "it is clear that"; "it must be that";
-   "observe that"; "the only alternative is"; "this means that";
-   "this shows that"; "trivially";
-   "we conclude that"; "we deduce that";
-   "we know that"; "we must have"; "we see that"] <|>
-   (str "we have" << opt_str "shown that") <|>
-   (any_str ["on the other hand"; "similarly"] << opt_str ",") <|>
-   (any_str ["it follows"; "it then follows"] >>
-      optional ((str "from" >> reference) <|> reason) >>
-      str "that")) s
+and have s = choice [
+  any_str ["clearly"; "it must be that";
+    "observe that"; "the only alternative is"; "this means that";
+    "this shows that"; "trivially";
+    "we conclude that"; "we deduce that";
+    "we know that"; "we must have"; "we see that"];
+  any_str ["it follows"; "it then follows"] >>
+    optional ((str "from" >> reference) <|> reason) >> str "that";
+  str "it is" >> any_str ["clear"; "obvious"] >> str "that";
+  any_str ["on the other hand"; "similarly"] << opt_str ",";
+  str "we have" << opt_str "shown that"
+  ] s
 
 and new_phrase s = (so <|> (optional reason >> have) <|> str "that") s
 
@@ -358,9 +359,11 @@ and and_op s = (str "and" <<? not_before new_phrase) s
 
 (* small propositions *)
 
-and for_with text q s =
-  pipe2 (str text >> id_type) (option with_exprs)
-    (fun id_type opt_with f -> q [id_type] f opt_with) s
+and for_with text q s : (formula -> formula) pr =
+  pipe2 (str text >> decl_ids_type) (option with_exprs)
+    (fun (ids, typ) opt_with f ->
+      let ids_types = (let+ id = ids in [(id, typ)]) in
+      q ids_types f opt_with) s
 
 and post_for_all_with s = for_with "for all" for_all_with s
 and post_for_some_with s = for_with "for some" exists_with s
