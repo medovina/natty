@@ -35,6 +35,7 @@ Thus s(z) ∈ A.  We have shown that for all z : ℕ, z ∈ A implies s(z) ∈ A
 Lemma.
 
     a. For all x ∈ ℕ, 0 + x = x.
+    b. For all x, y ∈ ℕ, s(x) + y = s(x + y).
 
 Proof.
 
@@ -44,3 +45,11 @@ Proof.
                       = s(x)           by the inductive hypothesis.
 
     Hence s(x) ∈ A.  So A = ℕ.
+
+    b. Let x : ℕ.  Let B = { y : ℕ | s(x) + y = s(x + y) }.  Then 0 ∈ B by [add 0].  Suppose that y ∈ B.  Then
+
+        s(x) + s(y) = s(s(x) + y)   by [add succ]
+                          = s(s(x + y))   by the inductive hypothesis
+                          = s(x + s(y))   by [add succ].
+
+    This shows that s(y) ∈ B.  Hence B = ℕ.
