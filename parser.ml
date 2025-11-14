@@ -323,7 +323,7 @@ and reference s = choice [
 
 and reason s = choice [
   any_str ["by contradiction with"; "by"; "using"] >>? reference;
-  str "by" >>? optional (any_str ["the inductive"; "the induction"]) >>?
+  str "by" >>? optional (opt_str "the" >> any_str ["inductive"; "induction"]) >>?
     any_str ["assumption"; "hypothesis"];
   str "by definition";
   str "by the definition of" << term;
@@ -332,7 +332,7 @@ and reason s = choice [
 (* so / have *)
 
 and so = choice [
-  any_str ["also"; "consequently"; "hence"; "however"; "so";
+  any_str ["also"; "consequently"; "hence"; "however"; "so"; "that is";
            "then"; "therefore"; "thus"; "whence"; "which means that"];
   str "but" << opt_str "then";
   str "which implies" << opt_str "that" ]
@@ -433,10 +433,12 @@ let operation =
   any_str ["a"; "an"] >>? optional (any_str ["binary"; "unary"]) >>
     any_str ["operation"; "relation"]
 
-let let_decl : (id * typ) list p = str "Let" >> choice [
-  id <<? str "be a type" |>> (fun id -> [(id, Type)]);
-  decl_ids_types << optional (str "be" >> operation)
-]
+let let_decl : (id * typ) list p =
+  str "Consider any" >> decl_ids_types <|> (
+  str "Let" >> choice [
+    id <<? str "be a type" |>> (fun id -> [(id, Type)]);
+    decl_ids_types << optional (str "be" >> operation)
+  ])
 
 let let_step : proof_step list p = pipe2 
   (let_decl |>> fun ids_types -> [Let ids_types])
@@ -595,9 +597,9 @@ let proof_if_prop : proof_step list p = pipe3
 let and_or_so = (str "and" << optional so) <|> so
 
 let will_show = choice [
-  str "We need to show that";
   str "We start by showing that";
-  str "We" >>? any_str ["must"; "will"] >>? any_str ["show"; "deduce"] >> str "that"
+  str "We" >>? any_str ["must"; "need to"; "will"] >>?
+    any_str ["deduce"; "prove"; "show"] >> str "that"
   ]
 
 let to_show = str "To show that" >> small_prop << str ","

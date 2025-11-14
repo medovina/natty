@@ -14,6 +14,9 @@ let strip_range f : formula = match f with
   | App (Const (c, _), g) when starts_with "@" c -> g
   | _ -> f
 
+let rec strip_ranges f : formula =
+  map_formula strip_ranges (strip_range f)
+
 let range_of f : str = match f with
   | App (Const (c, _), _) when starts_with "@" c -> c
   | _ -> ""
@@ -54,6 +57,10 @@ let map_step env vars step = match step with
         | _ -> step)
   | _ -> step
 
+let has_premise f g = match strip_ranges f with
+  | App (App (Const ("→", _), g'), _) when g' = strip_ranges g -> true
+  | _ -> false
+
 let infer_blocks env steps : block list =
   let rec infer vars scope_vars in_assume steps : block list * proof_step list * bool =
     match steps with
@@ -70,9 +77,12 @@ let infer_blocks env steps : block list =
             then ([], steps, false)
           else match step with
             | Escape ->
-                if in_assume then ([], rest, true) else infer vars scope_vars false rest
+                if Option.is_some in_assume then ([], rest, true)
+                  else infer vars scope_vars None rest
+            | Assert f when opt_exists (has_premise f) in_assume ->
+                ([], steps, true)  (* proof invoked last assumption as a premise, so exit scope *)
             | Assert f when strip_range f = _false ->
-                if in_assume then
+                if Option.is_some in_assume then
                   let rest = match rest with
                     | Escape :: rest -> rest  (* ignore an escape that immediately follows *)
                     | _ -> rest in
@@ -82,7 +92,7 @@ let infer_blocks env steps : block list =
                 let rec group_blocks = function
                   | [] -> []
                   | steps ->
-                      let (blocks, rest, _bail) = infer [] [] false steps in
+                      let (blocks, rest, _bail) = infer [] [] None steps in
                       blocks @ group_blocks rest in
                 let blocks = group_blocks steps in
                 let (blocks2, rest2, bail) = infer vars scope_vars in_assume rest in
@@ -90,8 +100,9 @@ let infer_blocks env steps : block list =
             | _ ->
               let (children, rest1, bail) =
                 match step with
-                  | Assume _ ->
-                      let (blocks, rest, _bail) = infer vars scope_vars true rest in
+                  | Assume f ->
+                      let (blocks, rest, _bail) =
+                        infer vars scope_vars (Some f) rest in
                       (blocks, rest, false)
                   | _ -> match step_decl_vars step with
                     | [] -> ([], rest, false)
@@ -106,7 +117,7 @@ let infer_blocks env steps : block list =
                     [Block (step, children @ blocks)]  (* pull siblings into block *)
                 | _ -> Block (step, children) :: blocks in
               (out_blocks, rest2, bail) in
-  let (blocks, rest, _bail) = infer [] [] false steps in
+  let (blocks, rest, _bail) = infer [] [] None steps in
   assert (rest = []);
   blocks
 

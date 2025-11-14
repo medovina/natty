@@ -65,3 +65,9 @@ Proof.  Let y : ℕ.  Let C = { x ∈ ℕ | x + y = y + x }.  By [comm lemma a] 
                   = y + s(x)     by [add succ].
 
 So s(x) ∈ C.  Hence C = ℕ.
+
+Theorem (cancellation law for addition).  For all x, y, z ∈ ℕ,
+
+    x + z = y + z implies x = y.
+
+Proof.  Consider any x, y : ℕ.  Let A = { z : ℕ | x + z = y + z implies x = y }.  We must prove that A = ℕ.  First, 0 ∈ A by [add 0].  Second, assume that z ∈ A.  Then z ∈ { z : ℕ | x + z = y + z implies x = y }.  Assume that x + s(z) = y + s(z).  Then by [add succ] s(x + z) = s(y + z).  Therefore by [succ injective] x + z = y + z.  Hence by inductive hypothesis x = y.  We have shown that x + s(z) = y + s(z) implies x = y, that is s(z) ∈ A.  Therefore for all z: ℕ, z ∈ A implies s(z) ∈ A.  By [induction] A = ℕ.

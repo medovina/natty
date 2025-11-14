@@ -110,14 +110,15 @@ theorem_ref = '[' name [':' id_eq_term {',' id_eq_term}] ']';
 reference = theorem_ref | 'part (' number ')' ['of this theorem'];
 
 reason = (('by' ['contradiction with'] | 'using') reference) |
-          'by' ['the' ('inductive' | 'induction')] ('assumption' | 'hypothesis') |
+          'by' [['the'] ('inductive' | 'induction')] ('assumption' | 'hypothesis') |
           'by definition' | 'by the definition of' term |
           'by transitivity of =';
 
 (* so / have *)
 
-so = 'also' | 'but' ['then'] | 'consequently' | 'hence' | 'however' | 'so' | 'then' | 'therefore' |
-    'thus' | 'which implies' ['that'] | 'whence' | 'which means that';
+so = 'also' | 'but' ['then'] | 'consequently' | 'hence' | 'however' |
+     'so' | 'that is' | 'then' | 'therefore' | 'thus' | 'which implies' ['that'] |
+     'whence' | 'which means that';
     
 have = 'clearly' |
     'it' ['then'] 'follows' ['from' reference | reason] 'that' |
@@ -168,8 +169,8 @@ proposition =
 
 operation = ('a' | 'an') ['binary' | 'unary'] ('operation' | 'relation');
 
-let_decl = 'Let'
-    (decl_ids_types ['be' operation] | id 'be a type');
+let_decl = 'Consider any' decl_ids_types |
+    'Let' (decl_ids_types ['be' operation] | id 'be a type');
 
 let_step = let_decl [with_exprs];
 
@@ -240,9 +241,8 @@ proof_if_prop = 'if' small_prop [','] 'then' proof_prop {',' so proof_prop};
 and_or_so = 'and' [so] | so;
 
 will_show =
-    'We need to show that' |
     'We start by showing that' |
-    'We' ('must' | 'will') ('show' | 'deduce') 'that';
+    'We' ('must' | 'need to' | 'will') ('deduce' | 'prove' | 'show') 'that';
 
 to_show = 'To show that' small_prop ',';
 
