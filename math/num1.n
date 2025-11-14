@@ -1,6 +1,8 @@
-using int1, num, set;
+using int1, set1;
 
 # Divisibility
+
+Definition.  For all a, b ∈ ℤ, a | b iff there is some c ∈ ℤ such that b = ac.
 
 Lemma.  For all a ∈ ℤ, a | a.
 
@@ -10,6 +12,14 @@ Lemma (divisor_le).  For all a, b ∈ ℤ, if b > 0 and a | b then a ≤ b.
 
 Proof.  Let a, b ∈ ℤ, and suppose that b > 0 and a | b.  Then there is some c ∈ ℤ such that b = ac.  By [int_factor_less], a ≤ b.
 
+Theorem (int_div_trans). For all a, b, c ∈ ℤ, if a | b and b | c then a | c.
+
+Proof.  Let a, b, c : ℤ, and suppose that a | b and b | c.  There is some e ∈ ℤ such that ae = b.  Similarly, there is some f ∈ ℤ such that bf = c.  Hence c = bf = (ae)f = a(ef), and we conclude that a | c.
+
+Theorem (int_divides_linear_combo).  For all a, b, m, n, c ∈ ℤ, if c | a and c | b then c | (ma + nb).
+
+Proof.  Let a, b, m, n, c : ℤ, and suppose that c | a and c | b.  There is some e ∈ ℤ such that a = ce.  Similarly, there is some f ∈ ℤ such that b = cf.  Hence ma + nb = mce + ncf = c(me + nf).  We see that c | (ma + nb).
+
 Theorem (int_division_algorithm).  For all a, b ∈ ℤ, if b > 0 then there exist q, r ∈ ℤ such that a = bq + r and 0 ≤ r < b.
 
 Proof.  Let a, b ∈ ℤ, and suppose that b > 0.  Let S = { i ∈ ℤ | i ≥ 0 and there exists k ∈ ℤ such that i = a − bk }.  We will show that S is nonempty.  Suppose that a ≥ 0.  Then a − b · 0 ≥ 0, so a − b · 0 ∈ S.  Conversely, suppose that a < 0.  There exists d : ℤ such that d = a − b · a.  Then d = a(1 − b).  b > 0, so by [int_discrete] b ≥ 1.  Then b − b ≥ 1 − b, so 1 − b ≤ 0.  It follows by [int_mul_neg_neg] that d ≥ 0, so d ∈ S.  In any case S is nonempty.
@@ -18,9 +28,34 @@ By [int_well_ordered], there exists some r : ℤ such that r is a least element 
 
 # Prime numbers
 
+Definition.  For all a ∈ ℤ, a is prime iff a > 1 and for all b ∈ ℤ, if b > 0 and b | a then b = 1 or b = a.
+
 Lemma.  For all p ∈ ℤ, if p is prime then p ∤ 1.
 
 Proof.  Let p : ℤ, and suppose that p is prime.  Suppose that p | 1.  Then p ≤ 1 by [divisor_le], however p > 1 by definition.  This is a contradiction, so p ∤ 1.
+
+Lemma (int_has_prime_divisor).  For all a ∈ ℤ, if a > 1 then there exists p ∈ ℤ such that p is prime and p | a.
+
+Proof.  Suppose that there exists some k ∈ ℤ such that k > 1 and there exists no p ∈ ℤ such that p is prime and p | k.  Let
+
+    G = { a ∈ ℤ | a > 1 and there exists no p ∈ ℤ such that p is prime and p | a }.
+
+We have k ∈ G.  So by [int_well_ordered] there exists some n : ℤ such that n ∈ G and for all g ∈ ℤ, if g ∈ G then n ≤ g.  There exists no p ∈ ℤ such that p is prime and p | n, but n | n, so n is not prime.  Hence there exist a, b ∈ ℤ such that n = ab and 1 < a < n and 1 < b < n.  Because a < n, there must exist some p ∈ ℤ such that p is prime and p | a.  By [int_div_trans], for all d ∈ ℤ, if d | a then d | n.  So we must have p | n, which is a contradiction.
+
+# Natty parses the product pᵢ ⋯ pⱼ into ∏(p, i, j), which we define here.
+Axiom. There is a function ∏ : (ℤ → ℤ) ⨯ ℤ ⨯ ℤ → ℤ such that for all p : ℤ → ℤ,
+
+ a. For all i, j : ℤ, if j < i then ∏(p, i, j) = 1.
+ b. For all i, j : ℤ, if j ≥ i then ∏(p, i, j) = p(i) · ∏(p, i + 1, j).
+
+# Euclid's theorem, Wiedjik #11
+Theorem (euclid).  { x ∈ ℤ | x is prime } is infinite.
+
+Proof.  Suppose that there exists n : ℤ and p : ℤ → ℤ with n > 0 such that for all x : ℤ, x is prime iff x = pᵢ for some i : ℤ with 1 ≤ i ≤ n.  Let
+
+           Q = p₁ ⋯ pₙ + 1.
+    
+By [int_has_prime_divisor], there exists q : ℤ such that q is prime and q | Q.  Suppose that there is some j : ℤ such that 1 ≤ j ≤ n and q = pⱼ.  We know that Q − p₁ ⋯ pₙ = 1. q | Q and q | p₁ ⋯ pₙ, so by [int_divides_linear_combo] it follows that q | 1.  This is a contradiction.  So q is prime, but there is no j : ℤ such that 1 ≤ j ≤ n and q = pⱼ.  This is a contradiction, so { x ∈ ℤ | x is prime } is infinite.
 
 # Greatest common divisors
 

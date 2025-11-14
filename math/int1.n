@@ -1,12 +1,29 @@
-using int, nat1;
+using nat1;
 
-Definition.  Let 2 : ℤ = z(s(1), 0).
+# Integers: definition
+
+Axiom.  There exists a type ℤ (the integers) with a function z : ℕ ⨯ ℕ → ℤ such that
+
+  a. For all a, b, c, d ∈ ℕ, z(a, b) = z(c, d) if and only if a + d = b + c.  [int_eq_def]
+  b. For all x ∈ ℤ, there exist some a, b ∈ ℕ such that x = z(a, b).
+
+Definition.  Let 0 : ℤ = z(0, 0).  Let 1 : ℤ = z(1, 0).  Let 2 : ℤ = z(s(1), 0).
 
 Lemma (int_z_zero).  For all a, b ∈ ℕ, z(a, b) = 0 if and only if a = b.
 
 Lemma.  0 : ℤ ≠ 1 : ℤ.
 
 # Integers: addition
+
+Axiom (int_ax_add).  There is a binary operation + : ℤ → ℤ → ℤ such that for all a, b, c, d ∈ ℕ,
+
+    z(a, b) + z(c, d) = z(a + c, b + d).
+
+Axiom.  There is a unary operation − : ℤ → ℤ such that for all a, b ∈ ℕ,
+
+  −z(a, b) = z(b, a).
+
+Definition.  For all i, j ∈ ℤ, i − j = i + (−j).
 
 Theorem.  Let i, j, k ∈ ℤ.
 
@@ -77,6 +94,10 @@ Proof.
                 = −x + −y.
 
 # Integers: multiplication
+
+Axiom.  There is a binary operation · : ℤ → ℤ → ℤ such that for all a, b, c, d ∈ ℕ,
+
+    z(a, b) · z(c, d) = z(ac + bd, ad + bc).        [int_mul_def]
 
 Theorem.  Let i, j, k ∈ ℤ.
 
@@ -168,9 +189,17 @@ Proof.
 
 # Integers: inequalities
 
-Theorem.  For all a, b, c, d ∈ ℕ,
+Axiom.  There is a relation < : ℤ → ℤ → 𝔹 such that for all a, b, c, d ∈ ℕ,
+
+    z(a, b) < z(c, d) if and only if a + d < b + c.     [int_lt_def]
+
+Definition.  For all i, j ∈ ℤ, i ≤ j iff i < j or i = j.
+
+Corollary.  For all a, b, c, d ∈ ℕ,
 
     z(a, b) ≤ z(c, d) if and only if a + d ≤ b + c.     [int_le]
+
+Definition.  For all i, j ∈ ℤ, we write i > j iff j < i.  We write i ≥ j iff j ≤ i.
 
 Theorem.  Let i, j, k ∈ ℤ.
 

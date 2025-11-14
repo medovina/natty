@@ -1,5 +1,3 @@
-using int;
-
 # Sets
 
 Definition.  Let A, B : Set(σ).  A ⊆ B if x ∈ A implies x ∈ B for all x : σ.
@@ -23,8 +21,6 @@ Definition. For all S : Set(σ) and T : Set(τ) and f : σ → τ, f is a biject
 # Cardinality
 
 Definition.  For all S : Set(σ) and T : Set(τ), S ~ T if there exists some f : σ → τ such that f is a bijection from S to T.
-
-Definition.  For all S : Set(σ), S is finite iff there exists n : ℤ such that S ~ { x ∈ ℤ | 0 ≤ x < n }.   S is infinite iff S is not finite.
 
 # Cantor's Theorem, Wiedijk #63
 
