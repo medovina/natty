@@ -117,7 +117,7 @@ reason = (('by' ['contradiction with'] | 'using') reference) |
 (* so / have *)
 
 so = 'also' | 'but' ['then'] | 'consequently' | 'hence' | 'however' | 'so' | 'then' | 'therefore' |
-    'which implies' ['that'] | 'which means that';
+    'thus' | 'which implies' ['that'] | 'which means that';
     
 have = 'clearly' |
     'it' ['then'] 'follows' ['from' reference | reason] 'that' |
@@ -242,7 +242,7 @@ and_or_so = 'and' [so] | so;
 will_show =
     'We need to show that' |
     'We start by showing that' |
-    'We will' ('show' | 'deduce') 'that';
+    'We' ('must' | 'will') ('show' | 'deduce') 'that';
 
 to_show = 'To show that' small_prop ',';
 

@@ -333,7 +333,7 @@ and reason s = choice [
 
 and so = choice [
   any_str ["also"; "consequently"; "hence"; "however"; "so";
-           "then"; "therefore"; "which means that"];
+           "then"; "therefore"; "thus"; "which means that"];
   str "but" << opt_str "then";
   str "which implies" << opt_str "that" ]
 
@@ -597,7 +597,7 @@ let and_or_so = (str "and" << optional so) <|> so
 let will_show = choice [
   str "We need to show that";
   str "We start by showing that";
-  str "We will" >> (str "show" <|> str "deduce") >> str "that"
+  str "We" >>? any_str ["must"; "will"] >> any_str ["show"; "deduce"] >> str "that"
   ]
 
 let to_show = str "To show that" >> small_prop << str ","

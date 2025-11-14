@@ -117,12 +117,13 @@ let rec join_cmp fs ops : formula list =
 
 let chain_comparisons f : formula list =
   let fs, ops = collect_cmp f in
-  join_cmp fs ops
+  if length fs <= 2 then [f]  (* preserve original range *)
+  else join_cmp fs ops
 
 let rec expand_chains f : formula =
-  match collect_cmp f with
-    | [f], [] -> map_formula expand_chains f
-    | fs, ops -> multi_and (join_cmp (map expand_chains fs) ops)
+  let fs, ops = collect_cmp f in
+  if length fs <= 2 then map_formula expand_chains f
+  else multi_and (join_cmp (map expand_chains fs) ops)
 
 let is_type_defined id env = exists (is_type_decl id) env
 
