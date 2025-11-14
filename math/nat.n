@@ -31,3 +31,16 @@ We must show that A = ℕ.  First, 0 ∈ A by [assoc 0].  Second, let z ∈ A.  
                           = (x + y) + s(z)  by [add succ].
 
 Thus s(z) ∈ A.  We have shown that for all z : ℕ, z ∈ A implies s(z) ∈ A.  Hence A = ℕ by [nat induction].
+
+Lemma.
+
+    a. For all x ∈ ℕ, 0 + x = x.
+
+Proof.
+
+    a. Let A = { x : ℕ | 0 + x = x }.  Then 0 ∈ A by [add 0].  Suppose that x ∈ A.  Then
+
+        0 + s(x) = s(0 + x)     by [add succ]
+                      = s(x)           by the inductive hypothesis.
+
+    Hence s(x) ∈ A.  So A = ℕ.

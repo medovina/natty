@@ -18,6 +18,11 @@ let range_of f : str = match f with
   | App (Const (c, _), _) when starts_with "@" c -> c
   | _ -> ""
 
+let is_declared env id =
+  env |> exists (fun stmt -> match decl_var stmt with
+    | Some (id', _) when id' = id -> true
+    | _ -> false)
+
 type block = Block of proof_step * block list
 
 let print_blocks blocks =
@@ -37,11 +42,24 @@ let rec all_vars steps : id list = match steps with
   | step :: steps ->
       subtract (step_free_vars step @ all_vars steps) (step_decl_vars step)
 
-let infer_blocks steps : block list =
+let map_step env vars step = match step with
+  | Assume f -> (
+      match strip_range f with
+        | (App (App (Const ("∈", _), v), g)) -> (
+            match strip_range v with
+              | Var (x, _) ->
+                  if mem x (concat vars) || is_declared env x
+                    then step else Let [(x, Sub g)]
+              | _ -> step)
+        | _ -> step)
+  | _ -> step
+
+let infer_blocks env steps : block list =
   let rec infer vars scope_vars in_assume steps : block list * proof_step list * bool =
     match steps with
       | [] -> ([], steps, false)
       | step :: rest ->
+          let step = map_step env vars step in
           if overlap (step_decl_vars step) (concat vars) then ([], steps, false) else
           let in_use = "·" :: all_vars steps in
           let vars_in_use = head_opt vars |> opt_for_all (fun top_vars
@@ -140,11 +158,6 @@ let univ f : formula = match f with
   | Const (id, Type) -> Lambda ("x", Base id, _true)
   | f -> f
 
-let is_declared env id =
-  env |> exists (fun stmt -> match decl_var stmt with
-    | Some (id', _) when id' = id -> true
-    | _ -> false)
-
 let quant1 q id typ f =
   if q = "{}" then Lambda (id, typ, f) else quant q id typ f
 
@@ -168,11 +181,12 @@ let rec check_type1 env vars typ : typ =
       | Product typs -> Product (map (check range vars) typs)
       | TypeApp (c, [typ]) when c.[0] = '@' -> check c vars typ
       | TypeApp _ -> failwith "check_type1: typeapp"
-      | Sub (Var (id, _) as f) ->
-          opt_or (lookup_type id) (fun () ->
-            let (_typ, f) = infer_formula env vars f in
-            Sub f)
-      | Sub _ -> failwith "check_type1: sub"
+      | Sub f -> match strip_range f with
+        | Var (id, _) as f ->
+            opt_or (lookup_type id) (fun () ->
+              let (_typ, f) = infer_formula env vars f in
+              Sub f)
+        | _ -> failwith "check_type1: sub"
   in check "" vars typ
 
 and check_type env typ : typ = check_type1 env [] typ
@@ -452,7 +466,7 @@ let rec expand_proof stmt env (steps : proof_step list) (proof_steps : proof_ste
         print_newline ()
       );
     );
-    let blocks = infer_blocks proof_steps in
+    let blocks = infer_blocks env proof_steps in
     if !debug > 0 then print_blocks blocks;
     let (stmtss, _concl) = blocks_steps env [] blocks in
     map rev stmtss in
@@ -469,7 +483,7 @@ and infer_stmt env stmt : statement =
         Definition (id, typ, f)
     | Theorem _ -> failwith "infer_stmt"
     | HAxiom (id, steps, name) ->
-        let blocks = infer_blocks steps in
+        let blocks = infer_blocks env steps in
         let (_, f) = blocks_steps env [] blocks in
         Axiom (id, top_infer env f, name)
     | HTheorem (num, name, steps, proof_steps) ->

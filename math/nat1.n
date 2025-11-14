@@ -11,15 +11,14 @@ Lemma (nat_prec).  Let a ∈ ℕ.  Suppose that a ≠ 0.  Then there is some b �
 Theorem.  Let a, b, c ∈ ℕ.
 
   1. If a + c = b + c, then a = b.      [nat_add_cancel]
-  2. (a + b) + c = a + (b + c).
-  3. 0 + a = a = a + 0.
-  4. 1 + a = s(a) = a + 1.
-  5. s(a) + b = s(a + b).
-  6. a + b = b + a.
-  7. a ≠ s(a). 
-  8. s(a) + s(b) ≠ 1.       [nat_no_sum_one]
-  9. a + s(b) ≠ a.
-  10. If a + b = 0, then a = 0 and b = 0.
+  2. a = a + 0.
+  3. 1 + a = s(a) = a + 1.
+  4. s(a) + b = s(a + b).
+  5. a + b = b + a.
+  6. a ≠ s(a). 
+  7. s(a) + s(b) ≠ 1.       [nat_no_sum_one]
+  8. a + s(b) ≠ a.
+  9. If a + b = 0, then a = 0 and b = 0.
 
 # Natural numbers: multiplication
 
