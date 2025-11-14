@@ -1,21 +1,12 @@
-# Natural numbers: definition
+using nat;
 
-Axiom.  There exists a type ℕ (the natural numbers) with an element 0 ∈ ℕ and a function s : ℕ → ℕ such that
-
-  a. There is no n ∈ ℕ such that s(n) = 0.  [nat_succ_zero]
-  b. For all n, m ∈ ℕ, if s(n) = s(m) then n = m.  [nat_succ_injective]
-  c. Let P : ℕ → 𝔹.  If 0 ∈ P, and k ∈ P implies s(k) ∈ P for all k ∈ ℕ, then P = ℕ.  [nat_induction]
+# Natural numbers
 
 Definition.  Let 1 : ℕ = s(0).
 
 Lemma (nat_prec).  Let a ∈ ℕ.  Suppose that a ≠ 0.  Then there is some b ∈ ℕ such that a = s(b).
 
 # Natural numbers: addition
-
-Axiom.  There is a binary operation + : ℕ → ℕ → ℕ such that for all n, m ∈ ℕ,
-
-  a. n + 0 = n.
-  b. n + s(m) = s(n + m).
 
 Theorem.  Let a, b, c ∈ ℕ.
 

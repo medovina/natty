@@ -117,7 +117,7 @@ let thf_statement is_conjecture f : string =
 let thf_file dir name = mk_path dir (name ^ ".thf")
 
 let write_thf dir name using proven (stmt: statement option) =
-  let f = thf_file dir (str_replace "." "_" name) in
+  let f = thf_file dir (Str.global_replace (Str.regexp "\\.\\| ") "_" name) in
   if not (Sys.file_exists f) then (
     let out = open_out f in
     stmt |> Option.iter (fun stmt ->

@@ -359,9 +359,18 @@ and block_steps env lenv (Block (step, children)) : statement list list * formul
           else f in
         (map mk_thm eqs, concl)
     | Let ids_types ->
+        let resolve_subtype (id, typ) = match typ, check_type env typ with
+          | Sub f, (Sub f' as t) ->
+              let ptyp = erase_sub t in
+              let hyp = Hypothesis ("hyp", App (f', Const (id, ptyp))) in
+              [(id, f)], [hyp], (id, ptyp)
+          | _ -> [], [], (id, typ) in
+        let subids, hyps, ids_types = unzip3 (map resolve_subtype ids_types) in
+        let subids, hyps = concat subids, concat hyps in
         let decls = const_decls ids_types in
-        let (fs, concl) = child_steps decls in
-        (fs, for_all_vars_types_if_free ids_types concl)
+        let (fs, concl) = child_steps (rev hyps @ decls) in
+        let imps = multi_and (let+ (id, f) = subids in [App (f, _var id)]) in
+        (fs, for_all_vars_types_if_free ids_types (implies imps concl))
     | LetDef (_id, _typ, g) ->
         let (id, typ, f) = infer_definition env g in
         let (fs, concl) = child_steps [Definition (id, typ, f)] in
@@ -564,9 +573,10 @@ let basic_check env f : typ * formula =
                 else errorf "undefined constant" f ""
           | [typ] -> (typ, Const (id, typ))
           | _ -> failwith "ambiguous constant")
-    | Var (id, _) ->
-        let typ = assoc id vars in
-        (typ, Var (id, typ))
+    | Var (id, _) -> (
+        match assoc_opt id vars with
+          | Some typ -> (typ, Var (id, typ))
+          | None -> errorf "undefined variable" f "")
     | App (g, h) ->
         let (g_type, g) = check vars g in
         let (h_type, h) = check vars h in

@@ -1,0 +1,33 @@
+# Natural numbers: definition
+
+Axiom.  There exists a type ℕ (the natural numbers) with an element 0 ∈ ℕ and a function s : ℕ → ℕ such that
+
+  a. There is no n ∈ ℕ such that s(n) = 0.  [succ 0]
+  b. For all n, m ∈ ℕ, if s(n) = s(m) then n = m.  [succ injective]
+  c. Let P : ℕ → 𝔹.  If 0 ∈ P, and k ∈ P implies s(k) ∈ P for all k ∈ ℕ, then P = ℕ.  [induction]
+
+# Natural numbers: addition
+
+Axiom.  There is a binary operation + : ℕ → ℕ → ℕ such that for all n, m ∈ ℕ,
+
+  a. n + 0 = n.                    [add 0]
+  b. n + s(m) = s(n + m).   [add succ]
+
+Lemma.  For all x, y ∈ ℕ, x + (y + 0) = (x + y) + 0.  [assoc 0]
+
+Theorem (associativity of addition).  For all x, y, z ∈ ℕ,
+
+    x + (y + z) = (x + y) + z.
+
+Proof.  Let x, y : ℕ.  Let
+
+    A = { z : ℕ | x + (y + z) = (x + y) + z }.
+
+We must show that A = ℕ.  First, 0 ∈ A by [assoc 0].  Second, let z ∈ A.  Then x + (y + z) = (x + y) + z.  Now
+
+    x + (y + s(z)) = x + s(y + z)    by [add succ]
+                          = s(x + (y + z))  by [add succ]
+                          = s((x + y) + z)  by the inductive hypothesis
+                          = (x + y) + s(z)  by [add succ].
+
+Thus s(z) ∈ A.  We have shown that for all z : ℕ, z ∈ A implies s(z) ∈ A.  Hence A = ℕ by [nat induction].

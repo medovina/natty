@@ -504,7 +504,7 @@ let negate f = match bool_kind f with
 let gather_and = gather_associative "∧"
 let gather_or = gather_associative "∨"
 
-let implies f g = fold_right implies1 (gather_and f) g
+let implies f g = if f = _true then g else fold_right implies1 (gather_and f) g
 
 let is_ground f =
   let rec has_free outer = function

@@ -597,7 +597,7 @@ let and_or_so = (str "and" << optional so) <|> so
 let will_show = choice [
   str "We need to show that";
   str "We start by showing that";
-  str "We" >>? any_str ["must"; "will"] >> any_str ["show"; "deduce"] >> str "that"
+  str "We" >>? any_str ["must"; "will"] >>? any_str ["show"; "deduce"] >> str "that"
   ]
 
 let to_show = str "To show that" >> small_prop << str ","
