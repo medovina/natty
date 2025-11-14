@@ -26,7 +26,9 @@ word = letter {letter};
 
 adjective = word;
 
-name = {letter | digit | '_' | ' '}+;
+name_char = name_char;  (* ' ' or any printable char except '[', ']', '(', ')', ':' *)
+
+name = {name_char}+;
 
 sub_letter = 'ₐ' .. 'ₓ';
 
@@ -281,6 +283,8 @@ theorem_group = ('Corollary' | 'Lemma' | 'Theorem') [stmt_name] '.' {let_step '.
 
 (* module *)
 
-using = 'using' name {',' name} ';' ;
+module_name = {letter | digit | '_' }+;
+
+using = 'using' module_name {',' module_name} ';' ;
 
 module = [using] {axiom_group | definition | theorem_group};

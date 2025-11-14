@@ -8,10 +8,10 @@ Axiom.  There exists a type ℕ (the natural numbers) with an element 0 ∈ ℕ 
 
 # Natural numbers: addition
 
-Axiom.  There is a binary operation + : ℕ → ℕ → ℕ such that for all n, m ∈ ℕ,
+Axiom.  There is a binary operation + : ℕ → ℕ → ℕ such that for all x, y ∈ ℕ,
 
-  a. n + 0 = n.                    [add 0]
-  b. n + s(m) = s(n + m).   [add succ]
+  a. x + 0 = x.                    [add 0]
+  b. x + s(y) = s(x + y).     [add succ]
 
 Lemma.  For all x, y ∈ ℕ, x + (y + 0) = (x + y) + 0.  [assoc 0]
 
@@ -71,3 +71,14 @@ Theorem (cancellation law for addition).  For all x, y, z ∈ ℕ,
     x + z = y + z implies x = y.
 
 Proof.  Consider any x, y : ℕ.  Let A = { z : ℕ | x + z = y + z implies x = y }.  We must prove that A = ℕ.  First, 0 ∈ A by [add 0].  Second, assume that z ∈ A.  Then z ∈ { z : ℕ | x + z = y + z implies x = y }.  Assume that x + s(z) = y + s(z).  Then by [add succ] s(x + z) = s(y + z).  Therefore by [succ injective] x + z = y + z.  Hence by inductive hypothesis x = y.  We have shown that x + s(z) = y + s(z) implies x = y, that is s(z) ∈ A.  Therefore for all z: ℕ, z ∈ A implies s(z) ∈ A.  By [induction] A = ℕ.
+
+# Natural numbers: ordering
+
+Definition.  For all a, b ∈ ℕ, a ≤ b iff there is some c ∈ ℕ such that a + c = b.  a < b iff a ≤ b and a ≠ b.
+
+Definition.  For all a, b ∈ ℕ, we write a ≥ b iff b ≤ a.  We write a > b iff b < a.
+
+Theorem.
+
+    a. x ≮ x for all x : ℕ.     [irreflexivity of <]
+

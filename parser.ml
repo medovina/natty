@@ -76,7 +76,10 @@ let word = empty >>? many1_chars letter
 
 let adjective = word
 
-let name = empty >>? many1_chars (alphanum <|> char '_' <|> char ' ')
+let is_name_char c =
+  c = ' ' || not (Char.Ascii.is_white c) && not (str_contains "[]():" c)
+
+let name = empty >>? many1_satisfy is_name_char
 
 let sub_digit1 = sub_digit |>> sub_to_digit
 
@@ -323,7 +326,7 @@ and reference s = choice [
 
 and reason s = choice [
   any_str ["by contradiction with"; "by"; "using"] >>? reference;
-  str "by" >>? optional (opt_str "the" >> any_str ["inductive"; "induction"]) >>?
+  str "by" >>? optional (opt_str "the" >>? any_str ["inductive"; "induction"]) >>?
     any_str ["assumption"; "hypothesis"];
   str "by definition";
   str "by the definition of" << term;
@@ -665,7 +668,9 @@ let theorem_group : statement list p =
 
 (* module *)
 
-let using : string list p = str "using" >> sep_by1 name (str ",") << str ";"
+let module_name = empty >>? many1_chars (alphanum <|> char '_')
+
+let using : string list p = str "using" >> sep_by1 module_name (str ",") << str ";"
 
 let _module : statement list p = optional using >>
   many (axiom_group <|> definition <|> theorem_group) << empty << eof |>> concat

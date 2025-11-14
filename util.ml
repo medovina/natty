@@ -84,6 +84,8 @@ let string_from s i = string_range s i (String.length s)
 
 let last_char s = s.[strlen s - 1]
 
+let str_contains s c = Option.is_some (String.index_opt s c)
+
 let prepend p s = p ^ s
 
 let n_spaces n = String.make n ' '
