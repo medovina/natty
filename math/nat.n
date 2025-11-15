@@ -42,9 +42,23 @@ Definition.  For all a, b ∈ ℕ, a ≤ b iff there is some c ∈ ℕ such that
 
 Definition.  For all a, b ∈ ℕ, we write a ≥ b iff b ≤ a.  We write a > b iff b < a.
 
-Lemma.  For all x, y : ℕ, x < y iff there exists some z : ℕ such that x + s(z) = y.
+Lemma.  For all x, y : ℕ, x < y iff there exists some z : ℕ such that x + s(z) = y.  [less if add succ]
 
 Proof.  Let x, y : ℕ, and suppose that x < y.  Then x ≤ y, so there exists w : ℕ such that x + w = y.  If w = 0 then x + 0 = y, so x = y, which is a contradiction.  So w ≠ 0, so by [positive is succ] there exists z : ℕ such that w = s(z).  Then x + s(z) = y.
 
 Now suppose that there exists some z : ℕ such that x + s(z) = y.  Then x ≤ y.  Suppose that x = y.  Then x + s(z) = x.  We know that x + 0 = x, so x + s(z) = x + 0, so s(z) + x = 0 + x.  Then s(z) = 0, which is a contradiction to [succ 0].  So x ≠ y.  It follows that x < y.
 
+Theorem.
+
+     a. x ≮ x for all x : ℕ.     [irreflexivity of <]
+     b. x < y and y < z implies x < z for all x, y, z : ℕ.
+
+Proof.
+
+     b. Let x, y, z : ℕ.  Suppose that x < y and y < z.  Then by [less if add succ] there exist u, v : ℕ such that x + s(u) = y and y + s(v) = z.  Then
+
+        z = (x + s(u)) + s(v)
+           = x + (s(u) + s(v))
+           = x + s(u + s(v)).
+     
+    Then x < z by [less if add succ].
