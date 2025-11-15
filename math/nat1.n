@@ -4,17 +4,16 @@ using nat;
 
 Definition.  Let 1 : ℕ = s(0).
 
-# Natural numbers: addition
+# Addition
 
 Theorem.  Let a, b, c ∈ ℕ.
 
   1. 1 + a = s(a) = a + 1.
-  2. a ≠ s(a). 
-  3. s(a) + s(b) ≠ 1.       [nat_no_sum_one]
-  4. a + s(b) ≠ a.
-  5. If a + b = 0, then a = 0 and b = 0.
+  2. s(a) + s(b) ≠ 1.       [nat_no_sum_one]
+  3. a + s(b) ≠ a.
+  4. If a + b = 0, then a = 0 and b = 0.
 
-# Natural numbers: multiplication
+# Multiplication
 
 Axiom.  There is a binary operation · : ℕ → ℕ → ℕ such that for all n, m ∈ ℕ,
 
@@ -65,7 +64,7 @@ Proof. Let
 
   Now let a ∈ ℕ, and suppose that a ∈ G.  Let b, c ∈ ℕ, and suppose that c ≠ 0 and s(a) · c = bc.  Then by [nat_succ_mul] we deduce that ca + c = bc.  If b = 0, then either s(a) = 0 or c = 0, which is a contradiction.  Hence b ≠ 0.  By [nat_prec] there is some p ∈ ℕ such that b = s(p).  Therefore ca + c = s(p) · c, and we see that ca + c = cp + c.  It follows by [nat_add_cancel] that ca = cp, so ac = pc.  By hypothesis it follows that a = p.  Therefore s(a) = s(p) = b.  Hence s(a) ∈ G, and we deduce that G = ℕ.
 
-# Natural numbers: ordering
+# Ordering
 
 Theorem.  Let a, b, c ∈ ℕ.
 

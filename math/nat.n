@@ -6,95 +6,38 @@ Axiom.  There exists a type ℕ (the natural numbers) with an element 0 ∈ ℕ 
   b. For all n, m ∈ ℕ, if s(n) = s(m) then n = m.  [succ injective]
   c. Let P : ℕ → 𝔹.  If 0 ∈ P, and k ∈ P implies s(k) ∈ P for all k ∈ ℕ, then P = ℕ.  [induction]
 
-Lemma.  Let x ∈ ℕ.  Suppose that x ≠ 0.  Then there is some y ∈ ℕ such that x = s(y).
+Theorem.  Let x ∈ ℕ.  Suppose that x ≠ 0.  Then there is some y ∈ ℕ such that x = s(y).
 
-Proof.  Let
+Theorem.  For all x ∈ ℕ, s(x) ≠ x.
 
-    B = { x : ℕ | if x ≠ 0 then there is some y : ℕ such that x = s(y) }.
-
-We must show that B = ℕ.  First, it is obvious that 0 ∈ B.  Assume x ∈ B.  Then there exists y : ℕ such that s(x) = s(y).  Thus s(x) ∈ B.  We have shown that for all x : ℕ, x ∈ B implies s(x) ∈ B.  Therefore by [induction] B = ℕ.
-
-# Natural numbers: addition
+# Addition
 
 Axiom.  There is a binary operation + : ℕ → ℕ → ℕ such that for all x, y ∈ ℕ,
 
-  a. x + 0 = x.                    [add 0]
-  b. x + s(y) = s(x + y).     [add succ]
+  a. x + 0 = x.
+  b. x + s(y) = s(x + y).
 
-Lemma.  For all x, y ∈ ℕ, x + (y + 0) = (x + y) + 0.  [assoc 0]
+Lemma.  For all x, y ∈ ℕ, x + (y + 0) = (x + y) + 0.
 
 Theorem (associativity of addition).  For all x, y, z ∈ ℕ,
 
     x + (y + z) = (x + y) + z.
 
-Proof.  Let x, y : ℕ.  Let
-
-    A = { z : ℕ | x + (y + z) = (x + y) + z }.
-
-We must show that A = ℕ.  First, 0 ∈ A by [assoc 0].  Second, let z ∈ A.  Then x + (y + z) = (x + y) + z.  Now
-
-    x + (y + s(z)) = x + s(y + z)    by [add succ]
-                          = s(x + (y + z))  by [add succ]
-                          = s((x + y) + z)  by the inductive hypothesis
-                          = (x + y) + s(z)  by [add succ].
-
-Thus s(z) ∈ A.  We have shown that for all z : ℕ, z ∈ A implies s(z) ∈ A.  Hence A = ℕ by [nat induction].
-
 Lemma.
 
-    a. For all x ∈ ℕ, 0 + x = x.                    [comm lemma a]
-    b. For all x, y ∈ ℕ, s(x) + y = s(x + y).  [comm lemma b]
-
-Proof.
-
-    a. Let A = { x : ℕ | 0 + x = x }.  Then 0 ∈ A by [add 0].  Suppose that x ∈ A.  Then
-
-        0 + s(x) = s(0 + x)     by [add succ]
-                      = s(x)           by the inductive hypothesis.
-
-    Hence s(x) ∈ A.  So A = ℕ.
-
-    b. Let x : ℕ.  Let B = { y : ℕ | s(x) + y = s(x + y) }.  Then 0 ∈ B by [add 0].  Suppose that y ∈ B.  Then
-
-        s(x) + s(y) = s(s(x) + y)   by [add succ]
-                          = s(s(x + y))   by the inductive hypothesis
-                          = s(x + s(y))   by [add succ].
-
-    This shows that s(y) ∈ B.  Hence B = ℕ.
+    a. For all x ∈ ℕ, 0 + x = x.
+    b. For all x, y ∈ ℕ, s(x) + y = s(x + y).
 
 Theorem (commutativity of addition).  For all x, y : ℕ,
 
     x + y = y + x.
 
-Proof.  Let y : ℕ.  Let C = { x ∈ ℕ | x + y = y + x }.  By [comm lemma a] 0 + y = y = y + 0, whence 0 ∈ C.  Suppose that x ∈ C.  Then
-
-    s(x) + y = s(x + y)     by [comm lemma b]
-                  = s(y + x)     by the inductive hypothesis
-                  = y + s(x)     by [add succ].
-
-So s(x) ∈ C.  Hence C = ℕ.
-
 Theorem (cancellation law for addition).  For all x, y, z ∈ ℕ,
 
     x + z = y + z implies x = y.
 
-Proof.  Consider any x, y : ℕ.  Let A = { z : ℕ | x + z = y + z implies x = y }.  We must prove that A = ℕ.  First, 0 ∈ A by [add 0].  Second, assume that z ∈ A.  Then z ∈ { z : ℕ | x + z = y + z implies x = y }.  Assume that x + s(z) = y + s(z).  Then by [add succ] s(x + z) = s(y + z).  Therefore by [succ injective] x + z = y + z.  Hence by inductive hypothesis x = y.  We have shown that x + s(z) = y + s(z) implies x = y, that is s(z) ∈ A.  Therefore for all z: ℕ, z ∈ A implies s(z) ∈ A.  By [induction] A = ℕ.
-
-# Natural numbers: ordering
+# Ordering
 
 Definition.  For all a, b ∈ ℕ, a ≤ b iff there is some c ∈ ℕ such that a + c = b.  a < b iff a ≤ b and a ≠ b.
 
 Definition.  For all a, b ∈ ℕ, we write a ≥ b iff b ≤ a.  We write a > b iff b < a.
-
-# Lemma.  For all x, y : ℕ, x < y iff there exists some z : ℕ such that x + s(z) = y.
-
-# Proof.  Let x, y : ℕ, and suppose that x < y.  Then x ≤ y, so there exists w : ℕ such that x + w = y.  If w = 0 then x + 0 = y, so x = y, which is a contradiction.  So w ≠ 0, so 
-
-# Theorem.
-
-#     a. x ≮ x for all x : ℕ.     [irreflexivity of <]
-#     b. x < y and y < z implies x < z for all x, y, z : ℕ.
-
-# Proof.
-
-#     b. Suppose that x < y and y < z.  Then x ≤ y and y ≤ z, so x + u = y and y + v = z for some u, v : ℕ.  Then x + (u + v) = (x + u) + v = y + v = z.  So there exists w : ℤ such that x + w = z, that is, x < z.

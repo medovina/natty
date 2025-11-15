@@ -503,6 +503,7 @@ let cost p =
   match p.parents, p.rule with
     | _, "expand" -> 1.0
     | [_; _], _ ->
+        if by_induction p then 1.0 else
         let r = minimum (map rank p.parents) in
         let qs = p.parents |> filter (fun p -> rank p = r) in
         let w = weight p.formula in
