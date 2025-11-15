@@ -101,18 +101,21 @@ let thf_type : statement p = id << str ":" >>= fun id ->
 
 let thf_formula : statement p = empty >>?
   str "thf" >> parens (
-    pair (id << str ",") (id << str ",") >>= fun (name, role) ->
-      match role with
-        | "type" -> thf_type
-        | "axiom" | "theorem"  ->
-            formula |>> fun f -> Axiom (name, f, None)
-        | "definition" ->
-            formula |>> fun f -> Definition ("_", unknown_type, f)
-        | "hypothesis" ->
-            formula |>> fun f -> Hypothesis (name, f)
-        | "conjecture" ->
-            formula |>> fun f -> Theorem (name, None, f, [], empty_range)
-        | _ -> failwith "unknown role")
+    let> id, role = pair (id << str ",") (id << str ",") in
+    match role with
+      | "type" -> thf_type
+      | "axiom" | "theorem"  ->
+          formula |>> fun f -> Axiom (id, f, None)
+      | "definition" ->
+          formula |>> fun f -> Definition ("_", unknown_type, f)
+      | "hypothesis" ->
+          formula |>> fun f -> Hypothesis (id, f)
+      | "conjecture" ->
+          let> f = formula in
+          let$ step = try_skip (str ",file,[step]") in
+          let id = if step then "step:" ^ id else id in
+          Theorem (id, None, f, [], empty_range)
+      | _ -> failwith "unknown role")
   << str "."
 
 let _include = str "include" >> parens quoted_id << str "."

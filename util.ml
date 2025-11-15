@@ -372,6 +372,12 @@ let write_file filename text =
 let (<<?) p q = attempt (p << q)
 let (>>=?) p q = attempt (p >>= q)
 
+let (let>) = bind
+
+let bind_ret p f = p >>= (fun x -> return (f x))
+
+let (let$) = bind_ret
+
 let single s = count 1 s
 
 let pipe2a p1 p2 f =

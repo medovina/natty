@@ -96,8 +96,10 @@ let thf_statement is_conjecture f : string =
   let axiom name kind f =
     sprintf "%s, %s, %s" (quote name) kind (thf_formula f) in
   let type_decl t = sprintf "%s, type, %s: $tType" (quote (t ^ "_type")) (quote t) in
-  let thm_or_hyp name kind f =
-    [sprintf "%s, %s, %s" (quote ("thm_" ^ name)) kind (thf_formula f)] in
+  let thm_or_hyp id kind f =
+    let step_suffix = if starts_with "step:" id then ",file,[step]" else "" in
+    [sprintf "%s, %s, %s%s"
+      (quote ("thm_" ^ drop_id_prefix id)) kind (thf_formula f) step_suffix] in
   let conv = function
     | TypeDecl (id, _) -> [type_decl id]
     | ConstDecl (id, typ) -> [const id typ]
@@ -107,9 +109,9 @@ let thf_statement is_conjecture f : string =
         const id typ;
         axiom (id ^ "_def") "definition" f
         ]
-    | Theorem (num, _, f, _, _) ->
+    | Theorem (id, _, f, _, _) ->
         let kind = if is_conjecture then "conjecture" else "theorem" in
-        thm_or_hyp num kind f
+        thm_or_hyp id kind f
     | HAxiom _
     | HTheorem _ -> failwith "thf_statement" in
   unlines (map (sprintf "thf(%s).") (conv f))
@@ -144,8 +146,8 @@ let export_module dir all_modules md =
   let using = map base_name (all_using md all_modules) in
   expand_proofs Fun.id md.stmts true |> iter (fun (thm, known) ->
     match thm with
-      | Theorem (num, name, _, _, _) ->
-          let filename = String.concat ":" ([num] @ Option.to_list name) in
+      | Theorem (id, name, _, _, _) ->
+          let filename = String.concat ":" ([drop_id_prefix id] @ Option.to_list name) in
           write_thf subdir filename using (rev known) (Some thm)
       | _ -> failwith "theorem expected");
   write_thf subdir module_name [] md.stmts None

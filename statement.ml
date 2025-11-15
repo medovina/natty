@@ -155,8 +155,10 @@ let stmt_kind = function
   | Definition _ -> "definition"
   | Theorem _ | HTheorem _ -> "theorem"
 
+let drop_id_prefix id = remove_prefix "step:" id
+
 let stmt_name stmt =
-  let base = stmt_kind stmt ^ " " ^ stmt_id stmt in
+  let base = stmt_kind stmt ^ " " ^ drop_id_prefix (stmt_id stmt) in
   match stmt with
   | Axiom (_, _, name)
   | Theorem (_, name, _, _, _) -> 
@@ -250,7 +252,7 @@ let expand_proofs apply_types stmts with_full : (statement * statement list) lis
                   let step_name = sprintf "%s.s%d" id (j + 1) in
                   if opt_for_all (match_thm_id step_name) only_thm then
                     let (hypotheses, conjecture) = split_last (map apply_types stmts) in
-                    Some (with_stmt_id step_name conjecture,
+                    Some (with_stmt_id ("step:" ^ step_name) conjecture,
                           rev (number_hypotheses id hypotheses) @ known)
                   else None))
           | _ -> [] in

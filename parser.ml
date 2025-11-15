@@ -6,12 +6,6 @@ open Logic
 open Statement
 open Util
 
-let (let>) = bind
-
-let bind_ret p f = p >>= (fun x -> return (f x))
-
-let (let$) = bind_ret
-
 type state = {
     axiom_count : int ref; theorem_count : int ref;
 }

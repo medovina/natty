@@ -5,6 +5,8 @@ open Options
 open Statement
 open Util
 
+let step_strategy = ref false
+
 let formula_counter = ref 0
 let consts = ref ([] : id list)
 let ac_ops = ref ([] : (id * typ) list)
@@ -503,7 +505,7 @@ let cost p =
   match p.parents, p.rule with
     | _, "expand" -> 1.0
     | [_; _], _ ->
-        if by_induction p then 1.0 else
+        if not !step_strategy && by_induction p then 1.0 else
         let r = minimum (map rank p.parents) in
         let qs = p.parents |> filter (fun p -> rank p = r) in
         let w = weight p.formula in
@@ -547,8 +549,8 @@ let super dp d' t_t' cp c c1 : pformula list =
               not (top_level (t'_s = _false) u c1 sub (is_inductive cp)) && fail 7 || (* vii *)
             not (is_maximal lit_gt (simp_eq t_eq_t'_s) d'_s) && fail 6 ||  (* vi *)
             term_ge t'_s t_s && fail 3 ||  (* iii *)
-            not (is_maximal lit_gt c1_s c_s) && fail 4 ||  (* iv *)
-            not (is_eligible sub parent_eq) && fail 4 ||  (* iv *)
+            not !step_strategy && not (is_maximal lit_gt c1_s c_s) && fail 4 ||  (* iv *)
+            not !step_strategy && not (is_eligible sub parent_eq) && fail 4 ||  (* iv *)
             t'_s <> _false && clause_gt d_s c_s && fail 5  (* v *)
         then [] else (
           let c1_t' = replace_in_formula t' u c1 in
@@ -677,9 +679,6 @@ let rewrite _quick dp cp c_subterms : pformula list =
             [update cp (Some dp) e]
           else []
       | _ -> []
-
-let rewrite1 quick dp cp : pformula list =
-  rewrite quick dp cp (blue_subterms cp.formula)
 
 (*     C    Cσ ∨ R
  *   ═══════════════   subsume
@@ -864,7 +863,8 @@ let dbg_newline () =
 
 let rewrite_opt dp cp c_subterms = head_opt (rewrite false dp cp c_subterms)
 
-let rewrite_from ps q =
+let rewrite_from ps q : pformula option =
+  if !step_strategy then None else
   let q_subterms = blue_subterms q.formula in
   find_map (fun p -> rewrite_opt p q q_subterms) ps
 
@@ -1110,6 +1110,7 @@ let gen_formulas stmts : (id * formula * int * bool) list =
   rev (concat (snd (fold_left_map gen 0 (rev stmts))))
 
 let prove known_stmts thm cancel_check : proof_result * float =
+  step_strategy := (starts_with "step:" (stmt_id thm));
   consts := map fst (filter_map decl_var known_stmts);
   ac_ops := [];
   let formulas = gen_formulas known_stmts in
