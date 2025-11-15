@@ -310,21 +310,23 @@ and atomic s = (
 
 and id_eq_term s = (id >> str "=" >> term) s
 
-and theorem_ref s = brackets (
+and theorem_ref s : string pr = brackets (
   name << optional (str ":" << sep_by1 id_eq_term (str ","))) s
 
-and reference s = choice [
-  theorem_ref;
-  str "part" >> parens number << opt_str "of this theorem"
+and reference s : string list pr = choice [
+  single theorem_ref;
+  str "part" >> parens number >> opt_str "of this theorem" >>$ []
   ] s
 
-and reason s = choice [
-  any_str ["by contradiction with"; "by"; "using"] >>? reference;
-  str "by" >>? optional (opt_str "the" >>? any_str ["inductive"; "induction"]) >>?
-    any_str ["assumption"; "hypothesis"];
-  str "by definition";
-  str "by the definition of" << term;
-  str "by transitivity of ="] s
+and reason s : string list pr = (
+  any_str ["by"; "using"] >>? reference <|>
+  (choice [
+    str "by contradiction with" >> reference >>$ "";
+    str "by" >>? optional (opt_str "the" >>? any_str ["inductive"; "induction"]) >>?
+      any_str ["assumption"; "hypothesis"];
+    str "by definition";
+    str "by the definition of" << term;
+    str "by transitivity of ="] >>$ [])) s
 
 (* so / have *)
 
@@ -468,7 +470,7 @@ let let_or_assume : proof_step list p =
 let top_prop : proof_step list p =
   pipe2 (many_concat (let_or_assume << str "."))
   (opt_str "Then" >> proposition)
-  (fun lets p -> lets @ [Assert p])
+  (fun lets p -> lets @ [Assert (p, [])])
 
 (* proposition lists *)
 
@@ -563,18 +565,18 @@ let definition : statement list p = str "Definition." >>
 
 (* proofs *)
 
-let mk_step f : proof_step =
+let mk_step f reasons : proof_step =
   match kind f with
     | Quant ("∃", _, typ, _) ->
         let (ids, f) = gather_quant_of_type "∃" typ f in
         IsSome (ids, typ, f)
-    | _ -> mk_assert f
+    | _ -> Assert (f, reasons)
 
-let opt_contra : formula list p = opt []
+let opt_contra : proof_step list p = opt []
   (str "," >>? (opt_str "which is " >>?
     optional (any_str ["again"; "also"; "similarly"]) >>?
     str "a contradiction" >>
-    (optional (str "to" >> reference))) >>$ [_false])
+    (optional (str "to" >> reference))) >>$ [Assert (_false, [])])
 
 let rec proof_eq_props s : formula pr =
   pipe2 proposition (option (reason >> option (pair eq_op proof_eq_props)))
@@ -583,16 +585,17 @@ let rec proof_eq_props s : formula pr =
     | _ -> f)
   s
 
-let proof_prop : formula list p = pipe2 (
-  optional (reason >> opt_str ",") >>
-  optional have >> proof_eq_props
-  ) opt_contra cons
+let proof_prop : proof_step list p =
+  let> reasons = opt [] (reason << opt_str ",") in
+  let> prop = optional have >> proof_eq_props in
+  let$ c = opt_contra in
+  mk_step prop reasons :: c
 
 let proof_if_prop : proof_step list p = pipe3
   (str "if" >> small_prop)
   (opt_str "," >> str "then" >> proof_prop)
   (many_concat (str "," >> so >> proof_prop))
-  (fun f gs hs -> [Group (Assume f :: map mk_step (gs @ hs))])
+  (fun f gs hs -> [Group (Assume f :: gs @ hs)])
 
 let and_or_so = (str "and" << optional so) <|> so
 
@@ -610,13 +613,13 @@ let assert_step : proof_step list p =
     optional to_show >> will_show >> proposition >>$ [];
     str "The result follows" >> reason >>$ [];
     single (any_str ["This is"; "We have"] >>? str "a contradiction" >>
-        optional (str "to" >> reference) >>$ _false);
+        optional (str "to" >> reference) >>$ Assert (_false, []));
     optional and_or_so >> proof_prop
-    ] |>> map mk_step)
+    ])
 
 let assert_steps : proof_step list p =
   let join = str "," >> and_or_so in
-  pipe2 assert_step (many_concat (join >> proof_prop |>> map mk_step)) (@)
+  pipe2 assert_step (many_concat (join >> proof_prop)) (@)
 
 let now = any_str ["Conversely"; "Finally"; "Next"; "Now"; "Second"]
 

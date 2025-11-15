@@ -268,7 +268,7 @@ let run () =
             gather_pairs not_proven |> map (fun (filename, stmts) ->
               let text = text_of !sources filename in
               let stmts = stmts |> map (function
-                | Theorem (_, _, _, _, (pos1, pos2)) as thm ->
+                | Theorem { range = (pos1, pos2); _ } as thm ->
                     diagnostic (adjust_pos text pos1) (adjust_pos text pos2) Warning
                       ("could not prove " ^ (stmt_name thm))
                 | _ -> assert false) in

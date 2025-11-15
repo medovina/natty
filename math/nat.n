@@ -6,7 +6,7 @@ Axiom.  There exists a type ℕ (the natural numbers) with an element 0 ∈ ℕ 
   b. For all n, m ∈ ℕ, if s(n) = s(m) then n = m.  [succ injective]
   c. Let P : ℕ → 𝔹.  If 0 ∈ P, and k ∈ P implies s(k) ∈ P for all k ∈ ℕ, then P = ℕ.  [induction]
 
-Theorem.  Let x ∈ ℕ.  Suppose that x ≠ 0.  Then there is some y ∈ ℕ such that x = s(y).
+Theorem.  Let x ∈ ℕ.  Suppose that x ≠ 0.  Then there is some y ∈ ℕ such that x = s(y).   [positive is succ]
 
 Theorem.  For all x ∈ ℕ, s(x) ≠ x.
 
@@ -48,10 +48,11 @@ Proof.  Let x, y : ℕ, and suppose that x < y.  Then x ≤ y, so there exists w
 
 Now suppose that there exists some z : ℕ such that x + s(z) = y.  Then x ≤ y.  Suppose that x = y.  Then x + s(z) = x.  We know that x + 0 = x, so x + s(z) = x + 0, so s(z) + x = 0 + x.  Then s(z) = 0, which is a contradiction to [succ 0].  So x ≠ y.  It follows that x < y.
 
-Theorem.
+Theorem.  Let x, y, z ∈ ℕ.
 
-     a. x ≮ x for all x : ℕ.     [irreflexivity of <]
-     b. x < y and y < z implies x < z for all x, y, z : ℕ.
+     a. x ≮ x.     [irreflexivity of <]
+     b. x < y and y < z implies x < z.  [transitivity of <]
+     c. Precisely one of x < y or x = y or x > y holds.        [nat_trichotomy]
 
 Proof.
 
@@ -62,3 +63,19 @@ Proof.
            = x + s(u + s(v)).
      
     Then x < z by [less if add succ].
+
+    c. Let a, b ∈ ℕ.  Suppose that a < b and a = b.  It then follows that a < a, which is a contradiction to [irreflexivity of <].  Now suppose that a = b and a > b.  It follows that a > a, which is similarly a contradiction.  Now suppose that a < b and b < a.  By [transitivity of <] we deduce that a < a, again a contradiction.
+
+  Now let
+
+      G = { x ∈ ℕ | for all y ∈ ℕ, x < y or x = y or x > y }.
+
+  We will show that x ∈ G for all x ∈ ℕ.  We start by showing that 0 ∈ G.  Let y ∈ ℕ.  By [nat_ge_0] we know that 0 ≤ y.  It follows that y = 0 or y > 0.  Hence 0 ∈ G.
+
+  Now let x ∈ ℕ, and suppose that x ∈ G.  We will show that s(x) ∈ G.  Let y ∈ ℕ.  By hypothesis we know that x < y or x = y or x > y.
+  
+  First suppose that x < y.  Then there is some p ∈ ℕ such that x + p = y.  If p = 0, then x = y, so s(x) > y by [nat_lt].  If p ≠ 0, then by [positive is succ] there is some r ∈ ℕ such that p = s(r), which implies that x + s(r) = y, which implies s(x) + r = y, so s(x) ≤ y, so either s(x) < y or s(x) = y.
+
+  Next suppose that x = y.  Then by [nat_lt] it follows that s(x) > x = y.  Finally, suppose that x > y.  We know that s(x) > x, and by [transitivity of <] it follows that s(x) > y.
+
+  Putting the cases together, we see that s(x) < y or s(x) = y or s(x) > y always holds.  Hence s(x) ∈ G, and we conclude that G = ℕ.

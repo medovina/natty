@@ -74,15 +74,15 @@ let infer_blocks env steps : block list =
             -> overlap top_vars in_use) in
           let let_vars_in_use = head_opt scope_vars |> opt_for_all (fun top_vars
             -> overlap top_vars in_use) in
-          if step <> Assert _false && not vars_in_use && not let_vars_in_use
+          if not (is_assert _false step) && not vars_in_use && not let_vars_in_use
             then ([], steps, false)
           else match step with
             | Escape ->
                 if Option.is_some in_assume then ([], rest, true)
                   else infer vars scope_vars None rest
-            | Assert f when opt_exists (has_premise f) in_assume ->
+            | Assert (f, _) when opt_exists (has_premise f) in_assume ->
                 ([], steps, true)  (* proof invoked last assumption as a premise, so exit scope *)
-            | Assert f when strip_range f = _false ->
+            | Assert (f, _) when strip_range f = _false ->
                 if Option.is_some in_assume then
                   let rest = match rest with
                     | Escape :: rest -> rest  (* ignore an escape that immediately follows *)
@@ -373,9 +373,11 @@ and block_steps env lenv (Block (step, children)) : statement list list * formul
   let const_decl (id, typ) =
     if typ = Type then infer_type_decl env id None else infer_const_decl env id typ in
   let const_decls ids_typs = rev (map const_decl ids_typs) in
-  let mk_thm eq = Theorem ("", None, top_infer env eq, [], decode_range (range_of eq)) :: lenv in
+  let mk_thm by f = Theorem {
+    id = ""; name = None; formula = top_infer env f;
+    steps = []; by; range = decode_range (range_of f) } :: lenv in
   match step with
-    | Assert f ->
+    | Assert (f, by) ->
         let eqs = chain_comparisons f in
         let concl =
           if length eqs > 2 && for_all is_eq eqs then
@@ -383,7 +385,7 @@ and block_steps env lenv (Block (step, children)) : statement list list * formul
               | Eq (a, _), Eq (_, b) -> Eq (a, b)
               | _ -> failwith "block_steps"
           else f in
-        (map mk_thm eqs, concl)
+        (map (mk_thm by) eqs, concl)
     | Let ids_types ->
         let resolve_subtype (id, typ) = match typ, check_type env typ with
           | Sub f, (Sub f' as t) ->
@@ -416,7 +418,7 @@ and block_steps env lenv (Block (step, children)) : statement list list * formul
         let decls = rev (map (fun id -> infer_const_decl env id typ) ids) in
         let stmts = Hypothesis ("hyp", top_infer (decls @ env) g) :: decls in
         let (fs, concl) = child_steps stmts in
-        (mk_thm ex :: fs,
+        (mk_thm [] ex :: fs,
          if any_free_in ids concl then exists_vars_typ (ids, typ) concl else concl)
     | Escape | Group _ -> failwith "block_formulas"
 
@@ -469,7 +471,7 @@ let rec expand_proof stmt env (steps : proof_step list) (proof_steps : proof_ste
     let (init, f) = split_last steps in
     let proof_steps =
       if duplicate_lets (collect_lets init) proof_steps
-        then proof_steps @ [Assert concl]
+        then proof_steps @ [Assert (concl, [])]
         else init @ proof_steps @ [f] in
     if !debug > 0 then (
       printf "%s:\n\n" (stmt_name stmt);
@@ -498,12 +500,12 @@ and infer_stmt env stmt : statement =
         let blocks = infer_blocks env steps in
         let (_, f) = blocks_steps env [] blocks in
         Axiom (id, top_infer env f, name)
-    | HTheorem (num, name, steps, proof_steps) ->
+    | HTheorem (id, name, steps, proof_steps) ->
         let (f, stmts) = expand_proof stmt env steps proof_steps in
         let range = match (last steps) with
-          | Assert f -> decode_range (range_of f)
+          | Assert (f, _) -> decode_range (range_of f)
           | _ -> failwith "assert expected" in
-        Theorem (num, name, f, stmts, range)
+        Theorem { id; name; formula = f; steps = stmts; by = []; range }
 
 and infer_stmts initial_env stmts : statement list =
   let check env stmt =

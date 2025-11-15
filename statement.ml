@@ -39,7 +39,7 @@ let range_of f : str = match f with
 type frange = string * range
 
 type proof_step =
-  | Assert of formula
+  | Assert of formula * string list   (* formula, reason(s) *)
   | Let of (id * typ) list
   | LetDef of id * typ * formula
   | Assume of formula
@@ -47,7 +47,11 @@ type proof_step =
   | Escape
   | Group of proof_step list
 
-let mk_assert f = Assert f
+let mk_assert f = Assert (f, [])
+
+let is_assert f = function
+  | Assert (f', _) when f = f' -> true
+  | _ -> false
 
 let is_assume = function
   | Assume _ -> true
@@ -66,7 +70,7 @@ let rec step_decl_vars = function
   | _ -> []
 
 let rec step_formulas = function
-  | Assert f -> [f]
+  | Assert (f, _) -> [f]
   | Let _ | Escape -> []
   | LetDef (_, _, f) -> [f]
   | Assume f -> [f]
@@ -86,7 +90,7 @@ let step_free_type_vars step = unique @@
   concat_map free_type_vars_in_formula (step_formulas step)
 
 let rec show_proof_step = function
-  | Assert f -> sprintf "assert %s" (show_formula f)
+  | Assert (f, _) -> sprintf "assert %s" (show_formula f)
   | Let ids_types ->
       let show (id, typ) = sprintf "%s : %s" id (show_type typ) in
       "let " ^ comma_join (map show ids_types)
@@ -110,7 +114,9 @@ type statement =
   | Axiom of id * formula * string option (* num, formula, name *)
   | Hypothesis of id * formula
   | Definition of id * typ * formula
-  | Theorem of id * string option * formula * statement list list * range
+  | Theorem of
+      { id: string; name: string option; formula: formula;
+        steps: statement list list; by: string list; range: range }
   | HAxiom of id * proof_step list * string option (* num, steps, name *)
   | HTheorem of
       id * string option * proof_step list * proof_step list
@@ -134,17 +140,17 @@ let stmt_id = function
   | Axiom (id, _, _)
   | Hypothesis (id, _)
   | Definition (id, _, _)
-  | Theorem (id, _, _, _, _)
+  | Theorem { id; _ }
   | HAxiom (id, _, _)
   | HTheorem (id, _, _, _) -> id
 
 let with_stmt_id id = function
   | Hypothesis (_, formula) -> Hypothesis (id, formula)
-  | Theorem (_, name, formula, proof, range) -> Theorem (id, name, formula, proof, range)
+  | Theorem thm -> Theorem { thm with id }
   | _ -> assert false
 
 let with_stmt_name name = function
-  | Theorem (id, _, formula, proof, range) -> Theorem (id, name, formula, proof, range)
+  | Theorem thm -> Theorem { thm with name }
   | _ -> failwith "with_stmt_name"
 
 let stmt_kind = function
@@ -161,14 +167,14 @@ let stmt_name stmt =
   let base = stmt_kind stmt ^ " " ^ drop_id_prefix (stmt_id stmt) in
   match stmt with
   | Axiom (_, _, name)
-  | Theorem (_, name, _, _, _) -> 
+  | Theorem { name; _ } -> 
       base ^ (match name with
         | Some name -> sprintf " (%s)" name
         | _ -> "")
   | _ -> base
 
 let stmt_formula = function
-  | Axiom (_, f, _) | Hypothesis (_, f) | Theorem (_, _, f, _, _) -> Some f
+  | Axiom (_, f, _) | Hypothesis (_, f) | Theorem { formula = f; _ } -> Some f
   | Definition (_id, _typ, f) -> Some f
   | _ -> None
 
@@ -178,9 +184,9 @@ let rec map_statement1 id_fn typ_fn fn stmt = match stmt with
   | Axiom (id, f, name) -> Axiom (id, fn f, name)
   | Hypothesis (id, f) -> Hypothesis (id, fn f)
   | Definition (id, typ, f) -> Definition (id_fn typ id, typ_fn typ, fn f)
-  | Theorem (id, name, f, esteps, range) ->
+  | Theorem ({ formula = f; steps = esteps; _ } as thm) ->
       let map_proof esteps = map (map (map_statement1 id_fn typ_fn fn)) esteps in
-      Theorem (id, name, fn f, map_proof esteps, range)
+      Theorem { thm with formula = fn f; steps = map_proof esteps }
   | HAxiom _
   | HTheorem _ -> failwith "map_statement1"
 
@@ -218,7 +224,7 @@ let show_statement multi s : string =
         let prefix =
           sprintf "definition (%s: %s): " (without_type_suffix id) (show_type typ) in
         show prefix f
-    | Theorem (_, _, f, _, _) -> show (name ^ ": ") f
+    | Theorem { formula = f; _ } -> show (name ^ ": ") f
     | HAxiom (id, _, _) -> "haxiom: " ^ id
     | HTheorem (id, _, _, _) -> "htheorem: " ^ id
 
@@ -242,7 +248,7 @@ let expand_proofs apply_types stmts with_full : (statement * statement list) lis
   let rec expand known = function
     | stmt :: stmts ->
         let thms = match stmt with
-          | Theorem (id, _, _, fs, _) as thm ->
+          | Theorem { id; steps = fs; _ } as thm ->
               let thm_known =
                 if opt_for_all (match_thm_id id) only_thm &&
                   (with_full || fs = [])
@@ -295,7 +301,7 @@ let expand_modules modules = expand_modules1 modules modules
 let write_thm_info md =
   let thms = filter is_theorem md.stmts in
   let thm_steps = function
-    | Theorem (_, _, _, steps, _) -> steps
+    | Theorem { steps; _ } -> steps
     | _ -> assert false in
   let step_groups = map thm_steps thms |> filter (fun steps -> steps <> []) in
   printf "%s: %d theorems (%d with proofs, %d without); %d proof steps\n"

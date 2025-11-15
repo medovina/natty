@@ -114,7 +114,7 @@ let thf_formula : statement p = empty >>?
           let> f = formula in
           let$ step = try_skip (str ",file,[step]") in
           let id = if step then "step:" ^ id else id in
-          Theorem (id, None, f, [], empty_range)
+          Theorem { id; name = None; formula = f; steps = []; by = []; range = empty_range }
       | _ -> failwith "unknown role")
   << str "."
 
