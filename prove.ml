@@ -158,7 +158,7 @@ let merge_cost parents = match unique parents with
 let inducted p =
   searchq [p] (fun p -> p.parents) |> exists (fun p -> is_inductive p)
 
-let cost_limit = 1.0
+let cost_limit = 1.5
 
 let mk_pformula rule parents step formula =
   { id = 0; rule; rewrites = []; simp = false; parents; formula;
@@ -508,8 +508,8 @@ let cost p =
         if not !step_strategy && by_induction p then 1.0 else
         let r = minimum (map rank p.parents) in
         let qs = p.parents |> filter (fun p -> rank p = r) in
-        let w = weight p.formula in
-        if qs |> for_all (fun q -> weight q.formula >= w) then 0.0 else inf_cost
+        let max = maximum (map (fun p -> weight p.formula) qs) in
+        if weight p.formula <= max then step_cost else inf_cost
     | _ -> 0.0
 
 (*      D:[D' ∨ t = t']    C⟨u⟩

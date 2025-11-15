@@ -41,3 +41,10 @@ Theorem (cancellation law for addition).  For all x, y, z ∈ ℕ,
 Definition.  For all a, b ∈ ℕ, a ≤ b iff there is some c ∈ ℕ such that a + c = b.  a < b iff a ≤ b and a ≠ b.
 
 Definition.  For all a, b ∈ ℕ, we write a ≥ b iff b ≤ a.  We write a > b iff b < a.
+
+Lemma.  For all x, y : ℕ, x < y iff there exists some z : ℕ such that x + s(z) = y.
+
+Proof.  Let x, y : ℕ, and suppose that x < y.  Then x ≤ y, so there exists w : ℕ such that x + w = y.  If w = 0 then x + 0 = y, so x = y, which is a contradiction.  So w ≠ 0, so by [positive is succ] there exists z : ℕ such that w = s(z).  Then x + s(z) = y.
+
+Now suppose that there exists some z : ℕ such that x + s(z) = y.  Then x ≤ y.  Suppose that x = y.  Then x + s(z) = x.  We know that x + 0 = x, so x + s(z) = x + 0, so s(z) + x = 0 + x.  Then s(z) = 0, which is a contradiction to [succ 0].  So x ≠ y.  It follows that x < y.
+
