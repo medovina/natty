@@ -57,9 +57,10 @@ let map_step env vars step = match step with
         | _ -> step)
   | _ -> step
 
-let has_premise f g = match strip_ranges f with
-  | App (App (Const ("→", _), g'), _) when g' = strip_ranges g -> true
-  | _ -> false
+let has_premise f g =
+  match remove_universal (strip_ranges f) with
+    | App (App (Const ("→", _), g'), _) when g' = strip_ranges g -> true
+    | _ -> false
 
 let infer_blocks env steps : block list =
   let rec infer vars scope_vars in_assume steps : block list * proof_step list * bool =

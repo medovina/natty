@@ -4,8 +4,6 @@ using nat;
 
 Definition.  Let 1 : ℕ = s(0).
 
-Lemma (nat_prec).  Let a ∈ ℕ.  Suppose that a ≠ 0.  Then there is some b ∈ ℕ such that a = s(b).
-
 # Natural numbers: addition
 
 Theorem.  Let a, b, c ∈ ℕ.
@@ -76,7 +74,6 @@ Theorem.  Let a, b, c ∈ ℕ.
   3. If a ≤ b and b ≤ c, then a ≤ c.   [nat_le_trans]
   4. If a ≤ b and b < c, then a < c.
   5. If a < b and b ≤ c, then a < c.
-  6. If a < b and b < c, then a < c.   [nat_lt_trans]
 
 Proof.
 

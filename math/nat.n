@@ -6,6 +6,14 @@ Axiom.  There exists a type ℕ (the natural numbers) with an element 0 ∈ ℕ 
   b. For all n, m ∈ ℕ, if s(n) = s(m) then n = m.  [succ injective]
   c. Let P : ℕ → 𝔹.  If 0 ∈ P, and k ∈ P implies s(k) ∈ P for all k ∈ ℕ, then P = ℕ.  [induction]
 
+Lemma.  Let x ∈ ℕ.  Suppose that x ≠ 0.  Then there is some y ∈ ℕ such that x = s(y).
+
+Proof.  Let
+
+    B = { x : ℕ | if x ≠ 0 then there is some y : ℕ such that x = s(y) }.
+
+We must show that B = ℕ.  First, it is obvious that 0 ∈ B.  Assume x ∈ B.  Then there exists y : ℕ such that s(x) = s(y).  Thus s(x) ∈ B.  We have shown that for all x : ℕ, x ∈ B implies s(x) ∈ B.  Therefore by [induction] B = ℕ.
+
 # Natural numbers: addition
 
 Axiom.  There is a binary operation + : ℕ → ℕ → ℕ such that for all x, y ∈ ℕ,
@@ -34,8 +42,8 @@ Thus s(z) ∈ A.  We have shown that for all z : ℕ, z ∈ A implies s(z) ∈ A
 
 Lemma.
 
-    a. For all x ∈ ℕ, 0 + x = x.                   [comm lemma a]
-    b. For all x, y ∈ ℕ, s(x) + y = s(x + y).   [comm lemma b]
+    a. For all x ∈ ℕ, 0 + x = x.                    [comm lemma a]
+    b. For all x, y ∈ ℕ, s(x) + y = s(x + y).  [comm lemma b]
 
 Proof.
 
@@ -78,7 +86,15 @@ Definition.  For all a, b ∈ ℕ, a ≤ b iff there is some c ∈ ℕ such that
 
 Definition.  For all a, b ∈ ℕ, we write a ≥ b iff b ≤ a.  We write a > b iff b < a.
 
-Theorem.
+# Lemma.  For all x, y : ℕ, x < y iff there exists some z : ℕ such that x + s(z) = y.
 
-    a. x ≮ x for all x : ℕ.     [irreflexivity of <]
+# Proof.  Let x, y : ℕ, and suppose that x < y.  Then x ≤ y, so there exists w : ℕ such that x + w = y.  If w = 0 then x + 0 = y, so x = y, which is a contradiction.  So w ≠ 0, so 
 
+# Theorem.
+
+#     a. x ≮ x for all x : ℕ.     [irreflexivity of <]
+#     b. x < y and y < z implies x < z for all x, y, z : ℕ.
+
+# Proof.
+
+#     b. Suppose that x < y and y < z.  Then x ≤ y and y ≤ z, so x + u = y and y + v = z for some u, v : ℕ.  Then x + (u + v) = (x + u) + v = y + v = z.  So there exists w : ℤ such that x + w = z, that is, x < z.
