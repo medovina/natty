@@ -168,7 +168,7 @@ let mk_pformula rule parents step formula =
     hypothesis =
       if parents = [] then 0
       else maximum (map (fun p -> p.hypothesis) parents);
-    definition = not step && exists (fun p -> p.definition) parents;
+    definition = not step && parents <> [] && for_all (fun p -> p.definition) parents;
     by = false;
     derived = step || exists (fun p -> p.derived) parents;
   }
@@ -511,8 +511,8 @@ let cost p =
     | _, "expand" -> expand_cost
     | [_; _], _ ->
         if not !step_strategy && by_induction p then big_cost else
-        let r = minimum (map rank p.parents) in
-        let qs = p.parents |> filter (fun p -> rank p = r) in
+        let min_rank = minimum (map rank p.parents) in
+        let qs = p.parents |> filter (fun p -> rank p = min_rank) in
         let max = maximum (map (fun p -> weight p.formula) qs) in
         if weight p.formula <= max then step_cost
           else if exists orig_goal p.parents && exists orig_by p.parents then step_cost
