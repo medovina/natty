@@ -133,9 +133,9 @@ let is_distributive_axiom p =
     let f = remove_universal p.formula in
     distributive_templates |> exists (fun t -> Option.is_some (_match t f))
 
-let orig_goal p = p.goal && not p.derived
-
 let orig_hyp p = is_hyp p && not p.derived
+let orig_goal p = p.goal && not p.derived
+let orig_by p = p.by && not p.derived
 
 type queue_item =
   | Unprocessed of pformula
@@ -497,6 +497,7 @@ let all_steps pformula =
   searchq [pformula] (fun p -> unique (p.parents @ p.rewrites))
 
 let step_cost = 0.01
+let big_cost = 1.0
 let inf_cost = 10.0
 
 let rank p =
@@ -508,11 +509,13 @@ let cost p =
   match p.parents, p.rule with
     | _, "expand" -> 1.0
     | [_; _], _ ->
-        if not !step_strategy && by_induction p then 1.0 else
+        if not !step_strategy && by_induction p then big_cost else
         let r = minimum (map rank p.parents) in
         let qs = p.parents |> filter (fun p -> rank p = r) in
         let max = maximum (map (fun p -> weight p.formula) qs) in
-        if weight p.formula <= max then step_cost else inf_cost
+        if weight p.formula <= max then step_cost
+          else if exists orig_goal p.parents && exists orig_by p.parents then step_cost
+          else inf_cost
     | _ -> 0.0
 
 (*      D:[D' ∨ t = t']    C⟨u⟩
@@ -710,12 +713,13 @@ let prefix_lits dp : formula list * id list =
   let (f, exist) = remove_quants true dp.formula in
   (mini_clausify (prefix_vars f), map prefix_var exist)
 
-let subsumes1 cp dp = subsumes cp (prefix_lits dp)
-
 let any_subsumes cs dp : pformula option =
   profile "any_subsumes" @@ fun () ->
+  if orig_goal dp then None else
   let d_lits = prefix_lits dp in
   cs |> find_opt (fun cp -> subsumes cp d_lits)
+
+let subsumes1 cp dp : bool = Option.is_some (any_subsumes [cp] dp)
 
 let rec expand f : formula list = match or_split f with
   | Some (s, t) -> expand s @ expand t
