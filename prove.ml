@@ -501,18 +501,12 @@ let expand_cost = 0.5
 let big_cost = 1.0
 let inf_cost = 10.0
 
-let rank p =
-  if p.goal then 0
-  else if is_hyp p then 1
-  else 2
-
 let cost p =
   match p.parents, p.rule with
     | _, "expand" -> expand_cost
     | [_; _], _ ->
         if not !step_strategy && by_induction p then big_cost else
-        let min_rank = minimum (map rank p.parents) in
-        let qs = p.parents |> filter (fun p -> rank p = min_rank) in
+        let qs = p.parents |> filter (fun p -> p.goal || is_hyp p) in
         let max = maximum (map (fun p -> weight p.formula) qs) in
         if weight p.formula <= max then step_cost
           else if exists orig_goal p.parents && exists orig_by p.parents then step_cost
