@@ -497,6 +497,7 @@ let all_steps pformula =
   searchq [pformula] (fun p -> unique (p.parents @ p.rewrites))
 
 let step_cost = 0.01
+let expand_cost = 0.5
 let big_cost = 1.0
 let inf_cost = 10.0
 
@@ -507,7 +508,7 @@ let rank p =
 
 let cost p =
   match p.parents, p.rule with
-    | _, "expand" -> 1.0
+    | _, "expand" -> expand_cost
     | [_; _], _ ->
         if not !step_strategy && by_induction p then big_cost else
         let r = minimum (map rank p.parents) in
