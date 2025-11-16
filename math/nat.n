@@ -6,9 +6,11 @@ Axiom.  There exists a type ℕ (the natural numbers) with an element 0 ∈ ℕ 
   b. For all n, m ∈ ℕ, if s(n) = s(m) then n = m.  [succ is injective]
   c. Let P : ℕ → 𝔹.  If 0 ∈ P, and k ∈ P implies s(k) ∈ P for all k ∈ ℕ, then P = ℕ.  [induction]
 
+Definition.  Let 1 : ℕ = s(0).
+
 Theorem.  Let x ∈ ℕ.  Suppose that x ≠ 0.  Then there is some y ∈ ℕ such that x = s(y).   [positive is successor]
 
-Theorem.  For all x ∈ ℕ, s(x) ≠ x.
+Theorem.  For all x ∈ ℕ, s(x) ≠ x.  [all x ≠ s(x)]
 
 # Addition
 
@@ -57,7 +59,9 @@ Theorem.  Let x, y, z ∈ ℕ.
 
 Proof.
 
-     d. Let x, y, z : ℕ.  Suppose that x < y and y < z.  Then by [less if add succ] there exist u, v : ℕ such that x + s(u) = y and y + s(v) = z.  Then
+    c. x + 1 = s(x).  Therefore x ≤ s(x).  By [all x ≠ s(x)] we know that x ≠ s(x), so x < s(x).
+
+    d. Let x, y, z : ℕ.  Suppose that x < y and y < z.  Then by [less if add succ] there exist u, v : ℕ such that x + s(u) = y and y + s(v) = z.  Then
 
         z = (x + s(u)) + s(v)
            = x + (s(u) + s(v))

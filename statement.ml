@@ -152,6 +152,7 @@ let with_stmt_id id = function
 
 let stmt_prefix = function
   | Axiom _ -> "ax" | Theorem _ -> "thm" | Hypothesis _ -> "hyp"
+  | Definition _ -> "def"
   | _ -> failwith "stmt_prefix"
 
 let stmt_prefix_id sep stmt = stmt_prefix stmt ^ sep ^ stmt_id stmt

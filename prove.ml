@@ -25,6 +25,7 @@ type pformula = {
   definition: bool;
   hypothesis: int;
   goal: bool;
+  by: bool;
   derived: bool
 }
 
@@ -167,8 +168,10 @@ let mk_pformula rule parents step formula =
     hypothesis =
       if parents = [] then 0
       else maximum (map (fun p -> p.hypothesis) parents);
+    definition = not step && exists (fun p -> p.definition) parents;
+    by = false;
     derived = step || exists (fun p -> p.derived) parents;
-    definition = not step && exists (fun p -> p.definition) parents }
+  }
 
 let number_formula pformula : pformula =
   if pformula.id > 0 then pformula
@@ -652,9 +655,8 @@ let update p rewriting f : pformula =
   if p.id = 0 then
     { p with rewrites = r @ p.rewrites; simp = p.simp || simp; formula = f }
   else
-    { id = 0; rule = ""; rewrites = r; simp; parents = [p];
-      goal = p.goal; delta = 0.0; cost = p.cost; formula = f;
-      hypothesis = p.hypothesis; derived = p.derived; definition = p.definition }
+    { p with id = 0; rule = ""; rewrites = r; simp; parents = [p];
+        delta = 0.0; formula = f }
 
 (*     t = t'    C⟪tσ⟫
  *   ═══════════════════   rw
@@ -1063,64 +1065,66 @@ let refute pformulas cancel_check : proof_result =
  *     x * (y * z) = y * (x * z)
  * which turns * into a ground convergent system.
  * See e.g. Baader/Nipkow, section 11.2 "Ordered rewriting". *)
-let ac_axiom (op, typ) =
+let ac_axiom op typ =
   let c_op = Const (op, Fun (typ, Fun (typ, typ))) in
   let var v = Var (v, typ) in
   let e1 = apply [c_op; var "x"; apply [c_op; var "y"; var "z"]] in
   let e2 = apply [c_op; var "y"; apply [c_op; var "x"; var "z"]] in
   for_all_vars_typ (["x"; "y"; "z"], typ) (Eq (e1, e2))
 
-type ac_type = Assoc | Comm
-
-let ac_complete formulas : (id * formula * int * bool * bool) list =
-  let rec scan ops = function
-    | (name, f, is_hyp, is_def) :: rest -> 
-        let kind = match associative_axiom f with
-          | Some op_typ -> Some (Assoc, op_typ)
-          | None -> match commutative_axiom f with
-            | Some op_typ -> Some (Comm, op_typ)
-            | None -> None in
-        (name, f, is_hyp, is_def, Option.is_some kind) ::
-        (match kind with
-          | Some (kind, ((op, _typ) as op_typ)) ->
-              let other = match kind with Assoc -> Comm | Comm -> Assoc in
-              if mem (other, op_typ) ops then (
-                if !debug > 0 then printf "AC operator: %s\n\n" op;
-                ac_ops := op_typ :: !ac_ops;
-                let axiom =
-                  ("AC completion: " ^ without_type_suffix op,
-                      ac_axiom op_typ, 0, false, true) in
-                axiom :: scan (remove (kind, op_typ) ops) rest
-              ) else scan ((kind, op_typ) :: ops) rest
-          | None -> scan ops rest)
-    | [] -> [] in
-  scan [] formulas
-
 let to_pformula name f =
   create_pformula name [] (rename_vars (lower_definition f))
 
-let gen_formulas stmts : (id * formula * int * bool) list =
-  let gen hyp_count stmt =
+let ac_completion op typ : pformula =
+  if !debug > 0 then printf "AC operator: %s\n\n" op;
+  ac_ops := (op, typ) :: !ac_ops;
+  let name = "AC completion: " ^ without_type_suffix op in
+  let axiom = to_pformula name (ac_axiom op typ) in
+  dbg_newline ();
+  axiom
+
+type ac_type = Assoc | Comm
+
+let ac_other = function
+  | Assoc -> Comm
+  | Comm -> Assoc
+
+let ac_kind f : (ac_type * str * typ) option =
+  match associative_axiom f with
+    | Some (op, typ) -> Some (Assoc, op, typ)
+    | None -> match commutative_axiom f with
+    | Some (op, typ) -> Some (Comm, op, typ)
+    | None -> None
+
+let gen_pformulas by_thms stmts : pformula list =
+  let hyps = rev (filter is_hypothesis stmts) in
+  let scan ops stmt =
     match stmt_formula stmt with
+      | None -> (ops, [])
       | Some f ->
-          let hyp, hyp_count =
-            if is_hypothesis stmt then hyp_count + 1, hyp_count + 1 else 0, hyp_count in
-          (hyp_count, [(stmt_id_name stmt, f, hyp, is_definition stmt)])
-      | None -> (hyp_count, []) in
-  rev (concat (snd (fold_left_map gen 0 (rev stmts))))
+          let kind_op = ac_kind f in
+          let hyp = match index_of_opt stmt hyps with
+            | Some i -> i + 1
+            | _ -> 0 in
+          let p = { (to_pformula (stmt_id_name stmt) f)
+            with hypothesis = hyp; definition = is_definition stmt;
+                 by = mem (stmt_ref stmt) by_thms } in
+          if Option.is_some kind_op then ac_axioms := p :: !ac_axioms;
+          dbg_newline ();
+          match kind_op with
+            | Some (kind, op, typ) ->
+                if mem (ac_other kind, op, typ) ops then
+                  (remove (kind, op, typ) ops, [p; ac_completion op typ])
+                else ((kind, op, typ) :: ops, [p])
+            | None -> (ops, [p]) in
+  concat (snd (fold_left_map scan [] stmts))
 
 let prove known_stmts thm cancel_check : proof_result * float =
   step_strategy := is_step thm;
   consts := map fst (filter_map decl_var known_stmts);
   ac_ops := [];
-  let formulas = gen_formulas known_stmts in
   formula_counter := 0;
-  let formulas = ac_complete formulas in
-  let known = formulas |> map (fun (name, f, hyp, is_def, is_ac_axiom) ->
-    let p = {(to_pformula name f)
-      with hypothesis = hyp; definition = is_def } in
-    if is_ac_axiom then ac_axioms := p :: !ac_axioms;
-    dbg_newline (); p) in
+  let known = gen_pformulas (thm_by thm) known_stmts in
   let goal = to_pformula (stmt_id_name thm) (Option.get (stmt_formula thm)) in
   let goals = if !(opts.disprove) then [goal] else
       [create_pformula "negate" [goal] (_not goal.formula)] in

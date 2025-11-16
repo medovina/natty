@@ -2,8 +2,6 @@ using nat;
 
 # Natural numbers
 
-Definition.  Let 1 : ℕ = s(0).
-
 # Addition
 
 Theorem.  Let a, b, c ∈ ℕ.
