@@ -88,3 +88,7 @@ First suppose that x < y.  Then there is some p ∈ ℕ such that x + p = y.  If
 Next suppose that x = y.  Then by [all x < s(x)] it follows that s(x) > x = y.  Finally, suppose that x > y.  We know that s(x) > x, and by [transitivity of <] it follows that s(x) > y.
 
 Putting the cases together, we see that s(x) < y or s(x) = y or s(x) > y always holds.  Hence s(x) ∈ G, and we conclude that G = ℕ.
+
+Theorem.  For all x : ℕ, there is no y : ℕ such that x < y < s(x).
+
+Proof.  Let x : ℕ, and assume there is some y : ℕ such that x < y < s(x).  By [less if add succ] there is some u : ℕ such that x + s(u) = y.  Now s(x) + u = x + s(u) = y.  So s(x) ≤ y.  But we know that y < s(x).  This is a contradiction to [trichotomy].

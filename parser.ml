@@ -616,7 +616,7 @@ let assert_step : proof_step list p =
     optional to_show >> will_show >> proposition >>$ [];
     str "The result follows" >> reason >>$ [];
     single (any_str ["This is"; "We have"] >>? str "a contradiction" >>
-        optional (str "to" >> reference) >>$ Assert (_false, []));
+        opt [] (str "to" >> reference) |>> fun r -> Assert (_false, r));
     optional and_or_so >> proof_prop
     ])
 

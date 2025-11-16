@@ -44,7 +44,7 @@ let rec num_literals f = match bool_kind f with
 
 let weight f =
   let rec weigh f = match f with
-    | Const (_, _typ) -> if f = _false then 0 else 1
+    | Const (c, _typ) -> if c = "¬" || f = _false then 0 else 1
     | Var _ -> 1
     | App (f, g) -> weigh f + weigh g
     | Eq (f, g) -> 1 + weigh f + weigh g
