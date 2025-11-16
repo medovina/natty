@@ -119,7 +119,8 @@ type statement =
         steps: statement list list; by: id list; range: range }
   | HAxiom of id * proof_step list * string option (* num, steps, name *)
   | HTheorem of
-      id * string option * proof_step list * proof_step list
+      { id: string; name: string option;
+        steps: proof_step list; proof_steps: proof_step list }
 
 let is_type_decl id = function
   | TypeDecl (id', _) when id = id' -> true
@@ -137,7 +138,7 @@ let is_theorem = function
 let stmt_id = function
   | TypeDecl (id, _) | ConstDecl (id, _) | Axiom (id, _, _)
   | Hypothesis (id, _) | Definition (id, _, _)
-  | Theorem { id; _ } | HAxiom (id, _, _) | HTheorem (id, _, _, _) ->
+  | Theorem { id; _ } | HAxiom (id, _, _) | HTheorem { id; _ } ->
       id
 
 let with_stmt_id id = function
@@ -228,7 +229,7 @@ let show_statement multi s : string =
         show prefix f
     | Theorem { formula = f; _ } -> show (name ^ ": ") f
     | HAxiom (id, _, _) -> "haxiom: " ^ id
-    | HTheorem (id, _, _, _) -> "htheorem: " ^ id
+    | HTheorem { id; _ } -> "htheorem: " ^ id
 
 let number_hypotheses name stmts =
   let f n = function

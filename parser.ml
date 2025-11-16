@@ -665,9 +665,10 @@ let theorem_group : statement list p =
     pipe2 (top_prop_or_items name) (opt [] proofs)
     (fun props proofs ->
       props |> map (fun (sub_index, steps, name) ->
-        HTheorem (count_sub_index (!(st.theorem_count)) sub_index, name,
-                  let_steps @ steps,
-                  opt_default (assoc_opt sub_index proofs) [])))
+        HTheorem {
+          id = count_sub_index (!(st.theorem_count)) sub_index;
+          name; steps = let_steps @ steps;
+          proof_steps = opt_default (assoc_opt sub_index proofs) [] }))
 
 (* module *)
 

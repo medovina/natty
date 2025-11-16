@@ -507,7 +507,7 @@ and infer_stmt env stmt : statement =
         let blocks = infer_blocks env steps in
         let (_, f) = blocks_steps env [] blocks in
         Axiom (id, top_infer env f, name)
-    | HTheorem (id, name, steps, proof_steps) ->
+    | HTheorem { id; name; steps; proof_steps } ->
         let (f, stmts) = expand_proof stmt env steps proof_steps in
         let range = match (last steps) with
           | Assert (f, _) -> decode_range (range_of f)
