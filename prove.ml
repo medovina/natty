@@ -1105,7 +1105,7 @@ let gen_formulas stmts : (id * formula * int * bool) list =
       | Some f ->
           let hyp, hyp_count =
             if is_hypothesis stmt then hyp_count + 1, hyp_count + 1 else 0, hyp_count in
-          (hyp_count, [(stmt_name stmt, f, hyp, is_definition stmt)])
+          (hyp_count, [(stmt_id_name stmt, f, hyp, is_definition stmt)])
       | None -> (hyp_count, []) in
   rev (concat (snd (fold_left_map gen 0 (rev stmts))))
 
@@ -1121,7 +1121,7 @@ let prove known_stmts thm cancel_check : proof_result * float =
       with hypothesis = hyp; definition = is_def } in
     if is_ac_axiom then ac_axioms := p :: !ac_axioms;
     dbg_newline (); p) in
-  let goal = to_pformula (stmt_name thm) (Option.get (stmt_formula thm)) in
+  let goal = to_pformula (stmt_id_name thm) (Option.get (stmt_formula thm)) in
   let goals = if !(opts.disprove) then [goal] else
       [create_pformula "negate" [goal] (_not goal.formula)] in
   let goals = goals |> map (fun g -> {g with goal = true}) in

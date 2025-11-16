@@ -7,7 +7,8 @@ open Util
 
 exception Check_error of string * range
 
-let error s range = raise (Check_error (s, decode_range range))
+let raise_error s range = raise (Check_error (s, range))
+let error s range = raise_error s (decode_range range)
 let errorf s f range = error (sprintf "%s: %s" s (show_formula f)) range
 
 let strip_range f : formula = match f with
@@ -348,6 +349,11 @@ let infer_definition env f : id * typ * formula =
           | _ -> failwith "definition expected")
     | _ -> failwith "definition expected")
 
+let check_ref env (name, range) : id =
+  match find_opt (fun s -> stmt_name s = Some name) env with
+    | Some stmt -> stmt_id stmt
+    | None -> raise_error ("theorem not found: " ^ name) range
+
 (* Restore type variables for any type that has become a constant in the
  * local environment. *)
 let rec with_type_vars env typ : typ = match typ with
@@ -378,6 +384,7 @@ and block_steps env lenv (Block (step, children)) : statement list list * formul
     steps = []; by; range = decode_range (range_of f) } :: lenv in
   match step with
     | Assert (f, by) ->
+        let by = map (check_ref env) by in
         let eqs = chain_comparisons f in
         let concl =
           if length eqs > 2 && for_all is_eq eqs then
@@ -474,7 +481,7 @@ let rec expand_proof stmt env (steps : proof_step list) (proof_steps : proof_ste
         then proof_steps @ [Assert (concl, [])]
         else init @ proof_steps @ [f] in
     if !debug > 0 then (
-      printf "%s:\n\n" (stmt_name stmt);
+      printf "%s:\n\n" (stmt_id_name stmt);
       if !debug > 1 then (
         proof_steps |> iter (fun s -> print_endline (show_proof_step s));
         print_newline ()

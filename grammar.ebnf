@@ -26,7 +26,7 @@ word = letter {letter};
 
 adjective = word;
 
-name_char = name_char;  (* ' ' or any printable char except '[', ']', '(', ')', ':' *)
+name_char = name_char;  (* ' ' or any printable char except '[', ']', ':' *)
 
 name = {name_char}+;
 

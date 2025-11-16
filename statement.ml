@@ -11,6 +11,8 @@ type pos = int * int   (* line number, column number *)
 type range = pos * pos
 let empty_range = ((0, 0), (0, 0))
 
+type frange = string * range  (* filename, position *)
+
 let show_pos (line, col) = sprintf "%d:%d" line col
 
 let show_range (pos1, pos2) : string =
@@ -36,10 +38,8 @@ let range_of f : str = match f with
   | App (Const (c, _), _) when starts_with "@" c -> c
   | _ -> ""
 
-type frange = string * range
-
 type proof_step =
-  | Assert of formula * string list   (* formula, reason(s) *)
+  | Assert of formula * (string * range) list   (* formula, reason(s) *)
   | Let of (id * typ) list
   | LetDef of id * typ * formula
   | Assume of formula
@@ -111,12 +111,12 @@ let is_function_definition = function
 type statement =
   | TypeDecl of id * string option  (* e.g. "ℤ", "integer" *)
   | ConstDecl of id * typ
-  | Axiom of id * formula * string option (* num, formula, name *)
+  | Axiom of id * formula * string option (* id, formula, name *)
   | Hypothesis of id * formula
   | Definition of id * typ * formula
   | Theorem of
       { id: string; name: string option; formula: formula;
-        steps: statement list list; by: string list; range: range }
+        steps: statement list list; by: id list; range: range }
   | HAxiom of id * proof_step list * string option (* num, steps, name *)
   | HTheorem of
       id * string option * proof_step list * proof_step list
@@ -135,21 +135,23 @@ let is_theorem = function
   | Theorem _ -> true | _ -> false
 
 let stmt_id = function
-  | TypeDecl (id, _)
-  | ConstDecl (id, _)
-  | Axiom (id, _, _)
-  | Hypothesis (id, _)
-  | Definition (id, _, _)
-  | Theorem { id; _ }
-  | HAxiom (id, _, _)
-  | HTheorem (id, _, _, _) -> id
+  | TypeDecl (id, _) | ConstDecl (id, _) | Axiom (id, _, _)
+  | Hypothesis (id, _) | Definition (id, _, _)
+  | Theorem { id; _ } | HAxiom (id, _, _) | HTheorem (id, _, _, _) ->
+      id
 
 let with_stmt_id id = function
   | Hypothesis (_, formula) -> Hypothesis (id, formula)
   | Theorem thm -> Theorem { thm with id }
   | _ -> assert false
 
+let stmt_name = function
+  | Axiom (_, _, name) -> name
+  | Theorem { name; _ } -> name
+  | _ -> None
+
 let with_stmt_name name = function
+  | Axiom (id, f, _) -> Axiom (id, f, name)
   | Theorem thm -> Theorem { thm with name }
   | _ -> failwith "with_stmt_name"
 
@@ -163,7 +165,7 @@ let stmt_kind = function
 
 let drop_id_prefix id = remove_prefix "step:" id
 
-let stmt_name stmt =
+let stmt_id_name stmt =
   let base = stmt_kind stmt ^ " " ^ drop_id_prefix (stmt_id stmt) in
   match stmt with
   | Axiom (_, _, name)
@@ -213,7 +215,7 @@ let definition_id f : id =
     | _ -> failwith "definition_id: definition expected"
 
 let show_statement multi s : string =
-  let name = stmt_name s in
+  let name = stmt_id_name s in
   let show prefix f = indent_with_prefix prefix (show_formula_multi multi f) in
   match s with
     | TypeDecl _ -> name

@@ -71,9 +71,12 @@ let word = empty >>? many1_chars letter
 let adjective = word
 
 let is_name_char c =
-  c = ' ' || not (Char.Ascii.is_white c) && not (str_contains "[]():" c)
+  c = ' ' || not (Char.Ascii.is_white c) && not (str_contains "[]:" c)
 
 let name = empty >>? many1_satisfy is_name_char
+
+let in_parens_name = empty >>?
+  many1_satisfy (fun c -> is_name_char c && c <> '(' && c <> ')')
 
 let sub_digit1 = sub_digit |>> sub_to_digit
 
@@ -313,12 +316,12 @@ and id_eq_term s = (id >> str "=" >> term) s
 and theorem_ref s : string pr = brackets (
   name << optional (str ":" << sep_by1 id_eq_term (str ","))) s
 
-and reference s : string list pr = choice [
-  single theorem_ref;
+and reference s : (string * range) list pr = choice [
+  single (with_range theorem_ref);
   str "part" >> parens number >> opt_str "of this theorem" >>$ []
   ] s
 
-and reason s : string list pr = (
+and reason s : (string * range) list pr = (
   any_str ["by"; "using"] >>? reference <|>
   (choice [
     str "by contradiction with" >> reference >>$ "";
@@ -477,7 +480,7 @@ let top_prop : proof_step list p =
 let sub_index : id p = 
   ((empty >>? letter |>> char_to_string) <|> number) <<? string "."
 
-let stmt_name = parens name
+let stmt_name = parens in_parens_name
 
 let label = brackets name
 
