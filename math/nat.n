@@ -69,18 +69,18 @@ Theorem (trichotomy).  For all x, y: ℕ, precisely one of x < y or x = y or x >
 
 Proof.
 
-  Let a, b ∈ ℕ.  Suppose that a < b and a = b.  It then follows that a < a, which is a contradiction to [irreflexivity of <].  Now suppose that a = b and a > b.  It follows that a > a, which is similarly a contradiction.  Now suppose that a < b and b < a.  By [transitivity of <] we deduce that a < a, again a contradiction.
+Let a, b ∈ ℕ.  Suppose that a < b and a = b.  It then follows that a < a, which is a contradiction to [irreflexivity of <].  Now suppose that a = b and a > b.  It follows that a > a, which is similarly a contradiction.  Now suppose that a < b and b < a.  By [transitivity of <] we deduce that a < a, again a contradiction.
 
-  Now let
+Now let
 
-      G = { x ∈ ℕ | for all y ∈ ℕ, x < y or x = y or x > y }.
+    G = { x ∈ ℕ | for all y ∈ ℕ, x < y or x = y or x > y }.
 
-  We will show that x ∈ G for all x ∈ ℕ.  We start by showing that 0 ∈ G.  Let y ∈ ℕ.  By [all x ≥ 0] we know that 0 ≤ y.  It follows that y = 0 or y > 0.  Hence 0 ∈ G.
+We will show that x ∈ G for all x ∈ ℕ.  We start by showing that 0 ∈ G.  Let y ∈ ℕ.  By [all x ≥ 0] we know that 0 ≤ y.  It follows that y = 0 or y > 0.  Hence 0 ∈ G.
 
-  Now let x ∈ ℕ, and suppose that x ∈ G.  We will show that s(x) ∈ G.  Let y ∈ ℕ.  By hypothesis we know that x < y or x = y or x > y.
-  
-  First suppose that x < y.  Then there is some p ∈ ℕ such that x + p = y.  If p = 0, then x = y, so s(x) > y by [all x < s(x)].  If p ≠ 0, then by [positive is successor] there is some r ∈ ℕ such that p = s(r), which implies that x + s(r) = y, which implies s(x) + r = y, so s(x) ≤ y, so either s(x) < y or s(x) = y.
+Now let x ∈ ℕ, and suppose that x ∈ G.  We will show that s(x) ∈ G.  Let y ∈ ℕ.  By hypothesis we know that x < y or x = y or x > y.
 
-  Next suppose that x = y.  Then by [all x < s(x)] it follows that s(x) > x = y.  Finally, suppose that x > y.  We know that s(x) > x, and by [transitivity of <] it follows that s(x) > y.
+First suppose that x < y.  Then there is some p ∈ ℕ such that x + p = y.  If p = 0, then x = y, so s(x) > y by [all x < s(x)].  If p ≠ 0, then by [positive is successor] there is some r ∈ ℕ such that p = s(r), which implies that x + s(r) = y, which implies s(x) + r = y, so s(x) ≤ y, so either s(x) < y or s(x) = y.
 
-  Putting the cases together, we see that s(x) < y or s(x) = y or s(x) > y always holds.  Hence s(x) ∈ G, and we conclude that G = ℕ.
+Next suppose that x = y.  Then by [all x < s(x)] it follows that s(x) > x = y.  Finally, suppose that x > y.  We know that s(x) > x, and by [transitivity of <] it follows that s(x) > y.
+
+Putting the cases together, we see that s(x) < y or s(x) = y or s(x) > y always holds.  Hence s(x) ∈ G, and we conclude that G = ℕ.

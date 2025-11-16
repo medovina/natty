@@ -40,9 +40,12 @@ all_provers = {
 }
 all_prover_names = list(all_provers.keys())
 
+def maybe_to_int(s):
+    return int(s) if s.isdigit() else s
+
 def sort_key(s):
     s = s.split(':')[0]
-    return [int(n) for n in s.replace('s', '').split('_')]
+    return [maybe_to_int(n) for n in s.replace('s', '').split('_')]
 
 def read_theorems():
     files = [name.removesuffix('.thf') for name in os.listdir(conf.dir)

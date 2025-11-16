@@ -109,10 +109,6 @@ let is_const = function
   | Const _ -> true
   | _ -> false
 
-let const_type id = function
-  | Const (id', typ) when id = id' -> Some typ
-  | _ -> None
-
 let is_var = function
   | Var _ -> true
   | _ -> false

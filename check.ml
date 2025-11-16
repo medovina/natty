@@ -351,7 +351,7 @@ let infer_definition env f : id * typ * formula =
 
 let check_ref env (name, range) : id =
   match find_opt (fun s -> stmt_name s = Some name) env with
-    | Some stmt -> stmt_id stmt
+    | Some stmt -> stmt_ref stmt
     | None -> raise_error ("theorem not found: " ^ name) range
 
 (* Restore type variables for any type that has become a constant in the
@@ -381,7 +381,7 @@ and block_steps env lenv (Block (step, children)) : statement list list * formul
   let const_decls ids_typs = rev (map const_decl ids_typs) in
   let mk_thm by f = Theorem {
     id = ""; name = None; formula = top_infer env f;
-    steps = []; by; range = decode_range (range_of f) } :: lenv in
+    steps = []; by; is_step = true; range = decode_range (range_of f) } :: lenv in
   match step with
     | Assert (f, by) ->
         let by = map (check_ref env) by in
@@ -512,7 +512,7 @@ and infer_stmt env stmt : statement =
         let range = match (last steps) with
           | Assert (f, _) -> decode_range (range_of f)
           | _ -> failwith "assert expected" in
-        Theorem { id; name; formula = f; steps = stmts; by = []; range }
+        Theorem { id; name; formula = f; steps = stmts; by = []; is_step = false; range }
 
 and infer_stmts initial_env stmts : statement list =
   let check env stmt =
@@ -638,11 +638,19 @@ let basic_check env f : typ * formula =
         (Bool, Eq (g, h)) in
   check [] f
 
+let fix_by env by : string =
+  match env |> find_opt (fun stmt -> stmt_id stmt = by) with
+    | Some stmt -> stmt_ref stmt
+    | _ -> error ("formula not found: " ^ by) ""
+
 let basic_check_stmt env stmt : statement =
   let bool_check f = match basic_check env f with
     | (Bool, f) -> f
     | _ -> failwith "boolean expected" in
-  map_statement (check_type env) bool_check stmt
+  let stmt = map_statement (check_type env) bool_check stmt in
+  match stmt with
+    | Theorem ({ by; _ } as thm) -> Theorem { thm with by = map (fix_by env) by }
+    | _ -> stmt
 
 let basic_check_stmts stmts : statement list =
   let rec check env = function
@@ -653,7 +661,7 @@ let basic_check_stmts stmts : statement list =
   check [] stmts
 
 let check_module md : (_module, string * frange) result =
-  try 
+  try
     Ok ({ md with stmts = basic_check_stmts md.stmts })
   with
     | Check_error (err, _item) ->

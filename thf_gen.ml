@@ -89,36 +89,38 @@ and quant q ids_typs f =
 
 and thf_formula f = thf "" false f
 
-let thf_statement is_conjecture f : string =
+let thf_statement is_conjecture stmt : string =
   let const id typ =
     sprintf "%s, type, %s: %s"
       (quote (id ^ "_decl")) (quote (prefix_upper id)) (thf_type typ) in
   let axiom name kind f =
     sprintf "%s, %s, %s" (quote name) kind (thf_formula f) in
   let type_decl t = sprintf "%s, type, %s: $tType" (quote (t ^ "_type")) (quote t) in
-  let thm_or_hyp id kind by f =
+  let thm_or_hyp stmt kind by f =
     let extra =
-      (if starts_with "step:" id then ["step"] else []) @
-      (if by = [] then [] else [sprintf "by([%s])" (comma_join (map quote by))]) in
+      (if is_step stmt then ["step"] else []) @
+      (if by = [] then [] else
+        let adjust id = quote (str_replace ":" "_" id) in
+        [sprintf "by([%s])" (comma_join (map adjust by))]) in
     let suffix =
       if extra = [] then "" else sprintf ", file, [%s]" (comma_join extra) in
     [sprintf "%s, %s, %s%s"
-      (quote ("thm_" ^ drop_id_prefix id)) kind (thf_formula f) suffix] in
-  let conv = function
+      (quote (stmt_prefix_id "_" stmt)) kind (thf_formula f) suffix] in
+  let conv stmt = match stmt with
     | TypeDecl (id, _) -> [type_decl id]
     | ConstDecl (id, typ) -> [const id typ]
-    | Axiom (name, f, _) -> [axiom ("ax_" ^ name) "axiom" f]
-    | Hypothesis (name, f) -> thm_or_hyp name "hypothesis" [] f
+    | Axiom (_, f, _) -> [axiom (stmt_prefix_id "_" stmt) "axiom" f]
+    | Hypothesis (_, f) -> thm_or_hyp stmt "hypothesis" [] f
     | Definition (id, typ, f) -> [
         const id typ;
         axiom (id ^ "_def") "definition" f
         ]
-    | Theorem { id; formula = f; by; _ } ->
+    | Theorem { formula = f; by; _ } ->
         let kind = if is_conjecture then "conjecture" else "theorem" in
-        thm_or_hyp id kind by f
+        thm_or_hyp stmt kind by f
     | HAxiom _
     | HTheorem _ -> failwith "thf_statement" in
-  unlines (map (sprintf "thf(%s).") (conv f))
+  unlines (map (sprintf "thf(%s).") (conv stmt))
 
 let thf_file dir name = mk_path dir (name ^ ".thf")
 
@@ -143,6 +145,11 @@ let write_thf dir name using proven (stmt: statement option) =
 
 let base_name md = Filename.remove_extension (Filename.basename md.filename)
 
+(* replace characters that commonly cause trouble in filenames *)
+let fix_filename name =
+  let char_map = ["<", "lt"; ">", "gt"; "(", ""; ")", ""] in
+  fold_left (fun name (s, t) -> str_replace s t name) name char_map
+
 let export_module dir all_modules md =
   let module_name = base_name md in
   let subdir = mk_path dir module_name in
@@ -151,7 +158,7 @@ let export_module dir all_modules md =
   expand_proofs Fun.id md.stmts true |> iter (fun (thm, known) ->
     match thm with
       | Theorem { id; name; _ } ->
-          let filename = String.concat ":" ([drop_id_prefix id] @ Option.to_list name) in
-          write_thf subdir filename using (rev known) (Some thm)
+          let filename = String.concat ":" ([id] @ Option.to_list name) in
+          write_thf subdir (fix_filename filename) using (rev known) (Some thm)
       | _ -> failwith "theorem expected");
   write_thf subdir module_name [] md.stmts None

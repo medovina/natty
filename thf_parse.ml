@@ -50,7 +50,7 @@ let rec type_term s = choice [
   str "$tType" >>$ Type;
   id |>> (fun id -> Base id);
   var |>> (fun id -> TypeVar id);
-  pipe2 (str "!>" >> brackets (sep_by1 pi_arg (str ",")))
+  pipe2 (str "!>" >> brackets (comma_sep1 pi_arg))
         (str ":" >> type_term)
         (fun ids typ -> fold_right mk_pi_type ids typ)
   ] s
@@ -99,6 +99,13 @@ let thf_type : statement p = id << str ":" >>= fun id ->
    (str "$tType" >>$ TypeDecl (id, None)) <|>
    (typ |>> fun typ -> ConstDecl (id, typ))
 
+type thm_info = string list * bool  (* by, is_step *)
+
+let extra_item : (thm_info -> thm_info) p = choice [
+  str "step" >>$ (fun (by, _) -> (by, true));
+  let$ ids = str "by" >> parens (brackets (comma_sep1 id)) in
+  fun (_, is_step) -> (ids, is_step)]
+
 let thf_formula : statement p = empty >>?
   str "thf" >> parens (
     let> id, role = pair (id << str ",") (id << str ",") in
@@ -112,9 +119,11 @@ let thf_formula : statement p = empty >>?
           formula |>> fun f -> Hypothesis (id, f)
       | "conjecture" ->
           let> f = formula in
-          let$ step = try_skip (str ",file,[step]") in
-          let id = if step then "step:" ^ id else id in
-          Theorem { id; name = None; formula = f; steps = []; by = []; range = empty_range }
+          let$ extras =
+            opt [] (str "," >> str "file," >> brackets (comma_sep1 extra_item)) in
+          let (by, is_step) = (fold_left Fun.compose Fun.id extras) ([], false) in
+          Theorem { id; name = None; formula = f; steps = [];
+                    by; is_step; range = empty_range }
       | _ -> failwith "unknown role")
   << str "."
 

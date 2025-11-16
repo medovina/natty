@@ -1110,7 +1110,7 @@ let gen_formulas stmts : (id * formula * int * bool) list =
   rev (concat (snd (fold_left_map gen 0 (rev stmts))))
 
 let prove known_stmts thm cancel_check : proof_result * float =
-  step_strategy := (starts_with "step:" (stmt_id thm));
+  step_strategy := is_step thm;
   consts := map fst (filter_map decl_var known_stmts);
   ac_ops := [];
   let formulas = gen_formulas known_stmts in

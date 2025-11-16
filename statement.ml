@@ -116,7 +116,7 @@ type statement =
   | Definition of id * typ * formula
   | Theorem of
       { id: string; name: string option; formula: formula;
-        steps: statement list list; by: id list; range: range }
+        steps: statement list list; by: id list; is_step: bool; range: range }
   | HAxiom of id * proof_step list * string option (* num, steps, name *)
   | HTheorem of
       { id: string; name: string option;
@@ -135,6 +135,10 @@ let is_definition = function
 let is_theorem = function
   | Theorem _ -> true | _ -> false
 
+let is_step = function
+  | Theorem { is_step = true; _ } -> true
+  | _ -> false
+
 let stmt_id = function
   | TypeDecl (id, _) | ConstDecl (id, _) | Axiom (id, _, _)
   | Hypothesis (id, _) | Definition (id, _, _)
@@ -145,6 +149,14 @@ let with_stmt_id id = function
   | Hypothesis (_, formula) -> Hypothesis (id, formula)
   | Theorem thm -> Theorem { thm with id }
   | _ -> assert false
+
+let stmt_prefix = function
+  | Axiom _ -> "ax" | Theorem _ -> "thm" | Hypothesis _ -> "hyp"
+  | _ -> failwith "stmt_prefix"
+
+let stmt_prefix_id sep stmt = stmt_prefix stmt ^ sep ^ stmt_id stmt
+  
+let stmt_ref = stmt_prefix_id ":"
 
 let stmt_name = function
   | Axiom (_, _, name) -> name
@@ -164,10 +176,8 @@ let stmt_kind = function
   | Definition _ -> "definition"
   | Theorem _ | HTheorem _ -> "theorem"
 
-let drop_id_prefix id = remove_prefix "step:" id
-
 let stmt_id_name stmt =
-  let base = stmt_kind stmt ^ " " ^ drop_id_prefix (stmt_id stmt) in
+  let base = stmt_kind stmt ^ " " ^ stmt_id stmt in
   match stmt with
   | Axiom (_, _, name)
   | Theorem { name; _ } -> 
@@ -180,6 +190,9 @@ let stmt_formula = function
   | Axiom (_, f, _) | Hypothesis (_, f) | Theorem { formula = f; _ } -> Some f
   | Definition (_id, _typ, f) -> Some f
   | _ -> None
+
+let thm_by = function
+  | Theorem { by; _ } -> by | _ -> failwith "thm_by"
 
 let rec map_statement1 id_fn typ_fn fn stmt = match stmt with
   | TypeDecl _ -> stmt
@@ -261,7 +274,7 @@ let expand_proofs apply_types stmts with_full : (statement * statement list) lis
                   let step_name = sprintf "%s.s%d" id (j + 1) in
                   if opt_for_all (match_thm_id step_name) only_thm then
                     let (hypotheses, conjecture) = split_last (map apply_types stmts) in
-                    Some (with_stmt_id ("step:" ^ step_name) conjecture,
+                    Some (with_stmt_id step_name conjecture,
                           rev (number_hypotheses id hypotheses) @ known)
                   else None))
           | _ -> [] in
