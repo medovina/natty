@@ -66,46 +66,28 @@ Proof. Let
 
 Theorem.  Let a, b, c ∈ ℕ.
 
-  1. a ≤ a, and a < s(a).   [nat_lt]
-  2. 0 ≤ a.  [nat_ge_0]
-  3. If a ≤ b and b ≤ c, then a ≤ c.   [nat_le_trans]
-  4. If a ≤ b and b < c, then a < c.
-  5. If a < b and b ≤ c, then a < c.
+  1. a ≤ a.
+  2. If a ≤ b and b ≤ c, then a ≤ c.   [nat_le_trans]
+  3. If a ≤ b and b < c, then a < c.
+  4. If a < b and b ≤ c, then a < c.
 
 Proof.
 
-  3. Let a, b, c ∈ ℕ.  Suppose that a ≤ b and b ≤ c.  Then there exist d, e ∈ ℕ such that a + d = b and b + e = c.  Then a + (d + e) = (a + d) + e = b + e = c, so a ≤ c.
+  2. Let a, b, c ∈ ℕ.  Suppose that a ≤ b and b ≤ c.  Then there exist d, e ∈ ℕ such that a + d = b and b + e = c.  Then a + (d + e) = (a + d) + e = b + e = c, so a ≤ c.
 
-  4. Let a, b, c ∈ ℕ.  Suppose that a ≤ b and b < c.  Then b ≤ c, so a ≤ c by part (3) of this theorem.  There exist d, e ∈ ℕ such that a + d = b and b + e = c.  So a + (d + e) = (a + d) + e = b + e = c.  If e = 0 then b = c, which is a contradiction.  So e ≠ 0, and so there exists f ∈ ℕ such that e = s(f).  Then a + (d + s(f)) = c, so a + s(d + f) = c.  If a = c then a + s(d + f) = a, which is a contradiction.  So a ≠ c.  It follows that a < c.
+  3. Let a, b, c ∈ ℕ.  Suppose that a ≤ b and b < c.  Then b ≤ c, so a ≤ c by part (3) of this theorem.  There exist d, e ∈ ℕ such that a + d = b and b + e = c.  So a + (d + e) = (a + d) + e = b + e = c.  If e = 0 then b = c, which is a contradiction.  So e ≠ 0, and so there exists f ∈ ℕ such that e = s(f).  Then a + (d + s(f)) = c, so a + s(d + f) = c.  If a = c then a + s(d + f) = a, which is a contradiction.  So a ≠ c.  It follows that a < c.
 
-  5. Let a, b, c ∈ ℕ.  Suppose that a < b and b ≤ c.  Then a ≤ b, so a ≤ c by part (3) of this theorem.  There exist d, e ∈ ℕ such that a + d = b and b + e = c.  So a + (d + e) = (a + d) + e = b + e = c.  If d = 0 then a = b, which is a contradiction.  So d ≠ 0, and so there exists f ∈ ℕ such that d = s(f).  Then a + (s(f) + e) = c, so a + s(f + e) = c.  If a = c then a + s(f + e) = a, which is a contradiction.  So a ≠ c.  It follows that a < c.
+  4. Let a, b, c ∈ ℕ.  Suppose that a < b and b ≤ c.  Then a ≤ b, so a ≤ c by part (3) of this theorem.  There exist d, e ∈ ℕ such that a + d = b and b + e = c.  So a + (d + e) = (a + d) + e = b + e = c.  If d = 0 then a = b, which is a contradiction.  So d ≠ 0, and so there exists f ∈ ℕ such that d = s(f).  Then a + (s(f) + e) = c, so a + s(f + e) = c.  If a = c then a + s(f + e) = a, which is a contradiction.  So a ≠ c.  It follows that a < c.
 
 Theorem.  Let a, b ∈ ℕ.
 
-  1. Precisely one of a < b or a = b or a > b holds.        [nat_trichotomy]
-  2. a ≤ b if and only if a ≯ b.
-  3. a ≤ b or b ≤ a.
-  4. If a ≤ b and b ≤ a, then a = b.         [nat_le_antisymm]
+  1. a ≤ b if and only if a ≯ b.
+  2. a ≤ b or b ≤ a.
+  3. If a ≤ b and b ≤ a, then a = b.         [nat_le_antisymm]
 
 Proof.
 
-  1. Let a, b ∈ ℕ.  Suppose that a < b and a = b.  It then follows that a < a, which is a contradiction to [nat_lt].  Now suppose that a = b and a > b.  It follows that a > a, which is similarly a contradiction.  Now suppose that a < b and b < a.  By [nat_lt_trans] we deduce that a < a, again a contradiction.
-
-  Now let
-
-      G = { x ∈ ℕ | for all y ∈ ℕ, x < y or x = y or x > y }.
-
-  We will show that x ∈ G for all x ∈ ℕ.  We start by showing that 0 ∈ G.  Let y ∈ ℕ.  By [nat_ge_0] we know that 0 ≤ y.  It follows that y = 0 or y > 0.  Hence 0 ∈ G.
-
-  Now let x ∈ ℕ, and suppose that x ∈ G.  We will show that s(x) ∈ G.  Let y ∈ ℕ.  By hypothesis we know that x < y or x = y or x > y.
-  
-  First suppose that x < y.  Then there is some p ∈ ℕ such that x + p = y.  If p = 0, then x = y, so s(x) > y by [nat_lt].  If p ≠ 0, then by [nat_prec] there is some r ∈ ℕ such that p = s(r), which implies that x + s(r) = y, which implies s(x) + r = y, so s(x) ≤ y, so either s(x) < y or s(x) = y.
-
-  Next suppose that x = y.  Then by [nat_lt] it follows that s(x) > x = y.  Finally, suppose that x > y.  We know that s(x) > x, and by [nat_lt_trans] it follows that s(x) > y.
-
-  Putting the cases together, we see that s(x) < y or s(x) = y or s(x) > y always holds.  Hence s(x) ∈ G, and we conclude that G = ℕ.
-
-  3. Let a, b ∈ ℕ.  We know that a < b or a = b or a > b.  If a < b, then a ≤ b.  If a = b, then a ≤ b.  If a > b, then b ≤ a.  In any case a ≤ b or b ≤ a.
+  2. Let a, b ∈ ℕ.  We know that a < b or a = b or a > b.  If a < b, then a ≤ b.  If a = b, then a ≤ b.  If a > b, then b ≤ a.  In any case a ≤ b or b ≤ a.
 
 # More identities involving inequalities
 
@@ -141,17 +123,14 @@ Proof.
 
 Theorem.  Let a, b ∈ ℕ.
 
-  1. It cannot be that b < a < b + 1.   [nat_discrete]
-  2. a ≤ b if and only if a < b + 1.       [nat_discrete_le]
-  3. a < b if and only if a + 1 ≤ b.
+  1. a ≤ b if and only if a < b + 1.       [nat_discrete_le]
+  2. a < b if and only if a + 1 ≤ b.
 
 Proof.
 
-  1. Let a, b ∈ ℕ.  Suppose that b < a < b + 1.  Then there are g, h ∈ ℕ such that b + g = a and a + h = b + 1.  Then (b + g) + h = b + 1, so (g + h) + b = 1 + b, so g + h = 1.  If g = 0 then b = a, which is a contradiction.  So there is some j ∈ ℕ such that g = s(j).  Similarly, if h = 0 then a = b + 1, which is a contradiction.  So there is some k ∈ ℕ such that h = s(k).  Therefore s(j) + s(k) = 1.  This is a contradiction to [nat_no_sum_one].
+  1. Let a, b ∈ ℕ.  First suppose that a ≤ b.  Suppose further that a ≥ b + 1.  Then by [nat_le_trans] we deduce that b + 1 ≤ b, which is a contradiction to [nat_lt].  So it must be that a < b + 1.  Second, suppose that a < b + 1.  Suppose further that a > b.  It follows that b < a < b + 1, which is a contradiction to part (1) of this theorem.  So it must be that a ≤ b.
 
-  2. Let a, b ∈ ℕ.  First suppose that a ≤ b.  Suppose further that a ≥ b + 1.  Then by [nat_le_trans] we deduce that b + 1 ≤ b, which is a contradiction to [nat_lt].  So it must be that a < b + 1.  Second, suppose that a < b + 1.  Suppose further that a > b.  It follows that b < a < b + 1, which is a contradiction to part (1) of this theorem.  So it must be that a ≤ b.
-
-  3. Let a, b ∈ ℕ.  First suppose that a < b.  Suppose further that a + 1 > b.  It follows that a < b < a + 1, which is a contradiction to part (1) of this theorem.  So it must be that a + 1 ≤ b. Second, suppose that a + 1 ≤ b.  Suppose further that a ≥ b.  Then by [nat_le_trans] we deduce that a + 1 ≤ a, which is a contradiction to [nat_lt].  So it must be that a < b.
+  2. Let a, b ∈ ℕ.  First suppose that a < b.  Suppose further that a + 1 > b.  It follows that a < b < a + 1, which is a contradiction to part (1) of this theorem.  So it must be that a + 1 ≤ b. Second, suppose that a + 1 ≤ b.  Suppose further that a ≥ b.  Then by [nat_le_trans] we deduce that a + 1 ≤ a, which is a contradiction to [nat_lt].  So it must be that a < b.
 
 Lemma (nat_add_prod).  Let a, b, c, d ∈ ℕ.  If a < b and c < d, then bc + ad < ac + bd.
 
