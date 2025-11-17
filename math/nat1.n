@@ -64,30 +64,9 @@ Proof. Let
 
 # Ordering
 
-Theorem.  Let a, b, c ∈ ℕ.
-
-  1. a ≤ a.
-  2. If a ≤ b and b ≤ c, then a ≤ c.   [nat_le_trans]
-  3. If a ≤ b and b < c, then a < c.
-  4. If a < b and b ≤ c, then a < c.
-
-Proof.
-
-  2. Let a, b, c ∈ ℕ.  Suppose that a ≤ b and b ≤ c.  Then there exist d, e ∈ ℕ such that a + d = b and b + e = c.  Then a + (d + e) = (a + d) + e = b + e = c, so a ≤ c.
-
-  3. Let a, b, c ∈ ℕ.  Suppose that a ≤ b and b < c.  Then b ≤ c, so a ≤ c by part (3) of this theorem.  There exist d, e ∈ ℕ such that a + d = b and b + e = c.  So a + (d + e) = (a + d) + e = b + e = c.  If e = 0 then b = c, which is a contradiction.  So e ≠ 0, and so there exists f ∈ ℕ such that e = s(f).  Then a + (d + s(f)) = c, so a + s(d + f) = c.  If a = c then a + s(d + f) = a, which is a contradiction.  So a ≠ c.  It follows that a < c.
-
-  4. Let a, b, c ∈ ℕ.  Suppose that a < b and b ≤ c.  Then a ≤ b, so a ≤ c by part (3) of this theorem.  There exist d, e ∈ ℕ such that a + d = b and b + e = c.  So a + (d + e) = (a + d) + e = b + e = c.  If d = 0 then a = b, which is a contradiction.  So d ≠ 0, and so there exists f ∈ ℕ such that d = s(f).  Then a + (s(f) + e) = c, so a + s(f + e) = c.  If a = c then a + s(f + e) = a, which is a contradiction.  So a ≠ c.  It follows that a < c.
-
 Theorem.  Let a, b ∈ ℕ.
 
   1. a ≤ b if and only if a ≯ b.
-  2. a ≤ b or b ≤ a.
-  3. If a ≤ b and b ≤ a, then a = b.         [nat_le_antisymm]
-
-Proof.
-
-  2. Let a, b ∈ ℕ.  We know that a < b or a = b or a > b.  If a < b, then a ≤ b.  If a = b, then a ≤ b.  If a > b, then b ≤ a.  In any case a ≤ b or b ≤ a.
 
 # More identities involving inequalities
 
