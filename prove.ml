@@ -567,8 +567,8 @@ let super lenient dp d' t_t' cp c c1 : pformula list =
               not (top_level lenient (t'_s = _false) u c1 sub (is_inductive cp)) && fail 7 || (* vii *)
             not (is_maximal lit_gt (simp_eq t_eq_t'_s) d'_s) && fail 6 ||  (* vi *)
             term_ge t'_s t_s && fail 3 ||  (* iii *)
-            not !step_strategy && not (is_maximal lit_gt c1_s c_s) && fail 4 ||  (* iv *)
-            not !step_strategy && not (is_eligible sub parent_eq) && fail 4 ||  (* iv *)
+            not lenient && not (is_maximal lit_gt c1_s c_s) && fail 4 ||  (* iv *)
+            not lenient && not (is_eligible sub parent_eq) && fail 4 ||  (* iv *)
             t'_s <> _false && clause_gt d_s c_s && fail 5  (* v *)
         then [] else (
           let c1_t' = replace_in_formula t' u c1 in
