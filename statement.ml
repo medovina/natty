@@ -38,8 +38,10 @@ let range_of f : str = match f with
   | App (Const (c, _), _) when starts_with "@" c -> c
   | _ -> ""
 
+type chain = (id * formula * (string * range) list) list  (* op, formula, reason(s) *)
+
 type proof_step =
-  | Assert of formula * (string * range) list   (* formula, reason(s) *)
+  | Assert of chain
   | Let of (id * typ) list
   | LetDef of id * typ * formula
   | Assume of formula
@@ -47,10 +49,10 @@ type proof_step =
   | Escape
   | Group of proof_step list
 
-let mk_assert f = Assert (f, [])
+let mk_assert f = Assert [("", f, [])]
 
 let is_assert f = function
-  | Assert (f', _) when f = f' -> true
+  | Assert [(_, f', _)] when f = f' -> true
   | _ -> false
 
 let is_assume = function
@@ -70,7 +72,8 @@ let rec step_decl_vars = function
   | _ -> []
 
 let rec step_formulas = function
-  | Assert (f, _) -> [f]
+  | Assert [(_, f, _)] -> [f]
+  | Assert _ -> failwith "step_formulas"
   | Let _ | Escape -> []
   | LetDef (_, _, f) -> [f]
   | Assume f -> [f]
@@ -90,7 +93,8 @@ let step_free_type_vars step = unique @@
   concat_map free_type_vars_in_formula (step_formulas step)
 
 let rec show_proof_step = function
-  | Assert (f, _) -> sprintf "assert %s" (show_formula f)
+  | Assert [(_, f, _)] -> sprintf "assert %s" (show_formula f)
+  | Assert _ -> failwith "show_proof_step"
   | Let ids_types ->
       let show (id, typ) = sprintf "%s : %s" id (show_type typ) in
       "let " ^ comma_join (map show ids_types)

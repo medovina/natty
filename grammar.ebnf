@@ -81,7 +81,9 @@ terms = term+;
 
 binary_op = '·' | '+' | '-' | '∈' | '∉' | '|' | '∤' | '∧' | '∨' | '→' | '↔';
 
-eq_op = '=' | '≠' | '<' | '≤' | '>' | '≥' | '≮' | '≯';
+compare_op = '=' | '<' | '≤' | '>' | '≥' | '~' | '⊆';
+
+eq_op = compare_op | '≠' | '≮' | '≯';
 
 expr = terms |
     expr binary_op expr |
@@ -234,7 +236,9 @@ definition =
 
 contra = ',' ['which is'] ['again' | 'also' | 'similarly'] 'a contradiction' ['to' reference];
 
-proof_eq_props = proposition [reason [eq_op proof_eq_props]];
+prop_reason = proposition [reason];
+
+proof_eq_props = prop_reason {eq_op prop_reason}+;
 
 proof_prop = ([reason [',']] [have] proof_eq_props) [contra];
 

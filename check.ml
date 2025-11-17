@@ -81,9 +81,9 @@ let infer_blocks env steps : block list =
             | Escape ->
                 if Option.is_some in_assume then ([], rest, true)
                   else infer vars scope_vars None rest
-            | Assert (f, _) when opt_exists (has_premise f) in_assume ->
+            | Assert [(_, f, _)] when opt_exists (has_premise f) in_assume ->
                 ([], steps, true)  (* proof invoked last assumption as a premise, so exit scope *)
-            | Assert (f, _) when strip_range f = _false ->
+            | Assert [(_, f, _)] when strip_range f = _false ->
                 if Option.is_some in_assume then
                   let rest = match rest with
                     | Escape :: rest -> rest  (* ignore an escape that immediately follows *)
@@ -383,7 +383,7 @@ and block_steps env lenv (Block (step, children)) : statement list list * formul
     id = ""; name = None; formula = top_infer env f;
     steps = []; by; is_step = true; range = decode_range (range_of f) } :: lenv in
   match step with
-    | Assert (f, by) ->
+    | Assert [(_, f, by)] ->
         let by = map (check_ref env) by in
         let eqs = chain_comparisons f in
         let concl =
@@ -393,6 +393,7 @@ and block_steps env lenv (Block (step, children)) : statement list list * formul
               | _ -> failwith "block_steps"
           else f in
         (map (mk_thm by) eqs, concl)
+    | Assert _ -> failwith "block_steps"
     | Let ids_types ->
         let resolve_subtype (id, typ) = match typ, check_type env typ with
           | Sub f, (Sub f' as t) ->
@@ -478,7 +479,7 @@ let rec expand_proof stmt env (steps : proof_step list) (proof_steps : proof_ste
     let (init, f) = split_last steps in
     let proof_steps =
       if duplicate_lets (collect_lets init) proof_steps
-        then proof_steps @ [Assert (concl, [])]
+        then proof_steps @ [Assert [("", concl, [])]]
         else init @ proof_steps @ [f] in
     if !debug > 0 then (
       printf "%s:\n\n" (stmt_id_name stmt);
@@ -510,7 +511,8 @@ and infer_stmt env stmt : statement =
     | HTheorem { id; name; steps; proof_steps } ->
         let (f, stmts) = expand_proof stmt env steps proof_steps in
         let range = match (last steps) with
-          | Assert (f, _) -> decode_range (range_of f)
+          | Assert [(_, f, _)] -> decode_range (range_of f)
+          | Assert _ -> failwith "infer_stmt"
           | _ -> failwith "assert expected" in
         Theorem { id; name; formula = f; steps = stmts; by = []; is_step = false; range }
 

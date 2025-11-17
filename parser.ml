@@ -473,7 +473,7 @@ let let_or_assume : proof_step list p =
 let top_prop : proof_step list p =
   pipe2 (many_concat (let_or_assume << str "."))
   (opt_str "Then" >> proposition)
-  (fun lets p -> lets @ [Assert (p, [])])
+  (fun lets p -> lets @ [Assert [("", p, [])]])
 
 (* proposition lists *)
 
@@ -568,31 +568,39 @@ let definition : statement list p = str "Definition." >>
 
 (* proofs *)
 
-let mk_step f reasons : proof_step =
-  match kind f with
-    | Quant ("∃", _, typ, _) ->
-        let (ids, f) = gather_quant_of_type "∃" typ f in
-        IsSome (ids, typ, f)
-    | _ -> Assert (f, reasons)
+let mk_step chain : proof_step =
+  match chain with
+    | (_op, f, _r) :: rest -> (
+        match kind f with
+          | Quant ("∃", _, typ, _) ->
+              assert (rest = []);
+              let (ids, f) = gather_quant_of_type "∃" typ f in
+              IsSome (ids, typ, f)
+          | _ -> Assert chain)
+    | _ -> failwith "mk_step"
 
 let opt_contra : proof_step list p = opt []
   (str "," >>? (opt_str "which is " >>?
     optional (any_str ["again"; "also"; "similarly"]) >>?
     str "a contradiction" >>
-    (optional (str "to" >> reference))) >>$ [Assert (_false, [])])
+    (optional (str "to" >> reference))) >>$ [Assert [("", _false, [])]])
 
-let rec proof_eq_props s : formula pr =
-  pipe2 proposition (option (reason >> option (pair eq_op proof_eq_props)))
-  (fun f -> function
-    | Some (Some (eq, g)) -> eq f g
-    | _ -> f)
-  s
+let prop_reason : (formula * (string * range) list) p =
+  pair proposition (opt [] reason)
+
+let proof_eq_props : chain p =
+  let> f, r = prop_reason in
+  let$ eqs = many (pair (any_str ("=" :: compare_ops)) prop_reason) in
+  ("", f, r) :: let+ (op, (f, r)) = eqs in [(op, f, r)]
 
 let proof_prop : proof_step list p =
-  let> reasons = opt [] (reason << opt_str ",") in
-  let> prop = optional have >> proof_eq_props in
+  let> reason = opt [] (reason << opt_str ",") in
+  let> chain = optional have >> proof_eq_props in
   let$ c = opt_contra in
-  mk_step prop reasons :: c
+  let chain = match chain with
+    | (op, f, r) :: rest -> (op, f, reason @ r) :: rest
+    | _ -> failwith "proof_prop" in
+  mk_step chain :: c
 
 let proof_if_prop : proof_step list p = pipe3
   (str "if" >> small_prop)
@@ -616,7 +624,7 @@ let assert_step : proof_step list p =
     optional to_show >> will_show >> proposition >>$ [];
     str "The result follows" >> reason >>$ [];
     single (any_str ["This is"; "We have"] >>? str "a contradiction" >>
-        opt [] (str "to" >> reference) |>> fun r -> Assert (_false, r));
+        opt [] (str "to" >> reference) |>> fun r -> Assert [("", _false, r)]);
     optional and_or_so >> proof_prop
     ])
 
