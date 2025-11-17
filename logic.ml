@@ -641,14 +641,15 @@ let mk_var_or_type_const (id, typ) =
   if typ = Type then type_const (TypeVar id) else Var (id, typ)
 
 let extract_definition f : (formula * (id * typ) list * formula) option =
-  (* Look for f of the form ∀x₁...xₙ C y₁...yₙ = D. Each yᵢ must be
-     one of the variables xⱼ.  *)
+  (* Look for f of the form ∀x₁...xₙ C y₁...yₙ = D.  The arguments yᵢ must be
+     a permutation of the variables xⱼ.  *)
   let (xs, f) = remove_for_all f in
+  let xs_vars = map mk_var' xs in
   match is_eq_or_iff f with
     | Some (head, g) ->
         let (c, ys) = collect_args head in (
         match c with
-          | Const _ when subset ys (map mk_var' xs) ->
+          | Const _ when subset ys xs_vars && subset xs_vars ys ->
               Some (c, map get_var ys, g)
           | _ -> None)
     | _ -> None
@@ -662,12 +663,6 @@ let lower_definition f : formula =
         let eq = if type_of g = Bool then _iff else mk_eq in
         for_all_vars_types (xs @ ys) (
           eq (apply (c :: map mk_var' xs @ map mk_var_or_type_const ys)) g)
-    | None -> f
-
-(* Transform ∀x₁...xₙ C x₁...xₙ = D to C = λx₁...xₙ.D . *)
-let raise_definition f : formula =
-  match extract_definition f with
-    | Some (c, xs, d) -> Eq (c, fold_right lambda' xs d)
     | None -> f
 
 let suffix id avoid : id =
