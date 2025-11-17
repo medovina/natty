@@ -135,6 +135,7 @@ let is_distributive_axiom p =
 
 let orig_hyp p = is_hyp p && not p.derived
 let orig_goal p = p.goal && not p.derived
+let orig_def p = p.definition && not p.derived
 let orig_by p = p.by && not p.derived
 
 type queue_item =
@@ -452,11 +453,12 @@ let is_eligible sub parent_eq =
   parent_eq |> for_all (fun (s, t) ->
     not (term_gt (subst_n sub t) (subst_n sub s)))
 
-let top_level pos u c sub inductive =
+let top_level lenient pos u c sub inductive : bool =
   let cs = mini_clausify c in
   let lit = if pos then u else _not u in
   mem lit cs &&
-    (inductive || is_maximal lit_gt (rsubst sub lit) (map (rsubst sub) cs))
+    (lenient || inductive ||
+        is_maximal lit_gt (rsubst sub lit) (map (rsubst sub) cs))
 
 let simp_eq = function
   | Eq (Eq (t, t'), f) when f = _true -> Eq (t, t')
@@ -474,8 +476,6 @@ let eq_pairs para_ok f = match terms f with
         (if para_ok then oriented t t' else [])   (* iii: pre-check *)
   | (false, t, t') -> [(Eq (t, t'), _false)]
 
-let is_resolution p = starts_with "res:" p.rule
-
 let trim_rule rule =
   match String.index_opt rule ':' with
     | Some i -> String.sub rule 0 i
@@ -486,32 +486,47 @@ let origin pf : string =
   else if pf.rule = "negate" then "goal"
   else trim_rule pf.rule
 
-let is_para pf = match trim_rule pf.rule with
-  | "para" -> true
-  | "res" -> false
-  | _ -> failwith "unexpected rule"
-
 let by_induction p = exists is_inductive p.parents
 
-let all_steps pformula =
-  searchq [pformula] (fun p -> unique (p.parents @ p.rewrites))
+let def_consts p : id list =
+  let rec const_of f = match f with
+    | App (Const ("¬", _), g) -> const_of g
+    | Eq (Const (id, _), _) -> [id]
+    | _ -> match fst (collect_args f) with
+      | Const (id, _) -> [id]
+      | _ -> [] in
+  let consts = concat_map const_of (mini_clausify p.formula) in
+  subtract consts logical_ops
 
 let step_cost = 0.01
-let expand_cost = 0.5
+let expand_def_cost = 0.5
 let big_cost = 1.0
 let inf_cost = 10.0
 
-let cost p =
-  match p.parents, p.rule with
-    | _, "expand" -> expand_cost
-    | [_; _], _ ->
-        if not !step_strategy && by_induction p then big_cost else
-        let qs = p.parents |> filter (fun p -> p.goal || is_hyp p) in
-        let max = maximum (map (fun p -> weight p.formula) qs) in
-        if weight p.formula <= max then step_cost
-          else if exists orig_goal p.parents && exists orig_by p.parents then step_cost
-          else inf_cost
-    | _ -> 0.0
+let is_def_expansion parents =
+  let last = parents |> find_opt (fun p ->
+    orig_goal p || orig_hyp p && p.hypothesis = 1) in
+  let def = find_opt orig_def parents in
+  match last, def with
+    | Some last, Some def ->
+        overlap (all_consts last.formula) (def_consts def)
+    | _ -> false
+
+let cost p : float * bool =
+  match p.parents with
+    | [_; _] ->
+        let goal = find_opt orig_goal p.parents in
+        let expand_def = is_def_expansion p.parents in
+        let c =
+          if goal <> None && exists orig_by p.parents then step_cost else
+          let qs = p.parents |> filter (fun p -> p.goal || is_hyp p) in
+          let max = maximum (map (fun p -> weight p.formula) qs) in
+          if weight p.formula <= max then step_cost else
+            if not !step_strategy && by_induction p then big_cost else
+            if expand_def then expand_def_cost
+            else inf_cost in
+        (c, p.derived && not expand_def)
+    | _ -> (0.0, p.derived)
 
 (*      D:[D' ∨ t = t']    C⟨u⟩
  *    ───────────────────────────   sup
@@ -526,7 +541,7 @@ let cost p =
  *     (vii)  if t'σ = ⊥, u is in a literal of the form u = ⊤
        (viii) if t'σ = ⊤, u is in a literal of the form u = ⊥ *)
 
-let super dp d' t_t' cp c c1 : pformula list =
+let super lenient dp d' t_t' cp c c1 : pformula list =
   profile "super" @@ fun () ->
   let dbg = (dp.id, cp.id) = !debug_super in
   if dbg then printf "super\n";
@@ -547,7 +562,7 @@ let super dp d' t_t' cp c c1 : pformula list =
         let fail n = if dbg then printf "super: failed check %d\n" n; true in
         if is_higher sub && not (orig_goal dp) ||
             is_bool_const t'_s &&
-              not (top_level (t'_s = _false) u c1 sub (is_inductive cp)) && fail 7 || (* vii *)
+              not (top_level lenient (t'_s = _false) u c1 sub (is_inductive cp)) && fail 7 || (* vii *)
             not (is_maximal lit_gt (simp_eq t_eq_t'_s) d'_s) && fail 6 ||  (* vi *)
             term_ge t'_s t_s && fail 3 ||  (* iii *)
             not !step_strategy && not (is_maximal lit_gt c1_s c_s) && fail 4 ||  (* iv *)
@@ -565,6 +580,7 @@ let super dp d' t_t' cp c c1 : pformula list =
           [mk_pformula rule [dp; cp] true e])
 
 let all_super1 dp cp : pformula list =
+  let lenient = is_def_expansion [dp; cp] in
   let d_steps, c_steps = clausify_steps dp, clausify_steps cp in
   let+ (dp, d_steps, cp, c_steps) =
     [(dp, d_steps, cp, c_steps); (cp, c_steps, dp, d_steps)] in
@@ -573,7 +589,7 @@ let all_super1 dp cp : pformula list =
   let+ d_lit = new_lits in
   let+ (c_lits, _, exposed_lits) = c_steps in
   let+ c_lit = exposed_lits in
-  super dp (remove1 d_lit d_lits) d_lit cp c_lits c_lit
+  super lenient dp (remove1 d_lit d_lits) d_lit cp c_lits c_lit
 
 let all_super queue dp cp : pformula list =
   profile "all_super" @@ fun () ->
@@ -821,6 +837,9 @@ let create_pformula rule parents formula =
   dbg_print_formula true "" p;
   p
 
+let all_steps pformula =
+  searchq [pformula] (fun p -> unique (p.parents @ p.rewrites))
+
 let output_proof pformula =
   sort_by id_of (all_steps pformula) |> iter (print_formula true "");
   print_newline ()
@@ -903,7 +922,8 @@ let rw_simplify cheap src queue used found p =
           None
       | None ->
           if p.id > 0 then Some p else
-            let delta = cost p in
+            let delta, step = cost p in
+            let p = { p with derived = step } in
             let cost = merge_cost p.parents +. delta in
             if cost > cost_limit then (
               if !debug > 1 then
@@ -969,38 +989,9 @@ let back_simplify from used : pformula list =
   used := new_used;
   rewritten
 
-let rec expand_with c c_type d f : formula list =
-  let expand = expand_with c c_type d in
-  let expand2 f g mk =
-    (let+ f' = expand f in [mk f' g]) @
-    (let+ g' = expand g in [mk f g']) in
-  match collect_args f with
-    | Const (c', c'_type), args when c' = c && length args = lambda_count d ->
-        let+ tsubst =
-          Option.to_list (unify_types (Fun.const true) [] c_type c'_type) in
-        [b_reduce (subst_types_in_formula tsubst (apply (d :: args)))]
-    | _ -> match f with
-      | App (f, g) -> expand2 f g mk_app
-      | Lambda (x, typ, f) ->
-          let+ f = expand f in [Lambda (x, typ, f)]
-      | Eq (f, g) -> expand2 f g mk_eq
-      | _ -> []
-
-let all_expand1 p q : pformula list =
-  if not p.derived && (p.goal || p.hypothesis = 1) && q.definition then
-    match is_eq_or_iff (raise_definition q.formula) with
-      | Some (Const (c, c_type), d) ->
-          let+ f = expand_with c c_type d p.formula in
-          [mk_pformula "expand" [p; q] false f]
-      | _ -> []
-  else []
-
-let all_expand p q : pformula list = all_expand1 p q @ all_expand1 q p
-
 let generate queue p used : pformula list =
   profile "generate" @@ fun () ->
-  concat_map (all_super queue p) !used @ concat_map (all_expand p) !used @
-  all_eres p @ all_split p
+  concat_map (all_super queue p) !used @ all_eres p @ all_split p
 
 let rw_simplify_all queue used found ps =
   profile "rw_simplify_all" @@ fun () ->
