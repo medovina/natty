@@ -1086,7 +1086,9 @@ let ac_kind f : (ac_type * str * typ) option =
     | Some (op, typ) -> Some (Comm, op, typ)
     | None -> None
 
-let gen_pformulas by_thms stmts : pformula list =
+let gen_pformulas thm stmts : pformula list =
+  let by_thms = thm_by thm in
+  let by_contradiction = (stmt_formula thm = Some _false) in
   let hyps = rev (filter is_hypothesis stmts) in
   let scan ops stmt =
     match stmt_formula stmt with
@@ -1094,7 +1096,9 @@ let gen_pformulas by_thms stmts : pformula list =
       | Some f ->
           let kind_op = ac_kind f in
           let hyp = match index_of_opt stmt hyps with
-            | Some i -> i + 1
+            | Some i ->
+                (* when proving ⊥, two last hypotheses have number 1 *)
+                max 1 (i + 1 - (if by_contradiction then 1 else 0))
             | _ -> 0 in
           let p = { (to_pformula (stmt_id_name stmt) f)
             with hypothesis = hyp; definition = is_definition stmt;
@@ -1114,7 +1118,7 @@ let prove known_stmts thm cancel_check : proof_result * float =
   consts := map fst (filter_map decl_var known_stmts);
   ac_ops := [];
   formula_counter := 0;
-  let known = gen_pformulas (thm_by thm) known_stmts in
+  let known = gen_pformulas thm known_stmts in
   let goal = to_pformula (stmt_id_name thm) (Option.get (stmt_formula thm)) in
   let goals = if !(opts.disprove) then [goal] else
       [create_pformula "negate" [goal] (_not goal.formula)] in
