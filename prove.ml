@@ -503,6 +503,9 @@ let expand_def_cost = 0.5
 let big_cost = 1.0
 let inf_cost = 10.0
 
+let is_by parents =
+  exists orig_goal parents && exists orig_by parents
+
 let is_def_expansion parents =
   let last = parents |> find_opt (fun p ->
     orig_goal p || orig_hyp p && p.hypothesis = 1) in
@@ -515,10 +518,9 @@ let is_def_expansion parents =
 let cost p : float * bool =
   match p.parents with
     | [_; _] ->
-        let goal = find_opt orig_goal p.parents in
         let expand_def = is_def_expansion p.parents in
         let c =
-          if goal <> None && exists orig_by p.parents then step_cost else
+          if is_by p.parents then step_cost else
           let qs = p.parents |> filter (fun p -> p.goal || is_hyp p) in
           let max = maximum (map (fun p -> weight p.formula) qs) in
           if weight p.formula <= max then step_cost else
@@ -580,7 +582,7 @@ let super lenient dp d' t_t' cp c c1 : pformula list =
           [mk_pformula rule [dp; cp] true e])
 
 let all_super1 dp cp : pformula list =
-  let lenient = is_def_expansion [dp; cp] in
+  let lenient = is_by [dp; cp] || is_def_expansion [dp; cp] in
   let d_steps, c_steps = clausify_steps dp, clausify_steps cp in
   let+ (dp, d_steps, cp, c_steps) =
     [(dp, d_steps, cp, c_steps); (cp, c_steps, dp, d_steps)] in
@@ -824,7 +826,7 @@ let print_formula with_origin prefix pf =
     else "" in
   let mark b c = if b then " " ^ (if pf.derived then c else to_upper c) else "" in
   let annotate =
-    mark pf.definition "d" ^ mark pf.goal "g" ^ mark (is_hyp pf) "h" in
+    mark pf.by "b" ^ mark pf.definition "d" ^ mark pf.goal "g" ^ mark (is_hyp pf) "h" in
   printf "%s%s {%d/%d: %.2f%s}\n"
     (indent_with_prefix prefix (show_multi pf.formula))
     origin (num_literals pf.formula) (weight pf.formula) pf.cost annotate
