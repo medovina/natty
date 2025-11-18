@@ -81,15 +81,15 @@ let rec step_formulas = function
 
 let step_free_vars step = unique @@
   let vars =
-    concat_map free_type_vars (step_types step) @
-    concat_map free_vars_and_type_vars (step_formulas step) in
+    concat_map free_vars_in_type (step_types step) @
+    concat_map free_vars (step_formulas step) in
   match step with
     | IsSome (ids, _, _) -> subtract vars ids
     | _ -> vars
 
 let step_free_type_vars step = unique @@
-  concat_map free_type_vars (step_types step) @
-  concat_map free_type_vars_in_formula (step_formulas step)
+  concat_map free_type_vars_in_type (step_types step) @
+  concat_map free_type_vars (step_formulas step)
 
 let rec show_proof_step = function
   | Assert [(_, f, _)] -> sprintf "assert %s" (show_formula f)

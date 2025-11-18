@@ -144,32 +144,40 @@ let rec formula_types f = match f with
 let rec rename id avoid =
   if mem id avoid then rename (id ^ "'") avoid else id
 
-let rec type_vars only_free typ : id list =
+let rec vars_in_type only_free typ : (id * typ) list =
   let rec find = function
     | Bool | Type | Base _ -> []
-    | TypeVar id -> [id]
+    | TypeVar id -> [id, Type]
     | Fun (t, u) -> find t @ find u
     | Pi (id, t) -> 
-        if only_free then remove id (find t) else find t
+        if only_free then remove_all_assoc id (find t) else (id, Type) :: find t
     | TypeApp (_, ts) | Product ts -> concat_map find ts
-    | Sub f -> type_vars_in_formula only_free f in
-  unique (find typ)
+    | Sub f -> vars_in_formula only_free f in
+  find typ
 
-and free_type_vars typ = type_vars true typ
-and all_type_vars typ = type_vars false typ
-
-and type_vars_in_formula only_free f : id list =
+and vars_in_formula only_free f : (id * typ) list =
   let rec find = function
     | Const _ -> []
-    | Var (_id, typ) -> all_type_vars typ
+    | Var (id, typ) -> (id, typ) :: vars_in_type only_free typ
     | App (t, u) | Eq (t, u) -> find t @ find u
-    | Lambda (id, typ, f) ->
-        let vars = all_type_vars typ @ find f in
-        if only_free && typ = Type then remove id vars else vars in
-  unique (find f)
+    | Lambda (id, typ, t) ->
+        vars_in_type only_free typ @
+        if only_free then remove_all_assoc id (find t) else (id, typ) :: find t in
+  find f
 
-let free_type_vars_in_formula = type_vars_in_formula true
-let all_type_vars_in_formula = type_vars_in_formula false
+let free_vars_in_type typ = unique (map fst (vars_in_type true typ))
+
+let find_vars only_free f = unique (map fst (vars_in_formula only_free f))
+let all_vars = find_vars false
+let free_vars = find_vars true
+
+let free_vars_types f = unique (vars_in_formula true f)
+
+let only_type_vars ids_typs : id list = unique @@
+  ids_typs |> filter_map (fun (id, typ) -> if typ = Type then Some id else None)
+
+let free_type_vars_in_type t : id list = only_type_vars (vars_in_type true t)
+let free_type_vars f : id list = only_type_vars (vars_in_formula true f)
 
 let rec next_var x avoid =
   if mem x avoid then
@@ -192,8 +200,8 @@ let rec type_subst (t: typ) (u: typ) (x: id) =
     | TypeApp (id, typs) -> TypeApp (id, map subst typs)
     | Product typs -> Product (map subst typs)
     | Pi (y, t') -> if x = y then t else
-        if mem y (free_type_vars u) && mem x (free_type_vars t')
-          then let y' = rename y (x :: free_type_vars t') in
+        if mem y (free_vars_in_type u) && mem x (free_vars_in_type t')
+          then let y' = rename y (x :: free_vars_in_type t') in
               Pi (y', subst (type_subst t' (TypeVar y') y))
           else Pi (y, subst t')
     | Sub f -> Sub (type_subst_in_formula f u x)
@@ -266,7 +274,7 @@ let _exists = quant "∃"
 let _exists' = quant' "∃"
 
 let generalize f : formula =
-  let vs = free_type_vars_in_formula f in
+  let vs = free_type_vars f in
   let all_type x f = _for_all x Type f in
   fold_right all_type vs f
 
@@ -511,27 +519,6 @@ let all_consts f : id list =
     | Lambda (id, _typ, t) -> remove id (find t)
   in unique (find f)
 
-let find_vars_types only_free f : (id * typ) list =
-  let rec find = function
-    | Const _ -> []
-    | Var (id, typ) -> [(id, typ)]
-    | App (t, u) | Eq (t, u) -> find t @ find u
-    | Lambda (id, typ, t) ->
-        if only_free then
-          filter (fun (x, _typ) -> x <> id) (find t)
-        else (id, typ) :: find t in
-  find f
-
-let find_vars only_free f =
-  unique (map fst (find_vars_types only_free f))
-
-let all_vars = find_vars false
-let free_vars = find_vars true
-let free_vars_types f = unique (find_vars_types true f)
-
-let free_vars_and_type_vars f = free_vars f @ free_type_vars_in_formula f
-let all_vars_and_type_vars f = all_vars f @ all_type_vars_in_formula f
-
 let is_var_in v =
   let rec find_var = function
     | Const _ -> false
@@ -559,7 +546,7 @@ let exists_vars_types : (id * typ) list -> formula -> formula =
   fold_right _exists'
 
 let for_all_vars_types_if_free ids_typs f : formula =
-  let fv = free_vars_and_type_vars f in
+  let fv = free_vars f in
   for_all_vars_types (ids_typs |> filter (fun (id, _typ) ->
     mem id fv || id = "·")) f  (* "·" may not be explicitly present *)
 
@@ -718,7 +705,7 @@ let unify_or_match_types is_unify is_var tsubst t u : tsubst option =
               else if t = u then Some tsubst else None
           | None ->
               let t = subst_types tsubst t in
-              if mem x (free_type_vars t) then None else
+              if mem x (free_vars_in_type t) then None else
                 let tsubst = tsubst |> map (fun (y, u) -> (y, type_subst u t x)) in
                 Some ((x, u) :: tsubst))
     | _t, TypeVar x when is_unify && is_var x -> unify tsubst u t

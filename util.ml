@@ -314,6 +314,8 @@ let gather_pairs (xs: ('a * 'b) list) : ('a * 'b list) list =
 
 let update_assoc (k, v) assoc = (k, v) :: remove_assoc k assoc
 
+let remove_all_assoc k pairs = pairs |> filter (fun (k', _v) -> k <> k')
+
 (* search *)
 
 (* return values in reverse topological order *)

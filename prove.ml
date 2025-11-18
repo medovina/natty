@@ -81,7 +81,7 @@ let unprefix_vars f : formula =
           (var, w) :: build_map (w :: all_vars) rest
         else build_map all_vars rest in
   let var_map =
-    build_map (all_vars_and_type_vars f) (free_vars_and_type_vars f) in
+    build_map (all_vars f) (free_vars f) in
   let rec unprefix_type t = match t with
     | TypeVar x ->
         if is_prefixed x then TypeVar (assoc x var_map) else t
