@@ -72,8 +72,7 @@ let rec step_decl_vars = function
   | _ -> []
 
 let rec step_formulas = function
-  | Assert [(_, f, _)] -> [f]
-  | Assert _ -> failwith "step_formulas"
+  | Assert fs -> let+ (_, f, _) = fs in [f]
   | Let _ | Escape -> []
   | LetDef (_, _, f) -> [f]
   | Assume f -> [f]

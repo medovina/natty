@@ -146,11 +146,6 @@ let rec join_cmp fs ops : formula list =
         app op f g :: join_cmp (g :: fs) ops
     | _ -> failwith "join_cmp"
 
-let chain_comparisons f : formula list =
-  let fs, ops = collect_cmp f in
-  if length fs <= 2 then [f]  (* preserve original range *)
-  else join_cmp fs ops
-
 let rec expand_chains f : formula =
   let fs, ops = collect_cmp f in
   if length fs <= 2 then map_formula expand_chains f
@@ -354,6 +349,21 @@ let check_ref env (name, range) : id =
     | Some stmt -> stmt_ref stmt
     | None -> error ("theorem not found: " ^ name) range
 
+let chain_comparisons env groups : (formula * string list) list =
+  let chain prev (op, f, by) =
+    let by = map (check_ref env) by in
+    let fs, ops = collect_cmp f in
+    let fs, ops = match prev, op with
+      | Some g, op when op <> "" -> g :: fs, op :: ops
+      | None, "" -> fs, ops
+      | _ -> failwith "chain_comparisons" in
+    let eqs = if length fs <= 2 && op = "" then [f]  (* preserve original range *)
+      else join_cmp fs ops in
+    let eqs, last_eq = split_last eqs in
+    let ret = (let+ eq = eqs in [(eq, [])]) @ [(last_eq, by)] in
+    (Some (last fs), ret) in
+  concat (snd (fold_left_map chain None groups))
+
 (* Restore type variables for any type that has become a constant in the
  * local environment. *)
 let rec with_type_vars env typ : typ = match typ with
@@ -379,21 +389,20 @@ and block_steps env lenv (Block (step, children)) : statement list list * formul
   let const_decl (id, typ) =
     if typ = Type then infer_type_decl env id None else infer_const_decl env id typ in
   let const_decls ids_typs = rev (map const_decl ids_typs) in
-  let mk_thm by f = Theorem {
+  let mk_thm (f, by) = Theorem {
     id = ""; name = None; formula = top_infer env f;
     steps = []; by; is_step = true; range = range_of f } :: lenv in
   match step with
-    | Assert [(_, f, by)] ->
-        let by = map (check_ref env) by in
-        let eqs = chain_comparisons f in
+    | Assert groups ->
+        let eqs_reasons = chain_comparisons env groups in
+        let eqs = map fst eqs_reasons in
         let concl =
           if length eqs > 2 && for_all is_eq eqs then
             match hd eqs, last eqs with
               | Eq (a, _), Eq (_, b) -> Eq (a, b)
               | _ -> failwith "block_steps"
-          else f in
-        (map (mk_thm by) eqs, concl)
-    | Assert _ -> failwith "block_steps"
+          else multi_and eqs in
+        (map mk_thm eqs_reasons, concl)
     | Let ids_types ->
         let resolve_subtype (id, typ) = match typ, check_type env typ with
           | Sub f, (Sub f' as t) ->
@@ -426,7 +435,7 @@ and block_steps env lenv (Block (step, children)) : statement list list * formul
         let decls = rev (map (fun id -> infer_const_decl env id typ) ids) in
         let stmts = Hypothesis ("hyp", top_infer (decls @ env) g) :: decls in
         let (fs, concl) = child_steps stmts in
-        (mk_thm [] ex :: fs,
+        (mk_thm (ex, []) :: fs,
          if any_free_in ids concl then exists_vars_typ (ids, typ) concl else concl)
     | Escape | Group _ -> failwith "block_formulas"
 
