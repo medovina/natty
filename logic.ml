@@ -152,7 +152,7 @@ let rec formula_types f = match f with
 let rec rename id avoid =
   if mem id avoid then rename (id ^ "'") avoid else id
 
-let rec type_vars only_free typ =
+let rec type_vars only_free typ : id list =
   let rec find = function
     | Bool | Type | Base _ -> []
     | TypeVar id -> [id]
@@ -163,10 +163,10 @@ let rec type_vars only_free typ =
     | Sub f -> type_vars_in_formula only_free f in
   unique (find typ)
 
-and free_type_vars f = type_vars true f
-and all_type_vars f = type_vars false f
+and free_type_vars typ = type_vars true typ
+and all_type_vars typ = type_vars false typ
 
-and type_vars_in_formula only_free f =
+and type_vars_in_formula only_free f : id list =
   let rec find = function
     | Const _ -> []
     | Var (_id, typ) -> all_type_vars typ
@@ -511,7 +511,7 @@ let is_ground f =
         has_free outer t || has_free outer u in
   not (has_free [] f)
 
-let all_consts f =
+let all_consts f : id list =
   let rec find = function
     | Const (id, _typ) -> [id]
     | Var _ -> []
@@ -519,7 +519,7 @@ let all_consts f =
     | Lambda (id, _typ, t) -> remove id (find t)
   in unique (find f)
 
-let find_vars_types only_free f =
+let find_vars_types only_free f : (id * typ) list =
   let rec find = function
     | Const _ -> []
     | Var (id, typ) -> [(id, typ)]
