@@ -109,10 +109,13 @@ let with_range (p : 'a p) : (('a * range) p) = empty >>?
   get_pos |>> fun (_index, line2, col2) ->
     (x, ((line1, col1), (line2, col2))))
 
-let record_formula (p : formula p) : formula p = with_range p |>>
-  fun (f, range) -> match f with
+let apply_range (f, range) : formula =
+  match f with
     | App (Const (c, _), g) when c.[0] = '@' -> g   (* avoid double record *)
     | _ -> App (_const (encode_range range), f)
+
+let record_formula (p : formula p) : formula p =
+  with_range p |>> apply_range
 
 let record_type p = with_range p |>>
   fun (t, range) -> TypeApp (encode_range range, [t])
@@ -551,12 +554,13 @@ let mk_def id typ formula = Definition (id, typ, Eq (Const (id, typ), formula))
 
 let new_paragraph : id p = empty >>? (any_str keywords <|> sub_index)
 
-let define ids_types prop : statement =
+let define ids_types (prop, range) : statement =
   let prop = for_all_vars_types ids_types prop in
-  Definition ("_", unknown_type, prop)
+  Definition ("_", unknown_type, apply_range (prop, range))
 
-let def_prop : formula p = 
-    not_before new_paragraph >> opt_str "we write" >> small_prop << str "."
+let def_prop : (formula * range) p = 
+    not_before new_paragraph >> opt_str "we write" >>
+      with_range small_prop << str "."
 
 let definition : statement list p = str "Definition." >>
   choice [

@@ -48,7 +48,7 @@ Proof.
                    = s(e · s(d) + d + s(d))
                    = s(s(e · s(d) + d + d)).
 
-  By [nat_succ_injective], 0 = s(e · s(d) + d + d).  This is a contradiction to [nat_succ_zero].  So it must be that c = 0.  Therefore a = s(0) = 1.  Then 1 · b = 1.  By [nat_mul_ident] 1 · b = b, so we have b = 1.  And so a = b = 1.
+  By [succ is injective], 0 = s(e · s(d) + d + d).  This is a contradiction to [0 is not successor].  So it must be that c = 0.  Therefore a = s(0) = 1.  Then 1 · b = 1.  By [nat_mul_ident] 1 · b = b, so we have b = 1.  And so a = b = 1.
 
 # Right cancellation of multiplication
 
@@ -81,9 +81,9 @@ Proof.
 
     G = { c ∈ ℕ | if c ≠ 0, then ac < bc }.
 
-  Clearly 0 ∈ G.  Let c ∈ ℕ, and suppose that c ∈ G.  We will show that s(c) ∈ G.  We know that a · 1 < b · 1.  Suppose that c = 0. Then a · s(c) < b · s(c), so s(c) ∈ G.  Conversely, suppose that c ≠ 0.  By hypothesis we know that ac < bc.  Then by [nat_lt_add_right] we have ac + a < bc + a, and also bc + a < bc + b.  So ac + a < bc + b, so a · s(c) < b · s(c), so s(c) ∈ G.  And so G = ℕ.
+  Clearly 0 ∈ G.  Let c ∈ ℕ, and suppose that c ∈ G.  We will show that s(c) ∈ G.  We know that a · 1 < b · 1.  Suppose that c = 0. Then a · s(c) < b · s(c), so s(c) ∈ G.  Conversely, suppose that c ≠ 0.  By hypothesis we know that ac < bc.  Then by [< add right] we have ac + a < bc + a, and also bc + a < bc + b.  So ac + a < bc + b, so a · s(c) < b · s(c), so s(c) ∈ G.  And so G = ℕ.
 
-  2. Let a, b, c ∈ ℕ, and suppose that ac < bc.  If c = 0 then 0 < 0, which is a contradiction.  So c ≠ 0.  If a = b then bc < bc, a contradiction.  If b < a then bc < ac by part (4) of this theorem, so bc < ac < bc, also a contradiction.  By [nat_trichotomy], the only alternative is a < b.
+  2. Let a, b, c ∈ ℕ, and suppose that ac < bc.  If c = 0 then 0 < 0, which is a contradiction.  So c ≠ 0.  If a = b then bc < bc, a contradiction.  If b < a then bc < ac by part (4) of this theorem, so bc < ac < bc, also a contradiction.  By [trichotomy], the only alternative is a < b.
 
 Theorem.  Let a, b ∈ ℕ.
 
@@ -92,9 +92,9 @@ Theorem.  Let a, b ∈ ℕ.
 
 Proof.
 
-  1. Let a, b ∈ ℕ.  First suppose that a ≤ b.  Suppose further that a ≥ b + 1.  Then by [nat_le_trans] we deduce that b + 1 ≤ b, which is a contradiction to [nat_lt].  So it must be that a < b + 1.  Second, suppose that a < b + 1.  Suppose further that a > b.  It follows that b < a < b + 1, which is a contradiction to part (1) of this theorem.  So it must be that a ≤ b.
+  1. Let a, b ∈ ℕ.  First suppose that a ≤ b.  Suppose further that a ≥ b + 1.  Then by [≤ is transitive] we deduce that b + 1 ≤ b, which is a contradiction to [nat_lt].  So it must be that a < b + 1.  Second, suppose that a < b + 1.  Suppose further that a > b.  It follows that b < a < b + 1, which is a contradiction to part (1) of this theorem.  So it must be that a ≤ b.
 
-  2. Let a, b ∈ ℕ.  First suppose that a < b.  Suppose further that a + 1 > b.  It follows that a < b < a + 1, which is a contradiction to part (1) of this theorem.  So it must be that a + 1 ≤ b. Second, suppose that a + 1 ≤ b.  Suppose further that a ≥ b.  Then by [nat_le_trans] we deduce that a + 1 ≤ a, which is a contradiction to [nat_lt].  So it must be that a < b.
+  2. Let a, b ∈ ℕ.  First suppose that a < b.  Suppose further that a + 1 > b.  It follows that a < b < a + 1, which is a contradiction to part (1) of this theorem.  So it must be that a + 1 ≤ b. Second, suppose that a + 1 ≤ b.  Suppose further that a ≥ b.  Then by [≤ is transitive] we deduce that a + 1 ≤ a, which is a contradiction to [nat_lt].  So it must be that a < b.
 
 Lemma (nat_add_prod).  Let a, b, c, d ∈ ℕ.  If a < b and c < d, then bc + ad < ac + bd.
 
@@ -111,24 +111,3 @@ Proof.
                 = (bc + ad) + gh.
 
    We must have gh ≠ 0, and so bc + ad < ac + bd.
-
-# Well-ordering principle on naturals
-
-Definition.  For all S : ℕ → 𝔹, S is empty iff there is no n : ℕ such that n ∈ S.  S is nonempty iff S is not empty.
-
-Definition.  For all A : ℕ → 𝔹 and a : ℕ, a is a least element of A iff a ∈ A and for all x : ℕ, if x ∈ A then a ≤ x.
-
-Theorem (nat_well_ordered). Let G : ℕ → 𝔹.  Suppose that G is nonempty.  Then there exists some m : ℕ such that m is a least element of G.
-
-Proof.  Let G : ℕ → 𝔹, and suppose that G is nonempty.  Suppose that there is no m : ℕ such that m ∈ G and for all g ∈ ℕ, if g ∈ G then m ≤ g.  Let
-
-    H = { a ∈ ℕ | for all n ∈ ℕ, if n ≤ a then n ∉ G }.
-
-We will show that H = ℕ.
-
-Suppose that 0 ∉ H.  Then there is some q ∈ ℕ such that q ≤ 0 and q ∈ G.  By [nat_le_antisymm] we see that q = 0.  Hence 0 ∈ G.  It then follows from [nat_ge_0] that for all g ∈ ℕ, if g ∈ G then 0 ≤ g, which is a contradiction.  Therefore 0 ∈ H.
-
-Now let a : ℕ, and suppose that a ∈ H.  Suppose further that a + 1 ∉ H.  Then there is some p ∈ ℕ such that p ≤ a + 1 and p ∈ G.  If p ≤ a, then we have p ∉ G, which is a contradiction.  Hence by [nat_trichotomy] we deduce that a < p.  Therefore a < p ≤ a + 1, and it follows from [nat_discrete] that p = a + 1.  Hence a + 1 ∈ G.  Now let x : ℕ, and suppose that x ∈ G.  Suppose that x < a + 1.  Then x ≤ a by [nat_discrete_le].  Because a ∈ H, it follows that x ∉ G, which is a contradiction.  Hence a + 1 ≤ x by [nat_trichotomy].  So for all g : ℕ, if g ∈ G then a + 1 ≤ g.  This is a contradiction.  It follows that a + 1 ∈ H, and hence H = ℕ.
-
-Let b : ℕ.  We know that b ∈ H. Since b ≤ b, we have b ∉ G.  And so G is empty, which is a contradiction.
-

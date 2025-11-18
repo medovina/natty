@@ -7,8 +7,7 @@ open Util
 
 exception Check_error of string * range
 
-let raise_error s range = raise (Check_error (s, range))
-let error s range = raise_error s (decode_range range)
+let error s range = raise (Check_error (s, range))
 let errorf s f range = error (sprintf "%s: %s" s (show_formula f)) range
 
 let strip_range f : formula = match f with
@@ -18,9 +17,9 @@ let strip_range f : formula = match f with
 let rec strip_ranges f : formula =
   map_formula strip_ranges (strip_range f)
 
-let range_of f : str = match f with
-  | App (Const (c, _), _) when starts_with "@" c -> c
-  | _ -> ""
+let range_of f : range = match f with
+  | App (Const (c, _), _) when starts_with "@" c -> decode_range c
+  | _ -> empty_range
 
 let is_declared env id =
   env |> exists (fun stmt -> match decl_var stmt with
@@ -46,7 +45,8 @@ let rec all_vars steps : id list = match steps with
   | step :: steps ->
       subtract (step_free_vars step @ all_vars steps) (step_decl_vars step)
 
-let map_step env vars step = match step with
+(* Tranform "assume x ∈ g" to a variable declaration "let x : [g]". *)
+let map_assume_step env vars step = match step with
   | Assume f -> (
       match strip_range f with
         | (App (App (Const ("∈", _), v), g)) -> (
@@ -59,7 +59,7 @@ let map_step env vars step = match step with
   | _ -> step
 
 let has_premise f g =
-  match remove_universal (strip_ranges f) with
+  match snd (remove_for_all (strip_ranges f)) with
     | App (App (Const ("→", _), g'), _) when g' = strip_ranges g -> true
     | _ -> false
 
@@ -68,7 +68,7 @@ let infer_blocks env steps : block list =
     match steps with
       | [] -> ([], steps, false)
       | step :: rest ->
-          let step = map_step env vars step in
+          let step = map_assume_step env vars step in
           if overlap (step_decl_vars step) (concat vars) then ([], steps, false) else
           let in_use = "·" :: all_vars steps in
           let vars_in_use = head_opt vars |> opt_for_all (fun top_vars
@@ -192,7 +192,7 @@ let rec check_type1 env vars typ : typ =
       | Fun (t, u) -> Fun (check range vars t, check range vars u)
       | Pi (id, t) -> Pi (id, check range ((id, Type) :: vars) t)
       | Product typs -> Product (map (check range vars) typs)
-      | TypeApp (c, [typ]) when c.[0] = '@' -> check c vars typ
+      | TypeApp (c, [typ]) when c.[0] = '@' -> check (decode_range c) vars typ
       | TypeApp _ -> failwith "check_type1: typeapp"
       | Sub f -> match strip_range f with
         | Var (id, _) as f ->
@@ -200,7 +200,7 @@ let rec check_type1 env vars typ : typ =
               let (_typ, f) = infer_formula env vars f in
               Sub f)
         | _ -> failwith "check_type1: sub"
-  in check "" vars typ
+  in check empty_range vars typ
 
 and check_type env typ : typ = check_type1 env [] typ
 
@@ -231,7 +231,7 @@ and infer_formula env vars formula : typ * formula =
                 [(tsubst, type_of f, f)]
             | None -> check range vars tsubst (_const id))
       | App (Const (c, _), f) when c.[0] = '@' ->
-          check c vars tsubst f
+          check (decode_range c) vars tsubst f
       | App (App (Const ("_", _), f), g) ->
           let h = match f, g with
             | Var (v, _), Const (c, _) ->
@@ -286,7 +286,7 @@ and infer_formula env vars formula : typ * formula =
             | [] -> errorf "incomparable types" formula range
             | [sol] -> [sol]
             | _ -> errorf "ambiguous comparison" formula range in
-  match check "" vars [] formula with
+  match check empty_range vars [] formula with
     | [(tsubst, typ, f)] ->
         (typ, subst_types_in_formula tsubst f)
     | [] -> failwith "infer_formula"
@@ -300,18 +300,18 @@ let top_infer env f = snd (top_infer_with_type env f)
 
 let infer_type_decl env id name =
   if is_type_defined id env then (
-    printf "duplicate type definition: %s\n" id;
-    failwith "infer_type_decl");
+    let e = sprintf "duplicate type definition: %s\n" id in
+    error e empty_range);
   TypeDecl (id, name)
 
-let check_dup_const env id typ kind =
+let check_dup_const env id typ kind range =
   if mem typ (id_types env id) then (
-    printf "duplicate %s: %s : %s\n" kind id (show_type typ);
-    failwith "check_dup_const")
+    let e = sprintf "duplicate %s: %s : %s\n" kind id (show_type typ) in
+    error e range)
 
 let infer_const_decl env id typ =
   let typ = check_type env typ in
-  check_dup_const env id typ "constant declaration";
+  check_dup_const env id typ "constant declaration" empty_range;
   ConstDecl (id, typ)
 
 let infer_definition env f : id * typ * formula =
@@ -352,7 +352,7 @@ let infer_definition env f : id * typ * formula =
 let check_ref env (name, range) : id =
   match find_opt (fun s -> stmt_name s = Some name) env with
     | Some stmt -> stmt_ref stmt
-    | None -> raise_error ("theorem not found: " ^ name) range
+    | None -> error ("theorem not found: " ^ name) range
 
 (* Restore type variables for any type that has become a constant in the
  * local environment. *)
@@ -381,7 +381,7 @@ and block_steps env lenv (Block (step, children)) : statement list list * formul
   let const_decls ids_typs = rev (map const_decl ids_typs) in
   let mk_thm by f = Theorem {
     id = ""; name = None; formula = top_infer env f;
-    steps = []; by; is_step = true; range = decode_range (range_of f) } :: lenv in
+    steps = []; by; is_step = true; range = range_of f } :: lenv in
   match step with
     | Assert [(_, f, by)] ->
         let by = map (check_ref env) by in
@@ -501,8 +501,9 @@ and infer_stmt env stmt : statement =
     | Axiom _ -> failwith "infer_stmt"
     | Hypothesis (id, f) -> Hypothesis (id, top_infer env f)
     | Definition (_id, _typ, f) ->
-        let (id, typ, f) = infer_definition env (generalize f) in
-        Definition (id, typ, f)
+        let (id, typ, f') = infer_definition env (generalize f) in
+        check_dup_const env id typ "definition" (range_of f);
+        Definition (id, typ, f')
     | Theorem _ -> failwith "infer_stmt"
     | HAxiom (id, steps, name) ->
         let blocks = infer_blocks env steps in
@@ -511,7 +512,7 @@ and infer_stmt env stmt : statement =
     | HTheorem { id; name; steps; proof_steps } ->
         let (f, stmts) = expand_proof stmt env steps proof_steps in
         let range = match (last steps) with
-          | Assert [(_, f, _)] -> decode_range (range_of f)
+          | Assert [(_, f, _)] -> range_of f
           | Assert _ -> failwith "infer_stmt"
           | _ -> failwith "assert expected" in
         Theorem { id; name; formula = f; steps = stmts; by = []; is_step = false; range }
@@ -607,13 +608,13 @@ let basic_check env f : typ * formula =
           | [] ->
               if mem id logical_ops
                 then (typ, Const (id, typ))
-                else errorf "undefined constant" f ""
+                else errorf "undefined constant" f empty_range
           | [typ] -> (typ, Const (id, typ))
           | _ -> failwith "ambiguous constant")
     | Var (id, _) -> (
         match assoc_opt id vars with
           | Some typ -> (typ, Var (id, typ))
-          | None -> errorf "undefined variable" f "")
+          | None -> errorf "undefined variable" f empty_range)
     | App (g, h) ->
         let (g_type, g) = check vars g in
         let (h_type, h) = check vars h in
@@ -636,14 +637,14 @@ let basic_check env f : typ * formula =
         let (h_type, h) = check vars h in
         if g_type <> h_type then (
           printf "g_type = %s, h_type = %s\n" (show_type g_type) (show_type h_type);
-          errorf "can't compare" f "");
+          errorf "can't compare" f empty_range);
         (Bool, Eq (g, h)) in
   check [] f
 
 let fix_by env by : string =
   match env |> find_opt (fun stmt -> stmt_id stmt = by) with
     | Some stmt -> stmt_ref stmt
-    | _ -> error ("formula not found: " ^ by) ""
+    | _ -> error ("formula not found: " ^ by) empty_range
 
 let basic_check_stmt env stmt : statement =
   let bool_check f = match basic_check env f with

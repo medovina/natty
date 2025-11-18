@@ -89,7 +89,7 @@ Next suppose that x = y.  Then by [all x < s(x)] it follows that s(x) > x = y.  
 
 Putting the cases together, we see that s(x) < y or s(x) = y or s(x) > y always holds.  Hence s(x) ∈ G, and we conclude that G = ℕ.
 
-Theorem.  For all x : ℕ, there is no y : ℕ such that x < y < s(x).
+Theorem.  For all x : ℕ, there is no y : ℕ such that x < y < s(x).  [ℕ is discrete]
 
 Proof.  Let x : ℕ, and assume there is some y : ℕ such that x < y < s(x).  By [less if add succ] there is some u : ℕ such that x + s(u) = y.  Now s(x) + u = x + s(u) = y.  So s(x) ≤ y.  But we know that y < s(x).  This is a contradiction to [trichotomy].
 
@@ -98,7 +98,7 @@ Theorem.  Let x, y, z ∈ ℕ.
     a. x ≤ x.
     b. If x < y and y ≤ z, then x < z.
     c. If x ≤ y and y < z, then x < z.
-    d. If x ≤ y and y ≤ z, then x ≤ z.
+    d. If x ≤ y and y ≤ z, then x ≤ z.  [≤ is transitive]
     e. x ≤ y or y ≤ x.
     f. If x ≤ y and y ≤ x, then x = y.
 
@@ -112,7 +112,7 @@ Proof.
 
 Theorem.  Let x, y, z, u, v : ℕ.
 
-    a. If x ≠ 0 then x > 0.
+    a. If x ≠ 0 then x > 0.  [nonzero is positive]
     b. x ≤ x + s(y).
     c. If x < y then x + z < y + z.  [< add right]
     d. If x + z < y + z then x < y.  [< add left]
@@ -135,3 +135,19 @@ Proof.
     f. Suppose that x < y and u < v.  By [< add right] x + u < y + u and u + y < v + y, so y + u < y + v.  Hence by [transitivity of <] x + u < y + v.
 
     h. Suppose that x ≤ y and u < v.  Then either x = y or x < y.  If x = y then u + x < v + y by [< add right], so x + u < y + v.  If x < y then by [< < add] x + u < y + v.
+
+# Well-ordering principle
+
+Definition.  For all S : ℕ → 𝔹, S is empty iff there is no n : ℕ such that n ∈ S.  S is nonempty iff S is not empty.
+
+Definition.  For all A : ℕ → 𝔹 and a : ℕ, a is a least element of A iff a ∈ A and for all x : ℕ, if x ∈ A then a ≤ x.
+
+Theorem (well-ordering principle). Let A : ℕ → 𝔹.  Suppose that A is nonempty.  Then there exists some x : ℕ such that x is a least element of A.
+
+# Proof.  Assume there is no x : ℕ such that x is a least element of A.  Let
+
+#         B = { x ∈ ℕ | for all u ∈ ℕ, if u ≤ x then u ∉ A }.
+
+# Assume that 0 ∉ B.  Then there is some u : ℕ such that u ≤ 0 and u ∈ A.  Then u = 0 by [nonzero is positive].  Thus 0 ∈ A.  But then 0 is a least element of A, which is a contradiction.  Hence 0 ∈ B.
+
+# Let x ∈ B.  Then for all u : ℕ, if u ≤ x then u ∉ A.  Assume that s(x) ∈ A.  Then by [ℕ is discrete] s(x) is a least element of A, which is a contradiction.  So s(x) ∉ A.
