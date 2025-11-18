@@ -64,14 +64,6 @@ let map_type fn = function
   | Product typs -> Product (map fn typs)
   | t -> t
 
-let prefix_var var = "$" ^ var
-
-let is_prefixed var = var.[0] = '$'
-
-let rec prefix_type_vars t : typ = match t with
-  | TypeVar id -> TypeVar (prefix_var id)
-  | t -> map_type prefix_type_vars t
-
 let _const c = Const (c, unknown_type)
 let _var v = Var (v, unknown_type)
 let mk_var' (id, typ) = Var (id, typ)
@@ -538,6 +530,7 @@ let free_vars = find_vars true
 let free_vars_types f = unique (find_vars_types true f)
 
 let free_vars_and_type_vars f = free_vars f @ free_type_vars_in_formula f
+let all_vars_and_type_vars f = all_vars f @ all_type_vars_in_formula f
 
 let is_var_in v =
   let rec find_var = function

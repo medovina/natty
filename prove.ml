@@ -51,7 +51,16 @@ let weight f =
     | Lambda (_, _, f) -> weigh f in
   weigh (remove_quantifiers f)
 
-let prefix_vars f : formula =
+let prefix_var var = "$" ^ var
+
+let is_prefixed var = var.[0] = '$'
+
+let rec prefix_type_vars t : typ = match t with
+  | TypeVar id -> TypeVar (prefix_var id)
+  | Sub f -> Sub (prefix_vars f)
+  | t -> map_type prefix_type_vars t
+
+and prefix_vars f : formula =
   let rec prefix outer = function
     | Const (x, typ) -> Const (x, prefix_type_vars typ)
     | Var (x, typ) ->
@@ -71,22 +80,22 @@ let unprefix_vars f : formula =
           let w = next_var v all_vars in
           (var, w) :: build_map (w :: all_vars) rest
         else build_map all_vars rest in
-  let var_map = build_map (all_vars f) (free_vars f) in
-  let type_vars = all_type_vars_in_formula f in
-  let type_map = build_map type_vars type_vars in
+  let var_map =
+    build_map (all_vars_and_type_vars f) (free_vars_and_type_vars f) in
   let rec unprefix_type t = match t with
     | TypeVar x ->
-        if is_prefixed x then TypeVar (assoc x type_map) else t
-    | t -> map_type unprefix_type t in
-  let rec fix outer = function
+        if is_prefixed x then TypeVar (assoc x var_map) else t
+    | Sub f -> Sub (fix f)
+    | t -> map_type unprefix_type t
+  and fix = function
     | Const (c, typ) -> Const (c, unprefix_type typ)
     | Var (v, typ) ->
         let v = if is_prefixed v then assoc v var_map else v in
         Var (v, unprefix_type typ)
     | Lambda (x, typ, f) ->
-        Lambda (x, unprefix_type typ, fix (x :: outer) f)
-    | f -> map_formula (fix outer) f in
-  fix [] f
+        Lambda (x, unprefix_type typ, fix f)
+    | f -> map_formula fix f in
+  fix f
 
 let is_inductive pformula =
   let f = pformula.formula in
