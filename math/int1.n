@@ -161,7 +161,7 @@ Theorem (int_mul_zero).  Let i, j ∈ ℤ.  If ij = 0, then i = 0 or j = 0.
 
 Proof.
 
-  Let i, j ∈ ℤ.  Suppose that ij = 0 and that i ≠ 0.  We will deduce that j = 0.  There are some a, b, c, d ∈ ℕ such that i = z(a, b) and j = z(c, d).  Then a ≠ b by [int_z_zero].  By [int_mul_def] we see that 0 = ij = z(a, b) · z(c, d) = z(ac + bd, ad + bc).  Then ac + bd = ad + bc by [int_z_zero].  By [nat_trichotomy] we know that either a < b or a > b.
+  Let i, j ∈ ℤ.  Suppose that ij = 0 and that i ≠ 0.  We will deduce that j = 0.  There are some a, b, c, d ∈ ℕ such that i = z(a, b) and j = z(c, d).  Then a ≠ b by [int_z_zero].  By [int_mul_def] we see that 0 = ij = z(a, b) · z(c, d) = z(ac + bd, ad + bc).  Then ac + bd = ad + bc by [int_z_zero].  By [trichotomy] we know that either a < b or a > b.
   
   First, suppose that a < b.  Then there is some g ∈ ℕ such that a + g = b.  Hence ac + (a + g)d = ad + (a + g)c.  So ac + ad + gd = ad + ac + gc, so gd = gc.  Since a ≠ b, we must have g ≠ 0, and we deduce that d = c.
 
@@ -213,9 +213,9 @@ Theorem.  Let i, j, k ∈ ℤ.
 
 Proof.
 
-  1. Let i, j ∈ ℤ.  Then there are some a, b, c, d ∈ ℕ such that i = z(a, b) and j = z(c, d).  By [int_trichotomy] we know that exactly one of a + d < b + c or a + d = b + c or a + d > b + c holds.  The result follows using [int_lt_def].
+  1. Let i, j ∈ ℤ.  Then there are some a, b, c, d ∈ ℕ such that i = z(a, b) and j = z(c, d).  By [trichotomy] we know that exactly one of a + d < b + c or a + d = b + c or a + d > b + c holds.  The result follows using [int_lt_def].
 
-  2. Let i, j, k ∈ ℤ, and suppose that i < j and j < k.  There are some a, b, c, d, e, f ∈ ℕ such that i = z(a, b) and j = z(c, d) and k = z(e, f).  Then z(a, b) < z(c, d) and z(c, d) < z(e, f), so a + d < b + c and c + f < d + e.  It follows that a + d + f < b + c + f and b + c + f < b + d + e, so a + d + f < b + d + e.  Then a + f < b + e by [nat_lt_add_cancel], so i < k.
+  2. Let i, j, k ∈ ℤ, and suppose that i < j and j < k.  There are some a, b, c, d, e, f ∈ ℕ such that i = z(a, b) and j = z(c, d) and k = z(e, f).  Then z(a, b) < z(c, d) and z(c, d) < z(e, f), so a + d < b + c and c + f < d + e.  It follows that a + d + f < b + c + f and b + c + f < b + d + e, so a + d + f < b + d + e.  Then a + f < b + e by [< add left], so i < k.
 
   6. Let i, j, k ∈ ℤ, and suppose that i < j.  There are some a, b, c, d, e, f ∈ ℕ such that i = z(a, b) and j = z(c, d) and k = z(e, f).  Then z(a, b) < z(c, d), and therefore a + d < b + c.  Hence (a + d) + (e + f) < (b + c) + (e + f), and therefore (a + e) + (d + f) < (b + f) + (c + e).  It follows by [int_lt_def] that z(a + e, b + f) < z(c + e, d + f), and hence z(a, b) + z(e, f) < z(c, d) + z(e, f), which means that i + k < j + k.
 
@@ -268,7 +268,7 @@ Proof.
 
 Theorem (int_induction).  For all S : ℤ → 𝔹, if 0 ∈ S and for all i ∈ ℤ i ≥ 0 and i ∈ S implies i + 1 ∈ S, then for all i ∈ ℤ i ≥ 0 implies i ∈ S.
 
-Proof.  Let S : ℤ → 𝔹, and suppose that 0 ∈ S and for all i ∈ ℤ i ≥ 0 and i ∈ S implies i + 1 ∈ S.  Let T = { n ∈ ℕ | there exists i ∈ ℤ such that i ≥ 0 and i ∈ S and n = π(i) }.  0 = π(0), so 0 ∈ T.  Now let n : ℕ, and suppose that n ∈ T.  Then there exists some i ∈ ℤ such that i ≥ 0 and i ∈ S and n = π(i). So i + 1 ∈ S.  Now, π(i + 1) = π(i) + π(1) = n + 1 = s(n), so s(n) ∈ T.  We have shown that n ∈ T implies s(n) ∈ T for all n ∈ ℕ.  Then T = ℕ by [nat_induction].  Now let i ∈ ℤ, and suppose that i ≥ 0.  Since T = ℕ, there exists j ∈ ℤ such that j ≥ 0 and j ∈ S and π(i) = π(j).  Then by [int_proj_injective] we have i = j, so i ∈ S.
+Proof.  Let S : ℤ → 𝔹, and suppose that 0 ∈ S and for all i ∈ ℤ i ≥ 0 and i ∈ S implies i + 1 ∈ S.  Let T = { n ∈ ℕ | there exists i ∈ ℤ such that i ≥ 0 and i ∈ S and n = π(i) }.  0 = π(0), so 0 ∈ T.  Now let n : ℕ, and suppose that n ∈ T.  Then there exists some i ∈ ℤ such that i ≥ 0 and i ∈ S and n = π(i). So i + 1 ∈ S.  Now, π(i + 1) = π(i) + π(1) = n + 1 = s(n), so s(n) ∈ T.  We have shown that n ∈ T implies s(n) ∈ T for all n ∈ ℕ.  Then T = ℕ by [induction].  Now let i ∈ ℤ, and suppose that i ≥ 0.  Since T = ℕ, there exists j ∈ ℤ such that j ≥ 0 and j ∈ S and π(i) = π(j).  Then by [int_proj_injective] we have i = j, so i ∈ S.
 
 Theorem (int_induction_1).  For all S : ℤ → 𝔹, if 1 ∈ S and for all i ∈ ℤ i ≥ 1 and i ∈ S implies i + 1 ∈ S, then for all i ∈ ℤ i ≥ 1 implies i ∈ S.
 

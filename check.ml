@@ -17,8 +17,9 @@ let strip_range f : formula = match f with
 let rec strip_ranges f : formula =
   map_formula strip_ranges (strip_range f)
 
-let range_of f : range = match f with
+let rec range_of f : range = match f with
   | App (Const (c, _), _) when starts_with "@" c -> decode_range c
+  | App (Const ("∀", _), Lambda (_, _, g)) -> range_of g
   | _ -> empty_range
 
 let is_declared env id =
@@ -341,8 +342,8 @@ let infer_definition env f : id * typ * formula =
               let body = for_all_vars_types vs @@
                 eq (apply (Const (id, c_type) :: type_args @ args)) g in
               (id, c_type, lower_definition body)
-          | _ -> failwith "definition expected")
-    | _ -> failwith "definition expected")
+          | _ -> failwith "definition expected (1)")
+    | _ -> failwith "definition expected (2)")
 
 let check_ref env (name, range) : id =
   match find_opt (fun s -> stmt_name s = Some name) env with

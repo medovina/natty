@@ -554,13 +554,13 @@ let mk_def id typ formula = Definition (id, typ, Eq (Const (id, typ), formula))
 
 let new_paragraph : id p = empty >>? (any_str keywords <|> sub_index)
 
-let define ids_types (prop, range) : statement =
+let define ids_types prop : statement =
   let prop = for_all_vars_types ids_types prop in
-  Definition ("_", unknown_type, apply_range (prop, range))
+  Definition ("_", unknown_type, prop)
 
-let def_prop : (formula * range) p = 
+let def_prop : formula p = 
     not_before new_paragraph >> opt_str "we write" >>
-      with_range small_prop << str "."
+      record_formula small_prop << str "."
 
 let definition : statement list p = str "Definition." >>
   choice [
