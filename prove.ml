@@ -958,11 +958,11 @@ let rw_simplify cheap src queue used found p =
               let final () = finish p f_canonical found delta cost in
               match FormulaMap.find_opt f_canonical !found with
                 | Some pf ->
-                    if orig_goal p || cost < pf.cost then (
+                    if orig_goal p && not (orig_goal pf) || cost < pf.cost then (
                       let p = final () in
                       if !debug > 0 then
                         if orig_goal p then
-                          printf "%s (goal) is a duplicate of #%d; replacing it" src pf.id
+                          printf "%s (goal) is a duplicate of #%d; replacing it\n" src pf.id
                         else printf "(%d is a duplicate of %d; replacing with lower cost of %.2f)\n"
                           p.id pf.id p.cost;
                       if PFQueue.mem (Unprocessed pf) !queue then
