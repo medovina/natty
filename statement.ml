@@ -91,7 +91,7 @@ let step_free_type_vars step = unique @@
   concat_map free_type_vars_in_type (step_types step) @
   concat_map free_type_vars (step_formulas step)
 
-let rec show_proof_step = function
+let rec show_proof_step step : string = match step with
   | Assert [(_, f, _)] -> sprintf "assert %s" (show_formula f)
   | Assert _ -> failwith "show_proof_step"
   | Let ids_types ->

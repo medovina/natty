@@ -269,7 +269,7 @@ assert_steps = assert_step {',' and_or_so proof_prop};
 
 now = 'Conversely' | 'Finally' | 'Next' | 'Now' | 'Second';
 
-any_case = 'In any case' | 'In either case' | 'Putting the cases together';
+any_case = 'In any case' | 'In either case' | 'In all cases';
 
 let_or_assumes = let_or_assume {', and' let_or_assume};
 

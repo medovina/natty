@@ -645,7 +645,7 @@ let assert_steps : proof_step list p =
 
 let now = any_str ["Conversely"; "Finally"; "Next"; "Now"; "Second"]
 
-let any_case = any_str ["In any case"; "In either case"; "Putting the cases together"]
+let any_case = any_str ["In any case"; "In either case"; "In all cases"]
 
 let let_or_assumes : proof_step list p =
   sep_by1 let_or_assume (str "," >> str "and") |>> concat

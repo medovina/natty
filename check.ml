@@ -170,6 +170,10 @@ let univ f : formula = match f with
 let quant1 q id typ f =
   if q = "{}" then Lambda (id, typ, f) else quant q id typ f
 
+let is_lambda_or_set_comp f = match f with
+  | Lambda _ | App (Const ("{}", _), _) -> true
+  | _ -> false
+
 let rec check_type1 env vars typ : typ =
   let rec check range vars typ =
     let lookup_type id =
@@ -390,7 +394,7 @@ and block_steps env lenv (Block (step, children)) : statement list list * formul
   let const_decl (id, typ) =
     if typ = Type then infer_type_decl env id None else infer_const_decl env id typ in
   let const_decls ids_typs = rev (map const_decl ids_typs) in
-  let mk_thm (f, by) = Theorem {
+  let mk_thm (f, by) : statement list = Theorem {
     id = ""; name = None; formula = top_infer env f;
     steps = []; by; is_step = true; range = range_of f } :: lenv in
   match step with
@@ -420,9 +424,13 @@ and block_steps env lenv (Block (step, children)) : statement list list * formul
     | LetDef (_id, _typ, g) ->
         let (id, typ, f) = infer_definition env g in
         let (fs, concl) = child_steps [Definition (id, typ, f)] in
+        let mk_concl h = _for_all id (with_type_vars lenv typ) (implies h concl) in
         let concl = match g with
-          | Eq (Const (id, _typ), value) -> rsubst1 concl value id
-          | _ -> _for_all id (with_type_vars lenv typ) (implies g concl) in
+          | Eq (Const (id, typ), value) ->
+              if is_lambda_or_set_comp value
+                then mk_concl (Eq (Var (id, typ), value))
+                else rsubst1 concl value id
+          | _ -> mk_concl g in
         (fs, concl)
     | Assume a ->
         let (ids_typs, f) = remove_exists a in
