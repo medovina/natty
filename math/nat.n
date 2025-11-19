@@ -71,7 +71,7 @@ We will now prove that x < y or x = y or y < x.  Let A = { x : ℕ | x < y or x 
 
 Now assume that v ∈ A.  Then v < y or v = y or y < v.
 
-Suppose that v < y.  Then v + s(z) = y for some z : ℕ.  By [positive is successor], either z = 0, or z = s(u) for some u : ℕ.  If z = 0 then v + 1 = y, that is s(v) = y.
+Suppose that v < y.  Then v + s(z) = y for some z : ℕ.  By [positive is successor], either z = 0, or z = s(u) for some u : ℕ.  If z = 0 then v + 1 = y, that is s(v) = y.  If z = s(u) for some u : ℕ, then s(v) + s(u) = v + s(s(u)) = v + s(z) = y, so s(v) < y.  So s(v) < y or s(v) = y.
 
 # Theorem.  For all x : ℕ, there is no y : ℕ such that x < y < s(x).  [ℕ is discrete]
 

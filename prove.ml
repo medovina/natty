@@ -462,12 +462,10 @@ let is_eligible sub parent_eq =
   parent_eq |> for_all (fun (s, t) ->
     not (term_gt (subst_n sub t) (subst_n sub s)))
 
-let top_level lenient pos u c sub inductive : bool =
+let top_level pos u c : bool =
   let cs = mini_clausify c in
   let lit = if pos then u else _not u in
-  mem lit cs &&
-    (lenient || inductive ||
-        is_maximal lit_gt (rsubst sub lit) (map (rsubst sub) cs))
+  mem lit cs
 
 let simp_eq = function
   | Eq (Eq (t, t'), f) when f = _true -> Eq (t, t')
@@ -591,8 +589,7 @@ let super lenient dp d' t_t' cp c c1 : pformula list =
         let c1_s = rsubst sub c1 in
         let fail n = if dbg then printf "super: failed check %d\n" n; true in
         if is_higher sub && not (orig_goal dp) ||
-            is_bool_const t'_s &&
-              not (top_level lenient (t'_s = _false) u c1 sub (is_inductive cp)) && fail 7 || (* vii *)
+            is_bool_const t'_s && not (top_level (t'_s = _false) u c1) && fail 7 || (* vii *)
             not (is_maximal lit_gt (simp_eq t_eq_t'_s) d'_s) && fail 6 ||  (* vi *)
             term_ge t'_s t_s && fail 3 ||  (* iii *)
             not lenient && not (is_maximal lit_gt c1_s c_s) && fail 4 ||  (* iv *)
