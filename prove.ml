@@ -179,7 +179,7 @@ let mk_pformula rule parents step formula =
       if parents = [] then 0
       else maximum (map (fun p -> p.hypothesis) parents);
     definition = not step && parents <> [] && for_all (fun p -> p.definition) parents;
-    by = false;
+    by = exists (fun p -> p.by) parents;
     derived = step || exists (fun p -> p.derived) parents;
   }
 
