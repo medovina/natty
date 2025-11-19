@@ -625,11 +625,10 @@ let proof_if_prop : proof_step list p = pipe3
 
 let and_or_so = (str "and" << optional so) <|> so
 
-let will_show = choice [
-  str "We start by showing that";
-  str "We" >>? (any_str ["must"; "need to"] <|> (str "will" <<? opt_str "now")) >>?
-    any_str ["deduce"; "prove"; "show"] >> str "that"
-  ]
+let will_show =
+  (str "We" >>? any_str ["must"; "need to"; "will"]) >>?
+    opt_str "now" >>? any_str ["deduce"; "prove"; "show"] >>
+    optional by_reason >> str "that"
 
 let to_show = str "To show that" >> small_prop << str ","
 

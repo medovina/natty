@@ -254,9 +254,8 @@ proof_if_prop = 'if' small_prop [','] 'then' proof_prop {',' so proof_prop};
 
 and_or_so = 'and' [so] | so;
 
-will_show =
-    'We start by showing that' |
-    'We' ('must' | 'need to' | 'will' ['now']) ('deduce' | 'prove' | 'show') 'that';
+will_show = ('We' ('must' | 'need to' | 'will'))
+            ['now'] ('deduce' | 'prove' | 'show') [by_reason] 'that';
 
 to_show = 'To show that' small_prop ',';
 
