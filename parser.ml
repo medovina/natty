@@ -589,10 +589,12 @@ let mk_step chain : proof_step =
     | _ -> failwith "mk_step"
 
 let opt_contra : proof_step list p = opt []
-  (str "," >>? (opt_str "which is " >>?
-    optional (any_str ["again"; "also"; "similarly"]) >>?
-    str "a contradiction" >>
-    (optional (str "to" >> reference))) >>$ [Assert [("", _false, [])]])
+  (str "," >>?
+    (opt_str "which is " >>? optional (any_str ["again"; "also"; "similarly"])) >>?
+    choice [
+      str "a contradiction" >> (optional (str "to" >> reference));
+      str "contradicting" >> skip reference ]
+    >>$ [Assert [("", _false, [])]])
 
 let prop_reason : (formula * (string * range) list) p =
   pair proposition (opt [] by_reason)
@@ -621,7 +623,7 @@ let and_or_so = (str "and" << optional so) <|> so
 
 let will_show = choice [
   str "We start by showing that";
-  str "We" >>? any_str ["must"; "need to"; "will"] >>?
+  str "We" >>? (any_str ["must"; "need to"] <|> (str "will" <<? opt_str "now")) >>?
     any_str ["deduce"; "prove"; "show"] >> str "that"
   ]
 

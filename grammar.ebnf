@@ -237,7 +237,9 @@ definition =
 
 (* proofs *)
 
-contra = ',' ['which is'] ['again' | 'also' | 'similarly'] 'a contradiction' ['to' reference];
+contra = ','
+    (['which is'] ['again' | 'also' | 'similarly'])
+     ('a contradiction' ['to' reference] | 'contradicting' reference);
 
 prop_reason = proposition [by_reason];
 
@@ -251,7 +253,7 @@ and_or_so = 'and' [so] | so;
 
 will_show =
     'We start by showing that' |
-    'We' ('must' | 'need to' | 'will') ('deduce' | 'prove' | 'show') 'that';
+    'We' ('must' | 'need to' | 'will' ['now']) ('deduce' | 'prove' | 'show') 'that';
 
 to_show = 'To show that' small_prop ',';
 
