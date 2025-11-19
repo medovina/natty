@@ -19,7 +19,7 @@ Axiom.  There is a binary operation + : ℕ → ℕ → ℕ such that for all x,
   a. x + 0 = x.
   b. x + s(y) = s(x + y).
 
-Lemma.  For all x, y ∈ ℕ, x + (y + 0) = (x + y) + 0.
+Lemma.  For all x, y : ℕ, x + (y + 0) = (x + y) + 0.
 
 Theorem (associativity of addition).  For all x, y, z : ℕ,
 
@@ -27,8 +27,8 @@ Theorem (associativity of addition).  For all x, y, z : ℕ,
 
 Lemma.
 
-    a. For all x ∈ ℕ, 0 + x = x.  [zero left sum]
-    b. For all x, y ∈ ℕ, s(x) + y = s(x + y).
+    a. For all x : ℕ, 0 + x = x.  [zero left sum]
+    b. For all x, y : ℕ, s(x) + y = s(x + y).
 
 Theorem (commutativity of addition).  For all x, y : ℕ,
 
@@ -42,9 +42,9 @@ Theorem.  For all x, y : ℕ, y ≠ s(x) + y.   [add successor distinct]
 
 # Ordering
 
-Definition.  For all x, y ∈ ℕ, x < y iff there is some z ∈ ℕ such that x + s(z) = y.
+Definition.  For all x, y : ℕ, x < y iff there is some z : ℕ such that x + s(z) = y.
 
-Theorem.  Let x, y, z ∈ ℕ.
+Theorem.  Let x, y, z : ℕ.
 
     a. x ≮ x.     [irreflexivity of <]
     b. x < y and y < z implies x < z.  [transitivity of <]
@@ -79,9 +79,9 @@ Finally, suppose that y < v.  Then v = y + s(u) for some u : ℕ.  Hence s(v) = 
 
 In all cases s(v) < y or s(v) = y or y < s(v).  Hence s(v) ∈ A.  We have shown that for all v ∈ A, s(v) ∈ A.  By [induction], A = ℕ.
 
-Theorem.  Let x, y ∈ ℕ.
+Theorem.  Let x, y : ℕ.
 
-    a. x < s(x).
+    a. x < s(x).  [less than successor]
     b. For all x : ℕ, there is no y : ℕ such that x < y < s(x).  [ℕ is discrete]
 
 Proof.
@@ -94,7 +94,7 @@ Definition.
 
     For all x, y : ℕ, x ≤ y if x < y or x = y.  We write x > y if y < x.  We write x ≥ y if y ≤ x.
 
-Theorem.  Let x, y, z ∈ ℕ.
+Theorem.  Let x, y, z : ℕ.
 
     a. x ≤ x.
     b. If x < y and y ≤ z, then x < z.  [< with ≤ are transitive]
@@ -135,18 +135,31 @@ Proof.
 
      h. Suppose that x ≤ y and u < v.  Then either x = y or x < y.  If x = y then u + x < v + y by [< add right], so x + u < y + v.  If x < y then by [< add left right] x + u < y + v.
 
-# # Well-ordering principle
+Theorem.  Let x, y : ℕ.
 
-# Definition.  For all S : ℕ → 𝔹, S is empty iff there is no n : ℕ such that n ∈ S.  S is nonempty iff S is not empty.
+    a. x < s(y) if and only if x ≤ y.  [< successor iff ≤]
+    b. x < y if and only if s(x) ≤ y.  [< iff successor ≤]
 
-# Definition.  For all A : ℕ → 𝔹 and a : ℕ, a is a least element of A iff a ∈ A and for all x : ℕ, if x ∈ A then a ≤ x.
+Proof.
 
-# Theorem (well-ordering principle). Let A : ℕ → 𝔹.  Suppose that A is nonempty.  Then there exists some x : ℕ such that x is a least element of A.
+    a. Let x, y : ℕ.  First suppose that x < s(y).  Suppose further that x > y.  It follows that y < x < s(y), which is a contradiction to [ℕ is discrete].  So by [trichotomy] we have x ≤ y.  Second, suppose that x ≤ y.  Suppose further that x ≥ s(y).  Then by [≤ is transitive] we deduce that s(y) ≤ y, which is a contradiction to [less than successor].  So it must be that x < s(y).  
 
-# Proof.  Assume there is no x : ℕ such that x is a least element of A.  Let
+    b. Let x, y : ℕ.  First suppose that x < y.  Suppose further that s(x) > y.  It follows that x < y < s(x), which is a contradiction to [ℕ is discrete].  So it must be that s(x) ≤ y. Second, suppose that s(x) ≤ y.  Suppose further that x ≥ y.  Then by [≤ is transitive] we deduce that s(x) ≤ x, which is a contradiction to [less than successor].  So it must be that x < y.
 
-#         B = { x ∈ ℕ | for all u ∈ ℕ, if u ≤ x then u ∉ A }.
+# Well-ordering principle
 
-# Assume that 0 ∉ B.  Then there is some u : ℕ such that u ≤ 0 and u ∈ A.  Then u = 0 by [nonzero is positive].  Thus 0 ∈ A.  But then 0 is a least element of A, which is a contradiction.  Hence 0 ∈ B.
+Definition.  For all S : ℕ → 𝔹, S is empty iff there is no n : ℕ such that n ∈ S.  S is nonempty iff S is not empty.
 
-# Let x ∈ B.  Then for all u : ℕ, if u ≤ x then u ∉ A.  Assume that s(x) ∈ A.  Then by [ℕ is discrete] s(x) is a least element of A, which is a contradiction.  So s(x) ∉ A.
+Definition.  For all A : ℕ → 𝔹 and z : ℕ, z is a least element of A if z ∈ A and for all u : ℕ, if u ∈ A then z ≤ u.
+
+Theorem (well-ordering principle). Let A : ℕ → 𝔹.  Suppose that A is nonempty.  Then there exists some x : ℕ such that x is a least element of A.
+
+Proof.  Assume there is no x : ℕ such that x is a least element of A.  Let
+
+    B = { x : ℕ | for all u : ℕ, if u ≤ x then u ∉ A }.
+
+Observe that for all x ∈ B, x ∉ A.  We will show by [induction] that B = ℕ.
+
+First assume that 0 ∉ B.  Then there is some u : ℕ such that u ≤ 0 and u ∈ A.  Then u = 0 by [nonzero is positive].  Thus 0 ∈ A.  But then 0 is a least element of A, which is a contradiction.  Hence 0 ∈ B.
+
+Let x ∈ B.  Then for all u : ℕ, if u ≤ x then u ∉ A.  Assume that s(x) ∈ A.  # Then by [< iff successor ≤] s(x) is a least element of A, which is a contradiction.  So s(x) ∉ A.
