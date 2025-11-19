@@ -79,9 +79,16 @@ Finally, suppose that y < v.  Then v = y + s(u) for some u : ℕ.  Hence s(v) = 
 
 In all cases s(v) < y or s(v) = y or y < s(v).  Hence s(v) ∈ A.  We have shown that for all v ∈ A, s(v) ∈ A.  By [induction], A = ℕ.
 
-# Theorem.  For all x : ℕ, there is no y : ℕ such that x < y < s(x).  [ℕ is discrete]
+Theorem.  Let x, y ∈ ℕ.
 
-# Proof.  Let x : ℕ, and assume there is some y : ℕ such that x < y < s(x).  By [less if add succ] there is some u : ℕ such that x + s(u) = y.  Now s(x) + u = x + s(u) = y.  So s(x) ≤ y.  But we know that y < s(x).  This is a contradiction to [trichotomy].
+    a. x < s(x).
+    b. For all x : ℕ, there is no y : ℕ such that x < y < s(x).  [ℕ is discrete]
+
+Proof.
+
+    a. x + s(0) = s(x).  Therefore x < s(x).
+
+    b. Let x : ℕ, and assume there is some y : ℕ such that x < y < s(x).  Since x < y there is some z : ℕ such that x + s(z) = y.  By [positive is successor] either z = 0, or z = s(u) for some u : ℕ.  If z = 0 then s(x) = x + 1 = x + s(z) = y, contradicting [trichotomy] since y < s(x).  If z = s(u) for some u : ℕ, then s(x) + s(u) = x + s(s(u)) = x + s(z) = y, so s(x) < y, contradicting [trichotomy] since y < s(x).  In either case we have a contradiction.
 
 # Theorem.  Let x, y, z ∈ ℕ.
 

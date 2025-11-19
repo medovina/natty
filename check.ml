@@ -64,6 +64,14 @@ let has_premise f g =
     | App (App (Const ("→", _), g'), _) when g' = strip_ranges g -> true
     | _ -> false
 
+let trim_escape rest : proof_step list = match rest with
+  | Escape :: rest -> rest  (* ignore an escape that immediately follows an assert ⊥ *)
+  | _ -> rest
+
+let is_assert_false step = match step with
+  | Assert [(_, f, _)] when strip_range f = _false -> true
+  | _ -> false
+
 let infer_blocks env steps : block list =
   let rec infer vars scope_vars in_assume steps : block list * proof_step list * bool =
     match steps with
@@ -76,7 +84,7 @@ let infer_blocks env steps : block list =
             -> overlap top_vars in_use) in
           let let_vars_in_use = head_opt scope_vars |> opt_for_all (fun top_vars
             -> overlap top_vars in_use) in
-          if not (is_assert _false step) && not vars_in_use && not let_vars_in_use
+          if not (is_assert_false step) && not vars_in_use && not let_vars_in_use
             then ([], steps, false)
           else match step with
             | Escape ->
@@ -86,18 +94,16 @@ let infer_blocks env steps : block list =
                 ([], steps, true)  (* proof invoked last assumption as a premise, so exit scope *)
             | Assert [(_, f, _)] when strip_range f = _false ->
                 if Option.is_some in_assume then
-                  let rest = match rest with
-                    | Escape :: rest -> rest  (* ignore an escape that immediately follows *)
-                    | _ -> rest in
-                  ([Block (step, [])], rest, true)
-                  else error "contradiction without assumption" (range_of f)
+                  ([Block (step, [])], trim_escape rest, true)
+                else error "contradiction without assumption" (range_of f)
             | Group steps ->
-                let rec group_blocks = function
+                let rec group_blocks steps : block list = match steps with
                   | [] -> []
                   | steps ->
                       let (blocks, rest, _bail) = infer [] [] None steps in
                       blocks @ group_blocks rest in
                 let blocks = group_blocks steps in
+                let rest = if is_assert_false (last steps) then trim_escape rest else rest in
                 let (blocks2, rest2, bail) = infer vars scope_vars in_assume rest in
                 (blocks @ blocks2, rest2, bail)
             | _ ->

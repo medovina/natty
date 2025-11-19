@@ -245,7 +245,10 @@ prop_reason = proposition [by_reason];
 
 proof_eq_props = prop_reason {eq_op prop_reason}+;
 
-proof_prop = ([by_reason [',']] [have] proof_eq_props) [contra];
+because_prop = ['because' | 'since'] proposition;
+
+proof_prop =
+    ([by_reason [',']] [have] proof_eq_props) [contra [because_prop]];
 
 proof_if_prop = 'if' small_prop [','] 'then' proof_prop {',' so proof_prop};
 
@@ -259,7 +262,7 @@ to_show = 'To show that' small_prop ',';
 
 assert_step =
     [have] proof_if_prop |
-    ['Because' | 'Since'] proof_prop [','] proof_prop |
+    because_prop [','] proof_prop |
     [to_show] will_show proposition |
     'The result follows' by_reason |
     ('This is' | 'We have') 'a contradiction' ['to' reference] |
