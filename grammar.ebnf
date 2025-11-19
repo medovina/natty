@@ -113,10 +113,13 @@ theorem_ref = '[' name [':' id_eq_term {',' id_eq_term}] ']';
 
 reference = theorem_ref | 'part (' number ')' ['of this theorem'];
 
-reason = (('by' ['contradiction with'] | 'using') reference) |
-          'by' [['the'] ('inductive' | 'induction')] ('assumption' | 'hypothesis') |
-          'by definition' | 'by the definition of' term |
-          'by transitivity of =';
+reason =
+    ['contradiction with'] reference |
+    [['the'] ('inductive' | 'induction')] ('assumption' | 'hypothesis') |
+    'definition' | 'the definition of' term |
+    'transitivity of =';
+
+by_reason = 'by' reason {'and' reason};
 
 (* so / have *)
 
@@ -125,7 +128,7 @@ so = 'also' | 'but' ['then'] | 'consequently' | 'hence' | 'however' |
      'whence' | 'which means that';
     
 have = 'clearly' |
-    'it' ['then'] 'follows' ['from' reference | reason] 'that' |
+    'it' ['then'] 'follows' ['from' reference | by_reason] 'that' |
     'it is' ('clear' | 'obvious') 'that' | 'it must be that' | 'observe that' |
     'on the other hand' [','] | 'similarly' [','] |
     'the only alternative is' | 'this means that' | 'this shows that' | 'trivially' |
@@ -236,11 +239,11 @@ definition =
 
 contra = ',' ['which is'] ['again' | 'also' | 'similarly'] 'a contradiction' ['to' reference];
 
-prop_reason = proposition [reason];
+prop_reason = proposition [by_reason];
 
 proof_eq_props = prop_reason {eq_op prop_reason}+;
 
-proof_prop = ([reason [',']] [have] proof_eq_props) [contra];
+proof_prop = ([by_reason [',']] [have] proof_eq_props) [contra];
 
 proof_if_prop = 'if' small_prop [','] 'then' proof_prop {',' so proof_prop};
 
@@ -256,7 +259,7 @@ assert_step =
     [have] proof_if_prop |
     ['Because' | 'Since'] proof_prop [','] proof_prop |
     [to_show] will_show proposition |
-    'The result follows' reason |
+    'The result follows' by_reason |
     ('This is' | 'We have') 'a contradiction' ['to' reference] |
     [and_or_so] proof_prop;
 

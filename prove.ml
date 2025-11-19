@@ -498,14 +498,16 @@ let origin pf : string =
 let by_induction p = exists is_inductive p.parents
 
 let def_consts p : id list =
-  let rec const_of f = match f with
-    | App (Const ("¬", _), g) -> const_of g
-    | Eq (Const (id, _), _) -> [id]
-    | _ -> match fst (collect_args f) with
-      | Const (id, _) -> [id]
+  let rec find f = match f with
+    (* | App (Const ("¬", _), g) -> find g *)
+    | Eq (Const (c, _), _) -> [c]
+    | _ -> match collect_args f with
+      | Const (c, _), args ->
+          if mem c logical_binary then concat_map find args
+          else [c]
       | _ -> [] in
-  let consts = concat_map const_of (mini_clausify p.formula) in
-  subtract consts logical_ops
+  let cs = find (snd (remove_for_all p.formula)) in
+  subtract cs logical_ops
 
 let step_cost = 0.01
 let expand_def_cost = 0.5
@@ -515,21 +517,32 @@ let inf_cost = 10.0
 let is_by parents =
   exists orig_goal parents && exists orig_by parents
 
+let top_consts f : id list =
+  let rec find f = match f with
+    | App (Const ("¬", _), f) -> find f
+    | _ ->
+      let f, _args = collect_args f in
+      match f with
+        | Const (id, _typ) -> [id]
+        | _ -> [] in
+  subtract (find f) logical_ops
+
 let is_def_expansion parents =
   let last = parents |> find_opt (fun p ->
     orig_goal p || orig_hyp p && p.hypothesis = 1) in
   let def = find_opt orig_def parents in
   match last, def with
     | Some last, Some def ->
-        overlap (all_consts last.formula) (def_consts def)
+        overlap (top_consts last.formula) (def_consts def)
     | _ -> false
 
 let cost p : float * bool =
   match p.parents with
     | [_; _] ->
         let expand_def = is_def_expansion p.parents in
+        let by = is_by p.parents in
         let c =
-          if is_by p.parents then step_cost else
+          if by then step_cost else
           let qs = p.parents |> filter (fun p -> p.goal || is_hyp p) in
           let max = maximum (map (fun p -> weight p.formula) qs) in
           if weight p.formula <= max then step_cost else
@@ -945,10 +958,12 @@ let rw_simplify cheap src queue used found p =
               let final () = finish p f_canonical found delta cost in
               match FormulaMap.find_opt f_canonical !found with
                 | Some pf ->
-                    if cost < pf.cost then (
+                    if orig_goal p || cost < pf.cost then (
                       let p = final () in
                       if !debug > 0 then
-                        printf "(%d is a duplicate of %d; replacing with lower cost of %.2f)\n"
+                        if orig_goal p then
+                          printf "%s (goal) is a duplicate of #%d; replacing it" src pf.id
+                        else printf "(%d is a duplicate of %d; replacing with lower cost of %.2f)\n"
                           p.id pf.id p.cost;
                       if PFQueue.mem (Unprocessed pf) !queue then
                         queue := PFQueue.add (Unprocessed p) (queue_cost p)

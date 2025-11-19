@@ -213,7 +213,7 @@ Theorem.  Let i, j, k ∈ ℤ.
 
 Proof.
 
-  1. Let i, j ∈ ℤ.  Then there are some a, b, c, d ∈ ℕ such that i = z(a, b) and j = z(c, d).  By [trichotomy] we know that exactly one of a + d < b + c or a + d = b + c or a + d > b + c holds.  The result follows using [int_lt_def].
+  1. Let i, j ∈ ℤ.  Then there are some a, b, c, d ∈ ℕ such that i = z(a, b) and j = z(c, d).  By [trichotomy] we know that exactly one of a + d < b + c or a + d = b + c or a + d > b + c holds.  The result follows by [int_lt_def].
 
   2. Let i, j, k ∈ ℤ, and suppose that i < j and j < k.  There are some a, b, c, d, e, f ∈ ℕ such that i = z(a, b) and j = z(c, d) and k = z(e, f).  Then z(a, b) < z(c, d) and z(c, d) < z(e, f), so a + d < b + c and c + f < d + e.  It follows that a + d + f < b + c + f and b + c + f < b + d + e, so a + d + f < b + d + e.  Then a + f < b + e by [< add left], so i < k.
 

@@ -325,14 +325,17 @@ and reference s : (string * range) list pr = choice [
   ] s
 
 and reason s : (string * range) list pr = (
-  any_str ["by"; "using"] >>? reference <|>
+  reference <|>
   (choice [
-    str "by contradiction with" >> reference >>$ "";
-    str "by" >>? optional (opt_str "the" >>? any_str ["inductive"; "induction"]) >>?
+    str "contradiction with" >> reference >>$ "";
+    optional (opt_str "the" >>? any_str ["inductive"; "induction"]) >>?
       any_str ["assumption"; "hypothesis"];
-    str "by definition";
-    str "by the definition of" << term;
-    str "by transitivity of ="] >>$ [])) s
+    str "definition";
+    str "the definition of" << term;
+    str "transitivity of ="] >>$ [])) s
+
+and by_reason s : (string * range) list pr =
+  (str "by" >> sep_by1 reason (str "and") |>> concat) s
 
 (* so / have *)
 
@@ -349,13 +352,13 @@ and have s = choice [
     "we conclude that"; "we deduce that";
     "we know that"; "we must have"; "we see that"];
   any_str ["it follows"; "it then follows"] >>
-    optional ((str "from" >> reference) <|> reason) >> str "that";
+    optional ((str "from" >> reference) <|> by_reason) >> str "that";
   str "it is" >> any_str ["clear"; "obvious"] >> str "that";
   any_str ["on the other hand"; "similarly"] << opt_str ",";
   str "we have" << opt_str "shown that"
   ] s
 
-and new_phrase s = (so <|> (optional reason >> have) <|> str "that") s
+and new_phrase s = (so <|> (optional by_reason >> have) <|> str "that") s
 
 and and_op s = (str "and" <<? not_before new_phrase) s
 
@@ -494,7 +497,9 @@ let proposition_item : (id * (proof_step list * id option)) p =
   pair sub_index top_sentence
 
 let prop_items : (id * ((proof_step list) * id option)) list p =
-  many1 proposition_item
+  let> items = many1 proposition_item in
+  if has_duplicate (map fst items) then fail "duplicate label"
+  else return items
 
 let top_prop_or_items (name: id option):
   (id * proof_step list * id option) list p =
@@ -590,7 +595,7 @@ let opt_contra : proof_step list p = opt []
     (optional (str "to" >> reference))) >>$ [Assert [("", _false, [])]])
 
 let prop_reason : (formula * (string * range) list) p =
-  pair proposition (opt [] reason)
+  pair proposition (opt [] by_reason)
 
 let proof_eq_props : chain p =
   let> f, r = prop_reason in
@@ -598,7 +603,7 @@ let proof_eq_props : chain p =
   ("", f, r) :: let+ (op, (f, r)) = eqs in [(op, f, r)]
 
 let proof_prop : proof_step list p =
-  let> reason = opt [] (reason << opt_str ",") in
+  let> reason = opt [] (by_reason << opt_str ",") in
   let> chain = optional have >> proof_eq_props in
   let$ c = opt_contra in
   let chain = match chain with
@@ -626,7 +631,7 @@ let assert_step : proof_step list p =
   (optional have >>? proof_if_prop) <|> (choice [
     pipe2 (any_str ["Because"; "Since"] >> proof_prop) (opt_str "," >> proof_prop) (@);
     optional to_show >> will_show >> proposition >>$ [];
-    str "The result follows" >> reason >>$ [];
+    str "The result follows" >> by_reason >>$ [];
     single (any_str ["This is"; "We have"] >>? str "a contradiction" >>
         opt [] (str "to" >> reference) |>> fun r -> Assert [("", _false, r)]);
     optional and_or_so >> proof_prop
@@ -662,8 +667,13 @@ let proof_steps : proof_step list p =
 
 let proof_item : (id * proof_step list) p = pair sub_index proof_steps
 
+let proof_items : (id * proof_step list) list p =
+  let> items = many1 proof_item in
+  if has_duplicate (map fst items) then fail "duplicate proof item"
+  else return items
+
 let proofs : (id * proof_step list) list p = str "Proof." >> choice [
-  many1 proof_item;
+  proof_items;
   proof_steps |>> (fun steps -> [("", steps)])]
 
 (* theorems *)

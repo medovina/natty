@@ -1,27 +1,27 @@
 # Natural numbers: definition
 
-Axiom.  There exists a type ℕ (the natural numbers) with an element 0 ∈ ℕ and a function s : ℕ → ℕ such that
+Axiom.  There exists a type ℕ (the natural numbers) with an element 0 : ℕ and a function s : ℕ → ℕ such that
 
-  a. There is no n ∈ ℕ such that s(n) = 0.  [0 is not successor]
-  b. For all n, m ∈ ℕ, if s(n) = s(m) then n = m.  [succ is injective]
-  c. Let P : ℕ → 𝔹.  If 0 ∈ P, and k ∈ P implies s(k) ∈ P for all k ∈ ℕ, then P = ℕ.  [induction]
+  a. There is no n : ℕ such that s(n) = 0.  [0 is not successor]
+  b. For all n, m : ℕ, if s(n) = s(m) then n = m.  [succ is injective]
+  c. Let P : ℕ → 𝔹.  If 0 ∈ P, and k ∈ P implies s(k) ∈ P for all k : ℕ, then P = ℕ.  [induction]
 
 Definition.  Let 1 : ℕ = s(0).
 
-Theorem.  Let x ∈ ℕ.  Suppose that x ≠ 0.  Then there is some y ∈ ℕ such that x = s(y).   [positive is successor]
+Theorem.  Let x : ℕ.  Suppose that x ≠ 0.  Then there is some y : ℕ such that x = s(y).   [positive is successor]
 
-Theorem.  For all x ∈ ℕ, s(x) ≠ x.  [all x ≠ s(x)]
+Theorem.  For all x : ℕ, s(x) ≠ x.  [all x ≠ s(x)]
 
 # Addition
 
-Axiom.  There is a binary operation + : ℕ → ℕ → ℕ such that for all x, y ∈ ℕ,
+Axiom.  There is a binary operation + : ℕ → ℕ → ℕ such that for all x, y : ℕ,
 
   a. x + 0 = x.
   b. x + s(y) = s(x + y).
 
 Lemma.  For all x, y ∈ ℕ, x + (y + 0) = (x + y) + 0.
 
-Theorem (associativity of addition).  For all x, y, z ∈ ℕ,
+Theorem (associativity of addition).  For all x, y, z : ℕ,
 
     x + (y + z) = (x + y) + z.
 
@@ -34,115 +34,114 @@ Theorem (commutativity of addition).  For all x, y : ℕ,
 
     x + y = y + x.
 
-Theorem (cancellation law for addition).  For all x, y, z ∈ ℕ,
+Theorem (cancellation law for addition).  For all x, y, z : ℕ,
 
     x + z = y + z implies x = y.
 
+Theorem.  For all x, y : ℕ, y ≠ s(x) + y.   [add successor distinct]
+
 # Ordering
 
-Definition.  For all a, b ∈ ℕ, a ≤ b iff there is some c ∈ ℕ such that a + c = b.  a < b iff a ≤ b and a ≠ b.
-
-Definition.  For all a, b ∈ ℕ, we write a ≥ b iff b ≤ a.  We write a > b iff b < a.
-
-Lemma.  For all x, y : ℕ, x < y iff there exists some z : ℕ such that x + s(z) = y.  [less if add succ]
-
-Proof.  Let x, y : ℕ, and suppose that x < y.  Then x ≤ y, so there exists w : ℕ such that x + w = y.  If w = 0 then x + 0 = y, so x = y, which is a contradiction.  So w ≠ 0, so by [positive is successor] there exists z : ℕ such that w = s(z).  Then x + s(z) = y.
-
-Now suppose that there exists some z : ℕ such that x + s(z) = y.  Then x ≤ y.  Suppose that x = y.  Then x + s(z) = x.  We know that x + 0 = x, so x + s(z) = x + 0, so s(z) + x = 0 + x.  Then s(z) = 0, which is a contradiction to [0 is not successor].  So x ≠ y.  It follows that x < y.
+Definition.  For all x, y ∈ ℕ, x < y iff there is some z ∈ ℕ such that x + s(z) = y.
 
 Theorem.  Let x, y, z ∈ ℕ.
 
-     a. x ≮ x.     [irreflexivity of <]
-     b. 0 ≤ x.    [all x ≥ 0]
-     c. x < s(x).  [all x < s(x)]
-     d. x < y and y < z implies x < z.  [transitivity of <]
+    a. x ≮ x.     [irreflexivity of <]
 
 Proof.
 
-    c. x + 1 = s(x).  Therefore x ≤ s(x).  By [all x ≠ s(x)] we know that x ≠ s(x), so x < s(x).
+    a. Suppose that x < x.  Then there is some z : ℕ such that x + s(z) = x.  But x + s(z) ≠ x by [add successor distinct] and [commutativity of addition].  This is a contradiction.
 
-    d. Let x, y, z : ℕ.  Suppose that x < y and y < z.  Then by [less if add succ] there exist u, v : ℕ such that x + s(u) = y and y + s(v) = z.  Then
+#      b. 0 ≤ x.    [all x ≥ 0]
+#      c. x < s(x).  [all x < s(x)]
+#      d. x < y and y < z implies x < z.  [transitivity of <]
 
-        z = (x + s(u)) + s(v)
-           = x + (s(u) + s(v))
-           = x + s(u + s(v)).
+# Proof.
+
+#     c. x + 1 = s(x).  Therefore x ≤ s(x).  By [all x ≠ s(x)] we know that x ≠ s(x), so x < s(x).
+
+#     d. Let x, y, z : ℕ.  Suppose that x < y and y < z.  Then by [less if add succ] there exist u, v : ℕ such that x + s(u) = y and y + s(v) = z.  Then
+
+#         z = (x + s(u)) + s(v)
+#            = x + (s(u) + s(v))
+#            = x + s(u + s(v)).
      
-    Then x < z by [less if add succ].
+#     Then x < z by [less if add succ].
 
-Theorem (trichotomy).  For all x, y: ℕ, precisely one of x < y or x = y or x > y holds.
+# Theorem (trichotomy).  For all x, y: ℕ, precisely one of x < y or x = y or x > y holds.
 
-Proof.
+# Proof.
 
-Let a, b ∈ ℕ.  Suppose that a < b and a = b.  It then follows that a < a, which is a contradiction to [irreflexivity of <].  Now suppose that a = b and a > b.  It follows that a > a, which is similarly a contradiction.  Now suppose that a < b and b < a.  By [transitivity of <] we deduce that a < a, again a contradiction.
+# Let a, b ∈ ℕ.  Suppose that a < b and a = b.  It then follows that a < a, which is a contradiction to [irreflexivity of <].  Now suppose that a = b and a > b.  It follows that a > a, which is similarly a contradiction.  Now suppose that a < b and b < a.  By [transitivity of <] we deduce that a < a, again a contradiction.
 
-Now let
+# Now let
 
-    G = { x ∈ ℕ | for all y ∈ ℕ, x < y or x = y or x > y }.
+#     G = { x ∈ ℕ | for all y ∈ ℕ, x < y or x = y or x > y }.
 
-We will show that x ∈ G for all x ∈ ℕ.  We start by showing that 0 ∈ G.  Let y ∈ ℕ.  By [all x ≥ 0] we know that 0 ≤ y.  It follows that y = 0 or y > 0.  Hence 0 ∈ G.
+# We will show that x ∈ G for all x ∈ ℕ.  We start by showing that 0 ∈ G.  Let y ∈ ℕ.  By [all x ≥ 0] we know that 0 ≤ y.  It follows that y = 0 or y > 0.  Hence 0 ∈ G.
 
-Now let x ∈ ℕ, and suppose that x ∈ G.  We will show that s(x) ∈ G.  Let y ∈ ℕ.  By hypothesis we know that x < y or x = y or x > y.
+# Now let x ∈ ℕ, and suppose that x ∈ G.  We will show that s(x) ∈ G.  Let y ∈ ℕ.  By hypothesis we know that x < y or x = y or x > y.
 
-First suppose that x < y.  Then there is some p ∈ ℕ such that x + p = y.  If p = 0, then x = y, so s(x) > y by [all x < s(x)].  If p ≠ 0, then by [positive is successor] there is some r ∈ ℕ such that p = s(r), which implies that x + s(r) = y, which implies s(x) + r = y, so s(x) ≤ y, so either s(x) < y or s(x) = y.
+# First suppose that x < y.  Then there is some p ∈ ℕ such that x + p = y.  If p = 0, then x = y, so s(x) > y by [all x < s(x)].  If p ≠ 0, then by [positive is successor] there is some r ∈ ℕ such that p = s(r), which implies that x + s(r) = y, which implies s(x) + r = y, so s(x) ≤ y, so either s(x) < y or s(x) = y.
 
-Next suppose that x = y.  Then by [all x < s(x)] it follows that s(x) > x = y.  Finally, suppose that x > y.  We know that s(x) > x, and by [transitivity of <] it follows that s(x) > y.
+# Next suppose that x = y.  Then by [all x < s(x)] it follows that s(x) > x = y.  Finally, suppose that x > y.  We know that s(x) > x, and by [transitivity of <] it follows that s(x) > y.
 
-Putting the cases together, we see that s(x) < y or s(x) = y or s(x) > y always holds.  Hence s(x) ∈ G, and we conclude that G = ℕ.
+# Putting the cases together, we see that s(x) < y or s(x) = y or s(x) > y always holds.  Hence s(x) ∈ G, and we conclude that G = ℕ.
 
-Theorem.  For all x : ℕ, there is no y : ℕ such that x < y < s(x).  [ℕ is discrete]
+# Theorem.  For all x : ℕ, there is no y : ℕ such that x < y < s(x).  [ℕ is discrete]
 
-Proof.  Let x : ℕ, and assume there is some y : ℕ such that x < y < s(x).  By [less if add succ] there is some u : ℕ such that x + s(u) = y.  Now s(x) + u = x + s(u) = y.  So s(x) ≤ y.  But we know that y < s(x).  This is a contradiction to [trichotomy].
+# Proof.  Let x : ℕ, and assume there is some y : ℕ such that x < y < s(x).  By [less if add succ] there is some u : ℕ such that x + s(u) = y.  Now s(x) + u = x + s(u) = y.  So s(x) ≤ y.  But we know that y < s(x).  This is a contradiction to [trichotomy].
 
-Theorem.  Let x, y, z ∈ ℕ.
+# Theorem.  Let x, y, z ∈ ℕ.
 
-    a. x ≤ x.
-    b. If x < y and y ≤ z, then x < z.
-    c. If x ≤ y and y < z, then x < z.
-    d. If x ≤ y and y ≤ z, then x ≤ z.  [≤ is transitive]
-    e. x ≤ y or y ≤ x.
-    f. If x ≤ y and y ≤ x, then x = y.
+#     a. x ≤ x.
+#     b. If x < y and y ≤ z, then x < z.
+#     c. If x ≤ y and y < z, then x < z.
+#     d. If x ≤ y and y ≤ z, then x ≤ z.  [≤ is transitive]
+#     e. x ≤ y or y ≤ x.
+#     f. If x ≤ y and y ≤ x, then x = y.
 
-Proof.
+# Proof.
 
-    b. Suppose that x < y and y ≤ z.  We know that y = z or y < z.  If y = z, then x < z.  If y < z, then x < z by [transitivity of <].
+#     b. Suppose that x < y and y ≤ z.  We know that y = z or y < z.  If y = z, then x < z.  If y < z, then x < z by [transitivity of <].
 
-    c. Suppose that x ≤ y and y < z.  We know that x = y or x < y.  If x = y, then y < z.  If x < y, then x < z by [transitivity of <].
+#     c. Suppose that x ≤ y and y < z.  We know that x = y or x < y.  If x = y, then y < z.  If x < y, then x < z by [transitivity of <].
 
-    d. Suppose that x ≤ y and y ≤ z.  Then there exist d, e ∈ ℕ such that x + d = y and y + e = z.  Then x + (d + e) = (x + d) + e = y + e = z, so x ≤ z.
+#     d. Suppose that x ≤ y and y ≤ z.  Then there exist d, e ∈ ℕ such that x + d = y and y + e = z.  Then x + (d + e) = (x + d) + e = y + e = z, so x ≤ z.
 
-Theorem.  Let x, y, z, u, v : ℕ.
+# Theorem.  Let x, y, z, u, v : ℕ.
 
-    a. If x ≠ 0 then x > 0.  [nonzero is positive]
-    b. x ≤ x + s(y).
-    c. If x < y then x + z < y + z.  [< add right]
-    d. If x + z < y + z then x < y.  [< add left]
-    e. x ≤ y iff x + z ≤ y + z.
-    f. If x < y and u < v then x + u < y + v. [< < add]
-    g. If x < y and u ≤ v then x + u < y + v.
-    h. If x ≤ y and u < v then x + u < y + v.
-    i. If x ≤ y and u ≤ v then x + u ≤ y + v.
+#     a. If x ≠ 0 then x > 0.  [nonzero is positive]
+#     b. x ≤ x + s(y).
+#     c. If x < y then x + z < y + z.  [< add right]
+#     d. If x + z < y + z then x < y.  [< add left]
+#     e. x ≤ y iff x + z ≤ y + z.
+#     f. If x < y and u < v then x + u < y + v. [< < add]
+#     g. If x < y and u ≤ v then x + u < y + v.
+#     h. If x ≤ y and u < v then x + u < y + v.
+#     i. If x ≤ y and u ≤ v then x + u ≤ y + v.
 
-Proof.
+# Proof.
 
-    c. Assume that x < y.  Then by [less if add succ] x + s(w) = y for some w : ℕ.  Hence (x + z) + s(w) = (x + s(w)) + z = y + z.  Then x + z < y + z by [less if add succ].
+#     c. Assume that x < y.  Then by [less if add succ] x + s(w) = y for some w : ℕ.  Hence (x + z) + s(w) = (x + s(w)) + z = y + z.  Then x + z < y + z by [less if add succ].
 
-    d. Suppose that x + z < y + z.  If x = y then y + z < y + z, a contradiction. If y < x then y + z < x + z by [< add right], so y + z < x + z < y + z, also a contradiction.  By [trichotomy], the only alternative is x < y.
+#     d. Suppose that x + z < y + z.  If x = y then y + z < y + z, a contradiction. If y < x then y + z < x + z by [< add right], so y + z < x + z < y + z, also a contradiction.  By [trichotomy], the only alternative is x < y.
 
-    e. Suppose that x ≤ y.  Then either x = y or x < y.  If x = y then x + z = y + z, so x + z ≤ y + z.  If x < y then x + z < y + z by [< add right], so x + z ≤ y + z.
+#     e. Suppose that x ≤ y.  Then either x = y or x < y.  If x = y then x + z = y + z, so x + z ≤ y + z.  If x < y then x + z < y + z by [< add right], so x + z ≤ y + z.
 
-    Now suppose that x + z ≤ y + z.  Then either x + z = y + z or x + z < y + z.  If x + z = y + z then x = y by [cancellation law for addition], so x ≤ y.  If x + z < y + z then x < y by [< add left], so x ≤ y.
+#     Now suppose that x + z ≤ y + z.  Then either x + z = y + z or x + z < y + z.  If x + z = y + z then x = y by [cancellation law for addition], so x ≤ y.  If x + z < y + z then x < y by [< add left], so x ≤ y.
 
-    f. Suppose that x < y and u < v.  By [< add right] x + u < y + u and u + y < v + y, so y + u < y + v.  Hence by [transitivity of <] x + u < y + v.
+#     f. Suppose that x < y and u < v.  By [< add right] x + u < y + u and u + y < v + y, so y + u < y + v.  Hence by [transitivity of <] x + u < y + v.
 
-    h. Suppose that x ≤ y and u < v.  Then either x = y or x < y.  If x = y then u + x < v + y by [< add right], so x + u < y + v.  If x < y then by [< < add] x + u < y + v.
+#     h. Suppose that x ≤ y and u < v.  Then either x = y or x < y.  If x = y then u + x < v + y by [< add right], so x + u < y + v.  If x < y then by [< < add] x + u < y + v.
 
-# Well-ordering principle
+# # Well-ordering principle
 
-Definition.  For all S : ℕ → 𝔹, S is empty iff there is no n : ℕ such that n ∈ S.  S is nonempty iff S is not empty.
+# Definition.  For all S : ℕ → 𝔹, S is empty iff there is no n : ℕ such that n ∈ S.  S is nonempty iff S is not empty.
 
-Definition.  For all A : ℕ → 𝔹 and a : ℕ, a is a least element of A iff a ∈ A and for all x : ℕ, if x ∈ A then a ≤ x.
+# Definition.  For all A : ℕ → 𝔹 and a : ℕ, a is a least element of A iff a ∈ A and for all x : ℕ, if x ∈ A then a ≤ x.
 
-Theorem (well-ordering principle). Let A : ℕ → 𝔹.  Suppose that A is nonempty.  Then there exists some x : ℕ such that x is a least element of A.
+# Theorem (well-ordering principle). Let A : ℕ → 𝔹.  Suppose that A is nonempty.  Then there exists some x : ℕ such that x is a least element of A.
 
 # Proof.  Assume there is no x : ℕ such that x is a least element of A.  Let
 

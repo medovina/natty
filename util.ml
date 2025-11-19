@@ -271,6 +271,8 @@ let sort_by f = sort (fun x y -> Stdlib.compare (f x) (f y))
 
 let unique l = sort_uniq Stdlib.compare l
 
+let has_duplicate l = l <> unique l
+
 let all_same = function
   | [] -> true
   | (x :: xs) -> for_all ((=) x) xs
