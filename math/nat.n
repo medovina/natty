@@ -77,7 +77,7 @@ Now suppose that v = y.  Then s(v) = s(y) = y + s(0).  So y < s(v).
 
 Finally, suppose that y < v.  Then v = y + s(u) for some u : ℕ.  Hence s(v) = s(y + s(u)) = y + s(s(u)).  Thus y < s(v).
 
-In all cases s(v) < y or s(v) = y or y < s(v).  Hence s(v) ∈ A.  We have shown that for all v ∈ A, s(v) ∈ A.
+In all cases s(v) < y or s(v) = y or y < s(v).  Hence s(v) ∈ A.  We have shown that for all v ∈ A, s(v) ∈ A.  By [induction], A = ℕ.
 
 # Theorem.  For all x : ℕ, there is no y : ℕ such that x < y < s(x).  [ℕ is discrete]
 
