@@ -510,21 +510,21 @@ let def_consts p : id list =
   subtract cs logical_ops
 
 let step_cost = 0.01
-let expand_def_cost = 0.5
+let expand_def_cost = 1.0
 let big_cost = 1.0
 let inf_cost = 10.0
 
 let is_by parents =
   exists orig_goal parents && exists orig_by parents
 
-let top_consts f : id list =
+let top_consts f extra : id list =
   let rec find f = match f with
     | App (Const ("¬", _), f) -> find f
+    | Eq (f, g) -> find f @ find g
     | _ ->
-      let f, _args = collect_args f in
-      match f with
-        | Const (id, _typ) -> [id]
-        | _ -> [] in
+      let f, args = collect_args f in
+      let all = if extra then f :: args else [f] in
+      let+ f = all in Option.to_list (opt_const f) in
   subtract (find f) logical_ops
 
 let is_def_expansion parents =
@@ -533,7 +533,7 @@ let is_def_expansion parents =
   let def = find_opt orig_def parents in
   match last, def with
     | Some last, Some def ->
-        overlap (top_consts last.formula) (def_consts def)
+        overlap (top_consts last.formula (orig_goal last)) (def_consts def)
     | _ -> false
 
 let cost p : float * bool =
@@ -547,7 +547,13 @@ let cost p : float * bool =
           let max = maximum (map (fun p -> weight p.formula) qs) in
           if weight p.formula <= max then step_cost else
             if not !step_strategy && by_induction p then big_cost else
-            if expand_def then expand_def_cost
+            if expand_def then (
+              if !debug > 0 then (
+                let q = p.parents |> find (fun p -> not p.definition) in
+                let total_cost = merge_cost p.parents +. expand_def_cost in
+                printf "definition expansion: %s -> %s [%.2f]\n"
+                  (show_formula q.formula) (show_formula p.formula) total_cost);
+              expand_def_cost)
             else inf_cost in
         (c, p.derived && not expand_def)
     | _ -> (0.0, p.derived)

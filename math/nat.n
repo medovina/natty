@@ -27,7 +27,7 @@ Theorem (associativity of addition).  For all x, y, z : ℕ,
 
 Lemma.
 
-    a. For all x ∈ ℕ, 0 + x = x.
+    a. For all x ∈ ℕ, 0 + x = x.  [zero left sum]
     b. For all x, y ∈ ℕ, s(x) + y = s(x + y).
 
 Theorem (commutativity of addition).  For all x, y : ℕ,
@@ -47,46 +47,31 @@ Definition.  For all x, y ∈ ℕ, x < y iff there is some z ∈ ℕ such that x
 Theorem.  Let x, y, z ∈ ℕ.
 
     a. x ≮ x.     [irreflexivity of <]
+    b. x < y and y < z implies x < z.  [transitivity of <]
 
 Proof.
 
     a. Suppose that x < x.  Then there is some z : ℕ such that x + s(z) = x.  But x + s(z) ≠ x by [add successor distinct] and [commutativity of addition].  This is a contradiction.
 
-#      b. 0 ≤ x.    [all x ≥ 0]
-#      c. x < s(x).  [all x < s(x)]
-#      d. x < y and y < z implies x < z.  [transitivity of <]
+    b. Suppose that x < y and y < z.  Then there exist u, v : ℕ such that x + s(u) = y and y + s(v) = z.  Then
 
-# Proof.
+        z = (x + s(u)) + s(v)
+           = x + (s(u) + s(v))
+           = x + s(u + s(v)).
+    
+    So x < z.
 
-#     c. x + 1 = s(x).  Therefore x ≤ s(x).  By [all x ≠ s(x)] we know that x ≠ s(x), so x < s(x).
+Theorem (trichotomy).  Let x, y: ℕ.  Precisely one of x < y or x = y or y < x holds.
 
-#     d. Let x, y, z : ℕ.  Suppose that x < y and y < z.  Then by [less if add succ] there exist u, v : ℕ such that x + s(u) = y and y + s(v) = z.  Then
+Proof.
 
-#         z = (x + s(u)) + s(v)
-#            = x + (s(u) + s(v))
-#            = x + s(u + s(v)).
-     
-#     Then x < z by [less if add succ].
+If x < y and x = y then x < x, contradicting [irreflexivity of <].  If x = y and y < x, then x < x, again contradicting [irreflexivity of <].  If x < y and y < x then by [transitivity of <] we have x < x, contradicting [irreflexivity of <].
 
-# Theorem (trichotomy).  For all x, y: ℕ, precisely one of x < y or x = y or x > y holds.
+We will now prove that x < y or x = y or y < x.  Let A = { x : ℕ | x < y or x = y or y < x }.  We must prove that A = ℕ.  First, by [positive is successor] we have either y = 0, or y = s(u) for some u : ℕ.  Hence by [zero left sum] either y = 0, or 0 + s(u) = y for some u : ℕ.  So y = 0 or 0 < y.  Thus 0 ∈ A.
 
-# Proof.
+Now assume that v ∈ A.  Then v < y or v = y or y < v.
 
-# Let a, b ∈ ℕ.  Suppose that a < b and a = b.  It then follows that a < a, which is a contradiction to [irreflexivity of <].  Now suppose that a = b and a > b.  It follows that a > a, which is similarly a contradiction.  Now suppose that a < b and b < a.  By [transitivity of <] we deduce that a < a, again a contradiction.
-
-# Now let
-
-#     G = { x ∈ ℕ | for all y ∈ ℕ, x < y or x = y or x > y }.
-
-# We will show that x ∈ G for all x ∈ ℕ.  We start by showing that 0 ∈ G.  Let y ∈ ℕ.  By [all x ≥ 0] we know that 0 ≤ y.  It follows that y = 0 or y > 0.  Hence 0 ∈ G.
-
-# Now let x ∈ ℕ, and suppose that x ∈ G.  We will show that s(x) ∈ G.  Let y ∈ ℕ.  By hypothesis we know that x < y or x = y or x > y.
-
-# First suppose that x < y.  Then there is some p ∈ ℕ such that x + p = y.  If p = 0, then x = y, so s(x) > y by [all x < s(x)].  If p ≠ 0, then by [positive is successor] there is some r ∈ ℕ such that p = s(r), which implies that x + s(r) = y, which implies s(x) + r = y, so s(x) ≤ y, so either s(x) < y or s(x) = y.
-
-# Next suppose that x = y.  Then by [all x < s(x)] it follows that s(x) > x = y.  Finally, suppose that x > y.  We know that s(x) > x, and by [transitivity of <] it follows that s(x) > y.
-
-# Putting the cases together, we see that s(x) < y or s(x) = y or s(x) > y always holds.  Hence s(x) ∈ G, and we conclude that G = ℕ.
+Suppose that v < y.  Then v + s(z) = y for some z : ℕ.  By [positive is successor], either z = 0, or z = s(u) for some u : ℕ.  If z = 0 then v + 1 = y, that is s(v) = y.
 
 # Theorem.  For all x : ℕ, there is no y : ℕ such that x < y < s(x).  [ℕ is discrete]
 

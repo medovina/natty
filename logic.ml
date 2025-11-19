@@ -109,6 +109,10 @@ let get_var = function
   | Var (v, typ) -> (v, typ)
   | _ -> failwith "variable expected"
 
+let opt_const = function
+  | Const (c, _) -> Some c
+  | _ -> None
+
 let get_const_or_var = function
   | Const (id, _) | Var (id, _) -> id
   | _ -> failwith "const or var expected"
