@@ -90,22 +90,26 @@ Proof.
 
     b. Let x : ℕ, and assume there is some y : ℕ such that x < y < s(x).  Since x < y there is some z : ℕ such that x + s(z) = y.  By [positive is successor] either z = 0, or z = s(u) for some u : ℕ.  If z = 0 then s(x) = x + 1 = x + s(z) = y, contradicting [trichotomy] since y < s(x).  If z = s(u) for some u : ℕ, then s(x) + s(u) = x + s(s(u)) = x + s(z) = y, so s(x) < y, contradicting [trichotomy] since y < s(x).  In either case we have a contradiction.
 
-# Theorem.  Let x, y, z ∈ ℕ.
+Definition.
 
-#     a. x ≤ x.
-#     b. If x < y and y ≤ z, then x < z.
-#     c. If x ≤ y and y < z, then x < z.
-#     d. If x ≤ y and y ≤ z, then x ≤ z.  [≤ is transitive]
-#     e. x ≤ y or y ≤ x.
-#     f. If x ≤ y and y ≤ x, then x = y.
+    For all x, y : ℕ, x ≤ y if x < y or x = y.  We write x > y if y < x.  We write x ≥ y if y ≤ x.
 
-# Proof.
+Theorem.  Let x, y, z ∈ ℕ.
 
-#     b. Suppose that x < y and y ≤ z.  We know that y = z or y < z.  If y = z, then x < z.  If y < z, then x < z by [transitivity of <].
+    a. x ≤ x.
+    b. If x < y and y ≤ z, then x < z.  [< with ≤ are transitive]
+    c. If x ≤ y and y < z, then x < z.  [≤ with < are transitive]
+    d. If x ≤ y and y ≤ z, then x ≤ z.  [≤ is transitive]
+    e. x ≤ y or y ≤ x.
+    f. If x ≤ y and y ≤ x, then x = y.
 
-#     c. Suppose that x ≤ y and y < z.  We know that x = y or x < y.  If x = y, then y < z.  If x < y, then x < z by [transitivity of <].
+Proof.
 
-#     d. Suppose that x ≤ y and y ≤ z.  Then there exist d, e ∈ ℕ such that x + d = y and y + e = z.  Then x + (d + e) = (x + d) + e = y + e = z, so x ≤ z.
+    b. Suppose that x < y and y ≤ z.  We know that y = z or y < z.  If y = z, then x < z.  If y < z, then x < z by [transitivity of <].
+
+    c. Suppose that x ≤ y and y < z.  We know that x = y or x < y.  If x = y, then y < z.  If x < y, then x < z by [transitivity of <].
+
+    d. Suppose that x ≤ y and y ≤ z.  We know that x = y or x < y.  If x = y, then x ≤ z.  If x < y, then by [< with ≤ are transitive] x < z, so x ≤ z.
 
 # Theorem.  Let x, y, z, u, v : ℕ.
 
