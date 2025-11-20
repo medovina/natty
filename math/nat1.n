@@ -13,21 +13,6 @@ Theorem.  Let a, b, c ∈ ℕ.
 
 # Multiplication
 
-Axiom.  There is a binary operation · : ℕ → ℕ → ℕ such that for all n, m ∈ ℕ,
-
-  a. n · 0 = 0.
-  b. n · s(m) = (n · m) + n.
-
-Theorem.  Let a, b, c ∈ ℕ.
-
-  1. a · 0 = 0 = 0 · a.
-  2. a · 1 = a = 1 · a.  [nat_mul_ident]
-  3. c(a + b) = ca + cb.
-  4. (ab)c = a(bc). 
-  5. s(a) · b = ab + b.  [nat_succ_mul]
-  6. ab = ba.
-  7. (a + b)c = ac + bc.
-
 Theorem.  Let a, b ∈ ℕ.
 
   1. ab = 0 if and only if a = 0 or b = 0.      [nat_prod_0]

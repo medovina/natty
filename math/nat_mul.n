@@ -10,7 +10,7 @@ Theorem (distributive laws).  Let x, y, z : ℕ.
     a. x · (y + z) = (x · y) + (x · z).     [left distributive]
     b. (y + z) · x = (y · x) + (z · x).     [right distributive]
 
-Lemma.  Let x : ℕ.
+Lemma.  Let x, y : ℕ.
 
     a. 0 · x = x · 0.  [zero mul]
     b. 1 · x = x.       [one mul]
@@ -28,3 +28,12 @@ Proof.  Let x : ℕ.  Let A = { y : ℕ | x · y = y · x }.  We must prove that
                 = s(y) · x.
 
 Thus s(y) ∈ A.  We have shown that for all y ∈ A, s(y) ∈ A.  By [induction], A = ℕ.
+
+Theorem (associativity of multiplication).  For all x, y, z : ℕ,
+
+    x · (y · z) = (x · y) · z.
+
+Theorem.  Let x, y, z : ℕ.
+
+    a. If x < y and z ≠ 0, then x · z < y · z.
+    b. If x · z < y · z, then x < y.
