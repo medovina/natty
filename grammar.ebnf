@@ -111,7 +111,8 @@ id_eq_term = id '=' term;
 
 theorem_ref = '[' name [':' id_eq_term {',' id_eq_term}] ']';
 
-reference = theorem_ref | 'part (' number ')' ['of this theorem'];
+reference = theorem_ref | 'our assumption that' atomic |
+    'part (' number ')' ['of this theorem'];
 
 reason =
     ['contradiction with'] reference |
@@ -119,7 +120,7 @@ reason =
     'definition' | 'the definition of' term |
     'transitivity of =';
 
-by_reason = 'by' reason {'and' reason};
+by_reason = ['again'] 'by' reason {'and' reason};
 
 (* so / have *)
 
@@ -274,7 +275,7 @@ assert_steps = assert_step {',' and_or_so proof_prop};
 
 now = 'Conversely' | 'Finally' | 'Next' | 'Now' | 'Second';
 
-any_case = 'In any case' | 'In either case' | 'In all cases';
+any_case = 'in' ('all cases' | 'any case' | 'both cases' | 'either case') ;
 
 let_or_assumes = let_or_assume {', and' let_or_assume};
 

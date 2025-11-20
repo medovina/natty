@@ -321,6 +321,7 @@ and theorem_ref s : string pr = brackets (
 
 and reference s : (string * range) list pr = choice [
   single (with_range theorem_ref);
+  str "our assumption that" >> atomic >>$ [];
   str "part" >> parens number >> opt_str "of this theorem" >>$ []
   ] s
 
@@ -335,7 +336,7 @@ and reason s : (string * range) list pr = (
     str "transitivity of ="] >>$ [])) s
 
 and by_reason s : (string * range) list pr =
-  (str "by" >> sep_by1 reason (str "and") |>> concat) s
+  (opt_str "again" >> str "by" >> sep_by1 reason (str "and") |>> concat) s
 
 (* so / have *)
 
@@ -651,7 +652,8 @@ let assert_steps : proof_step list p =
 
 let now = any_str ["Conversely"; "Finally"; "Next"; "Now"; "Second"]
 
-let any_case = any_str ["In any case"; "In either case"; "In all cases"]
+let any_case = str "in" >>?
+  any_str ["all cases"; "any case"; "both cases"; "either case" ]
 
 let let_or_assumes : proof_step list p =
   sep_by1 let_or_assume (str "," >> str "and") |>> concat

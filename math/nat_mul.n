@@ -35,5 +35,11 @@ Theorem (associativity of multiplication).  For all x, y, z : ℕ,
 
 Theorem.  Let x, y, z : ℕ.
 
-    a. If x < y and z ≠ 0, then x · z < y · z.
+    a. If x < y and z ≠ 0, then x · z < y · z.  [< multiply right]
     b. If x · z < y · z, then x < y.
+
+Theorem (cancellation law for multiplication).  Let x, y, z : ℕ.
+
+    if x · z = y · z and z ≠ 0 then x = y.
+
+Proof.  Assume that x · z = y · z and z ≠ 0.  Also assume that x ≠ y.  Then by [trichotomy] x < y or y < x.  If x < y then by [< multiply right] x · z < y · z, contradicting our assumption that x · z = y · z.  If y < x then again by [< multiply right] y · z < x · z, contradicting our assumption that x · z = y · z.  In both cases we have a contradiction.
