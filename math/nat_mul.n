@@ -43,3 +43,25 @@ Theorem (cancellation law for multiplication).  Let x, y, z : ℕ.
     if x · z = y · z and z ≠ 0 then x = y.
 
 Proof.  Assume that x · z = y · z and z ≠ 0.  Also assume that x ≠ y.  Then by [trichotomy] x < y or y < x.  If x < y then by [< multiply right] x · z < y · z, contradicting our assumption that x · z = y · z.  If y < x then again by [< multiply right] y · z < x · z, contradicting our assumption that x · z = y · z.  In both cases we have a contradiction.
+
+Theorem.  Let x, y, z, u, v : ℕ.
+
+    a. If x ≤ y, then x · z ≤ y · z.  [≤ multiply right]
+    b. If x · z ≤ y · z and z ≠ 0, then x ≤ y.
+    c. If y ≠ 0 then z ≤ y · z.  
+    d. If y > 1 and z ≠ 0 then z < y · z.
+    e. If x < u and y < v then x · y < u · v. [< < multiply]
+    f. If x < u and y ≤ v and v ≠ 0, then x · y < u · v.  [< ≤ multiply]
+    g. If x ≤ u and y < v and u ≠ 0, then x · y < u · v.
+
+Proof.
+
+    c. Suppose that y ≠ 0.  Then y ≥ 1.  Then by [≤ multiply right] we know that 1 · z ≤ y · z, so z ≤ y · z.
+
+    d. Suppose that y > 1 and z ≠ 0.  Then by [< multiply right] 1 · z < y · z, so z < y · z.
+
+    e. Suppose that x < u and y < v.  Then x ≤ u, so by [≤ multiply right] we have x · y ≤ u · y.  Because x < u, we know that u ≠ 0.  So by [< multiply right] we have y · u < v · u, so u · y < u · v.  Then by [≤ with < are transitive] it follows that x · y < u · v.
+
+    f. Suppose that x < u and y ≤ v and v ≠ 0.  Then either y < v or y = v.  If y < v, then by [< < multiply] x · y < u · v.  If y = v, then by [< multiply right] x · v < u · v, so x · y < u · v.
+
+    g. Suppose that x ≤ u and y < v and u ≠ 0.  Then by [< ≤ multiply] we know that y · x < v · u.  Then x · y < u · v.

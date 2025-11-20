@@ -35,40 +35,7 @@ Proof.
 
   By [succ is injective], 0 = s(e · s(d) + d + d).  This is a contradiction to [0 is not successor].  So it must be that c = 0.  Therefore a = s(0) = 1.  Then 1 · b = 1.  By [nat_mul_ident] 1 · b = b, so we have b = 1.  And so a = b = 1.
 
-# Right cancellation of multiplication
-
-Theorem.  Let a, b, c ∈ ℕ.  If c ≠ 0 and ac = bc then a = b.
-
-Proof. Let
-
-        G = { x ∈ ℕ | for all y, z ∈ ℕ, if z ≠ 0 and xz = yz then x = y }.
-
-  Let b, c ∈ ℕ with c ≠ 0 and 0 · c = bc. Then bc = 0.  Since c ≠ 0, we must have b = 0 by [nat_prod_0].  So 0 = b, and hence 0 ∈ G.
-
-  Now let a ∈ ℕ, and suppose that a ∈ G.  Let b, c ∈ ℕ, and suppose that c ≠ 0 and s(a) · c = bc.  Then by [nat_succ_mul] we deduce that ca + c = bc.  If b = 0, then either s(a) = 0 or c = 0, which is a contradiction.  Hence b ≠ 0.  By [nat_prec] there is some p ∈ ℕ such that b = s(p).  Therefore ca + c = s(p) · c, and we see that ca + c = cp + c.  It follows by [nat_add_cancel] that ca = cp, so ac = pc.  By hypothesis it follows that a = p.  Therefore s(a) = s(p) = b.  Hence s(a) ∈ G, and we deduce that G = ℕ.
-
-# Ordering
-
-Theorem.  Let a, b ∈ ℕ.
-
-  1. a ≤ b if and only if a ≯ b.
-
 # More identities involving inequalities
-
-Theorem.  Let a, b, c ∈ ℕ.
-
-  1. If c ≠ 0 and a < b, then ac < bc.
-  2. If ac < bc, then a < b.
-  
-Proof.
-
-  1. Let a, b ∈ ℕ, and suppose that a < b.  Let
-
-    G = { c ∈ ℕ | if c ≠ 0, then ac < bc }.
-
-  Clearly 0 ∈ G.  Let c ∈ ℕ, and suppose that c ∈ G.  We will show that s(c) ∈ G.  We know that a · 1 < b · 1.  Suppose that c = 0. Then a · s(c) < b · s(c), so s(c) ∈ G.  Conversely, suppose that c ≠ 0.  By hypothesis we know that ac < bc.  Then by [< add right] we have ac + a < bc + a, and also bc + a < bc + b.  So ac + a < bc + b, so a · s(c) < b · s(c), so s(c) ∈ G.  And so G = ℕ.
-
-  2. Let a, b, c ∈ ℕ, and suppose that ac < bc.  If c = 0 then 0 < 0, which is a contradiction.  So c ≠ 0.  If a = b then bc < bc, a contradiction.  If b < a then bc < ac by part (4) of this theorem, so bc < ac < bc, also a contradiction.  By [trichotomy], the only alternative is a < b.
 
 Lemma (nat_add_prod).  Let a, b, c, d ∈ ℕ.  If a < b and c < d, then bc + ad < ac + bd.
 
