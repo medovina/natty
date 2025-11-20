@@ -588,13 +588,20 @@ let mk_step chain : proof_step =
           | _ -> Assert chain)
     | _ -> failwith "mk_step"
 
-let contra : proof_step list p =
-  str "," >>?
-  (opt_str "which is " >>? optional (any_str ["again"; "also"; "similarly"])) >>?
-  choice [
-    str "a contradiction" >> (optional (str "to" >> reference));
-    str "contradicting" >> skip reference ]
-  >>$ [Assert [("", _false, [])]]
+let because_prop : proof_step p =
+  any_str ["because"; "since"] >> proposition |>>
+    (fun p -> Assert [("", p, [])])
+
+let contradiction : proof_step list p =
+  let> contra = choice [
+      str "a contradiction" >> (optional (str "to" >> reference));
+      str "contradicting" >> skip reference ]
+    >>$ [Assert [("", _false, [])]] in
+  let$ because = opt [] (single because_prop) in
+  because @ contra
+
+let which_is_contradiction : proof_step list p = str "," >>?
+  (opt_str "which is" >>? optional (any_str ["again"; "also"; "similarly"])) >>? contradiction
 
 let prop_reason : (formula * (string * range) list) p =
   pair proposition (opt [] by_reason)
@@ -604,14 +611,10 @@ let proof_eq_props : chain p =
   let$ eqs = many (pair (any_str ("=" :: compare_ops)) prop_reason) in
   ("", f, r) :: let+ (op, (f, r)) = eqs in [(op, f, r)]
 
-let because_prop : proof_step p =
-  any_str ["because"; "since"] >> proposition |>>
-    (fun p -> Assert [("", p, [])])
-
 let proof_prop : proof_step list p =
   let> reason = opt [] (by_reason << opt_str ",") in
   let> chain = optional have >> proof_eq_props in
-  let$ c = opt [] (pipe2 contra (opt [] (single because_prop)) (Fun.flip (@))) in
+  let$ c = opt [] which_is_contradiction in
   let chain = match chain with
     | (op, f, r) :: rest -> (op, f, reason @ r) :: rest
     | _ -> failwith "proof_prop" in
@@ -638,8 +641,7 @@ let assert_step : proof_step list p =
     pipe2 (single because_prop) (opt_str "," >> proof_prop) (@);
     optional to_show >> will_show >> proposition >>$ [];
     str "The result follows" >> by_reason >>$ [];
-    single (any_str ["This is"; "We have"] >>? str "a contradiction" >>
-        opt [] (str "to" >> reference) |>> fun r -> Assert [("", _false, r)]);
+    optional so >>? any_str ["This is"; "We have"] >>? contradiction;
     optional and_or_so >> proof_prop
     ]
 
