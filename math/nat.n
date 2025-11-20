@@ -162,4 +162,12 @@ Observe that for all x ∈ B, x ∉ A.  We will show by [induction] that B = ℕ
 
 First assume that 0 ∉ B.  Then there is some u : ℕ such that u ≤ 0 and u ∈ A.  Then u = 0 by [nonzero is positive].  Thus 0 ∈ A.  But then 0 is a least element of A, which is a contradiction.  Hence 0 ∈ B.
 
-Let x ∈ B.  Then for all u : ℕ, if u ≤ x then u ∉ A.  Assume that s(x) ∈ A.  Let v ∈ A.  If v < s(x) then by [< successor iff ≤] v ≤ x, so v ∉ A, which is a contradiction.  So v ≮ s(x), so by [trichotomy] v ≥ s(x).  Thus s(x) is a least element of A.  But this is a contradiction since there is no x : ℕ such that x is a least element of A.  So s(x) ∉ A.
+Let x ∈ B.  Then
+
+    for all u : ℕ, if u ≤ x then u ∉ A.
+    
+Assume that s(x) ∈ A.  Let v ∈ A.  If v < s(x) then by [< successor iff ≤] v ≤ x, so v ∉ A, which is a contradiction.  So v ≮ s(x), so by [trichotomy] v ≥ s(x).  Thus s(x) is a least element of A.  But this is a contradiction since there is no x : ℕ such that x is a least element of A.  So s(x) ∉ A.
+
+Hence by [< successor iff ≤] for all u : ℕ, if u ≤ s(x) then u ∉ A. Then s(x) ∈ B.
+
+We have shown that for all x ∈ B, s(x) ∈ B.  By [induction] B = ℕ.  So A is empty, which is a contradiction.
