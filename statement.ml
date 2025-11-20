@@ -91,9 +91,14 @@ let step_free_type_vars step = unique @@
   concat_map free_type_vars_in_type (step_types step) @
   concat_map free_type_vars (step_formulas step)
 
+let show_chain chain : string =
+  let to_str (op, f, _) =
+    let s = show_formula f in
+    if op = "" then s else op ^ " " ^ s in
+  unwords (map to_str chain)
+
 let rec show_proof_step step : string = match step with
-  | Assert [(_, f, _)] -> sprintf "assert %s" (show_formula f)
-  | Assert _ -> failwith "show_proof_step"
+  | Assert chain -> sprintf "assert %s" (show_chain chain)
   | Let ids_types ->
       let show (id, typ) = sprintf "%s : %s" id (show_type typ) in
       "let " ^ comma_join (map show ids_types)

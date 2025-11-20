@@ -1,0 +1,30 @@
+using nat;
+
+Axiom.  There is a binary operation · : ℕ → ℕ → ℕ such that for all n, m ∈ ℕ,
+
+    a. n · 0 = 0.
+    b. n · s(m) = (n · m) + n.  [mul succ]
+
+Theorem (distributive laws).  Let x, y, z : ℕ.
+
+    a. x · (y + z) = (x · y) + (x · z).     [left distributive]
+    b. (y + z) · x = (y · x) + (z · x).     [right distributive]
+
+Lemma.  Let x : ℕ.
+
+    a. 0 · x = x · 0.  [zero mul]
+    b. 1 · x = x.       [one mul]
+
+Theorem (commutativity of multiplication).  For all x, y : ℕ,
+
+    x · y = y · x.
+
+Proof.  Let x : ℕ.  Let A = { y : ℕ | x · y = y · x }.  We must prove that A = ℕ.  By [zero mul], 0 ∈ A.  Now assume that y ∈ A.  Thus x · y = y · x.  Hence
+
+    x · s(y) = (x · y) + x            by [mul succ]
+                = (y · x) + x            by the inductive hypothesis
+                = (y · x) + (1 · x)     by [one mul]
+                = (y + 1) · x            by [right distributive]
+                = s(y) · x.
+
+Thus s(y) ∈ A.  We have shown that for all y ∈ A, s(y) ∈ A.  By [induction], A = ℕ.

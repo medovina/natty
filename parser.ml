@@ -520,7 +520,7 @@ let unary_prefix id typ =
 
 let words2 : string p =
     pipe2 word (option word) (fun w x ->
-        String.concat " " (w :: Option.to_list x)) 
+        unwords (w :: Option.to_list x)) 
 
 let type_decl : statement p =
     pipe2 (str "a type" >> id) (option (parens (str "the" >> words2)))

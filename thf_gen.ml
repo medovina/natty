@@ -27,8 +27,7 @@ let var_char v : string =
   else if "₀" <= v && v <= "₉" then "_" ^ sub_to_digit v
   else failwith "bad variable name"
 
-let to_var id : string =
-  String.concat "" (map var_char (uchars id))
+let to_var id : string = str_join (map var_char (uchars id))
 
 let rec thf_type1 left typ =
   let rec f left typ = match typ with

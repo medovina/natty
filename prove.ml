@@ -515,7 +515,7 @@ let inf_cost = 10.0
 let is_by parents =
   exists orig_goal parents && exists orig_by parents
 
-let top_consts f extra : id list =
+let top_consts extra f : id list =
   let rec find f = match f with
     | App (Const ("¬", _), f) -> find f
     | Eq (f, g) -> find f @ find g
@@ -531,7 +531,9 @@ let is_def_expansion parents =
   let def = find_opt orig_def parents in
   match last, def with
     | Some last, Some def ->
-        overlap (top_consts last.formula (orig_goal last)) (def_consts def)
+        let goal_consts =
+          (if orig_goal last then all_consts else top_consts false) last.formula in
+        overlap goal_consts (def_consts def)
     | _ -> false
 
 let cost p : float * bool =

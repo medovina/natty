@@ -407,9 +407,10 @@ and block_steps env lenv (Block (step, children)) : statement list list * formul
     | Assert groups ->
         let eqs_reasons = chain_comparisons env groups in
         let eqs = map fst eqs_reasons in
+        let eqs' = map strip_range eqs in
         let concl =
-          if length eqs > 2 && for_all is_eq eqs then
-            match hd eqs, last eqs with
+          if length eqs > 2 && for_all is_eq eqs' then
+            match hd eqs', last eqs' with
               | Eq (a, _), Eq (_, b) -> Eq (a, b)
               | _ -> failwith "block_steps"
           else multi_and eqs in
@@ -562,7 +563,7 @@ let infer_modules modules : (_module list, string * frange) result =
 let type_as_id typ = str_replace " " "" (show_type typ)
 
 let tuple_constructor types : string =
-  String.concat "" (tuple_cons (length types) :: map show_type types)
+  str_join (tuple_cons (length types) :: map show_type types)
 
 let encode_id consts typ id : id =
   if id = _type || mem id logical_ops then id

@@ -110,11 +110,12 @@ let opt_remove_prefix p s =
 
 let remove_prefix p s = opt_default (opt_remove_prefix p s) s
 
+let str_join = String.concat ""
 let comma_join = String.concat ", "
+let unwords = String.concat " "
+let unlines = String.concat "\n"
 
 let str_lines = String.split_on_char '\n'
-
-let unlines = String.concat "\n"
 
 let parens_if b s = if b then sprintf "(%s)" s else s
 
