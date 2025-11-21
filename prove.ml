@@ -155,7 +155,7 @@ module PFQueue = Psq.Make (struct
   type t = queue_item
   let compare = Stdlib.compare
 end) (struct
-  type t = float * float * int
+  type t = float * int * int
   let compare = Stdlib.compare
 end)
 
@@ -639,7 +639,7 @@ let all_super queue dp cp : pformula list =
         | None -> 10.0 in
       let min_cost = merge_cost [cp; dp] +. step_cost in
       if min_cost <= cost then all_super1 dp cp else (
-        queue := PFQueue.add (Deferred (dp, cp)) (min_cost, 0., 0) !queue;
+        queue := PFQueue.add (Deferred (dp, cp)) (min_cost, 0, 0) !queue;
         []
       )
     else all_super1 dp cp
@@ -898,13 +898,15 @@ module FormulaMap = Map.Make (struct
   let compare = Stdlib.compare
 end)
 
-let queue_delta p =
-  if orig_goal p && p.rule = "negate1" then 0.1
-  else if orig_hyp p then 0.2
-  else if orig_goal p then 0.3
-  else p.delta
+let queue_class p : int =
+  if p.cost = 0.0 then
+    if orig_goal p then 0
+    else if p.by then 1
+    else if orig_hyp p then 100 - p.hypothesis
+    else 100 + p.id
+  else 0
 
-let queue_cost p = (p.cost, queue_delta p, p.id)
+let queue_cost p : float * int * int = (p.cost, queue_class p, weight p.formula)
 
 let queue_add queue pformulas =
   let queue_element p = (Unprocessed p, queue_cost p) in

@@ -9,8 +9,6 @@ Axiom.  There exists a type ℤ (the integers) with a function z : ℕ ⨯ ℕ �
 
 Definition.  Let 0 : ℤ = z(0, 0).  Let 1 : ℤ = z(1, 0).
 
-Lemma.  0 : ℤ ≠ 1 : ℤ.
-
 # Addition
 
 Axiom.  There is a binary operation + : ℤ → ℤ → ℤ such that for all n, j, k, i : ℕ,
