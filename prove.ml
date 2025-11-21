@@ -515,24 +515,22 @@ let inf_cost = 10.0
 let is_by parents =
   exists orig_goal parents && exists orig_by parents
 
-let top_consts extra f : id list =
+let top_consts f : id list =
   let rec find f = match f with
     | App (Const ("¬", _), f) -> find f
     | Eq (f, g) -> find f @ find g
     | _ ->
-      let f, args = collect_args f in
-      let all = if extra then f :: args else [f] in
-      let+ f = all in Option.to_list (opt_const f) in
+      let f, _args = collect_args f in
+      Option.to_list (opt_const f) in
   subtract (find f) logical_ops
 
 let is_def_expansion parents =
-  let last = parents |> find_opt (fun p ->
-    orig_goal p || orig_hyp p && p.hypothesis = 1) in
+  let last = parents |> find_opt (fun p -> orig_goal p || orig_hyp p) in
   let def = find_opt orig_def parents in
   match last, def with
     | Some last, Some def ->
         let goal_consts =
-          (if orig_goal last then all_consts else top_consts false) last.formula in
+          (if orig_goal last then all_consts else top_consts) last.formula in
         overlap goal_consts (def_consts def)
     | _ -> false
 
@@ -954,7 +952,7 @@ let rw_simplify cheap src queue used found p =
             let delta, step = cost p in
             let p = { p with derived = step } in
             let cost = merge_cost p.parents +. delta in
-            if cost > cost_limit then (
+            if p.formula <> _false && cost > cost_limit then (
               if !debug > 1 then
                 print_formula true "dropping (over cost limit): " {p with cost};
               None)

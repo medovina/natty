@@ -171,3 +171,86 @@ Assume that s(x) ∈ A.  Let v ∈ A.  If v < s(x) then by [< successor iff ≤]
 Hence by [< successor iff ≤] for all u : ℕ, if u ≤ s(x) then u ∉ A. Then s(x) ∈ B.
 
 We have shown that for all x ∈ B, s(x) ∈ B.  By [induction] B = ℕ.  So A is empty, which is a contradiction.
+
+# Multiplication
+
+Axiom.  There is a binary operation · : ℕ → ℕ → ℕ such that for all n, m ∈ ℕ,
+
+    a. n · 0 = 0.
+    b. n · s(m) = (n · m) + n.  [mul succ]
+
+Theorem (distributive laws).  Let x, y, z : ℕ.
+
+    a. x · (y + z) = (x · y) + (x · z).     [left distributive]
+    b. (y + z) · x = (y · x) + (z · x).     [right distributive]
+
+Lemma.  Let x, y : ℕ.
+
+    a. 0 · x = x · 0.  [zero mul]
+    b. 1 · x = x.       [one mul]
+
+Theorem (commutativity of multiplication).  For all x, y : ℕ,
+
+    x · y = y · x.
+
+Proof.  Let x : ℕ.  Let A = { y : ℕ | x · y = y · x }.  We must prove that A = ℕ.  By [zero mul], 0 ∈ A.  Now assume that y ∈ A.  Thus x · y = y · x.  Hence
+
+    x · s(y) = (x · y) + x            by [mul succ]
+                = (y · x) + x            by the inductive hypothesis
+                = (y · x) + (1 · x)     by [one mul]
+                = (y + 1) · x            by [right distributive]
+                = s(y) · x.
+
+Thus s(y) ∈ A.  We have shown that for all y ∈ A, s(y) ∈ A.  By [induction], A = ℕ.
+
+Theorem (associativity of multiplication).  For all x, y, z : ℕ,
+
+    x · (y · z) = (x · y) · z.
+
+Theorem.  Let x, y, z : ℕ.
+
+    a. If x < y and z ≠ 0, then x · z < y · z.  [< multiply right]
+    b. If x · z < y · z, then x < y.  [< mul cancel right]
+
+Proof.
+
+    a. Assume that x < y and z ≠ 0.  Then y = x + s(u) for some u : ℕ.  Hence we have y · z = (x + s(u)) · z = (x · z) + (s(u) · z) by [right distributive].  Because z ≠ 0, by [positive is successor] we have z = s(w) for some w : ℕ.  Then
+    
+        s(u) · z = s(u) · s(w)
+                    = s(u) · w + s(u)
+                    = s(s(u) · w + u).
+
+    So y · z = x · z + s(s(u) · w + u).  It follows that x · z < y · z.
+
+Theorem (cancellation law for multiplication).  Let x, y, z : ℕ.
+
+    if x · z = y · z and z ≠ 0 then x = y.
+
+Proof.  Assume that x · z = y · z and z ≠ 0.  Also assume that x ≠ y.  Then by [trichotomy] x < y or y < x.  If x < y then by [< multiply right] x · z < y · z, contradicting our assumption that x · z = y · z.  If y < x then again by [< multiply right] y · z < x · z, contradicting our assumption that x · z = y · z.  In both cases we have a contradiction.
+
+Theorem.  Let x, y, z, u, v : ℕ.
+
+    a. If x ≤ y, then x · z ≤ y · z.  [≤ multiply right]
+    b. If x · z ≤ y · z and z ≠ 0, then x ≤ y.
+    c. If y ≠ 0 then z ≤ y · z.  
+    d. If y > 1 and z ≠ 0 then z < y · z.
+    e. If x < u and y < v then x · y < u · v. [< < multiply]
+    f. If x < u and y ≤ v and v ≠ 0, then x · y < u · v.  [< ≤ multiply]
+    g. If x ≤ u and y < v and u ≠ 0, then x · y < u · v.
+    h. If x ≤ u and y ≤ v, then x · y ≤ u · v.
+
+Proof.
+
+    b. Suppose that x · z ≤ y · z and z ≠ 0.  Then either x · z < y · z or x · z = y · z.  If x · z < y · z, then by [< mul cancel right] we have x < y, so x ≤ y.  If x · z = y · z then by [cancellation law for multiplication] we have x = y, so x ≤ y.
+
+    c. Suppose that y ≠ 0.  Then y ≥ 1.  Then by [≤ multiply right] we know that 1 · z ≤ y · z, so z ≤ y · z.
+
+    d. Suppose that y > 1 and z ≠ 0.  Then by [< multiply right] 1 · z < y · z, so z < y · z.
+
+    e. Suppose that x < u and y < v.  Then x ≤ u, so by [≤ multiply right] we have x · y ≤ u · y.  Because x < u, we know that u ≠ 0.  So by [< multiply right] we have y · u < v · u, so u · y < u · v.  Then by [≤ with < are transitive] it follows that x · y < u · v.
+
+    f. Suppose that x < u and y ≤ v and v ≠ 0.  Then either y < v or y = v.  If y < v, then by [< < multiply] x · y < u · v.  If y = v, then by [< multiply right] x · v < u · v, so x · y < u · v.
+
+    g. Suppose that x ≤ u and y < v and u ≠ 0.  Then by [< ≤ multiply] we know that y · x < v · u.  Then x · y < u · v.
+
+    h.  Suppose that x ≤ u and y ≤ v.  If x = u, then y · x ≤ v · x by [≤ multiply right], so y · x ≤ v · u, so x · y ≤ u · v.  If y = v, then x · y ≤ u · y by [≤ multiply right], so x · y ≤ u · v.  Suppose that x ≠ u and y ≠ v.  Then x < u and y < v, so x · y < u · v by [< < multiply], so x · y ≤ u · v.
