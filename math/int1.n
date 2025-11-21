@@ -1,71 +1,8 @@
-using nat1;
-
-# Integers: definition
-
-Axiom.  There exists a type ℤ (the integers) with a function z : ℕ ⨯ ℕ → ℤ such that
-
-  a. For all a, b, c, d ∈ ℕ, z(a, b) = z(c, d) if and only if a + d = b + c.  [int_eq_def]
-  b. For all x ∈ ℤ, there exist some a, b ∈ ℕ such that x = z(a, b).
-
-Definition.  Let 0 : ℤ = z(0, 0).  Let 1 : ℤ = z(1, 0).  Let 2 : ℤ = z(s(1), 0).
+using int;
 
 Lemma (int_z_zero).  For all a, b ∈ ℕ, z(a, b) = 0 if and only if a = b.
 
-Lemma.  0 : ℤ ≠ 1 : ℤ.
-
 # Integers: addition
-
-Axiom (int_ax_add).  There is a binary operation + : ℤ → ℤ → ℤ such that for all a, b, c, d ∈ ℕ,
-
-    z(a, b) + z(c, d) = z(a + c, b + d).
-
-Axiom.  There is a unary operation − : ℤ → ℤ such that for all a, b ∈ ℕ,
-
-  −z(a, b) = z(b, a).
-
-Definition.  For all i, j ∈ ℤ, i − j = i + (−j).
-
-Theorem.  Let i, j, k ∈ ℤ.
-
-  1. (i + j) + k = i + (j + k).
-  2. i + j = j + i.
-  3. i + 0 = i.
-  4. i + (−i) = 0.
-
-Proof.
-
-  1. Let i, j, k ∈ ℤ. We know that there are some a, b, c, d, e, f ∈ ℕ such that i = z(a, b) and j = z(c, d) and k = z(e, f).  Then
-  
-    (i + j) + k = (z(a, b) + z(c, d)) + z(e, f)
-                    = z(a + c, b + d) + z(e, f)
-                    = z((a + c) + e, (b + d) + f)
-                    = z(a + (c + e), b + (d + f))
-                    = z(a, b) + z(c + e, d + f)
-                    = z(a, b) + (z(c, d) + z(e, f))
-                    = i + (j + k).
-
-  2. Let i, j ∈ ℤ.  There are some a, b, c, d ∈ ℕ such that i = z(a, b) and j = z(c, d).  Then
-
-    i + j = z(a, b) + z(c, d)
-          = z(a + c, b + d)
-          = z(c + a, d + b)
-          = z(c, d) + z(a, b)
-          = j + i.
-
-  3. Let i ∈ ℤ.  Then there are some a, b ∈ ℕ such that i = z(a, b).  So
-
-    i + 0 = z(a, b) + z(0, 0)
-            = z(a + 0, b + 0)
-            = z(a, b)
-            = i.
-
-  4. Let i ∈ ℤ.  Then there are some a, b ∈ ℕ such that i = z(a, b).  So
-
-    i + (−i) = z(a, b) + −z(a, b)
-                = z(a, b) + z(b, a)
-                = z(a + b, b + a)
-                = z(0, 0)     by [int_eq_def]
-                = 0.
 
 Theorem.  Let x, y, z ∈ ℤ.
 
