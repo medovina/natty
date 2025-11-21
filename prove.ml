@@ -179,7 +179,7 @@ let mk_pformula rule parents step formula =
       if parents = [] then 0
       else maximum (map (fun p -> p.hypothesis) parents);
     definition = not step && parents <> [] && for_all (fun p -> p.definition) parents;
-    by = exists (fun p -> p.by) parents;
+    by = parents <> [] && for_all (fun p -> p.by) parents;
     derived = step || exists (fun p -> p.derived) parents;
   }
 
@@ -534,13 +534,19 @@ let is_def_expansion parents =
         overlap goal_consts (def_consts def)
     | _ -> false
 
+let rec is_unit_eq f = match f with
+  | App (Const ("¬", _), f) -> is_unit_eq f
+  | _ -> is_eq (snd (remove_for_all f)) 
+
 let cost p : float * bool =
   match p.parents with
     | [_; _] ->
         let expand_def = is_def_expansion p.parents in
+        let all_eq = for_all is_unit_eq (map (fun p -> p.formula) p.parents) in
         let by = is_by p.parents in
         let c =
-          if by then step_cost else
+          if by then
+            if all_eq then 0.0 else step_cost else
           let qs = p.parents |> filter (fun p -> p.goal || is_hyp p) in
           let max = maximum (map (fun p -> weight p.formula) qs) in
           if weight p.formula <= max then step_cost else
@@ -553,7 +559,7 @@ let cost p : float * bool =
                   (show_formula q.formula) (show_formula p.formula) total_cost);
               expand_def_cost)
             else inf_cost in
-        (c, p.derived && not expand_def)
+        (c, p.derived && not (expand_def || by && all_eq))
     | _ -> (0.0, p.derived)
 
 (*      D:[D' ∨ t = t']    C⟨u⟩

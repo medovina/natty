@@ -11,7 +11,7 @@ Definition.  Let 0 : ℤ = z(0, 0).  Let 1 : ℤ = z(1, 0).
 
 Lemma.  0 : ℤ ≠ 1 : ℤ.
 
-# Integers: addition
+# Addition
 
 Axiom.  There is a binary operation + : ℤ → ℤ → ℤ such that for all n, j, k, i : ℕ,
 
@@ -38,7 +38,7 @@ Proof.
           = z(k, i) + z(n, j)
           = b + a.
 
-  b. We know that there are some n, j, k, i, m, h ∈ ℕ such that a = z(n, j) and b = z(k, i) and c = z(m, h).  Then
+  b. There are some n, j, k, i, m, h ∈ ℕ such that a = z(n, j) and b = z(k, i) and c = z(m, h).  Then
   
     (a + b) + c = (z(n, j) + z(k, i)) + z(m, h)
                     = z(n + k, j + i) + z(m, h)
@@ -62,3 +62,40 @@ Proof.
                 = z(n + j, j + n)
                 = z(0, 0)     by [equality on ℤ]
                 = 0.
+
+# Integers: multiplication
+
+Axiom.  There is a binary operation · : ℤ → ℤ → ℤ such that for all n, j, k, i : ℕ,
+
+    z(n, j) · z(k, i) = z(n · k + j · i, j · k + n · i).
+
+Theorem.  Let a, b, c : ℤ.
+
+  a. a · b = b · a.
+  b. (a · b) · c = a · (b · c).
+
+Proof.
+
+  a. There are some n, j, k, i : ℕ such that a = z(n, j) and b = z(k, i).  Then
+
+    a · b = z(n, j) · z(k, i)
+            = z(n · k + j · i, j · k + n · i)
+            = z(k · n + i · j, i · n + k · j)
+            = z(k, i) · z(n, j)
+            = b · a.
+
+  b. There are some n, j, k, i, m, h ∈ ℕ such that a = z(n, j) and b = z(k, i) and c = z(m, h).  Then
+
+    (a · b) · c = (z(n, j) · z(k, i)) · z(m, h)
+          = z(n · k + j · i, j · k + n · i) · z(m, h)
+          = z((n · k + j · i) · m + (j · k + n · i) · h,
+                 (j · k + n · i) · m + (n · k + j · i) · h)
+          = z(((n · k) · m + (j · i) · m) + ((j · k) · h + (n · i) · h),
+                 ((j · k) · m + (n · i) · m) + ((n · k) · h + (j · i) · h)) by [right distributive]
+          = z(n · (k · m) + n · (i · h) + j · (i · m) + j · (k · h),
+                 j · (k · m) + j · (i · h) + n · (i · m) + n · (k · h))
+          = z(n · (k · m + i · h) + j · (i · m + k · h),
+                 j · (k · m + i · h) + n · (i · m + k · h))  by [right distributive]
+          = z(n, j) · z(k · m + i · h, i · m + k · h)
+          = z(n, j) · (z(k, i) · z(m, h))
+          = a · (b · c).

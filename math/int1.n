@@ -38,34 +38,12 @@ Axiom.  There is a binary operation · : ℤ → ℤ → ℤ such that for all a
 
 Theorem.  Let i, j, k ∈ ℤ.
 
-  1. (ij)k = i(jk).
-  2. ij = ji.
   3. i · 0 = 0.
   4. i · 1 = i.
   5. i(j + k) = ij + ik.
   6. (i + j)k = ik + jk.
   
 Proof.
-
-  1. Let i, j, k ∈ ℤ.  There are some a, b, c, d, e, f ∈ ℕ such that i = z(a, b) and j = z(c, d) and k = z(e, f).  Then
-
-    (ij)k = (z(a, b) · z(c, d)) · z(e, f)
-          = z(ac + bd, ad + bc) · z(e, f)
-          = z((ac + bd)e + (ad + bc)f, (ac + bd)f + (ad + bc)e)
-          = z(ace + bde + adf + bcf, acf + bdf + ade + bce)
-          = z(ace + adf + bcf + bde, acf + ade + bce + bdf)
-          = z(a(ce + df) + b(cf + de), a(cf + de) + b(ce + df))
-          = z(a, b) · z(ce + df, cf + de)
-          = z(a, b) · (z(c, d) · z(e, f))
-          = i(jk).
-
-  2. Let i, j ∈ ℤ.  Then there are some a, b, c, d ∈ ℕ such that i = z(a, b) and j = z(c, d).  Then
-
-    ij = z(a, b) · z(c, d)
-      = z(ac + bd, ad + bc)
-      = z(ca + db, cb + da)
-      = z(c, d) · z(a, b)
-      = ji.
 
   3. Let i ∈ ℤ.  Then there are some a, b ∈ ℕ such that i = z(a, b).  Then
 
