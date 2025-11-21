@@ -111,7 +111,7 @@ id_eq_term = id '=' term;
 
 theorem_ref = '[' name [':' id_eq_term {',' id_eq_term}] ']';
 
-reference = theorem_ref | 'our assumption that' atomic |
+reference = theorem_ref | ('our' | 'the') 'assumption that' atomic |
     'part (' number ')' ['of this theorem'];
 
 reason =

@@ -36,7 +36,17 @@ Theorem (associativity of multiplication).  For all x, y, z : ℕ,
 Theorem.  Let x, y, z : ℕ.
 
     a. If x < y and z ≠ 0, then x · z < y · z.  [< multiply right]
-    b. If x · z < y · z, then x < y.
+    b. If x · z < y · z, then x < y.  [< mul cancel right]
+
+Proof.
+
+    a. Assume that x < y and z ≠ 0.  Then y = x + s(u) for some u : ℕ.  Hence we have y · z = (x + s(u)) · z = (x · z) + (s(u) · z) by [right distributive].  Because z ≠ 0, by [positive is successor] we have z = s(w) for some w : ℕ.  Then
+    
+        s(u) · z = s(u) · s(w)
+                    = s(u) · w + s(u)
+                    = s(s(u) · w + u).
+
+    So y · z = x · z + s(s(u) · w + u).  It follows that x · z < y · z.
 
 Theorem (cancellation law for multiplication).  Let x, y, z : ℕ.
 
@@ -55,6 +65,8 @@ Theorem.  Let x, y, z, u, v : ℕ.
     g. If x ≤ u and y < v and u ≠ 0, then x · y < u · v.
 
 Proof.
+
+    b. Suppose that x · z ≤ y · z and z ≠ 0.  Then either x · z < y · z or x · z = y · z.  If x · z < y · z, then by [< mul cancel right] we have x < y, so x ≤ y.  If x · z = y · z then by [cancellation law for multiplication] we have x = y, so x ≤ y.
 
     c. Suppose that y ≠ 0.  Then y ≥ 1.  Then by [≤ multiply right] we know that 1 · z ≤ y · z, so z ≤ y · z.
 

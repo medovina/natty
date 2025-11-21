@@ -321,7 +321,7 @@ and theorem_ref s : string pr = brackets (
 
 and reference s : (string * range) list pr = choice [
   single (with_range theorem_ref);
-  str "our assumption that" >> atomic >>$ [];
+  any_str ["our"; "the"] >>? str "assumption that" >> atomic >>$ [];
   str "part" >> parens number >> opt_str "of this theorem" >>$ []
   ] s
 
