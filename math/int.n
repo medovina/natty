@@ -92,6 +92,7 @@ Proof.
                  ((j · k) · m + (n · i) · m) + ((n · k) · h + (j · i) · h)) by [right distributive]
           = z(n · (k · m) + n · (i · h) + j · (i · m) + j · (k · h),
                  j · (k · m) + j · (i · h) + n · (i · m) + n · (k · h))
+                  by [associativity of multiplication] and [commutativity of addition]
           = z(n · (k · m + i · h) + j · (i · m + k · h),
                  j · (k · m + i · h) + n · (i · m + k · h))  by [right distributive]
           = z(n, j) · z(k · m + i · h, i · m + k · h)

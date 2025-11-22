@@ -262,9 +262,7 @@ let number_hypotheses name stmts =
   snd (fold_left_map f 1 stmts)
 
 let match_thm_id thm_id selector =
-  if Option.is_some (String.index_opt selector 's')
-    then thm_id = selector
-  else starts_with selector thm_id
+  thm_id = selector || starts_with (selector ^ ".") thm_id
 
 let match_thm thm selector = match_thm_id (stmt_id thm) selector
 

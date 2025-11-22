@@ -16,15 +16,19 @@ $ opam install mparser mparser-re psq yojson
 
 ### Running Natty
 
-Natty's math library contains a file `nat.n` with some basic facts about the natural numbers.  You can invoke Natty on this file directly:
+Natty's math library is in the `math` subdirectory, and includes several files:
+
+* `set.n` - some definitions about sets, plus a proof of Cantor's theorem
+* `nat.n` - a definition of the natural numbers plus many theorems about them
+* `int.n` - a definition of the integers based on the natural numbers, plus some theorems about them
+
+You can invoke Natty on any of these files directly:
 
 ```
 $ ./natty math/nat.n
 ```
 
-The file `set.n` contains some facts about sets including Cantor's theorem.
-
-The `math` directory also has files `nat1.n`, `int1.n`, `set1.n` and `num1.n` containing more mathematics that Natty can parse and type check but not yet verify, though I am working on that.
+The `math` directory also has files `int1.n`, `set1.n` and `num1.n` containing more mathematics that Natty can parse and type check but not yet verify, though I am working on that.
 
 By default, Natty will attempt to prove theorems only in the module (e.g. `nat.n`) that you have specified.  The `-m` option asks Natty to also prove theorems in all modules that the given module uses (recursively).
 

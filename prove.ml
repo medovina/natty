@@ -6,6 +6,7 @@ open Statement
 open Util
 
 let step_strategy = ref false
+let destructive_rewrites = ref false
 
 let formula_counter = ref 0
 let consts = ref ([] : id list)
@@ -17,7 +18,7 @@ type pformula = {
   id: int;
   rule: string;
   parents: pformula list;
-  rewrites: pformula list;
+  rewrites: pformula list;  (* rewrites that created this formula *)
   simp: bool;
   formula: formula;
   delta: float;
@@ -26,7 +27,8 @@ type pformula = {
   hypothesis: int;
   goal: bool;
   by: bool;
-  derived: bool
+  derived: bool;
+  rewritten: bool ref   (* true if this formula was non-destructively rewritten *)
 }
 
 let id_of pf = pf.id
@@ -181,6 +183,7 @@ let mk_pformula rule parents step formula =
     definition = not step && parents <> [] && for_all (fun p -> p.definition) parents;
     by = parents <> [] && for_all (fun p -> p.by) parents;
     derived = step || exists (fun p -> p.derived) parents;
+    rewritten = ref false
   }
 
 let number_formula pformula : pformula =
@@ -476,11 +479,10 @@ let is_higher (_, vsubst) = vsubst |> exists (fun (_, f) -> is_lambda f)
 let oriented t t' = [(t, t'); (t', t)] |>
   filter (fun (t, t') -> not (term_ge t' t))
 
-let eq_pairs para_ok f = match terms f with
+let eq_pairs f = match terms f with
   | (true, t, t') ->
       if is_bool_const t' then [(t, t')]
-      else (Eq (t, t'), _true) ::
-        (if para_ok then oriented t t' else [])   (* iii: pre-check *)
+      else (Eq (t, t'), _true) :: oriented t t'   (* iii: pre-check *)
   | (false, t, t') -> [(Eq (t, t'), _false)]
 
 let trim_rule rule =
@@ -539,28 +541,27 @@ let rec is_unit_eq f = match f with
   | _ -> is_eq (snd (remove_for_all f)) 
 
 let cost p : float * bool =
-  match p.parents with
-    | [_; _] ->
-        let expand_def = is_def_expansion p.parents in
-        let all_eq = for_all is_unit_eq (map (fun p -> p.formula) p.parents) in
-        let by = is_by p.parents in
-        let c =
-          if by then
-            if all_eq then 0.0 else step_cost else
-          let qs = p.parents |> filter (fun p -> p.goal || is_hyp p) in
-          let max = maximum (map (fun p -> weight p.formula) qs) in
-          if weight p.formula <= max then step_cost else
-            if not !step_strategy && by_induction p then big_cost else
-            if expand_def then (
-              if !debug > 0 then (
-                let q = p.parents |> find (fun p -> not p.definition) in
-                let total_cost = merge_cost p.parents +. expand_def_cost in
-                printf "definition expansion: %s -> %s [%.2f]\n"
-                  (show_formula q.formula) (show_formula p.formula) total_cost);
-              expand_def_cost)
-            else inf_cost in
-        (c, p.derived && not (expand_def || by && all_eq))
-    | _ -> (0.0, p.derived)
+  if length p.parents < 2 && p.rule <> "rw" ||
+     !destructive_rewrites && p.rule = "rw" then (0.0, p.derived) else
+  let qs = p.parents |> filter (fun p -> p.goal || is_hyp p) in
+  let max = maximum (map (fun p -> weight p.formula) qs) in
+  if p.rule = "rw" then
+    ((if weight p.formula > max then inf_cost else 0.0), p.derived) else
+  let expand_def = is_def_expansion p.parents in
+  let by = is_by p.parents in
+  let c =
+    if by then step_cost else
+    if weight p.formula <= max then step_cost else
+      if not !step_strategy && by_induction p then big_cost else
+      if expand_def then (
+        if !debug > 0 then (
+          let q = p.parents |> find (fun p -> not p.definition) in
+          let total_cost = merge_cost p.parents +. expand_def_cost in
+          printf "definition expansion: %s -> %s [%.2f]\n"
+            (show_formula q.formula) (show_formula p.formula) total_cost);
+        expand_def_cost)
+      else inf_cost in
+  (c, p.derived && not expand_def)
 
 (*      D:[D' ∨ t = t']    C⟨u⟩
  *    ───────────────────────────   sup
@@ -572,14 +573,14 @@ let cost p : float * bool =
  *     (iv) the position of u is eligible in C w.r.t. σ
  *     (v) Cσ ≰ Dσ
  *     (vi) t = t' is maximal in D w.r.t. σ
- *     (vii)  if t'σ = ⊥, u is in a literal of the form u = ⊤
-       (viii) if t'σ = ⊤, u is in a literal of the form u = ⊥ *)
+ *     (vii)  if t'σ = ⊥, u is in a literal of the form u = ⊤;
+              if t'σ = ⊤, u is in a literal of the form u = ⊥ *)
 
 let super lenient dp d' t_t' cp c c1 : pformula list =
   profile "super" @@ fun () ->
   let dbg = (dp.id, cp.id) = !debug_super in
   if dbg then printf "super\n";
-  let pairs = eq_pairs true t_t' in  (* iii: pre-check *)
+  let pairs = eq_pairs t_t' in  (* iii: pre-check *)
   let+ (t, t') = pairs in
   let+ (u, parent_eq) = green_subterms c1 |>
     filter (fun (u, _) -> not (is_var u || is_fluid u)) in  (* i, ii *)
@@ -624,25 +625,31 @@ let all_super1 dp cp : pformula list =
   let+ c_lit = exposed_lits in
   super lenient dp (remove1 d_lit d_lits) d_lit cp c_lits c_lit
 
+let allow p = is_hyp p || p.goal
+
+let allow_super dp cp =
+  let induct_ok d c = not (is_inductive c) ||
+    ((orig_goal d || orig_hyp d) && not (inducted d)) in
+  dp.id <> cp.id && (allow dp || allow cp) && induct_ok dp cp && induct_ok cp dp
+
+let allow_rewrite dp cp =
+  dp.id <> cp.id && (!destructive_rewrites || allow cp)
+
 let all_super queue dp cp : pformula list =
   profile "all_super" @@ fun () ->
   let dbg = (dp.id, cp.id) = !debug_super in
   if dbg then printf "all_super\n";
-  let no_induct d c = is_inductive c &&
-    (not (orig_goal d) && not (orig_hyp d) || inducted d) in
-  let allow p = is_hyp p || p.goal in
-  if dp.id = cp.id || not (allow dp || allow cp) || no_induct dp cp || no_induct cp dp
-  then [] else
-    if !(opts.deferred) then
-      let cost = match PFQueue.min !queue with
-        | Some (_, (cost, _, _)) -> cost
-        | None -> 10.0 in
-      let min_cost = merge_cost [cp; dp] +. step_cost in
-      if min_cost <= cost then all_super1 dp cp else (
-        queue := PFQueue.add (Deferred (dp, cp)) (min_cost, 0, 0) !queue;
-        []
-      )
-    else all_super1 dp cp
+  if not (allow_super dp cp) then [] else
+  if !(opts.deferred) then
+    let cost = match PFQueue.min !queue with
+      | Some (_, (cost, _, _)) -> cost
+      | None -> 10.0 in
+    let min_cost = merge_cost [cp; dp] +. step_cost in
+    if min_cost <= cost then all_super1 dp cp else (
+      queue := PFQueue.add (Deferred (dp, cp)) (min_cost, 0, 0) !queue;
+      []
+    )
+  else all_super1 dp cp
 
 (*      C' ∨ u ≠ u'
  *     ────────────   eres
@@ -701,33 +708,39 @@ let update p rewriting f : pformula =
     | None -> ([], true) in
   if p.id = 0 then
     { p with rewrites = r @ p.rewrites; simp = p.simp || simp; formula = f }
-  else
-    { p with id = 0; rule = ""; rewrites = r; simp; parents = [p];
-        delta = 0.0; formula = f }
+  else (  (* non-destructive rewrite *)
+    assert (not !(p.rewritten));
+    p.rewritten := true;
+    { p with id = 0; rule = if simp then "simp" else "rw"; rewrites = r; simp; parents = [p];
+        delta = 0.0; formula = f; rewritten = ref false }
+  )
 
 (*     t = t'    C⟪tσ⟫
  *   ═══════════════════   rw
  *     t = t'    C⟪t'σ⟫
  *
  *   (i) tσ > t'σ
- *
  *)
-let rewrite _quick dp cp c_subterms : pformula list =
-  if dp.id = cp.id || orig_hyp dp && orig_hyp cp then [] else
+let rewrite dp cp c_subterms : pformula list =
+  if not (allow_rewrite dp cp) || orig_hyp dp && orig_hyp cp then [] else
   let d = remove_universal dp.formula in
   if num_literals d > 1 then [] else
-    let+ (t, t') = eq_pairs true d in  (* i: pre-check *)
-    let t, t' = prefix_vars t, prefix_vars t' in
     let c = cp.formula in
-    let+ u = c_subterms in
-    match try_match ([], []) t u with
-      | Some sub ->
-          let t_s, t'_s = u, rsubst sub t' in
-          if term_gt t_s t'_s  (* (i) *) then
-            let e = b_reduce (replace_in_formula t'_s t_s c) in
-            [update cp (Some dp) e]
-          else []
-      | _ -> []
+    let rewrite_with (t, t', u) =
+      match try_match ([], []) t u with
+        | Some sub ->
+            let t_s, t'_s = u, rsubst sub t' in
+            if term_gt t_s t'_s  (* (i) *) then
+              let e = b_reduce (replace_in_formula t'_s t_s c) in
+              Some (update cp (Some dp) e)
+            else None
+        | _ -> None in
+    let all =
+      let+ (t, t') = eq_pairs d in  (* i: pre-check *)
+      let t, t' = prefix_vars t, prefix_vars t' in
+      let+ u = c_subterms in
+      [(t, t', u)] in
+    Option.to_list (find_map rewrite_with all)
 
 (*     C    Cσ ∨ R
  *   ═══════════════   subsume
@@ -847,7 +860,7 @@ let print_formula with_origin prefix pf =
   let origin =
     if with_origin then
       let parents = pf.parents |> map (fun p -> string_of_int (p.id)) in
-      let rule = if pf.rule <> "" then [pf.rule] else [] in
+      let rule = if mem pf.rule [""; "rw"; "simp"] then [] else [pf.rule] in
       let rewrites = rev pf.rewrites |> map (fun r -> r.id) in
       let rw = if rewrites = [] then []
         else [sprintf "rw(%s)" (comma_join (map string_of_int rewrites))] in
@@ -889,8 +902,10 @@ let is_ac_tautology f =
     | _ -> false
 
 (* approximate: equivalent formulas could possibly have different canonical forms *)
-let canonical pformula =
-  let lits = sort Stdlib.compare (map canonical_lit (clausify pformula)) in
+let canonical p : formula =
+  let lits =
+    let f = mini_clausify (remove_universal p.formula) in
+    sort Stdlib.compare (map canonical_lit f) in
   rename_vars (fold_left1 _or lits)
 
 module FormulaMap = Map.Make (struct
@@ -900,13 +915,15 @@ end)
 
 let queue_class p : int =
   if p.cost = 0.0 then
-    if orig_goal p then 0
-    else if p.by then 1
+    if mem p !ac_axioms then 0
+    else if orig_goal p then 1
+    else if p.by then 2
     else if orig_hyp p then 100 - p.hypothesis
     else 100 + p.id
   else 0
 
-let queue_cost p : float * int * int = (p.cost, queue_class p, weight p.formula)
+let queue_cost p : float * int * int =
+  (p.cost, queue_class p, weight p.formula)
 
 let queue_add queue pformulas =
   let queue_element p = (Unprocessed p, queue_cost p) in
@@ -916,10 +933,10 @@ let queue_add queue pformulas =
 let dbg_newline () =
   if !debug > 0 && !output then (print_newline (); output := false)
 
-let rewrite_opt dp cp c_subterms = head_opt (rewrite false dp cp c_subterms)
+let rewrite_opt dp cp c_subterms = head_opt (rewrite dp cp c_subterms)
 
 let rewrite_from ps q : pformula option =
-  if !step_strategy then None else
+  if !(q.rewritten) then None else
   let q_subterms = blue_subterms q.formula in
   find_map (fun p -> rewrite_opt p q q_subterms) ps
 
@@ -930,15 +947,15 @@ let repeat_rewrite used p : pformula =
     | Some p -> loop p in
   loop p
 
-let finish p f found delta cost =
+let finish p f_canonical found delta cost : pformula =
   let p = { (number_formula p) with delta; cost } in
   dbg_print_formula true "" p;
-  found := FormulaMap.add f p !found;
+  found := FormulaMap.add f_canonical p !found;
   if p.id = !(opts.show_proof_of) then output_proof p;
   p
 
-let rw_simplify cheap src queue used found p =
-  let p1 = repeat_rewrite used p in
+let rw_simplify cheap src queue used found p : pformula option =
+  let p1 = if p.rule = "rw" || !destructive_rewrites then repeat_rewrite used p else p in
   let p = simplify p1 in
   let taut = is_tautology p.formula in
   if taut || not (memq p !ac_axioms) && is_ac_tautology p.formula then (
@@ -954,6 +971,11 @@ let rw_simplify cheap src queue used found p =
           if !debug > 0 then (
             let prefix = sprintf "%s subsumed by #%d: " src pf.id in
             print_line (prefix_show prefix p.formula));
+            if p.id > 0 then (
+              let f_canonical = canonical p in
+              assert (Option.is_some (FormulaMap.find_opt f_canonical !found));
+              found := FormulaMap.remove f_canonical !found
+            );
           None
       | None ->
           if p.id > 0 then Some p else
@@ -981,7 +1003,6 @@ let rw_simplify cheap src queue used found p =
                           (PFQueue.remove (Unprocessed pf) !queue)
                       else
                         used := p :: remove1 pf !used;
-                      found := FormulaMap.add f_canonical p !found;
                       (* Ideally we would also update descendents of pf
                         to have p as an ancestor instead. *)
                       Some p
@@ -1010,29 +1031,35 @@ let forward_simplify queue used found p : pformula option =
   
 let back_simplify from used : pformula list =
   profile "back_simplify" @@ fun () ->
-  let rec loop = function
-    | [] -> ([], [])
-    | p :: ps ->
-        let (ps', rewritten) = loop ps in
-        if subsumes1 from p then (
-          if !debug > 0 then
-            printf "%d. %s was back subsumed by %d. %s\n"
-              p.id (show_formula p.formula) from.id (show_formula from.formula);
-          (ps', rewritten))
-        else match rewrite_from [from] p with
-          | Some p' -> (ps', p' :: rewritten)
-          | None -> (p :: ps', rewritten) in
-  let (new_used, rewritten) = loop !used in
+  let back_simp p =
+    if subsumes1 from p then (
+      if !debug > 0 then
+        printf "%d. %s was back subsumed by %d. %s\n"
+          p.id (show_formula p.formula) from.id (show_formula from.formula);
+      ([], []))
+    else match rewrite_from [from] p with
+      | Some p' -> (
+          (if !destructive_rewrites || p.rule = "rw" then [] else [p]),
+          [p'])
+      | None -> ([p], []) in
+  let (new_used, rewritten) = map_pair concat (unzip (map back_simp !used)) in
   used := new_used;
   rewritten
 
+let nondestruct_rewrite used p : pformula list =
+  if !destructive_rewrites || p.rule = "rw" then [] else
+    (* perform just a single rewrite here; remaining will occur in rw_simplify_all *)
+    Option.to_list (rewrite_from used p)
+
 let generate queue p used : pformula list =
   profile "generate" @@ fun () ->
-  concat_map (all_super queue p) !used @ all_eres p @ all_split p
+  concat_map (all_super queue p) !used @
+    nondestruct_rewrite !used p @
+    all_eres p @ all_split p
 
 let rw_simplify_all queue used found ps =
   profile "rw_simplify_all" @@ fun () ->
-  let simplify (p: pformula) =
+  let simplify (p: pformula) : pformula option =
     let p = rw_simplify true "generated" queue used found p in
     p |> Option.iter (fun p -> queue := PFQueue.add (Unprocessed p) (queue_cost p) !queue);
     p in
@@ -1083,9 +1110,7 @@ let refute pformulas cancel_check : proof_result =
             rw_simplify_all queue used found (rev (rewritten @ generated)) in
           match find_opt (fun p -> p.formula = _false) new_pformulas with
             | Some p -> Proof (p, stats ())
-            | None ->
-                queue_add queue new_pformulas;
-                loop () in
+            | None -> loop () in
   loop ()
 
 (* Given an associative/commutative operator *, construct the axiom
@@ -1107,6 +1132,7 @@ let ac_completion op typ : pformula =
   ac_ops := (op, typ) :: !ac_ops;
   let name = "AC completion: " ^ without_type_suffix op in
   let axiom = to_pformula name (ac_axiom op typ) in
+  ac_axioms := axiom :: !ac_axioms;
   dbg_newline ();
   axiom
 
@@ -1152,13 +1178,14 @@ let gen_pformulas thm stmts : pformula list =
 
 let prove known_stmts thm cancel_check : proof_result * float =
   step_strategy := is_step thm;
+  destructive_rewrites := not !step_strategy;
   consts := map fst (filter_map decl_var known_stmts);
   ac_ops := [];
   formula_counter := 0;
   let known = gen_pformulas thm known_stmts in
   let goal = to_pformula (stmt_id_name thm) (Option.get (stmt_formula thm)) in
   let goals = if !(opts.disprove) then [goal] else
-      [create_pformula "negate" [goal] (_not goal.formula)] in
+      [create_pformula "negate" [goal] (negate goal.formula)] in
   let goals = goals |> map (fun g -> {g with goal = true}) in
   let all = known @ goals in
   dbg_newline ();

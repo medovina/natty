@@ -189,8 +189,10 @@ let utf16_encode_len = utf8_count (fun n -> if n > 3 then 2 else 1)
 
 (* tuples *)
 
-let map_fst f = map (fun (x, y) -> (f x, y))
-let map_snd f = map (fun (x, y) -> (x, f y))
+let map_fst = Pair.map_fst
+let map_snd = Pair.map_snd
+
+let map_pair f (a, b) = (f a, f b)
 
 (* lists *)
 
