@@ -133,6 +133,7 @@ let infer_blocks env steps : block list =
 let is_comparison f =
   match strip_range f with
     | Eq (g, h) -> Some ("=", g, h)
+    | App (Const ("¬", _), Eq (g, h)) -> Some ("≠", g, h)
     | App (App (Var (c, _), g), h) when mem c Parser.compare_ops -> Some (c, g, h)
     | _ -> None
 
@@ -145,7 +146,9 @@ let rec collect_cmp f : formula list * id list =
 
 let rec join_cmp fs ops : formula list =
   let app op f g : formula =
-    if op = "=" then Eq (f, g) else apply [_var op; f; g] in
+    if op = "=" then Eq (f, g)
+    else if op = "≠" then _not (Eq (f, g))
+    else apply [_var op; f; g] in
   match fs, ops with
     | [f], [] -> [f]
     | [f; g], [op] -> [app op f g]
