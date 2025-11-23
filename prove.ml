@@ -563,8 +563,7 @@ let induction_cost = 1.0
 let infinite_cost = 10.0
 
 let cost p : float * bool =
-  if length p.parents < 2 && p.rule <> "rw" ||
-     !destructive_rewrites && p.rule = "rw" then (0.0, p.derived) else
+  if length p.parents < 2 || p.rule = "rw" then (0.0, p.derived) else
   let qs = p.parents |> filter (fun p -> p.goal || is_hyp p) in
   let max = maximum (map (fun p -> weight p.formula) qs) in
   if p.rule = "rw" then
@@ -939,8 +938,8 @@ end)
 let queue_class p : int =
   if p.cost = 0.0 then
     if mem p !ac_axioms then 0
-    else if orig_goal p then 1
-    else if p.by then 2
+    else if p.by then 1
+    else if orig_goal p then 2
     else if orig_hyp p then 100 - p.hypothesis
     else 100 + p.id
   else 0
