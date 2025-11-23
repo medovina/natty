@@ -67,12 +67,15 @@ Axiom.  There is a binary operation · : ℤ → ℤ → ℤ such that for all n
 
     z(n, j) · z(k, i) = z(n · k + j · i, j · k + n · i).  [def of ·]
 
+Lemma (ℤ zero).  For all a, b ∈ ℕ, z(a, b) = 0 if and only if a = b.
+
 Theorem.  Let a, b, c : ℤ.
 
   a. a · b = b · a.
   b. (a · b) · c = a · (b · c).
-  c. a · (b + c) = a · b + a · c.
-  d. a · 1 = a.
+  c. a · (b + c) = a · b + a · c.  [ℤ left distributive]
+  d. (a + b) · c = a · c + b · c.  [ℤ right distributive]
+  e. a · 1 = a.
 
 Proof.
 
@@ -113,30 +116,23 @@ Proof.
                       = z(n, j) · z(k, i) + z(n, j) · z(m, h) by [def of ·]
                       = a · b + a · c.
 
-  d. There are some n, j : ℕ such that a = z(n, j).  Then
+  d. (a + b) · c = c · (a + b) = c · a + c · b = a · c + b · c.
+
+  e. There are some n, j : ℕ such that a = z(n, j).  Then
 
         a · 1 = z(n, j) · 1
               = z(n, j) · z(1, 0)
               = z(n, j)
               = a.
     
-Theorem.  Let a, b : ℤ.  If a ≠ 0 and b ≠ 0, then a · b ≠ 0.
+Theorem.  Let i, j : ℤ.  If i · j = 0, then i = 0 or j = 0.
 
-Proof.  There are some n, j, k, i : ℕ such that a = z(n, j) and b = z(k, i).  Assume that a ≠ 0 and b ≠ 0.  Then n ≠ j and k ≠ i.  Since k ≠ i, by [trichotomy] we have k < i or i < k.
+Proof.
 
-Suppose that i < k.  Then k = i + s(u) for some u : ℕ.  Since n ≠ j, it follows by [cancellation law for multiplication] that n · s(u) ≠ j · s(u).  Hence
+  Suppose that i · j = 0 and that i ≠ 0.  We will deduce that j = 0.  There are some a, b, c, d : ℕ such that i = z(a, b) and j = z(c, d).  Then a ≠ b by [ℤ zero].  By [def of ·] we see that 0 = i · j = z(a, b) · z(c, d) = z(a · c + b · d, b · c + a · d).  Then a · c + b · d = a · d + b · c by [ℤ zero].  By [trichotomy] we know that either a < b or a > b.
+  
+  First, suppose that a < b.  Then there is some g : ℕ such that a + s(g) = b.  Hence a · c + (a + s(g)) · d = a · d + (a + s(g)) · c.  So a · c + a · d + s(g) · d = a · d + a · c + s(g) · c, so s(g) · d = s(g) · c.  We deduce that d = c.
 
-  n · k + j · i = n · (i + s(u)) + j · i
-                   = n · i + n · s(u) + j · i
-                   ≠ n · i + j · s(u) + j · i.
+  Next, suppose that a > b.  Then there is some g : ℕ such that b + s(g) = a.  Hence (b + s(g)) · c + b · d = (b + s(g)) · d + b · c.  So b · c + s(g) · c + b · d = b · d + s(g) · d + b · c, so s(g) · c = s(g) · d.  We deduce that c = d.
 
-But
-
-  n · i + j · s(u) + j · i = j · (i + s(u)) + n · i
-                                 = j · k + n · i.
-
-Thus n · k + j · i ≠ j · k + n · i.
-
-This means that
-
- a · b = z(n · k + j · i, j · k + n · i) ≠ 0.
+  In either case c = d.  Then j = 0 by [ℤ zero].

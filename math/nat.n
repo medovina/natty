@@ -230,6 +230,8 @@ Theorem (cancellation law for multiplication).  Let x, y, z : ℕ.
 
 Proof.  Assume that x · z = y · z and z ≠ 0.  Also assume that x ≠ y.  Then by [trichotomy] x < y or y < x.  If x < y then by [< multiply right] x · z < y · z, contradicting our assumption that x · z = y · z.  If y < x then again by [< multiply right] y · z < x · z, contradicting our assumption that x · z = y · z.  In both cases we have a contradiction.
 
+Corollary.  For all x, y, z : ℕ, if z · x = z · y and z ≠ 0 then x = y.
+
 Theorem.  Let x, y, z, u, v : ℕ.
 
     a. If x ≤ y, then x · z ≤ y · z.  [≤ multiply right]
