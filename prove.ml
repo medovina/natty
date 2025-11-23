@@ -17,6 +17,7 @@ let output = ref false
 type pformula = {
   id: int;
   rule: string;
+  description: string;
   parents: pformula list;
   rewrites: pformula list;  (* rewrites that created this formula *)
   simp: bool;
@@ -173,9 +174,9 @@ let inducted p =
 
 let cost_limit = 1.5
 
-let mk_pformula rule parents step formula =
+let mk_pformula rule description parents step formula =
   let goal = exists (fun p -> p.goal) parents in
-  { id = 0; rule; rewrites = []; simp = false; parents; formula;
+  { id = 0; rule; description; rewrites = []; simp = false; parents; formula;
     goal;
     delta = 0.0; cost = 0.0;
     hypothesis =
@@ -486,22 +487,30 @@ let eq_pairs upward f = match terms f with
       else (Eq (t, t'), _true) :: oriented upward t t'   (* iii: pre-check *)
   | (false, t, t') -> [(Eq (t, t'), _false)]
 
-let trim_rule rule =
-  match String.index_opt rule ':' with
-    | Some i -> String.sub rule 0 i
-    | None -> rule
-
-let origin pf : string =
-  if pf.parents = [] then "axiom"
-  else if pf.rule = "negate" then "goal"
-  else trim_rule pf.rule
-
 let by_induction p = exists is_inductive p.parents
 
+(* Find constants such as c in "c = ...". *)
+let eq_consts p : id list =
+  let rec find f = match f with
+    | App (Const ("¬", _), f) -> find f
+    | Eq (Const (c, _), _) | Eq (_, Const (c, _)) -> [c]
+    | _ -> []
+  in find p.formula
+
+(* Find constants such as f in "f x y z = ...", optionally along with
+ * f's arguments if they are constant. *)
+let top_consts with_args p : id list =
+  let rec find f = match f with
+    | App (Const ("¬", _), f) -> find f
+    | Eq (f, g) -> find f @ find g
+    | _ ->
+        let f, args = collect_args f in
+        filter_map opt_const (f :: if with_args then args else []) in
+  subtract (find p.formula) logical_ops
+
+(* Find constants such as f in "f x y → ...". *)
 let def_consts p : id list =
   let rec find f = match f with
-    (* | App (Const ("¬", _), g) -> find g *)
-    | Eq (Const (c, _), _) -> [c]
     | _ -> match collect_args f with
       | Const (c, _), args ->
           if mem c logical_binary then concat_map find args
@@ -510,45 +519,46 @@ let def_consts p : id list =
   let cs = find (snd (remove_for_all p.formula)) in
   subtract cs logical_ops
 
-let top_consts with_args f : id list =
-  let rec find f = match f with
-    | App (Const ("¬", _), f) -> find f
-    | Eq (f, g) -> find f @ find g
-    | _ ->
-        let f, args = collect_args f in
-        filter_map opt_const (f :: if with_args then args else []) in
-  subtract (find f) logical_ops
+let expand_limit = 2
+let def_limit = 2
+let hyp_const_limit = 2
+
+let _expand_def, _expand_hyp_const = "expand def", "expand hyp const"
+
+let is_expand p = starts_with "expand " p.rule
+
+let rec expansions p : string list =
+  (if is_expand p then [p.rule] else []) @ concat_map expansions p.parents
+
+let at_limit parents kind limit =
+  let e = concat_map expansions parents in
+  length e >= expand_limit || count_eq kind e >= limit
 
 let is_def_expansion parents =
-  let last = parents |> find_opt (fun p -> orig_goal p || orig_hyp p) in
+  if at_limit parents _expand_def def_limit then false else
   let def = find_opt orig_def parents in
-  match last, def with
-    | Some last, Some def ->
+  let last = parents |> find_opt (fun p -> orig_goal p || orig_hyp p) in
+  match def, last with
+    | Some def, Some last ->
         let goal_consts =
-          (if orig_goal last then all_consts else top_consts false)
-            last.formula in
-        overlap goal_consts (def_consts def)
+          if orig_goal last then all_consts last.formula
+                            else top_consts false last in
+        overlap (eq_consts def) goal_consts ||
+        overlap (def_consts def) (top_consts false last)
     | _ -> false
 
-let eq_consts f : id list =
-  let rec find f = match f with
-    | App (Const ("¬", _), f) -> find f
-    | Eq (Const (c, _), _) | Eq (_, Const (c, _)) -> [c]
-    | _ -> []
-  in find f
-
-let is_const_expansion parents =
+let is_hyp_const_expansion parents =
+  if at_limit parents _expand_hyp_const hyp_const_limit then false else
   let hyp = parents |> find_opt (fun p -> p.hypothesis > 1) in
   let last = parents |> find_opt (fun p -> orig_goal p || p.hypothesis = 1) in
   match hyp, last with
     | Some hyp, Some last ->
-        overlap (eq_consts hyp.formula) (top_consts true last.formula)
+        overlap (eq_consts hyp) (top_consts true last)
     | _ -> false
 
 let is_by parents = exists orig_goal parents && exists orig_by parents
 
 let step_cost = 0.01
-let expand_cost = 0.5
 let induction_cost = 1.0
 let infinite_cost = 10.0
 
@@ -559,24 +569,13 @@ let cost p : float * bool =
   let max = maximum (map (fun p -> weight p.formula) qs) in
   if p.rule = "rw" then
     ((if weight p.formula > max then infinite_cost else 0.0), p.derived) else
-  let const_expand = is_const_expansion p.parents in
-  let def_expand = is_def_expansion p.parents in
   let by = is_by p.parents in
   let c =
-    if by then step_cost else
+    if by || is_expand p then step_cost else
     if weight p.formula <= max then step_cost else
-      if not !step_strategy && by_induction p then induction_cost else
-      if const_expand || def_expand then (
-        if !debug > 0 then (
-          let q = p.parents |> find (fun q ->
-            if const_expand then orig_goal q else not q.definition) in
-          let total_cost = merge_cost p.parents +. expand_cost in
-          printf "%s expansion: %s -> %s [%.2f]\n"
-            (if const_expand then "const" else "def")
-            (show_formula q.formula) (show_formula p.formula) total_cost);
-        expand_cost)
+      if not !step_strategy && by_induction p then induction_cost
       else infinite_cost in
-  (c, p.derived && not const_expand && not def_expand)
+  (c, p.derived && not (is_expand p))
 
 (*      D:[D' ∨ t = t']    C⟨u⟩
  *    ───────────────────────────   sup
@@ -585,13 +584,13 @@ let cost p : float * bool =
  *     (i) u is not fluid
  *     (ii) u is not a variable
  *     (iii) tσ ≰ t'σ
- *     (iv) the position of u is eligible in C w.r.t. σ
+ *     (iv) the position of u is eligible in C with respect to σ
  *     (v) Cσ ≰ Dσ
- *     (vi) t = t' is maximal in D w.r.t. σ
+ *     (vi) t = t' is maximal in D with respect to σ
  *     (vii)  if t'σ = ⊥, u is in a literal of the form u = ⊤;
               if t'σ = ⊤, u is in a literal of the form u = ⊥ *)
 
-let super lenient upward dp d' t_t' cp c c1 : pformula list =
+let super rule lenient upward dp d' t_t' cp c c1 : pformula list =
   profile "super" @@ fun () ->
   let dbg = (dp.id, cp.id) = !debug_super in
   if dbg then printf "super\n";
@@ -624,13 +623,18 @@ let super lenient upward dp d' t_t' cp c c1 : pformula list =
           let tt'_show = str_replace "\\$" "" (show_formula (Eq (t, t'))) in
           let u_show = show_formula u in
           let res = is_bool_const t' in
-          let rule = sprintf "%s: %s / %s" (if res then "res" else "para") tt'_show u_show in
+          let rule = if rule = "" then (if res then "res" else "para") else rule in
+          let description = sprintf "%s / %s" tt'_show u_show in
           if dbg then printf "super: passed checks, produced %s\n" (show_formula e);
-          [mk_pformula rule [dp; cp] true e])
+          [mk_pformula rule description [dp; cp] true e])
 
 let all_super1 dp cp : pformula list =
-  let lenient = is_by [dp; cp] || is_def_expansion [dp; cp] in
-  let upward = is_const_expansion [dp; cp] in
+  let def_expand = is_def_expansion [dp; cp] in
+  let const_expand = is_hyp_const_expansion [dp; cp] in
+  let lenient = is_by [dp; cp] || def_expand in
+  let rule =
+    if def_expand then _expand_def
+    else if const_expand then _expand_hyp_const else "" in
   let d_steps, c_steps = clausify_steps dp, clausify_steps cp in
   let+ (dp, d_steps, cp, c_steps) =
     [(dp, d_steps, cp, c_steps); (cp, c_steps, dp, d_steps)] in
@@ -639,7 +643,7 @@ let all_super1 dp cp : pformula list =
   let+ d_lit = new_lits in
   let+ (c_lits, _, exposed_lits) = c_steps in
   let+ c_lit = exposed_lits in
-  super lenient upward dp (remove1 d_lit d_lits) d_lit cp c_lits c_lit
+  super rule lenient const_expand dp (remove1 d_lit d_lits) d_lit cp c_lits c_lit
 
 let allow p = is_hyp p || p.goal
 
@@ -679,7 +683,7 @@ let eres cp c' c_lit : pformula list =
           | None -> []
           | Some sub ->
               let c1 = map (rsubst sub) c' in
-              [mk_pformula "eres" [cp] true (multi_or c1)]
+              [mk_pformula "eres" "" [cp] true (multi_or c1)]
 
 let all_eres cp = run_clausify cp eres
 
@@ -716,7 +720,7 @@ let all_split p : pformula list =
   else
     let splits = remove [p.formula] (run [p.formula]) in
     rev splits |> map (fun lits ->
-      mk_pformula "split" [p] false (multi_or lits))
+      mk_pformula "split" "" [p] false (multi_or lits))
 
 let update p rewriting f : pformula =
   let (r, simp) = match rewriting with
@@ -876,7 +880,10 @@ let print_formula with_origin prefix pf =
   let origin =
     if with_origin then
       let parents = pf.parents |> map (fun p -> string_of_int (p.id)) in
-      let rule = if mem pf.rule [""; "rw"; "simp"] then [] else [pf.rule] in
+      let rule = if mem pf.rule [""; "rw"; "simp"] then [] else
+        let full_rule = if pf.description = "" then pf.rule
+          else sprintf "%s: %s" pf.rule pf.description in
+        [full_rule] in
       let rewrites = rev pf.rewrites |> map (fun r -> r.id) in
       let rw = if rewrites = [] then []
         else [sprintf "rw(%s)" (comma_join (map string_of_int rewrites))] in
@@ -895,7 +902,7 @@ let dbg_print_formula with_origin prefix pformula =
   if !debug > 0 then print_formula with_origin prefix pformula
 
 let create_pformula rule parents formula =
-  let p = number_formula (mk_pformula rule parents false formula) in
+  let p = number_formula (mk_pformula rule "" parents false formula) in
   dbg_print_formula true "" p;
   p
 

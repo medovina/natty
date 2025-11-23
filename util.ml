@@ -229,6 +229,8 @@ let rec count_true p = function
   | [] -> 0
   | x :: xs -> (if p x then 1 else 0) + count_true p xs
 
+let count_eq x = count_true ((=) x)
+
 let rec all_pairs = function
   | [] -> []
   | x :: xs -> map (fun y -> (x, y)) xs @ all_pairs xs
