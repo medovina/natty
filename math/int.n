@@ -120,3 +120,23 @@ Proof.
               = z(n, j)
               = a.
     
+Theorem.  Let a, b : ℤ.  If a ≠ 0 and b ≠ 0, then a · b ≠ 0.
+
+Proof.  There are some n, j, k, i : ℕ such that a = z(n, j) and b = z(k, i).  Assume that a ≠ 0 and b ≠ 0.  Then n ≠ j and k ≠ i.  Since k ≠ i, by [trichotomy] we have k < i or i < k.
+
+Suppose that i < k.  Then k = i + s(u) for some u : ℕ.  Since n ≠ j, it follows by [cancellation law for multiplication] that n · s(u) ≠ j · s(u).  Hence
+
+  n · k + j · i = n · (i + s(u)) + j · i
+                   = n · i + n · s(u) + j · i
+                   ≠ n · i + j · s(u) + j · i.
+
+But
+
+  n · i + j · s(u) + j · i = j · (i + s(u)) + n · i
+                                 = j · k + n · i.
+
+Thus n · k + j · i ≠ j · k + n · i.
+
+This means that
+
+ a · b = z(n · k + j · i, j · k + n · i) ≠ 0.

@@ -4,7 +4,7 @@ Natty is a natural-language proof assistant with an embedded automatic prover fo
 
 Natty's automatic prover is based on a subset of the higher-order superposition calculus[^1].
 
-Natty is in an early stage of development, and is currently only able to prove some basic identities about the natural numbers and integers.  As such, in its present form it will probably be of interest only to theorem proving researchers and enthusiasts.
+Natty is in an early stage of development, and is currently only able to prove some basic theorems about the natural numbers and integers.  As such, in its present form it will probably be of interest only to theorem proving researchers and enthusiasts.
 
 ### Prerequsities
 
@@ -16,19 +16,11 @@ $ opam install mparser mparser-re psq yojson
 
 ### Running Natty
 
-Natty's math library is in the `math` subdirectory, and includes several files:
-
-* `set.n` - some definitions about sets, plus a proof of Cantor's theorem
-* `nat.n` - a definition of the natural numbers plus many theorems about them
-* `int.n` - a definition of the integers based on the natural numbers, plus some theorems about them
-
-You can invoke Natty on any of these files directly:
+You can invoke Natty on an input file directly:
 
 ```
 $ ./natty math/nat.n
 ```
-
-The `math` directory also has files `int1.n`, `set1.n` and `num1.n` containing more mathematics that Natty can parse and type check but not yet verify, though I am working on that.
 
 By default, Natty will attempt to prove theorems only in the module (e.g. `nat.n`) that you have specified.  The `-m` option asks Natty to also prove theorems in all modules that the given module uses (recursively).
 
@@ -57,6 +49,18 @@ To see a list of other available options, run Natty with no command-line argumen
 ```
 $ ./natty
 ```
+
+### Math library
+
+Natty's math library is in the `math` subdirectory, and includes several files:
+
+* `set.n` - some definitions about sets, plus a proof of Cantor's theorem
+* `nat.n` - a definition of the natural numbers plus many theorems about them
+* `int.n` - a definition of the integers based on the natural numbers, plus some theorems about them
+
+The theorems and proofs in `nat.n` and `int.n` largely follow those in the excellent textbook Number Systems and the Foundations of Analysis (Elliott Mendelson, 1973).  However in Mendelson the first natural number is 1 but in Natty's library it is 0, so I have adapted various proofs accordingly.
+
+There are also has files `int1.n`, `set1.n` and `num1.n` containing more mathematics that Natty can parse and type check but not yet verify, though I am working on that.
 
 ### Documentation
 

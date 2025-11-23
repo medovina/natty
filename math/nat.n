@@ -38,6 +38,8 @@ Theorem (cancellation law for addition).  For all x, y, z : ℕ,
 
     x + z = y + z implies x = y.
 
+Corollary.  For all x, y, z : ℕ, z + x = z + y implies x = y.
+
 Theorem.  For all x, y : ℕ, y ≠ s(x) + y.   [add successor distinct]
 
 # Ordering

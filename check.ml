@@ -130,7 +130,7 @@ let infer_blocks env steps : block list =
   assert (rest = []);
   blocks
 
-let is_comparison f =
+let is_comparison f : (string * formula * formula) option =
   match strip_range f with
     | Eq (g, h) -> Some ("=", g, h)
     | App (Const ("¬", _), Eq (g, h)) -> Some ("≠", g, h)
@@ -412,10 +412,14 @@ and block_steps env lenv (Block (step, children)) : statement list list * formul
         let eqs = map fst eqs_reasons in
         let eqs' = map strip_range eqs in
         let concl =
-          if length eqs > 2 && for_all is_eq eqs' then
-            match hd eqs', last eqs' with
-              | Eq (a, _), Eq (_, b) -> Eq (a, b)
-              | _ -> failwith "block_steps"
+          if length eqs' >= 2 && for_all is_eq_or_neq eqs' then
+            let n = count_true is_neq eqs' in
+            if n <= 1 then
+              match is_comparison (hd eqs'), is_comparison (last eqs') with
+                | Some (_, a, _), Some (_, _, b) ->
+                    mk_eq' (n = 0) a b
+                | _ -> failwith "block_steps"
+            else multi_and eqs
           else multi_and eqs in
         (map mk_thm eqs_reasons, concl)
     | Let ids_types ->

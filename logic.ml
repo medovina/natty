@@ -125,6 +125,12 @@ let is_eq = function
   | Eq _ -> true
   | _ -> false
 
+let is_neq = function
+  | App (Const ("¬", _), Eq _) -> true
+  | _ -> false
+
+let is_eq_or_neq f = is_eq f || is_neq f
+
 let is_app_or_const = function
   | App _ | Const _ -> true
   | _ -> false

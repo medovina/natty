@@ -510,13 +510,13 @@ let def_consts p : id list =
   let cs = find (snd (remove_for_all p.formula)) in
   subtract cs logical_ops
 
-let top_consts f : id list =
+let top_consts with_args f : id list =
   let rec find f = match f with
     | App (Const ("¬", _), f) -> find f
     | Eq (f, g) -> find f @ find g
     | _ ->
-      let f, _args = collect_args f in
-      Option.to_list (opt_const f) in
+        let f, args = collect_args f in
+        filter_map opt_const (f :: if with_args then args else []) in
   subtract (find f) logical_ops
 
 let is_def_expansion parents =
@@ -525,7 +525,8 @@ let is_def_expansion parents =
   match last, def with
     | Some last, Some def ->
         let goal_consts =
-          (if orig_goal last then all_consts else top_consts) last.formula in
+          (if orig_goal last then all_consts else top_consts false)
+            last.formula in
         overlap goal_consts (def_consts def)
     | _ -> false
 
@@ -541,7 +542,7 @@ let is_const_expansion parents =
   let last = parents |> find_opt (fun p -> orig_goal p || p.hypothesis = 1) in
   match hyp, last with
     | Some hyp, Some last ->
-        overlap (eq_consts hyp.formula) (eq_consts last.formula)
+        overlap (eq_consts hyp.formula) (top_consts true last.formula)
     | _ -> false
 
 let is_by parents = exists orig_goal parents && exists orig_by parents
@@ -613,8 +614,8 @@ let super lenient upward dp d' t_t' cp c c1 : pformula list =
             is_bool_const t'_s && not (top_level (t'_s = _false) u c1) && fail 7 || (* vii *)
             not (is_maximal lit_gt (simp_eq t_eq_t'_s) d'_s) && fail 6 ||  (* vi *)
             not upward && term_ge t'_s t_s && fail 3 ||  (* iii *)
-            not lenient && not (is_maximal lit_gt c1_s c_s) && fail 4 ||  (* iv *)
-            not lenient && not (is_eligible sub parent_eq) && fail 4 ||  (* iv *)
+            not (lenient || upward) && not (is_maximal lit_gt c1_s c_s &&
+                                            is_eligible sub parent_eq) && fail 4 ||  (* iv *)
             not upward && t'_s <> _false && clause_gt d_s c_s && fail 5  (* v *)
         then [] else (
           let c1_t' = replace_in_formula t' u c1 in
