@@ -174,11 +174,12 @@ let inducted p =
 let cost_limit = 1.5
 
 let mk_pformula rule parents step formula =
+  let goal = exists (fun p -> p.goal) parents in
   { id = 0; rule; rewrites = []; simp = false; parents; formula;
-    goal = exists (fun p -> p.goal) parents;
+    goal;
     delta = 0.0; cost = 0.0;
     hypothesis =
-      if parents = [] then 0
+      if goal || parents = [] then 0
       else maximum (map (fun p -> p.hypothesis) parents);
     definition = not step && parents <> [] && for_all (fun p -> p.definition) parents;
     by = parents <> [] && for_all (fun p -> p.by) parents;
@@ -476,13 +477,13 @@ let simp_eq = function
 
 let is_higher (_, vsubst) = vsubst |> exists (fun (_, f) -> is_lambda f)
 
-let oriented t t' = [(t, t'); (t', t)] |>
-  filter (fun (t, t') -> not (term_ge t' t))
+let oriented upward t t' = [(t, t'); (t', t)] |>
+  filter (fun (t, t') -> upward || not (term_ge t' t))
 
-let eq_pairs f = match terms f with
+let eq_pairs upward f = match terms f with
   | (true, t, t') ->
       if is_bool_const t' then [(t, t')]
-      else (Eq (t, t'), _true) :: oriented t t'   (* iii: pre-check *)
+      else (Eq (t, t'), _true) :: oriented upward t t'   (* iii: pre-check *)
   | (false, t, t') -> [(Eq (t, t'), _false)]
 
 let trim_rule rule =
@@ -509,14 +510,6 @@ let def_consts p : id list =
   let cs = find (snd (remove_for_all p.formula)) in
   subtract cs logical_ops
 
-let step_cost = 0.01
-let expand_def_cost = 1.0
-let big_cost = 1.0
-let inf_cost = 10.0
-
-let is_by parents =
-  exists orig_goal parents && exists orig_by parents
-
 let top_consts f : id list =
   let rec find f = match f with
     | App (Const ("¬", _), f) -> find f
@@ -536,9 +529,27 @@ let is_def_expansion parents =
         overlap goal_consts (def_consts def)
     | _ -> false
 
-let rec is_unit_eq f = match f with
-  | App (Const ("¬", _), f) -> is_unit_eq f
-  | _ -> is_eq (snd (remove_for_all f)) 
+let eq_consts f : id list =
+  let rec find f = match f with
+    | App (Const ("¬", _), f) -> find f
+    | Eq (Const (c, _), _) | Eq (_, Const (c, _)) -> [c]
+    | _ -> []
+  in find f
+
+let is_const_expansion parents =
+  let hyp = parents |> find_opt (fun p -> p.hypothesis > 1) in
+  let last = parents |> find_opt (fun p -> orig_goal p || p.hypothesis = 1) in
+  match hyp, last with
+    | Some hyp, Some last ->
+        overlap (eq_consts hyp.formula) (eq_consts last.formula)
+    | _ -> false
+
+let is_by parents = exists orig_goal parents && exists orig_by parents
+
+let step_cost = 0.01
+let expand_cost = 0.5
+let induction_cost = 1.0
+let infinite_cost = 10.0
 
 let cost p : float * bool =
   if length p.parents < 2 && p.rule <> "rw" ||
@@ -546,22 +557,25 @@ let cost p : float * bool =
   let qs = p.parents |> filter (fun p -> p.goal || is_hyp p) in
   let max = maximum (map (fun p -> weight p.formula) qs) in
   if p.rule = "rw" then
-    ((if weight p.formula > max then inf_cost else 0.0), p.derived) else
-  let expand_def = is_def_expansion p.parents in
+    ((if weight p.formula > max then infinite_cost else 0.0), p.derived) else
+  let const_expand = is_const_expansion p.parents in
+  let def_expand = is_def_expansion p.parents in
   let by = is_by p.parents in
   let c =
     if by then step_cost else
     if weight p.formula <= max then step_cost else
-      if not !step_strategy && by_induction p then big_cost else
-      if expand_def then (
+      if not !step_strategy && by_induction p then induction_cost else
+      if const_expand || def_expand then (
         if !debug > 0 then (
-          let q = p.parents |> find (fun p -> not p.definition) in
-          let total_cost = merge_cost p.parents +. expand_def_cost in
-          printf "definition expansion: %s -> %s [%.2f]\n"
+          let q = p.parents |> find (fun q ->
+            if const_expand then orig_goal q else not q.definition) in
+          let total_cost = merge_cost p.parents +. expand_cost in
+          printf "%s expansion: %s -> %s [%.2f]\n"
+            (if const_expand then "const" else "def")
             (show_formula q.formula) (show_formula p.formula) total_cost);
-        expand_def_cost)
-      else inf_cost in
-  (c, p.derived && not expand_def)
+        expand_cost)
+      else infinite_cost in
+  (c, p.derived && not const_expand && not def_expand)
 
 (*      D:[D' ∨ t = t']    C⟨u⟩
  *    ───────────────────────────   sup
@@ -576,11 +590,11 @@ let cost p : float * bool =
  *     (vii)  if t'σ = ⊥, u is in a literal of the form u = ⊤;
               if t'σ = ⊤, u is in a literal of the form u = ⊥ *)
 
-let super lenient dp d' t_t' cp c c1 : pformula list =
+let super lenient upward dp d' t_t' cp c c1 : pformula list =
   profile "super" @@ fun () ->
   let dbg = (dp.id, cp.id) = !debug_super in
   if dbg then printf "super\n";
-  let pairs = eq_pairs t_t' in  (* iii: pre-check *)
+  let pairs = eq_pairs upward t_t' in  (* iii: pre-check *)
   let+ (t, t') = pairs in
   let+ (u, parent_eq) = green_subterms c1 |>
     filter (fun (u, _) -> not (is_var u || is_fluid u)) in  (* i, ii *)
@@ -598,10 +612,10 @@ let super lenient dp d' t_t' cp c c1 : pformula list =
         if is_higher sub && not (orig_goal dp) ||
             is_bool_const t'_s && not (top_level (t'_s = _false) u c1) && fail 7 || (* vii *)
             not (is_maximal lit_gt (simp_eq t_eq_t'_s) d'_s) && fail 6 ||  (* vi *)
-            term_ge t'_s t_s && fail 3 ||  (* iii *)
+            not upward && term_ge t'_s t_s && fail 3 ||  (* iii *)
             not lenient && not (is_maximal lit_gt c1_s c_s) && fail 4 ||  (* iv *)
             not lenient && not (is_eligible sub parent_eq) && fail 4 ||  (* iv *)
-            t'_s <> _false && clause_gt d_s c_s && fail 5  (* v *)
+            not upward && t'_s <> _false && clause_gt d_s c_s && fail 5  (* v *)
         then [] else (
           let c1_t' = replace_in_formula t' u c1 in
           let c_s = replace1 (rsubst sub c1_t') c1_s c_s in
@@ -615,6 +629,7 @@ let super lenient dp d' t_t' cp c c1 : pformula list =
 
 let all_super1 dp cp : pformula list =
   let lenient = is_by [dp; cp] || is_def_expansion [dp; cp] in
+  let upward = is_const_expansion [dp; cp] in
   let d_steps, c_steps = clausify_steps dp, clausify_steps cp in
   let+ (dp, d_steps, cp, c_steps) =
     [(dp, d_steps, cp, c_steps); (cp, c_steps, dp, d_steps)] in
@@ -623,7 +638,7 @@ let all_super1 dp cp : pformula list =
   let+ d_lit = new_lits in
   let+ (c_lits, _, exposed_lits) = c_steps in
   let+ c_lit = exposed_lits in
-  super lenient dp (remove1 d_lit d_lits) d_lit cp c_lits c_lit
+  super lenient upward dp (remove1 d_lit d_lits) d_lit cp c_lits c_lit
 
 let allow p = is_hyp p || p.goal
 
@@ -736,7 +751,7 @@ let rewrite dp cp c_subterms : pformula list =
             else None
         | _ -> None in
     let all =
-      let+ (t, t') = eq_pairs d in  (* i: pre-check *)
+      let+ (t, t') = eq_pairs false d in  (* i: pre-check *)
       let t, t' = prefix_vars t, prefix_vars t' in
       let+ u = c_subterms in
       [(t, t', u)] in
