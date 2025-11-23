@@ -65,12 +65,14 @@ Proof.
 
 Axiom.  There is a binary operation · : ℤ → ℤ → ℤ such that for all n, j, k, i : ℕ,
 
-    z(n, j) · z(k, i) = z(n · k + j · i, j · k + n · i).
+    z(n, j) · z(k, i) = z(n · k + j · i, j · k + n · i).  [def of ·]
 
 Theorem.  Let a, b, c : ℤ.
 
   a. a · b = b · a.
   b. (a · b) · c = a · (b · c).
+  c. a · (b + c) = a · b + a · c.
+  d. a · 1 = a.
 
 Proof.
 
@@ -82,7 +84,7 @@ Proof.
             = z(k, i) · z(n, j)
             = b · a.
 
-  b. There are some n, j, k, i, m, h ∈ ℕ such that a = z(n, j) and b = z(k, i) and c = z(m, h).  Then
+  b. There are some n, j, k, i, m, h : ℕ such that a = z(n, j) and b = z(k, i) and c = z(m, h).  Then
 
     (a · b) · c = (z(n, j) · z(k, i)) · z(m, h)
           = z(n · k + j · i, j · k + n · i) · z(m, h)
@@ -98,3 +100,23 @@ Proof.
           = z(n, j) · z(k · m + i · h, i · m + k · h)
           = z(n, j) · (z(k, i) · z(m, h))
           = a · (b · c).
+
+  c. There are some n, j, k, i, m, h : ℕ such that a = z(n, j) and b = z(k, i) and c = z(m, h).  Then
+
+      a · (b + c) = z(n, j) · (z(k, i) + z(m, h))
+                      = z(n, j) · z(k + m, i + h)
+                      = z(n · (k + m) + j · (i + h), j · (k + m) + n · (i + h))
+                      = z(n · k + n · m + j · i + j · h,
+                          j · k + j · m + n · i + n · h)
+                      = z(n · k + j · i,  j · k + n · i) +
+                            z(n · m + j · h, j · m + n · h)
+                      = z(n, j) · z(k, i) + z(n, j) · z(m, h) by [def of ·]
+                      = a · b + a · c.
+
+  d. There are some n, j : ℕ such that a = z(n, j).  Then
+
+        a · 1 = z(n, j) · 1
+              = z(n, j) · z(1, 0)
+              = z(n, j)
+              = a.
+    

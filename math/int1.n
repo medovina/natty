@@ -32,15 +32,9 @@ Proof.
 
 # Integers: multiplication
 
-Axiom.  There is a binary operation · : ℤ → ℤ → ℤ such that for all a, b, c, d ∈ ℕ,
-
-    z(a, b) · z(c, d) = z(ac + bd, ad + bc).        [int_mul_def]
-
 Theorem.  Let i, j, k ∈ ℤ.
 
   3. i · 0 = 0.
-  4. i · 1 = i.
-  5. i(j + k) = ij + ik.
   6. (i + j)k = ik + jk.
   
 Proof.
@@ -51,24 +45,6 @@ Proof.
           = z(a, b) · z(0, 0)
           = z(0, 0)
           = 0.
-
-  4. Let i ∈ ℤ.  Then there are some a, b ∈ ℕ such that i = z(a, b).  Then
-
-    i · 1 = z(a, b) · 1
-          = z(a, b) · z(1, 0)
-          = z(a, b)
-          = i.
-
-  5. Let i, j, k ∈ ℤ.  There are some a, b, c, d, e, f ∈ ℕ such that i = z(a, b) and j = z(c, d) and k = z(e, f).  Then
-
-    i(j + k) = z(a, b) · (z(c, d) + z(e, f))
-                = z(a, b) · z(c + e, d + f)
-                = z(a(c + e) + b(d + f), a(d + f) + b(c + e))
-                = z(ac + ae + bd + bf, ad + af + bc + be)
-                = z(ac + bd + ae + bf, ad + bc + af + be)
-                = z(ac + bd, ad + bc) + z(ae + bf, af + be)
-                = z(a, b) · z(c, d) + z(a, b) · z(e, f)
-                = ij + ik.
 
   6. Let i, j, k ∈ ℤ.  Then (i + j)k = k(i + j) = ki + kj = ik + jk.
 
