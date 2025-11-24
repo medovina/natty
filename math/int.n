@@ -9,6 +9,8 @@ Axiom.  There exists a type ℤ (the integers) with a function z : ℕ ⨯ ℕ �
 
 Definition.  Let 0 : ℤ = z(0, 0).  Let 1 : ℤ = z(1, 0).
 
+Lemma (ℤ zero).  For all a, b ∈ ℕ, z(a, b) = 0 if and only if a = b.
+
 # Addition
 
 Axiom.  There is a binary operation + : ℤ → ℤ → ℤ such that for all n, j, k, i : ℕ,
@@ -66,8 +68,6 @@ Proof.
 Axiom.  There is a binary operation · : ℤ → ℤ → ℤ such that for all n, j, k, i : ℕ,
 
     z(n, j) · z(k, i) = z(n · k + j · i, j · k + n · i).  [def of ·]
-
-Lemma (ℤ zero).  For all a, b ∈ ℕ, z(a, b) = 0 if and only if a = b.
 
 Theorem.  Let a, b, c : ℤ.
 
@@ -136,3 +136,37 @@ Proof.
   Next, suppose that a > b.  Then there is some g : ℕ such that b + s(g) = a.  Hence (b + s(g)) · c + b · d = (b + s(g)) · d + b · c.  So b · c + s(g) · c + b · d = b · d + s(g) · d + b · c, so s(g) · c = s(g) · d.  We deduce that c = d.
 
   In either case c = d.  Then j = 0 by [ℤ zero].
+
+# Theorems that hold in ℤ and any ring
+
+Theorem.  Let x, y : ℤ.
+
+    x + y = 0 if and only if y = −x.
+
+Proof.  If y = −x, then x + y = 0.  Now suppose that x + y = 0.  Then
+
+    y = 0 + y = (x + −x) + y = (x + y) + −x = 0 + −x = −x.
+
+Theorem.  Let x, y, z : ℤ.
+
+    a. If x + y = x + z then y = z.
+    b. −0 = 0.
+    c. −(−x) = x.
+    d. If −x = −y, then x = y.
+    e. −(x + y) = (−x) + (−y).
+    f. If x + y = x, then y = 0.    [addend is 0]
+    g. x · 0 = 0 = 0 · x.
+    h. −(x · y) = (−x) · y = x · (−y).
+    i. (−x) · (−y) = x · y.
+
+Proof.
+
+    a. Assume that x + y = x + z.  Then (−x) + x + y = (−x) + x + z.  Hence 0 + y = 0 + z.  Therefore y = z.
+    
+    c. (−x) + x = x + (−x) = 0.  It follows that −(−x) = x.
+
+    g. x · 0 = x · (0 + 0) = x · 0 + x · 0, so x · 0 = 0 by [addend is 0].  Similarly, 0 · x = (0 + 0) · x = 0 · x + 0 · x, so 0 · x = 0 by [addend is 0].
+
+    h. x · y + (−x) · y = (x + −x) · y = 0 · y = 0, so −(x · y) = (−x) · y. 
+    
+    Similarly, x · y + x · (−y) = x · (y + (−y)) = x · 0 = 0, so x · (−y) = −(x · y).

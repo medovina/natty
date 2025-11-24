@@ -4,7 +4,7 @@ Axiom.  There exists a type ℕ (the natural numbers) with an element 0 : ℕ an
 
   a. There is no n : ℕ such that s(n) = 0.  [0 is not successor]
   b. For all n, m : ℕ, if s(n) = s(m) then n = m.  [succ is injective]
-  c. Let P : ℕ → 𝔹.  If 0 ∈ P, and k ∈ P implies s(k) ∈ P for all k : ℕ, then P = ℕ.  [induction]
+  c. Let P : Set(ℕ).  If 0 ∈ P, and k ∈ P implies s(k) ∈ P for all k : ℕ, then P = ℕ.  [induction]
 
 Definition.  Let 1 : ℕ = s(0).
 
@@ -150,11 +150,11 @@ Proof.
 
 # Well-ordering principle
 
-Definition.  For all S : ℕ → 𝔹, S is empty iff there is no n : ℕ such that n ∈ S.  S is nonempty iff S is not empty.
+Definition.  For all S : Set(ℕ), S is empty iff there is no n : ℕ such that n ∈ S.  S is nonempty iff S is not empty.
 
-Definition.  For all A : ℕ → 𝔹 and z : ℕ, z is a least element of A if z ∈ A and for all u : ℕ, if u ∈ A then z ≤ u.
+Definition.  For all A : Set(ℕ) and z : ℕ, z is a least element of A if z ∈ A and for all u : ℕ, if u ∈ A then z ≤ u.
 
-Theorem (well-ordering principle). Let A : ℕ → 𝔹.  Suppose that A is nonempty.  Then there exists some x : ℕ such that x is a least element of A.
+Theorem (well-ordering principle). Let A : Set(ℕ).  Suppose that A is nonempty.  Then there exists some x : ℕ such that x is a least element of A.
 
 Proof.  Assume there is no x : ℕ such that x is a least element of A.  Let
 
