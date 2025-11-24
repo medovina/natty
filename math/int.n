@@ -170,3 +170,15 @@ Proof.
     h. x · y + (−x) · y = (x + −x) · y = 0 · y = 0, so −(x · y) = (−x) · y. 
     
     Similarly, x · y + x · (−y) = x · (y + (−y)) = x · 0 = 0, so x · (−y) = −(x · y).
+
+# Subtraction
+
+Definition.  For all x, y : ℤ, x − y = x + (−y).
+
+Theorem.  Let x, y, z : ℤ.
+
+    a. x − x = 0.
+    b. −(x − y) = y − x.
+    c. x − y = 0 if and only if x = y.
+    d. x · (y − z) = x · y − x · z.
+    e. (y − z) · x = y · x − z · x.
