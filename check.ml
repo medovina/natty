@@ -385,21 +385,21 @@ let rec with_type_vars env typ : typ = match typ with
       if is_type_defined id env then TypeVar id else typ
   | _ -> map_type (with_type_vars env) typ
 
-let rec blocks_steps env lenv blocks : statement list list * formula =
+let rec blocks_steps in_proof env lenv blocks : statement list list * formula =
   match blocks with
     | [] -> ([], _true)
     | block :: rest ->
-        let (fs, concl) = block_steps env lenv block in
+        let (fs, concl) = block_steps in_proof env lenv block in
         let hyp = Hypothesis ("hyp", top_infer env concl) in
-        let (gs, final_concl) = blocks_steps (hyp :: env) (hyp :: lenv) rest in
+        let (gs, final_concl) = blocks_steps in_proof (hyp :: env) (hyp :: lenv) rest in
         ( fs @ gs,
           if rest = [] then concl
           else match last blocks with
             | Block (Assume _, _) -> _and concl final_concl
             | _ -> final_concl)
 
-and block_steps env lenv (Block (step, children)) : statement list list * formula =
-  let child_steps stmts = blocks_steps (stmts @ env) (stmts @ lenv) children in
+and block_steps in_proof env lenv (Block (step, children)) : statement list list * formula =
+  let child_steps stmts = blocks_steps in_proof (stmts @ env) (stmts @ lenv) children in
   let const_decl (id, typ) =
     if typ = Type then infer_type_decl env id None else infer_const_decl env id typ in
   let const_decls ids_typs = rev (map const_decl ids_typs) in
@@ -412,7 +412,7 @@ and block_steps env lenv (Block (step, children)) : statement list list * formul
         let eqs = map fst eqs_reasons in
         let eqs' = map strip_range eqs in
         let concl =
-          if length eqs' >= 2 && for_all is_eq_or_neq eqs' then
+          if in_proof && length eqs' >= 2 && for_all is_eq_or_neq eqs' then
             let n = count_true is_neq eqs' in
             if n <= 1 then
               match is_comparison (hd eqs'), is_comparison (last eqs') with
@@ -501,12 +501,12 @@ let free_type_vars_in_steps steps : id list =
           | _ -> type_vars in
   unique (find steps)
 
-let rec expand_proof stmt env (steps : proof_step list) (proof_steps : proof_step list) : formula * statement list list =
+let rec expand_proof stmt env steps proof_steps : formula * statement list list =
   let steps = trim_lets steps in
   let type_vars = free_type_vars_in_steps steps in
   let steps = (type_vars |> map (fun id -> Let [(id, Type)])) @ steps in
   let blocks0 = chain_blocks steps in
-  let (_, concl) = blocks_steps env [] blocks0 in
+  let (_, concl) = blocks_steps false env [] blocks0 in
   let stmtss = if proof_steps = [] then [] else
     let (init, f) = split_last steps in
     let proof_steps =
@@ -522,7 +522,7 @@ let rec expand_proof stmt env (steps : proof_step list) (proof_steps : proof_ste
     );
     let blocks = infer_blocks env proof_steps in
     if !debug > 0 then print_blocks blocks;
-    let (stmtss, _concl) = blocks_steps env [] blocks in
+    let (stmtss, _concl) = blocks_steps true env [] blocks in
     map rev stmtss in
   (top_infer env concl, stmtss)
 
@@ -539,7 +539,7 @@ and infer_stmt env stmt : statement =
     | Theorem _ -> failwith "infer_stmt"
     | HAxiom (id, steps, name) ->
         let blocks = infer_blocks env steps in
-        let (_, f) = blocks_steps env [] blocks in
+        let (_, f) = blocks_steps false env [] blocks in
         Axiom (id, top_infer env f, name)
     | HTheorem { id; name; steps; proof_steps } ->
         let (f, stmts) = expand_proof stmt env steps proof_steps in
