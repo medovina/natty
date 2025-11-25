@@ -995,7 +995,7 @@ let rw_simplify cheap src queue used found p : pformula option =
             print_line (prefix_show prefix p.formula));
             if p.id > 0 then (
               let f_canonical = canonical p in
-              assert (Option.is_some (FormulaMap.find_opt f_canonical !found));
+              assert (FormulaMap.mem f_canonical !found);
               found := FormulaMap.remove f_canonical !found
             );
           None
@@ -1087,10 +1087,22 @@ let rw_simplify_all queue used found ps =
     p in
   filter_map simplify ps
 
+let rec build_map pformulas : pformula FormulaMap.t * pformula list =
+  match pformulas with
+    | [] -> (FormulaMap.empty, [])
+    | p :: ps ->
+        let map, ps = build_map ps in
+        let c = canonical p in
+        if FormulaMap.mem c map then (
+          dbg_print_formula false "dropping redundant formula" p;
+          (map, ps))
+        else (FormulaMap.add c p map, p :: ps)
+
 let refute pformulas cancel_check : proof_result =
   profile "refute" @@ fun () ->
   let timeout = !(opts.timeout) in
-  let found = ref @@ FormulaMap.of_list (pformulas |> map (fun p -> (canonical p, p))) in
+  let map, pformulas = build_map pformulas in
+  let found = ref map in
   let used, queue = ref [], ref PFQueue.empty in
   queue_add queue pformulas;
   let start = Sys.time () in

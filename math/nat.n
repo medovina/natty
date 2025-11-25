@@ -6,7 +6,7 @@ Axiom.  There exists a type ℕ (the natural numbers) with an element 0 : ℕ an
   b. For all n, m : ℕ, if s(n) = s(m) then n = m.  [succ is injective]
   c. Let P : Set(ℕ).  If 0 ∈ P, and k ∈ P implies s(k) ∈ P for all k : ℕ, then P = ℕ.  [induction]
 
-Definition.  Let 1 : ℕ = s(0).
+Definition.  Let 1 : ℕ = s(0).  Let 2 : ℕ = s(1).
 
 Theorem.  Let x : ℕ.  Suppose that x ≠ 0.  Then there is some y : ℕ such that x = s(y).   [positive is successor]
 
