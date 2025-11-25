@@ -536,11 +536,16 @@ let at_limit parents kind limit =
   length e >= expand_limit || count_eq kind e >= limit
 
 let is_def_expansion parents =
+  let dbg = exists (fun p -> p.id = 93) parents &&
+            exists (fun p -> p.id = 102) parents in
+  if dbg then printf "is_def_expansion\n";
   if at_limit parents _expand_def def_expand_limit then false else
   let def = find_opt orig_def parents in
   let last = parents |> find_opt (fun p -> orig_goal p || orig_hyp p) in
   match def, last with
     | Some def, Some last ->
+        if dbg then printf "  def_consts = %s, top_consts = %s\n"
+          (comma_join (def_consts def)) (comma_join (top_consts false last));
         let goal_consts =
           if orig_goal last then all_consts last.formula
                             else top_consts false last in
@@ -609,7 +614,7 @@ let super rule lenient upward dp d' t_t' cp c c1 : pformula list =
         let c_s = map (rsubst sub) c in
         let c1_s = rsubst sub c1 in
         let fail n = if dbg then printf "super: failed check %d\n" n; true in
-        if is_higher sub && not (orig_goal dp) ||
+        if is_higher sub && not (orig_goal dp || orig_hyp dp && dp.hypothesis = 1) && fail 0 ||
             is_bool_const t'_s && not (top_level (t'_s = _false) u c1) && fail 7 || (* vii *)
             not (is_maximal lit_gt (simp_eq t_eq_t'_s) d'_s) && fail 6 ||  (* vi *)
             not upward && term_ge t'_s t_s && fail 3 ||  (* iii *)
