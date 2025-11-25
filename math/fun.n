@@ -1,0 +1,13 @@
+# Functions
+
+Definition.  For all S : Set(σ) and T : Set(τ) and f : σ → τ, f is a mapping from S to T if f(x) ∈ T for all x ∈ S.
+
+Definition.  For all S : Set(σ) and T : Set(τ) and f : σ → τ, f is an injection from S to T if f is a mapping from S to T and for all x, y ∈ S, if f(x) = f(y) then x = y.
+
+Definition.  For all f : σ → τ, f is injective if f is an injection from σ to τ.
+
+Definition. For all S : Set(σ) and T : Set(τ) and f : σ → τ, f is a surjection from S to T if f is a mapping from S to T and for all y ∈ T, there exists some x ∈ S such that f(x) = y.
+
+Definition.  For all f : σ → τ, f is surjective if f is a surjection from σ to τ.
+
+Definition. For all S : Set(σ) and T : Set(τ) and f : σ → τ, f is a bijection from S to T if f is an injection from S to T and f is a surjection from S to T.

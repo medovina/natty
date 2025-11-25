@@ -3,27 +3,3 @@
 Definition.  Let A, B : Set(σ).  A ⊆ B if x ∈ A implies x ∈ B for all x : σ.
 
 Definition.  Let A : Set(σ).  𝒫(A) = {X : Set(σ) | X ⊆ A }.
-
-# Functions
-
-Definition.  For all S : Set(σ) and T : Set(τ) and f : σ → τ, f is a mapping from S to T if f(x) ∈ T for all x ∈ S.
-
-Definition.  For all S : Set(σ) and T : Set(τ) and f : σ → τ, f is an injection from S to T if f is a mapping from S to T and for all x, y ∈ S, if f(x) = f(y) then x = y.
-
-Definition.  For all f : σ → τ, f is injective if f is an injection from σ to τ.
-
-Definition. For all S : Set(σ) and T : Set(τ) and f : σ → τ, f is a surjection from S to T if f is a mapping from S to T and for all y ∈ T, there exists some x ∈ S such that f(x) = y.
-
-Definition.  For all f : σ → τ, f is surjective if f is a surjection from σ to τ.
-
-Definition. For all S : Set(σ) and T : Set(τ) and f : σ → τ, f is a bijection from S to T if f is an injection from S to T and f is a surjection from S to T.
-
-# Cardinality
-
-Definition.  For all S : Set(σ) and T : Set(τ), S ~ T if there exists some f : σ → τ such that f is a bijection from S to T.
-
-# Cantor's Theorem, Wiedijk #63
-
-Theorem.  Let A : Set(σ).  Then A ≁ 𝒫(A).
-
-Proof.  Suppose that A ~ 𝒫(A).  Then there is some f : σ → Set(σ) such that f is a bijection from A to 𝒫(A).  Let D = {a ∈ A | a ∉ f(a) }. Observe that D ⊆ A, and so D ∈ 𝒫(A).  Because f is a surjection from A to 𝒫(A), there is some d : σ such that d ∈ A and f(d) = D.  Suppose that d ∈ D.  Then by the definition of D we see that d ∉ f(d), so d ∉ D, which is a contradiction.  Now suppose that d ∉ D.  Then d ∈ f(d), so d ∈ D, which is a contradiction.  In any case we have a contradiction, and so A ≁ 𝒫(A).

@@ -201,7 +201,7 @@ Definition.  For all i, j ∈ ℤ, we write i > j iff j < i.  We write i ≥ j i
 
 Theorem.  Let a, b : ℤ.
 
-    a. 0 : ℤ ≯ 0.
+    a. 0 : ℤ ≯ 0.  [0 not > 0]
     b. a > 0 or a = 0 or −a > 0.
     c. If a > 0 and b > 0 then a + b > 0.
     d. If a > 0 and b > 0 then a · b > 0.
