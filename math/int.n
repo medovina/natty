@@ -125,7 +125,7 @@ Proof.
               = z(n, j)
               = a.
     
-Theorem.  Let i, j : ℤ.  If i · j = 0, then i = 0 or j = 0.
+Theorem.  Let i, j : ℤ.  If i · j = 0, then i = 0 or j = 0.  [zero product]
 
 Proof.
 
@@ -179,6 +179,48 @@ Theorem.  Let x, y, z : ℤ.
 
     a. x − x = 0.
     b. −(x − y) = y − x.
-    c. x − y = 0 if and only if x = y.
-    d. x · (y − z) = x · y − x · z.
+    c. x − y = 0 if and only if x = y.  [subtract to 0 iff equal]
+    d. x · (y − z) = x · y − x · z.  [left distribute −]
     e. (y − z) · x = y · x − z · x.
+
+Theorem (left cancel · in ℤ).  Let x, y, z : ℤ.
+
+    If x · y = x · z and x ≠ 0, then y = z.
+
+Proof.  Assume that x · y = x · z and x ≠ 0.  Then x · y − x · z = 0 by [subtract to 0 iff equal].  Hence x · (y − z) = 0 by [left distribute −].  Since x ≠ 0, by [zero product] we have y − z = 0.  Then y = z by [subtract to 0 iff equal].
+
+# Ordering
+
+Axiom.  There is a relation < : ℤ → ℤ → 𝔹 such that for all a, b, c, d ∈ ℕ,
+
+    z(a, b) < z(c, d) if and only if a + d < b + c.     [int_lt_def]
+
+Definition.  For all i, j ∈ ℤ, i ≤ j iff i < j or i = j.
+
+Definition.  For all i, j ∈ ℤ, we write i > j iff j < i.  We write i ≥ j iff j ≤ i.
+
+Theorem.  Let a, b : ℤ.
+
+    a. 0 : ℤ ≯ 0.
+    b. a > 0 or a = 0 or −a > 0.
+    c. If a > 0 and b > 0 then a + b > 0.
+    d. If a > 0 and b > 0 then a · b > 0.
+
+Proof.
+
+    b. There are some n, j : ℕ such that a = z(n, j).  By [trichotomy] we know that j < n or j = n or n < j.  If j < n then a > 0.  If j = n then a = 0.  We know that −a = z(j, n).  If n < j then z(j, n) > 0, so −a > 0.  In any case a > 0 or a = 0 or −a > 0.
+
+    c. Suppose that a > 0 and b > 0.  There are some n, j, k, i : ℕ such that a = z(n, j) and b = z(k, i). Then z(n, j) > 0, so j < n.  Similarly z(k, i) > 0, so i < k.  Now a + b = z(n + k, j + i).  By [< add left right] we know that j + i < n + k.  Hence z(n + k, j + i) > 0, so a + b > 0.
+
+    d. Suppose that a > 0 and b > 0.  There are some n, j, k, i : ℕ such that a = z(n, j) and b = z(k, i). Then z(n, j) > 0, so j < n.  Similarly z(k, i) > 0, so i < k.  We know that k = i + s(u) for some u : ℕ.  Since j < n, by [< multiply right] we have j · s(u) < n · s(u).  Hence
+
+        n · i + j · k = n · i + j · (i + s(u))
+                         = n · i + j · i + j · s(u).
+
+    Also n · i + j · i + j · s(u) < n · i + j · i + n · s(u).  And
+
+        n · i + j · i + n · s(u) = n · i + n · s(u) + j · i
+                                        = n · (i + s(u)) + j · i
+                                        = n · k + j · i.
+
+    So n · i + j · k < n · k + j · i.  Then z(n · k + j · i, j · k + n · i) > 0, so z(n, j) · z(k, i) > 0, so a · b > 0.

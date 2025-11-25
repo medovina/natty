@@ -1,22 +1,6 @@
 using int;
 
-# Integers: multiplication
-
-Theorem.  Let i, j, k ∈ ℤ.
-
-  1. If k ≠ 0 and ik = jk, then i = j.
-
-Proof.
-
-  1. Let i, j, k ∈ ℤ, and suppose that k ≠ 0 and ik = jk.  Then ik + (−j)k = jk + (−j)k, so (i + −j)k = (j + −j)k = 0 · k = 0.  By [int_mul_zero] we have i + −j = 0.  Then i + −j + j = 0 + j, so i = j.
-
 # Integers: inequalities
-
-Axiom.  There is a relation < : ℤ → ℤ → 𝔹 such that for all a, b, c, d ∈ ℕ,
-
-    z(a, b) < z(c, d) if and only if a + d < b + c.     [int_lt_def]
-
-Definition.  For all i, j ∈ ℤ, i ≤ j iff i < j or i = j.
 
 Corollary.  For all a, b, c, d ∈ ℕ,
 
