@@ -502,6 +502,7 @@ let eq_consts p : id list =
 let top_consts with_args p : id list =
   let rec find f = match f with
     | App (Const ("¬", _), f) -> find f
+    | App (Const ("∀", _), Lambda (_, _, f)) -> find f
     | Eq (f, g) -> find f @ find g
     | _ ->
         let f, args = collect_args f in
@@ -520,10 +521,10 @@ let def_consts p : id list =
   subtract cs logical_ops
 
 let expand_limit = 2
-let def_limit = 2
-let hyp_const_limit = 2
+let def_expand_limit = 2
+let hyp_expand_limit = 2
 
-let _expand_def, _expand_hyp_const = "expand def", "expand hyp const"
+let _expand_def, _expand_hyp = "expand def", "expand hyp"
 
 let is_expand p = starts_with "expand " p.rule
 
@@ -535,7 +536,7 @@ let at_limit parents kind limit =
   length e >= expand_limit || count_eq kind e >= limit
 
 let is_def_expansion parents =
-  if at_limit parents _expand_def def_limit then false else
+  if at_limit parents _expand_def def_expand_limit then false else
   let def = find_opt orig_def parents in
   let last = parents |> find_opt (fun p -> orig_goal p || orig_hyp p) in
   match def, last with
@@ -547,8 +548,8 @@ let is_def_expansion parents =
         overlap (def_consts def) (top_consts false last)
     | _ -> false
 
-let is_hyp_const_expansion parents =
-  if at_limit parents _expand_hyp_const hyp_const_limit then false else
+let is_hyp_expansion parents =
+  if at_limit parents _expand_hyp hyp_expand_limit then false else
   let hyp = parents |> find_opt (fun p -> p.hypothesis > 1) in
   let last = parents |> find_opt (fun p -> orig_goal p || p.hypothesis = 1) in
   match hyp, last with
@@ -629,11 +630,11 @@ let super rule lenient upward dp d' t_t' cp c c1 : pformula list =
 
 let all_super1 dp cp : pformula list =
   let def_expand = is_def_expansion [dp; cp] in
-  let const_expand = is_hyp_const_expansion [dp; cp] in
+  let const_expand = is_hyp_expansion [dp; cp] in
   let lenient = is_by [dp; cp] || def_expand in
   let rule =
     if def_expand then _expand_def
-    else if const_expand then _expand_hyp_const else "" in
+    else if const_expand then _expand_hyp else "" in
   let d_steps, c_steps = clausify_steps dp, clausify_steps cp in
   let+ (dp, d_steps, cp, c_steps) =
     [(dp, d_steps, cp, c_steps); (cp, c_steps, dp, d_steps)] in
@@ -1094,7 +1095,7 @@ let rec build_map pformulas : pformula FormulaMap.t * pformula list =
         let map, ps = build_map ps in
         let c = canonical p in
         if FormulaMap.mem c map then (
-          dbg_print_formula false "dropping redundant formula" p;
+          dbg_print_formula false "dropping redundant formula: " p;
           (map, ps))
         else (FormulaMap.add c p map, p :: ps)
 
