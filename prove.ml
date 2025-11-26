@@ -50,7 +50,7 @@ let weight f =
     | Const (c, _typ) -> if c = "¬" || f = _false then 0 else 1
     | Var _ -> 1
     | App (f, g) -> weigh f + weigh g
-    | Eq (f, g) -> 1 + weigh f + weigh g
+    | Eq (f, g) -> weigh f + weigh g
     | Lambda (_, _, f) -> weigh f in
   weigh (remove_quantifiers f)
 
