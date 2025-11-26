@@ -1,9 +1,11 @@
 _build
 .~*
 *.csv
+*.data
 *.dot
 *.old
 *.orig.n
 *.out
+*.perf
 *.thf
 *.trace

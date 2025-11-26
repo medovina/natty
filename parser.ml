@@ -735,4 +735,5 @@ let parse_files filenames sources : (_module list, string * frange) Stdlib.resul
   let** (modules, _state) = fold_left_res parse ([], empty_state ()) filenames in
   Ok (rev modules)
 
-let parse_file filename = parse_files [filename] []
+let parse_file filename = profile @@
+  parse_files [filename] []

@@ -53,11 +53,10 @@ let usage () =
       -h                print this help message
       -i                print proof statistics
       -l                run as language server
-      -m                prove theorems in all modules
       -o<name>          only prove/export given theorem or proof step
       -p[<id>]          output proof of theorems, or only of given formula
       --pipe=<name>     pipe name for language server
-      -r                profile performance
+      -r                prove theorems in all modules
       -s<id>,<id>       debug superposition of given formulas
       -t<num>           time limit in seconds
       -u                use deferred superposition
@@ -85,11 +84,10 @@ let parse_args args =
             | 'h' -> usage ()
             | 'i' -> opts.stats := true
             | 'l' -> opts.server := true
-            | 'm' -> opts.all_modules := true
             | 'o' -> opts.only_thm := Some value
             | 'p' -> if arg = "-p" then opts.show_proofs := true
                      else opts.show_proof_of := int_val ()
-            | 'r' -> profiling := true
+            | 'r' -> opts.all_modules := true
             | 's' -> (
               match String.split_on_char ',' value with
                 | [i; j] -> debug_super := (int_of_string i, int_of_string j)

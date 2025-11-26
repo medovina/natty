@@ -22,7 +22,7 @@ You can invoke Natty on an input file directly:
 $ ./natty math/nat.n
 ```
 
-By default, Natty will attempt to prove theorems only in the module (e.g. `nat.n`) that you have specified.  The `-m` option asks Natty to also prove theorems in all modules that the given module uses (recursively).
+By default, Natty will attempt to prove theorems only in the module (e.g. `nat.n`) that you have specified.  The `-r` option asks Natty to also prove theorems in all modules that the given module uses (recursively).
 
 The `-p` option asks Natty to output a proof of each theorem that it proves:
 

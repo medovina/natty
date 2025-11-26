@@ -425,59 +425,8 @@ let multi_gt gt xs ys =
 
 (* profiling *)
 
-let profiling = ref false
+let dummy = ref false
 
-let sys_time_cost = ref 0.0
-let profiling_cost = ref 0.0
-
-let measure_cost () =
-  let start = Sys.time () in
-  let count = ref 1 in
-  let interval = 0.05 in
-  while Sys.time () -. start < interval do
-    incr count
-  done;
-  sys_time_cost := interval /. float_of_int !count
-
-type prof_node = {
-  name: string;
-  calls: int ref;
-  time: float ref;
-  children: prof_node list ref
-}
-
-let cur_prof = ref { name = ""; calls = ref 0; time = ref 0.0; children = ref [] }
-
-let profile name f =
-  if !profiling then (
-    if !sys_time_cost = 0.0 then
-      measure_cost ();
-    let parent = !cur_prof in
-    let cur = match find_opt (fun n -> n.name = name) !(parent.children) with
-      | Some child -> child
-      | None ->
-          let node = { name; calls = ref 0; time = ref 0.0; children = ref [] } in
-          parent.children := node :: !(parent.children);
-          node in
-    cur_prof := cur;
-    let start = Sys.time () -. !profiling_cost in
-    profiling_cost := !profiling_cost +. !sys_time_cost;
-    let ret = f () in
-    incr cur.calls;
-    cur.time := !(cur.time) +. (Sys.time () -. !profiling_cost) -. start;
-    profiling_cost := !profiling_cost +. !sys_time_cost;
-    cur_prof := parent;
-    ret)
-  else f ()
-
-let profile_report () =
-  if !profiling then (
-    let rec print_node indent node =
-      (if node.name <> "" then
-        let calls = str_replace "_" "," (sprintf "%#d" !(node.calls)) in
-        printf "%s%s (%s): %.2f\n" indent node.name calls !(node.time));
-      let children = sort_by (fun n -> -. !(n.time)) !(node.children) in
-      let indent = if node.name = "" then "" else indent ^ "  " in
-      iter (print_node indent) children in
-    print_node "" !cur_prof;
-    printf "\nprofiling cost = %.2f\n" !profiling_cost)
+let profile x =
+  (* try to prevent compiler from inlining this function <*)
+  if !dummy then failwith "foobar" else x

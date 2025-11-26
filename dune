@@ -1,7 +1,8 @@
 (env
     (dev
         (flags (:standard -w -unused-type-declaration -w -unused-constructor
-                          -w -unused-value-declaration))))
+                          -w -unused-value-declaration))
+        (ocamlopt_flags (-inline 0))))
 
 (executable
     (name main)

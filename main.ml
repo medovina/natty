@@ -38,5 +38,4 @@ let source = parse_args (tl (Array.to_list Sys.argv)) in
                   clean_dir "thf";
                   iter (export_module "thf" modules) modules)
                 else
-                  Prove.prove_all from_thf modules;
-                  profile_report ()
+                  Prove.prove_all from_thf modules

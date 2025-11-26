@@ -286,7 +286,7 @@ let de_bruijn_encode x =
  * all the f_k, then order by arity in lpo_gt.
  * We do not implement the transformation to terms ∀_1', ∃_1', z_u', which is
  * intended for the Knuth-Bendix ordering. *)
-let encode_term type_map fluid_map t : formula =
+let encode_term type_map fluid_map t : formula = profile @@
   let encode_fluid t = _var ("@v" ^ string_of_int (get_index t fluid_map)) in
   let encode_type typ = _const ("@t" ^ string_of_int (get_index typ type_map)) in
   let rec encode t =
@@ -317,8 +317,7 @@ let encode_term type_map fluid_map t : formula =
           apply [_const "@="; encode t; encode u] in
   encode t
 
-let term_gt s t =
-  profile "term_gt" @@ fun () ->
+let term_gt s t = profile @@
   let type_map, fluid_map = ref [], ref [] in
   let s1 = encode_term type_map fluid_map s in
   let t1 = encode_term type_map fluid_map t in
@@ -597,8 +596,7 @@ let cost p : float * bool =
  *     (vii)  if t'σ = ⊥, u is in a literal of the form u = ⊤;
               if t'σ = ⊤, u is in a literal of the form u = ⊥ *)
 
-let super rule with_para lenient upward dp d' t_t' cp c c1 : pformula list =
-  profile "super" @@ fun () ->
+let super rule with_para lenient upward dp d' t_t' cp c c1 : pformula list = profile @@
   let dbg = (dp.id, cp.id) = !debug_super in
   if dbg then printf "super\n";
   let pairs = eq_pairs upward t_t' in  (* iii: pre-check *)
@@ -667,8 +665,7 @@ let allow_super dp cp =
 let allow_rewrite dp cp =
   dp.id <> cp.id && (!destructive_rewrites || allow cp)
 
-let all_super queue dp cp : pformula list =
-  profile "all_super" @@ fun () ->
+let all_super queue dp cp : pformula list = profile @@
   let dbg = (dp.id, cp.id) = !debug_super in
   if dbg then printf "all_super\n";
   if not (allow_super dp cp) then [] else
@@ -802,8 +799,7 @@ let prefix_lits dp : formula list * id list =
   let (f, exist) = remove_quants true dp.formula in
   (mini_clausify (prefix_vars f), map prefix_var exist)
 
-let any_subsumes cs dp : pformula option =
-  profile "any_subsumes" @@ fun () ->
+let any_subsumes cs dp : pformula option = profile @@
   if orig_goal dp then None else
   let d_lits = prefix_lits dp in
   cs |> find_opt (fun cp -> subsumes cp d_lits)
@@ -977,8 +973,7 @@ let rewrite_from ps q : pformula option =
   let q_subterms = blue_subterms q.formula in
   find_map (fun p -> rewrite_opt p q q_subterms) ps
 
-let repeat_rewrite used p : pformula =
-  profile "repeat_rewrite" @@ fun () ->
+let repeat_rewrite used p : pformula = profile @@
   let rec loop p = match rewrite_from !used p with
     | None -> p
     | Some p -> loop p in
@@ -1062,12 +1057,10 @@ let szs = function
   | GaveUp -> "GaveUp"
   | Stopped -> "Stopped"
                   
-let forward_simplify queue used found p : pformula option =
-  profile "forward_simplify" @@ fun () ->
+let forward_simplify queue used found p : pformula option = profile @@
   rw_simplify false (sprintf "given (#%d) is" p.id) queue used found p
   
-let back_simplify from used : pformula list =
-  profile "back_simplify" @@ fun () ->
+let back_simplify from used : pformula list = profile @@
   let back_simp p =
     if subsumes1 from p then (
       if !debug > 0 then
@@ -1083,19 +1076,17 @@ let back_simplify from used : pformula list =
   used := new_used;
   rewritten
 
-let nondestruct_rewrite used p : pformula list =
+let nondestruct_rewrite used p : pformula list = profile @@
   if !destructive_rewrites || p.rule = "rw" then [] else
     (* perform just a single rewrite here; remaining will occur in rw_simplify_all *)
     Option.to_list (rewrite_from used p)
 
-let generate queue p used : pformula list =
-  profile "generate" @@ fun () ->
-  concat_map (all_super queue p) !used @
-    nondestruct_rewrite !used p @
-    all_eres p @ all_split p
+let generate queue p used : pformula list = profile @@
+  nondestruct_rewrite !used p @
+  all_eres p @ all_split p @
+  concat_map (all_super queue p) !used
 
-let rw_simplify_all queue used found ps =
-  profile "rw_simplify_all" @@ fun () ->
+let rw_simplify_all queue used found ps = profile @@
   let simplify (p: pformula) : pformula option =
     let p = rw_simplify true "generated" queue used found p in
     p |> Option.iter (fun p -> queue := PFQueue.add (Unprocessed p) (queue_cost p) !queue);
@@ -1113,8 +1104,7 @@ let rec build_map pformulas : pformula FormulaMap.t * pformula list =
           (map, ps))
         else (FormulaMap.add c p map, p :: ps)
 
-let refute pformulas cancel_check : proof_result =
-  profile "refute" @@ fun () ->
+let refute pformulas cancel_check : proof_result = profile @@
   let timeout = !(opts.timeout) in
   let map, pformulas = build_map pformulas in
   let found = ref map in
@@ -1222,6 +1212,7 @@ let prove known_stmts thm cancel_check : proof_result * float =
   step_strategy := is_step thm;
   destructive_rewrites := not !step_strategy;
   consts := map fst (filter_map decl_var known_stmts);
+  printf "len(consts) = %d\n" (length !consts);
   ac_ops := [];
   formula_counter := 0;
   let known = gen_pformulas thm known_stmts in
@@ -1245,8 +1236,7 @@ let show_proof pf dis elapsed stats =
     print_newline ();
     output_proof pf)
 
-let prove_all thf modules =
-  profile "prove_all" @@ fun () ->
+let prove_all thf modules = profile @@
   let dis = if !(opts.disprove) then "dis" else "" in
   let rec prove_stmts succeeded failed = function
     | [] ->
