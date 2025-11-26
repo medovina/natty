@@ -6,6 +6,7 @@ type options = {
   disprove: bool ref;
   e_proof: bool ref;
   export: bool ref;
+  export_full: bool ref;
   keep_going: bool ref;
   from_thm: string option ref;
   only_thm: string option ref;
@@ -24,6 +25,7 @@ let opts = {
   disprove = ref false;
   e_proof = ref false;
   export = ref false;
+  export_full = ref false;
   from_thm = ref None;
   keep_going = ref false;
   only_thm = ref None;
@@ -61,6 +63,7 @@ let usage () =
       -u                use deferred superposition
       -v                verbose output
       -x                export theorems to THF files
+         -xf              also generate THF files for full theorems with proof steps
       |};
     exit 1
 
@@ -94,7 +97,8 @@ let parse_args args =
             | 't' -> opts.timeout := float_of_string value
             | 'u' -> opts.deferred := true
             | 'v' -> opts.verbose := true
-            | 'x' -> opts.export := true
+            | 'x' -> opts.export := true;
+                     if arg = "-xf" then opts.export_full := true
             | '-' -> (match opt_remove_prefix "--pipe=" arg with
                         | Some name -> opts.pipe := name
                         | None -> failwith "unknown option")

@@ -1,6 +1,7 @@
 open Printf
 
 open Logic
+open Options
 open Statement
 open Util
 
@@ -154,7 +155,7 @@ let export_module dir all_modules md =
   let subdir = mk_path dir module_name in
   mk_dir subdir;
   let using = map base_name (all_using md all_modules) in
-  expand_proofs Fun.id md.stmts true |> iter (fun (thm, known) ->
+  expand_proofs Fun.id md.stmts !(opts.export_full) |> iter (fun (thm, known) ->
     match thm with
       | Theorem { id; name; _ } ->
           let filename = String.concat ":" ([id] @ Option.to_list name) in
