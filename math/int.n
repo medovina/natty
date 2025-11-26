@@ -165,6 +165,8 @@ Proof.
     
     c. (−x) + x = x + (−x) = 0.  It follows that −(−x) = x.
 
+    d. Suppose that −x = −y.  Then −(−x) = −(−y), so x = y.
+
     g. x · 0 = x · (0 + 0) = x · 0 + x · 0, so x · 0 = 0 by [addend is 0].  Similarly, 0 · x = (0 + 0) · x = 0 · x + 0 · x, so 0 · x = 0 by [addend is 0].
 
     h. x · y + (−x) · y = (x + −x) · y = 0 · y = 0, so −(x · y) = (−x) · y. 

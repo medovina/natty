@@ -14,6 +14,13 @@ let ac_ops = ref ([] : (id * typ) list)
 
 let output = ref false
 
+type ac_type = Assoc | Comm | Extra
+
+let ac_other = function
+  | Assoc -> Comm
+  | Comm -> Assoc
+  | _ -> failwith "ac_other"
+
 type pformula = {
   id: int;
   rule: string;
@@ -22,6 +29,7 @@ type pformula = {
   rewrites: pformula list;  (* rewrites that created this formula *)
   simp: bool;
   formula: formula;
+  ac: ac_type option;
   delta: float;
   cost: float;
   definition: bool;
@@ -35,8 +43,6 @@ type pformula = {
 let id_of pf = pf.id
 
 let is_hyp p = p.hypothesis > 0
-
-let ac_axioms = ref ([] : pformula list)
 
 let rec num_literals f = match bool_kind f with
   | True | False -> 0
@@ -176,9 +182,9 @@ let cost_limit = 1.5
 
 let mk_pformula rule description parents step formula =
   let goal = exists (fun p -> p.goal) parents in
-  { id = 0; rule; description; rewrites = []; simp = false; parents; formula;
-    goal;
-    delta = 0.0; cost = 0.0;
+  { id = 0; rule; description; rewrites = []; simp = false; parents;
+    formula; ac = None;
+    goal; delta = 0.0; cost = 0.0;
     hypothesis =
       if goal || parents = [] then 0
       else maximum (map (fun p -> p.hypothesis) parents);
@@ -566,6 +572,7 @@ let infinite_cost = 10.0
 let cost p : float * bool =
   if length p.parents < 2 || p.rule = "rw" then (0.0, p.derived) else
   let qs = p.parents |> filter (fun p -> p.goal || is_hyp p) in
+  let qs = if qs = [] then p.parents else qs in
   let max = maximum (map (fun p -> weight p.formula) qs) in
   if p.rule = "rw" then
     ((if weight p.formula > max then infinite_cost else 0.0), p.derived) else
@@ -629,7 +636,7 @@ let super rule with_para lenient upward dp d' t_t' cp c c1 : pformula list =
           if dbg then printf "super: passed checks, produced %s\n" (show_formula e);
           [mk_pformula rule description [dp; cp] true e])
 
-let allow p = is_hyp p || p.goal
+let allow p = is_hyp p || p.goal || p.ac = Some Comm
 
 let all_super1 dp cp : pformula list =
   let by = is_by [dp; cp] in
@@ -647,14 +654,15 @@ let all_super1 dp cp : pformula list =
   let+ d_lit = new_lits in
   let+ (c_lits, _, exposed_lits) = c_steps in
   let+ c_lit = exposed_lits in
-  let with_para = allow cp || by || def_expand || const_expand in
+  let with_para = allow cp || dp.ac = Some Comm || by || def_expand || const_expand in
   super rule with_para lenient const_expand
     dp (remove1 d_lit d_lits) d_lit cp c_lits c_lit
 
 let allow_super dp cp =
   let induct_ok d c = not (is_inductive c) ||
     ((orig_goal d || orig_hyp d) && not (inducted d)) in
-  dp.id <> cp.id && (allow dp || allow cp) && induct_ok dp cp && induct_ok cp dp
+  dp.id <> cp.id && (allow dp || allow cp) &&
+  induct_ok dp cp && induct_ok cp dp
 
 let allow_rewrite dp cp =
   dp.id <> cp.id && (!destructive_rewrites || allow cp)
@@ -935,6 +943,8 @@ let canonical p : formula =
     sort Stdlib.compare (map canonical_lit f) in
   rename_vars (fold_left1 _or lits)
 
+let is_ac p = Option.is_some p.ac
+
 module FormulaMap = Map.Make (struct
   type t = formula
   let compare = Stdlib.compare
@@ -942,7 +952,7 @@ end)
 
 let queue_class p : int =
   if p.cost = 0.0 then
-    if mem p !ac_axioms then 0
+    if is_ac p then 0
     else if p.by then 1
     else if orig_goal p then 2
     else if orig_hyp p then 100 - p.hypothesis
@@ -985,7 +995,7 @@ let rw_simplify cheap src queue used found p : pformula option =
   let p1 = if p.rule = "rw" || !destructive_rewrites then repeat_rewrite used p else p in
   let p = simplify p1 in
   let taut = is_tautology p.formula in
-  if taut || not (memq p !ac_axioms) && is_ac_tautology p.formula then (
+  if taut || not (is_ac p) && is_ac_tautology p.formula then (
     if !debug > 1 || !debug = 1 && src <> "generated" then (
       printf "%s %stautology: " src (if taut then "" else "ac ");
       if p1.formula <> p.formula then printf "%s ==> " (show_formula p1.formula);
@@ -1170,16 +1180,9 @@ let ac_completion op typ : pformula =
   if !debug > 0 then printf "AC operator: %s\n\n" op;
   ac_ops := (op, typ) :: !ac_ops;
   let name = "AC completion: " ^ without_type_suffix op in
-  let axiom = to_pformula name (ac_axiom op typ) in
-  ac_axioms := axiom :: !ac_axioms;
+  let axiom = { (to_pformula name (ac_axiom op typ)) with ac = Some Extra } in
   dbg_newline ();
   axiom
-
-type ac_type = Assoc | Comm
-
-let ac_other = function
-  | Assoc -> Comm
-  | Comm -> Assoc
 
 let ac_kind f : (ac_type * str * typ) option =
   match associative_axiom f with
@@ -1197,6 +1200,7 @@ let gen_pformulas thm stmts : pformula list =
       | None -> (ops, [])
       | Some f ->
           let kind_op = ac_kind f in
+          let kind = Option.map (fun (kind, _, _) -> kind) kind_op in
           let hyp = match index_of_opt stmt hyps with
             | Some i ->
                 (* when proving ⊥, two last hypotheses have number 1 *)
@@ -1204,8 +1208,7 @@ let gen_pformulas thm stmts : pformula list =
             | _ -> 0 in
           let p = { (to_pformula (stmt_id_name stmt) f)
             with hypothesis = hyp; definition = is_definition stmt;
-                 by = mem (stmt_ref stmt) by_thms } in
-          if Option.is_some kind_op then ac_axioms := p :: !ac_axioms;
+                 by = mem (stmt_ref stmt) by_thms; ac = kind } in
           dbg_newline ();
           match kind_op with
             | Some (kind, op, typ) ->
