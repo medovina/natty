@@ -590,12 +590,14 @@ let cost p : float * bool =
  *     (vii)  if t'σ = ⊥, u is in a literal of the form u = ⊤;
               if t'σ = ⊤, u is in a literal of the form u = ⊥ *)
 
-let super rule lenient upward dp d' t_t' cp c c1 : pformula list =
+let super rule with_para lenient upward dp d' t_t' cp c c1 : pformula list =
   profile "super" @@ fun () ->
   let dbg = (dp.id, cp.id) = !debug_super in
   if dbg then printf "super\n";
   let pairs = eq_pairs upward t_t' in  (* iii: pre-check *)
   let+ (t, t') = pairs in
+  let res = is_bool_const t' in
+  if not res && not with_para then [] else
   let+ (u, parent_eq) = green_subterms c1 |>
     filter (fun (u, _) -> not (is_var u || is_fluid u)) in  (* i, ii *)
   match unify t u with
@@ -622,16 +624,18 @@ let super rule lenient upward dp d' t_t' cp c c1 : pformula list =
           let e = unprefix_vars (multi_or (d'_s @ c_s)) in
           let tt'_show = str_replace "\\$" "" (show_formula (Eq (t, t'))) in
           let u_show = show_formula u in
-          let res = is_bool_const t' in
           let rule = if rule = "" then (if res then "res" else "para") else rule in
           let description = sprintf "%s / %s" tt'_show u_show in
           if dbg then printf "super: passed checks, produced %s\n" (show_formula e);
           [mk_pformula rule description [dp; cp] true e])
 
+let allow p = is_hyp p || p.goal
+
 let all_super1 dp cp : pformula list =
+  let by = is_by [dp; cp] in
   let def_expand = is_def_expansion [dp; cp] in
   let const_expand = is_hyp_expansion [dp; cp] in
-  let lenient = is_by [dp; cp] || def_expand in
+  let lenient = by || def_expand in
   let rule =
     if def_expand then _expand_def
     else if const_expand then _expand_hyp else "" in
@@ -643,9 +647,9 @@ let all_super1 dp cp : pformula list =
   let+ d_lit = new_lits in
   let+ (c_lits, _, exposed_lits) = c_steps in
   let+ c_lit = exposed_lits in
-  super rule lenient const_expand dp (remove1 d_lit d_lits) d_lit cp c_lits c_lit
-
-let allow p = is_hyp p || p.goal
+  let with_para = allow cp || by || def_expand || const_expand in
+  super rule with_para lenient const_expand
+    dp (remove1 d_lit d_lits) d_lit cp c_lits c_lit
 
 let allow_super dp cp =
   let induct_ok d c = not (is_inductive c) ||
