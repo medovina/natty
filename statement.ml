@@ -203,7 +203,28 @@ let stmt_formula = function
 let thm_by = function
   | Theorem { by; _ } -> by | _ -> failwith "thm_by"
 
-let rec map_statement1 id_fn typ_fn fn stmt = match stmt with
+let strip_proof stmt : statement = match stmt with
+  | Theorem thm -> Theorem { thm with steps = [] }
+  | stmt -> stmt
+
+let show_statement multi s : string =
+  let name = stmt_id_name s in
+  let show prefix f = indent_with_prefix prefix (show_formula_multi multi f) in
+  match s with
+    | TypeDecl _ -> name
+    | ConstDecl (id, typ) ->
+        sprintf "const %s : %s" (without_type_suffix id) (show_type typ)
+    | Axiom (_, f, _) | Hypothesis (_, f) -> show (name ^ ": ") f
+    | Definition (id, typ, f) ->
+        let prefix =
+          sprintf "definition (%s: %s): " (without_type_suffix id) (show_type typ) in
+        show prefix f
+    | Theorem { formula = f; _ } -> show (name ^ ": ") f
+    | HAxiom (id, _, _) -> "haxiom: " ^ id
+    | HTheorem { id; _ } -> "htheorem: " ^ id
+
+let rec map_statement1 id_fn typ_fn fn stmt =
+  match stmt with
   | TypeDecl _ -> stmt
   | ConstDecl (id, typ) -> ConstDecl (id_fn typ id, typ_fn typ)
   | Axiom (id, f, name) -> Axiom (id, fn f, name)
@@ -236,22 +257,6 @@ let definition_id f : id =
     | Some (f, _g) ->
         get_const_or_var (fst (collect_args f))
     | _ -> failwith "definition_id: definition expected"
-
-let show_statement multi s : string =
-  let name = stmt_id_name s in
-  let show prefix f = indent_with_prefix prefix (show_formula_multi multi f) in
-  match s with
-    | TypeDecl _ -> name
-    | ConstDecl (id, typ) ->
-        sprintf "const %s : %s" (without_type_suffix id) (show_type typ)
-    | Axiom (_, f, _) | Hypothesis (_, f) -> show (name ^ ": ") f
-    | Definition (id, typ, f) ->
-        let prefix =
-          sprintf "definition (%s: %s): " (without_type_suffix id) (show_type typ) in
-        show prefix f
-    | Theorem { formula = f; _ } -> show (name ^ ": ") f
-    | HAxiom (id, _, _) -> "haxiom: " ^ id
-    | HTheorem { id; _ } -> "htheorem: " ^ id
 
 let number_hypotheses name stmts =
   let f n = function

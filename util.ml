@@ -213,6 +213,7 @@ let rec split_last (xs : 'a list) : ('a list * 'a) = match xs with
       (x :: ys, last)
 
 let index_of_opt x ys = find_index ((=) x) ys
+let index_of x ys = Option.get (index_of_opt x ys)
 
 let fold_left1 f = function
   | [] -> failwith "fold_left1: empty list"

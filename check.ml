@@ -19,7 +19,7 @@ let rec strip_ranges f : formula =
 
 let rec range_of f : range = match f with
   | App (Const (c, _), _) when starts_with "@" c -> decode_range c
-  | App (Const ("∀", _), Lambda (_, _, g)) -> range_of g
+  | App (Const ("(∀)", _), Lambda (_, _, g)) -> range_of g
   | _ -> empty_range
 
 let is_declared env id =
@@ -61,7 +61,7 @@ let map_assume_step env vars step = match step with
 
 let has_premise f g =
   match snd (remove_for_all (strip_ranges f)) with
-    | App (App (Const ("→", _), g'), _) when g' = strip_ranges g -> true
+    | App (App (Const ("(→)", _), g'), _) when g' = strip_ranges g -> true
     | _ -> false
 
 let trim_escape rest : proof_step list = match rest with
@@ -133,7 +133,7 @@ let infer_blocks env steps : block list =
 let is_comparison f : (string * formula * formula) option =
   match strip_range f with
     | Eq (g, h) -> Some ("=", g, h)
-    | App (Const ("¬", _), Eq (g, h)) -> Some ("≠", g, h)
+    | App (Const ("(¬)", _), Eq (g, h)) -> Some ("≠", g, h)
     | App (App (Var (c, _), g), h) when mem c Parser.compare_ops -> Some (c, g, h)
     | _ -> None
 
@@ -250,8 +250,8 @@ and infer_formula env vars formula : typ * formula =
             | _ -> failwith "infer_formula" in
           check range vars tsubst h
       | App (Const (q, _), Lambda (x, (Sub _ as typ), g))
-            when q = "∀" || q = "∃" || q = "{}" ->
-          let join = if q = "∀" then implies else _and in
+            when q = "(∀)" || q = "(∃)" || q = "{}" ->
+          let join = if q = "(∀)" then implies else _and in
           let typ, g = match check_type1 env vars typ with
             | Sub p ->
                 let typ = erase_sub (Sub p) in
@@ -326,14 +326,14 @@ let infer_const_decl env id typ =
 let infer_definition env f : id * typ * formula =
   (* f has the form ∀σ₁...σₙ v₁...vₙ (C φ₁ ... φₙ = ψ) .  We check types and build
     * a formula of the form ∀σ₁...σₙ v₁...vₙ (C σ₁...σₙ φ₁ ... φₙ = ψ) .*)
-  let (vs, f) = gather_quant "∀" (strip_range f) in
-  let (vs2, f) = gather_quant "∀" f in
+  let (vs, f) = gather_quant "(∀)" (strip_range f) in
+  let (vs2, f) = gather_quant "(∀)" f in
   let (type_vars, vars) = (vs @ vs2) |> partition (fun (_, typ) -> typ = Type) in
   let univ = map fst type_vars in
   let vars = vars |> map (fun (v, typ) -> (v, check_type1 env type_vars typ)) in
   let vs = type_vars @ vars in (
   match strip_range f with
-    | Eq (f, g) | App (App (Const ("↔", _), f), g) | App (App (Const ("→", _), g), f)->
+    | Eq (f, g) | App (App (Const ("(↔)", _), f), g) | App (App (Const ("(→)", _), g), f)->
         let (c, args) = collect_args (strip_range f) in
         let (c, decl_type, args) = match c with
           | Const (":", Fun (typ, _)) -> (hd args, Some (check_type env typ), tl args)

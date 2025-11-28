@@ -49,7 +49,7 @@ let rec thf_type1 left typ =
 
 and thf_type typ = thf_type1 false typ
 
-let binary = [("∧", "&"); ("∨", "|"); ("→", "=>"); ("↔", "<=>")]
+let binary = [("(∧)", "&"); ("(∨)", "|"); ("(→)", "=>"); ("(↔)", "<=>")]
 
 let rec thf outer right f : string =
   let parens b s = if b && outer <> "" then sprintf "(%s)" s else s in
@@ -63,14 +63,14 @@ let rec thf outer right f : string =
         | Not f -> (match f with
           | Eq(t, u) ->
               parens true (sprintf "%s != %s" (thf "=" false t) (thf "=" true u))
-          | _ -> sprintf "~ %s" (thf "¬" false f))
+          | _ -> sprintf "~ %s" (thf "(¬)" false f))
         | Binary (op, _, t, u) ->
             let s = sprintf "%s %s %s"
               (thf op false t) (assoc op binary) (thf op true u) in
-            parens (op <> "∧" && op <> "∨" || op <> outer) s
+            parens (op <> "(∧)" && op <> "(∨)" || op <> outer) s
         | Quant (q, id, typ, u) ->
             let (ids_typs, f) = gather_quant q u in
-            quant (if q = "∀" then "!" else "?") ((id, typ) :: ids_typs) f
+            quant (if q = "(∀)" then "!" else "?") ((id, typ) :: ids_typs) f
         | _ -> match f with
           | Const (id, typ) ->
               if id = _type then thf_type1 (outer != "") typ else quote (prefix_upper id)

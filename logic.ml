@@ -126,7 +126,7 @@ let is_eq = function
   | _ -> false
 
 let is_neq = function
-  | App (Const ("¬", _), Eq _) -> true
+  | App (Const ("(¬)", _), Eq _) -> true
   | _ -> false
 
 let is_eq_or_neq f = is_eq f || is_neq f
@@ -237,16 +237,16 @@ let rec count_binders = function
   | App (f, g) | Eq (f, g) -> count_binders f + count_binders g
   | Lambda (_, _, f) -> 1 + count_binders f
 
-let _false = Const ("⊥", Bool)
-let _true = Const ("⊤", Bool)
+let _false = Const ("%⊥", Bool)
+let _true = Const ("%⊤", Bool)
 
 let is_bool_const x = x = _true || x = _false
 
-let _not f = App (Const ("¬", Fun (Bool, Bool)), f)
+let _not f = App (Const ("(¬)", Fun (Bool, Bool)), f)
 
-let logical_binary = ["∧"; "∨"; "→"; "↔"]
+let logical_binary = ["(∧)"; "(∨)"; "(→)"; "(↔)"]
 
-let logical_ops = ["⊥"; "⊤"; "¬"; "∀"; "∃"] @ logical_binary
+let logical_ops = ["%⊥"; "%⊤"; "(¬)"; "(∀)"; "(∃)"] @ logical_binary
 
 let binop op typ f g = App (App (Const (op, typ), f), g) 
 let binop_unknown op = binop op unknown_type
@@ -254,10 +254,10 @@ let binop_unknown op = binop op unknown_type
 let logical_op_type = Fun (Bool, Fun (Bool, Bool))
 let logical_op op = binop op logical_op_type
 
-let _and = logical_op "∧"
-let _or = logical_op "∨"
-let implies1 = logical_op "→"
-let _iff = logical_op "↔"
+let _and = logical_op "(∧)"
+let _or = logical_op "(∨)"
+let implies1 = logical_op "(→)"
+let _iff = logical_op "(↔)"
 
 let elem = binop "∈" (Pi ("σ",
     Fun (TypeVar "σ", Fun (Fun (TypeVar "σ", Bool), Bool))))  (* σ → (σ → 𝔹) → 𝔹 *)
@@ -278,20 +278,20 @@ let quant q id typ f =
   
 let quant' q (id, typ) f = quant q id typ f
 
-let _for_all = quant "∀"
-let _for_all' = quant' "∀"
-let _exists = quant "∃"
-let _exists' = quant' "∃"
+let _for_all = quant "(∀)"
+let _for_all' = quant' "(∀)"
+let _exists = quant "(∃)"
+let _exists' = quant' "(∃)"
 
 let generalize f : formula =
   let vs = free_type_vars f in
   let all_type x f = _for_all x Type f in
   fold_right all_type vs f
 
-let c_and = Const("∧", logical_op_type)
+let c_and = Const("(∧)", logical_op_type)
 
 let is_quantifier = function
-  | Const (id, _) when id = "∀" || id = "∃" -> true
+  | Const (id, _) when id = "(∀)" || id = "(∃)" -> true
   | _ -> false
 
 let mk_neq f g = _not (mk_eq f g)
@@ -332,15 +332,19 @@ let collect_args t : formula * formula list =
   let (head, args) = collect t in
   (head, rev args)
 
-let is_tuple_apply f : (id * formula list) option =
-  let (head, args) = collect_args f in
-  match head with
-    | Const (s, _) when is_tuple_constructor s -> Some (s, args)
-    | _ -> None
-
 let is_eq_or_iff f = match f with
-  | Eq (f, g) | App (App (Const ("↔", _), f), g) -> Some (f, g)
+  | Eq (f, g) | App (App (Const ("(↔)", _), f), g) -> Some (f, g)
   | _ -> None
+
+let strip_prefix c = match c.[0] with
+  | '%' | '~' -> string_from c 1
+  | '[' -> let i = String.index c ']' in string_from c (i + 1)
+  | '(' ->
+      assert (last_char c = ')');
+      string_range c 1 (strlen c - 1)
+  | _ -> c
+
+let basic_const c = without_type_suffix (strip_prefix c)
 
 type formula_kind =
   | True
@@ -380,9 +384,9 @@ and type_of1 tsubst f : typ = match f with
 and type_of f : typ = type_of1 [] f
 
 and fkind boolean f : formula_kind = match f with
-  | Const ("⊤", _) -> True
-  | Const ("⊥", _) -> False
-  | App (Const ("¬", _), f) -> Not f
+  | Const ("%⊤", _) -> True
+  | Const ("%⊥", _) -> False
+  | App (Const ("(¬)", _), f) -> Not f
   | App (App (Const (op, typ), t), u)
   | App (App (Var (op, typ), t), u)
       when mem op logical_binary || (not boolean) ->
@@ -391,7 +395,7 @@ and fkind boolean f : formula_kind = match f with
       Quant(q, id, typ, u)
   | Eq (f, g) when boolean && type_of f = Bool -> (
       assert (type_of g = Bool);
-      Binary ("↔", logical_op_type, f, g))   (* via boolean extensionality *)
+      Binary ("(↔)", logical_op_type, f, g))   (* via boolean extensionality *)
   | f -> Other f
 
 and bool_kind f = fkind true f
@@ -403,7 +407,7 @@ and gather_associative op f = match kind f with
   | _ -> [f]
 
 and gather_implies f = match bool_kind f with
-  | Binary ("→", _, f, g) -> f :: gather_implies g
+  | Binary ("(→)", _, f, g) -> f :: gather_implies g
   | _ -> [f]
 
 and show_type t =
@@ -416,7 +420,7 @@ and show_type t =
       | Type -> "*"
       | Base id -> id
       | TypeVar id -> id
-      | Fun (t, u) -> op 1 "→" t u
+      | Fun (t, u) -> op 1 "(→)" t u
       | Pi (id, t) ->
           parens_if (0 < outer) (sprintf "Π%s.%s" id (show 0 false t))
       | TypeApp (c, [typ]) when c.[0] = '@' -> show outer left typ
@@ -439,8 +443,8 @@ and show_formula_multi multi f =
       | Not g -> (match g with
         | Eq (t, u) -> show_eq "≠" t u
         | _ -> parens_if (not_prec < outer) ("¬" ^ show1 not_prec false g))
-      | Binary (op, _, t, u) when mem_assoc (without_type_suffix op) binary_ops ->
-          let op = without_type_suffix op in
+      | Binary (binop, _, t, u) when mem_assoc (basic_const binop) binary_ops ->
+          let op = basic_const binop in
           let prec = assoc op binary_ops in
           let p = prec < outer ||
             prec = outer && (op = "·" || op = "+" || op = "→" && not right) in
@@ -456,7 +460,7 @@ and show_formula_multi multi f =
             let line = layout false in
             if String.length line <= 60 then line
             else
-              let fs = (if op = "→" then gather_implies else gather_associative op) f in
+              let fs = (if op = "→" then gather_implies else gather_associative binop) f in
               let ss = (show1 prec false (hd fs)) ::
                 map (show (indent + 3) multi prec false) (tl fs) in
               String.concat (sprintf "\n%s %s " (n_spaces indent) op) ss
@@ -469,7 +473,7 @@ and show_formula_multi multi f =
       | _ -> match f with
         | Const (id, typ) ->
             if id = _type then show_type typ else
-              sprintf "%s" (without_type_suffix id)
+              sprintf "%s" (basic_const id)
         | Var (id, _typ) -> id
         | App _ ->
             let (head, args) = collect_args f in (
@@ -507,8 +511,8 @@ let negate f = match bool_kind f with
   | Not f -> f
   | _ -> _not f
 
-let gather_and = gather_associative "∧"
-let gather_or = gather_associative "∨"
+let gather_and = gather_associative "(∧)"
+let gather_or = gather_associative "(∨)"
 
 let implies f g = if f = _true then g else fold_right implies1 (gather_and f) g
 
@@ -590,20 +594,20 @@ let rec remove_quant q f : (id * typ) list * formula = match kind f with
       ((x, typ) :: xs, h)
   | _ -> ([], f)
 
-let remove_for_all = remove_quant "∀"
-let remove_exists = remove_quant "∃"
+let remove_for_all = remove_quant "(∀)"
+let remove_exists = remove_quant "(∃)"
 
 let remove_quants with_existential : formula -> formula * id list =
   let rec remove f = match kind f with
-    | Quant ("∀", _x, _typ, g) -> remove g
-    | Quant ("∃", x, _typ, g) when with_existential ->
+    | Quant ("(∀)", _x, _typ, g) -> remove g
+    | Quant ("(∃)", x, _typ, g) when with_existential ->
         let (f, ex) = remove g in
         (f, x :: ex)
     | Not g -> (match bool_kind g with
-        | Quant ("∀", x, _typ, h) when with_existential ->
+        | Quant ("(∀)", x, _typ, h) when with_existential ->
             let (f, ex) = remove (_not h) in
             (f, x :: ex)
-        | Quant ("∃", _x, _typ, h) -> remove (_not h)
+        | Quant ("(∃)", _x, _typ, h) -> remove (_not h)
         | _ -> (f, []))
     | _ -> (f, []) in
   remove
@@ -621,7 +625,7 @@ let rec apply_types c typ args : formula = match typ with
   | _ -> apply (Const (c, typ) :: args)
 
 let rec apply_types_in_formula f : formula = match f with
-  | App (Const ("∀", _), Lambda (_, Type, f)) -> apply_types_in_formula f
+  | App (Const ("(∀)", _), Lambda (_, Type, f)) -> apply_types_in_formula f
   | App _ -> (match collect_args f with
     | (Const (c, typ), args) -> apply_types c typ (map apply_types_in_formula args)
     | _ -> map_formula apply_types_in_formula f)
@@ -750,8 +754,8 @@ let unify_or_match is_unify subst t u : subst option =
       | Const (c, t), Const (c', u) when c = c' ->
           let* tsubst = unify_term_types t u in
           Some (tsubst, vsubst)
-      | Var _, Const ("¬", _) -> None
-      | Var _, App (Const ("∨", _), _) -> None
+      | Var _, Const ("(¬)", _) -> None
+      | Var _, App (Const ("(∨)", _), _) -> None
       | Var (x, typ), f ->
           if f = Var (x, typ) then Some subst
           else

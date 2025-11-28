@@ -428,7 +428,7 @@ and small_prop s : formula pr = expression (prop_operators ())
 
 and either_or_prop s : formula pr =
   (str "either" >> small_prop >>= fun f -> match bool_kind f with
-    | Binary ("∨", _, _, _) -> return f
+    | Binary ("(∨)", _, _, _) -> return f
     | _ -> fail "either: expected or") s
 
 and cannot_prop s : formula pr = (
@@ -582,9 +582,9 @@ let mk_step chain : proof_step =
   match chain with
     | (_op, f, _r) :: rest -> (
         match kind f with
-          | Quant ("∃", _, typ, _) ->
+          | Quant ("(∃)", _, typ, _) ->
               assert (rest = []);
-              let (ids, f) = gather_quant_of_type "∃" typ f in
+              let (ids, f) = gather_quant_of_type "(∃)" typ f in
               IsSome (ids, typ, f)
           | _ -> Assert chain)
     | _ -> failwith "mk_step"
