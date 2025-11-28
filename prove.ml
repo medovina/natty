@@ -213,43 +213,7 @@ let number_formula pformula : pformula =
  * In particular, in ASCII '%' < '(' < '@' < '[' < '~'.  In Unicode '⊤' < '⊥'.
  *)
 
-let const_gt f g : bool = match f, g with
-  | Const (c, _), Const (d, _) -> c > d
-  | _ -> failwith "const_gt"
-
-let rec lex_gt gt ss ts = match ss, ts with
-  | [], [] -> false
-  | s :: ss, t :: ts ->
-    gt s t || s = t && lex_gt gt ss ts
-  | _ -> failwith "lex_gt"
-
-let lookup_var v vars = opt_default (assoc_opt v vars) 0
-
-(* Lexicographic path ordering on first-order terms.  We use
- * the optimized version lpo_4 described in Lochner, "Things to Know
- * When Implementing LPO". *)
-let rec lpo_gt s t =
-  match t with
-    | Var (y, _) -> s <> t && is_var_in y s
-    | _ ->
-        is_app_or_const s && is_app_or_const t &&
-          let (f, ss), (g, ts) = collect_args s, collect_args t in
-          let (nf, ng) = length ss, length ts in
-          if const_gt f g || f = g && nf > ng then majo s ts
-          else if f = g && nf = ng then lex_ma s t ss ts
-          else alpha ss t
-
-and alpha ss t = exists (fun s -> s = t || lpo_gt s t) ss
-
-and majo s ts = for_all (lpo_gt s) ts
-
-and lex_ma s t ss ts = match ss, ts with
-  | [], [] -> false
-  | s_i :: ss, t_i :: ts ->
-      if s_i = t_i then lex_ma s t ss ts
-      else if lpo_gt s_i t_i then majo s ts
-      else alpha ss t
-  | _ -> failwith "lex_ma"
+let const_gt c d : bool = c > d
             
 let get_index x map =
   match index_of_opt x !map with
@@ -258,57 +222,90 @@ let get_index x map =
         map := x :: !map;
         length !map - 1
 
-let de_bruijn_encode x =
+let de_bruijn_encode x f : formula =
   let rec encode count t = match t with
     | Var (id, _typ) ->
         if id = x then _const ("@db" ^ string_of_int count) else t
     | Lambda (id, typ, f) ->
         if id = x then t else Lambda (id, typ, encode (count + 1) f)
     | t -> map_formula (encode count) t in
-  encode 0
+  encode 0 f
 
 (* Map higher-order terms to first-order terms as described in
  * Bentkamp et al, section 3.9 "A Concrete Term Order".  That section introduces
  * a distinct symbol f_k for each arity k.  We use the symbol f to represent
  * all the f_k, then order by arity in lpo_gt.
  * We do not implement the transformation to terms ∀_1', ∃_1', z_u', which is
- * intended for the Knuth-Bendix ordering. *)
-let encode_term type_map fluid_map t : formula = profile @@
+ * intended for the Knuth-Bendix ordering.
+ * This function returns an encoded formula plus a list of unencoded arguments,
+ * which lets us perform the encoding incrementally in lpo_gt. *)
+let encode_term type_map fluid_map t : formula * formula list = profile @@
   let encode_fluid t = _var ("@v" ^ string_of_int (get_index t fluid_map)) in
   let encode_type typ = _const ("@t" ^ string_of_int (get_index typ type_map)) in
-  let rec encode t =
-    match t with
-      | Const _ -> t
-      | Var (v, _) -> _var v
-      | App _ ->
-          let (head, args) = collect_args t in
-          let head = match head with
-            | Var (v, _) -> _var v
-            | _ -> head in (
-          match head with
-            | Var _ -> encode_fluid (apply (head :: args))
-            | Const (q, _) when q = "(∀)" || q = "(∃)" -> (
-                match args with
-                  | [Lambda (x, typ, f)] ->
-                      let q1 = _const ("@" ^ q) in
-                      apply [q1; encode_type typ; encode (de_bruijn_encode x f)]
-                  | _ -> failwith "encode_term: quantifier not applied to lambda")
-            | Const _ ->
-                apply (head :: map encode args)
-            | _ -> failwith "encode_term: head is not var or const")
-      | Lambda (x, typ, f) ->
-          if is_ground t then
-            apply [_const "@lam"; encode_type typ; encode (de_bruijn_encode x f)]
-          else encode_fluid t (* assume fluid *)
-      | Eq (t, u) ->
-          apply [_const "@="; encode t; encode u] in
-  encode t
+  match t with
+    | Const (c, typ) when c = _type -> (encode_type typ, [])
+    | Const _ -> (t, [])
+    | Var (v, _) -> (_var v, [])
+    | App _ ->
+        let (head, args) = collect_args t in
+        let head = match head with
+          | Var (v, _) -> _var v
+          | _ -> head in (
+        match head with
+          | Var _ -> (encode_fluid t, [])
+          | Const (q, _) when q = "(∀)" || q = "(∃)" -> (
+              match args with
+                | [Lambda (x, typ, f)] ->
+                    let q1 = _const ("@" ^ q) in
+                    (q1, [type_const typ; de_bruijn_encode x f])
+                | _ -> failwith "encode_term: quantifier not applied to lambda")
+          | Const _ -> (head, args)
+          | _ -> failwith "encode_term: head is not var or const")
+    | Lambda (x, typ, f) ->
+        if is_ground t then
+          (_const "@lam", [type_const typ; de_bruijn_encode x f])
+        else (encode_fluid t, []) (* assume fluid *)
+    | Eq (t, u) -> (_const "@=", [t; u])
 
-let term_gt s t = profile @@
+(* Lexicographic path ordering on first-order terms.  We use
+ * the optimized version lpo_4 described in Lochner, "Things to Know
+ * When Implementing LPO". *)
+let rec lpo_gt s t = profile @@
   let type_map, fluid_map = ref [], ref [] in
-  let s1 = encode_term type_map fluid_map s in
-  let t1 = encode_term type_map fluid_map t in
-  lpo_gt s1 t1
+  let encode = encode_term type_map fluid_map in
+
+  let rec lpo s t =
+    let (f, ss), (g, ts) = encode s, encode t in
+    match f, g with
+      | Const (c, _), Const (d, _) ->
+          let (nf, ng) = length ss, length ts in
+          if const_gt c d || c = d && nf > ng then majo s ts
+          else if c = d && nf = ng then lex_ma s t ss ts
+          else alpha ss t
+      | _, Var (y, _) -> s <> t && (
+          if (starts_with "@v" y) then
+            let i = int_of_string (string_from y 2) in
+            let t' = nth !fluid_map i in
+            has_subformula t' s
+          else is_var_in y s)
+      | Var _, Const _ -> false
+      | _, _ -> failwith "lpo"
+
+  and alpha ss t = exists (fun s -> s = t || lpo_gt s t) ss
+
+  and majo s ts = for_all (lpo_gt s) ts
+
+  and lex_ma s t ss ts = match ss, ts with
+    | [], [] -> false
+    | s_i :: ss, t_i :: ts ->
+        if s_i = t_i then lex_ma s t ss ts
+        else if lpo_gt s_i t_i then majo s ts
+        else alpha ss t
+    | _ -> failwith "lex_ma" in
+  
+  lpo s t
+
+let term_gt = lpo_gt
 
 let term_ge s t = s = t || term_gt s t
 

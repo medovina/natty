@@ -189,6 +189,11 @@ let only_type_vars ids_typs : id list = unique @@
 let free_type_vars_in_type t : id list = only_type_vars (vars_in_type true t)
 let free_type_vars f : id list = only_type_vars (vars_in_formula true f)
 
+let rec has_subformula s f = s = f || match f with
+  | App (f, g) | Eq (f, g) -> has_subformula s f || has_subformula s g
+  | Lambda (_, _, f) -> has_subformula s f
+  | _ -> false
+
 let rec next_var x avoid =
   if mem x avoid then
     let c, rest = usplit x in
