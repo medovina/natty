@@ -68,7 +68,7 @@ let rec prefix_type_vars t : typ = match t with
   | Sub f -> Sub (prefix_vars f)
   | t -> map_type prefix_type_vars t
 
-and prefix_vars f : formula =
+and prefix_vars f : formula = profile @@
   let rec prefix outer = function
     | Const (x, typ) -> Const (x, prefix_type_vars typ)
     | Var (x, typ) ->
@@ -79,7 +79,7 @@ and prefix_vars f : formula =
     | f -> map_formula (prefix outer) f
   in prefix [] f
 
-let unprefix_vars f : formula =
+let unprefix_vars f : formula = profile @@
   let rec build_map all_vars vars : (id * id) list = match vars with
     | [] -> []
     | var :: rest ->
@@ -619,6 +619,8 @@ let super rule with_para lenient upward dp d' pairs cp c_lits c_lit : pformula l
 
 let allow p = is_hyp p || p.goal || p.ac = Some Comm
 
+let is_unit_equality f = is_eq (snd (remove_for_all f))
+
 let all_super1 dp cp : pformula list =
   let by = is_by [dp; cp] in
   let def_expand = is_def_expansion [dp; cp] in
@@ -637,7 +639,8 @@ let all_super1 dp cp : pformula list =
   let pairs = eq_pairs upward t_t' in  (* iii: pre-check *)
   let+ (c_lits, _, exposed_lits) = c_steps in
   let+ c_lit = exposed_lits in
-  let with_para = allow cp || dp.ac = Some Comm || by || def_expand || const_expand in
+  let with_para = (allow cp && (not !step_strategy || is_unit_equality dp.formula)) ||
+    dp.ac = Some Comm || by || def_expand || const_expand in
   super rule with_para lenient upward dp (remove1 t_t' d_lits) pairs cp c_lits c_lit
 
 let allow_super dp cp =
