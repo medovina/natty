@@ -580,14 +580,13 @@ let cost p : float * bool =
  *     (vii)  if t'σ = ⊥, u is in a literal of the form u = ⊤;
               if t'σ = ⊤, u is in a literal of the form u = ⊥ *)
 
-let super rule with_para lenient upward dp d' t_t' cp c c1 : pformula list = profile @@
+let super rule with_para lenient upward dp d' pairs cp c_lits c_lit : pformula list = profile @@
   let dbg = (dp.id, cp.id) = !debug_super in
   if dbg then printf "super\n";
-  let pairs = eq_pairs upward t_t' in  (* iii: pre-check *)
   let+ (t, t') = pairs in
   let res = is_bool_const t' in
   if not res && not with_para then [] else
-  let+ (u, parent_eq) = green_subterms c1 |>
+  let+ (u, parent_eq) = green_subterms c_lit |>
     filter (fun (u, _) -> not (is_var u || is_fluid u)) in  (* i, ii *)
   match unify t u with
     | None -> []
@@ -597,18 +596,18 @@ let super rule with_para lenient upward dp d' t_t' cp c c1 : pformula list = pro
         let t_s, t'_s = rsubst sub t, rsubst sub t' in
         let t_eq_t'_s = Eq (t_s, t'_s) in
         let d_s = t_eq_t'_s :: d'_s in
-        let c_s = map (rsubst sub) c in
-        let c1_s = rsubst sub c1 in
+        let c_s = map (rsubst sub) c_lits in
+        let c1_s = rsubst sub c_lit in
         let fail n = if dbg then printf "super: failed check %d\n" n; true in
         if is_higher sub && not (orig_goal dp || orig_hyp dp && dp.hypothesis = 1) && fail 0 ||
-            is_bool_const t'_s && not (top_level (t'_s = _false) u c1) && fail 7 || (* vii *)
+            is_bool_const t'_s && not (top_level (t'_s = _false) u c_lit) && fail 7 || (* vii *)
             not (is_maximal lit_gt (simp_eq t_eq_t'_s) d'_s) && fail 6 ||  (* vi *)
             not upward && term_ge t'_s t_s && fail 3 ||  (* iii *)
             not (lenient || upward) && not (is_maximal lit_gt c1_s c_s &&
                                             is_eligible sub parent_eq) && fail 4 ||  (* iv *)
             not upward && t'_s <> _false && clause_gt d_s c_s && fail 5  (* v *)
         then [] else (
-          let c1_t' = replace_in_formula t' u c1 in
+          let c1_t' = replace_in_formula t' u c_lit in
           let c_s = replace1 (rsubst sub c1_t') c1_s c_s in
           let e = unprefix_vars (multi_or (d'_s @ c_s)) in
           let tt'_show = str_replace "\\$" "" (show_formula (Eq (t, t'))) in
@@ -624,6 +623,7 @@ let all_super1 dp cp : pformula list =
   let by = is_by [dp; cp] in
   let def_expand = is_def_expansion [dp; cp] in
   let const_expand = is_hyp_expansion [dp; cp] in
+  let upward = const_expand in
   let lenient = by || def_expand in
   let rule =
     if def_expand then _expand_def
@@ -633,12 +633,12 @@ let all_super1 dp cp : pformula list =
     [(dp, d_steps, cp, c_steps); (cp, c_steps, dp, d_steps)] in
   let+ (d_lits, new_lits, _) = d_steps in
   let d_lits, new_lits = map prefix_vars d_lits, map prefix_vars new_lits in
-  let+ d_lit = new_lits in
+  let+ t_t' = new_lits in
+  let pairs = eq_pairs upward t_t' in  (* iii: pre-check *)
   let+ (c_lits, _, exposed_lits) = c_steps in
   let+ c_lit = exposed_lits in
   let with_para = allow cp || dp.ac = Some Comm || by || def_expand || const_expand in
-  super rule with_para lenient const_expand
-    dp (remove1 d_lit d_lits) d_lit cp c_lits c_lit
+  super rule with_para lenient upward dp (remove1 t_t' d_lits) pairs cp c_lits c_lit
 
 let allow_super dp cp =
   let induct_ok d c = not (is_inductive c) ||
