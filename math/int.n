@@ -223,4 +223,4 @@ Proof.
                          = n · (i + s(u)) + j · i
                          = n · k + j · i.
 
-    Then z(n · k + j · i, j · k + n · i) > 0, so z(n, j) · z(k, i) > 0, so a · b > 0.
+    Then z(n, j) · z(k, i) > 0, so a · b > 0.

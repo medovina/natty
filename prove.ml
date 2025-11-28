@@ -548,6 +548,8 @@ let is_hyp_expansion parents =
 
 let is_by parents = exists orig_goal parents && exists orig_by parents
 
+let by_cost = 0.0
+let expand_cost = 0.0
 let step_cost = 0.01
 let induction_cost = 1.0
 let infinite_cost = 10.0
@@ -561,7 +563,8 @@ let cost p : float * bool =
     ((if weight p.formula > max then infinite_cost else 0.0), p.derived) else
   let by = is_by p.parents in
   let c =
-    if by || is_expand p then step_cost else
+    if by then by_cost else
+    if is_expand p then expand_cost else
     if weight p.formula <= max then step_cost else
       if not !step_strategy && by_induction p then induction_cost
       else infinite_cost in
