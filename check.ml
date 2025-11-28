@@ -137,6 +137,10 @@ let is_comparison f : (string * formula * formula) option =
     | App (App (Var (c, _), g), h) when mem c Parser.compare_ops -> Some (c, g, h)
     | _ -> None
 
+let comparison_op f = match is_comparison f with
+  | Some (op, _, _) -> op
+  | None -> failwith "comparison_op"
+
 let rec collect_cmp f : formula list * id list =
   match is_comparison f with
     | Some (op, g, h) ->
@@ -144,16 +148,17 @@ let rec collect_cmp f : formula list * id list =
         (gs @ hs, g_ops @ [op] @ h_ops)
     | None -> ([f], [])
 
+let apply_comparison op f g : formula =
+  if op = "=" then Eq (f, g)
+  else if op = "≠" then _not (Eq (f, g))
+  else apply [_var op; f; g]
+
 let rec join_cmp fs ops : formula list =
-  let app op f g : formula =
-    if op = "=" then Eq (f, g)
-    else if op = "≠" then _not (Eq (f, g))
-    else apply [_var op; f; g] in
   match fs, ops with
     | [f], [] -> [f]
-    | [f; g], [op] -> [app op f g]
+    | [f; g], [op] -> [apply_comparison op f g]
     | f :: g :: fs, op :: ops ->
-        app op f g :: join_cmp (g :: fs) ops
+        apply_comparison op f g :: join_cmp (g :: fs) ops
     | _ -> failwith "join_cmp"
 
 let rec expand_chains f : formula =
@@ -408,18 +413,18 @@ and block_steps in_proof env lenv (Block (step, children)) : statement list list
     steps = []; by; is_step = true; range = range_of f } :: lenv in
   match step with
     | Assert groups ->
-        let eqs_reasons = chain_comparisons env groups in
-        let eqs = map fst eqs_reasons in
+        let eqs_reasons : (formula * str list) list = chain_comparisons env groups in
+        let eqs : formula list = map fst eqs_reasons in
         let eqs' = map strip_range eqs in
         let concl =
-          if in_proof && length eqs' >= 2 && for_all is_eq_or_neq eqs' then
-            let n = count_true is_neq eqs' in
-            if n <= 1 then
-              match is_comparison (hd eqs'), is_comparison (last eqs') with
-                | Some (_, a, _), Some (_, _, b) ->
-                    mk_eq' (n = 0) a b
-                | _ -> failwith "block_steps"
-            else multi_and eqs
+          if in_proof && length eqs' >= 2 && count_false is_eq eqs' <= 1 then
+            let op = match find_opt (Fun.negate is_eq) eqs' with
+              | Some eq -> comparison_op eq
+              | None -> "=" in
+            match is_comparison (hd eqs'), is_comparison (last eqs') with
+              | Some (_, a, _), Some (_, _, b) ->
+                  apply_comparison op a b
+              | _ -> failwith "block_steps"
           else multi_and eqs in
         (map mk_thm eqs_reasons, concl)
     | Let ids_types ->
