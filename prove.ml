@@ -946,7 +946,7 @@ let queue_class p : int =
   else 0
 
 let queue_cost p : float * int * int =
-  (p.cost, queue_class p, weight p.formula)
+  (p.cost, queue_class p, weight p.formula + (if p.goal then -100 else 0))
 
 let queue_add queue pformulas =
   let queue_element p = (Unprocessed p, queue_cost p) in
