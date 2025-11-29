@@ -48,14 +48,6 @@ let rec arity = function
   | Fun (_, typ) -> 1 + arity typ
   | _ -> 0
 
-let rec collect_arg_types = function
-  | Fun (t, u) -> t :: collect_arg_types u
-  | _ -> []
-
-let rec lambda_count = function
-  | Lambda (_, _, f) -> 1 + lambda_count f
-  | _ -> 0
-
 let map_type fn = function
   | Fun (t, u) -> Fun (fn t, fn u)
   | Pi (id, t) -> Pi (id, fn t)
@@ -126,12 +118,6 @@ let is_eq = function
 
 let is_neq = function
   | App (Const ("(¬)", _), Eq _) -> true
-  | _ -> false
-
-let is_eq_or_neq f = is_eq f || is_neq f
-
-let is_app_or_const = function
-  | App _ | Const _ -> true
   | _ -> false
 
 let app_or_eq h f g = match h with

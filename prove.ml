@@ -14,7 +14,7 @@ let distributive_ops = ref ([] : ((id * typ) * (id * typ)) list)
 
 let output = ref false
 
-type ac_type = Assoc | Comm | Extra
+type ac_type = Assoc | Comm | Dist | Extra
 
 let ac_other = function
   | Assoc -> Comm
@@ -143,7 +143,6 @@ let commutative_axiom f : (str * typ) option =
 let is_commutative_axiom p = Option.is_some (commutative_axiom p.formula)
 
 let distributive_templates : formula list =
-    printf "distributive_templates\n";
     let+ t = ["f(c)(g(a)(b)) = g(f(c)(a))(f(c)(b))";    (* c · (a + b) = c · a + c · b *)
               "f(g(a)(b))(c) = g(f(a)(c))(f(b)(c))"] in (* (a + b) · c = a · c + b · c *)
     [prefix_vars (Parser.parse_formula t)]
@@ -656,7 +655,8 @@ let allow_super dp cp =
   let induct_ok d c = not (is_inductive c) ||
     ((orig_goal d || orig_hyp d) && not (inducted d)) in
   dp.id <> cp.id && (allow dp || allow cp) &&
-  induct_ok dp cp && induct_ok cp dp
+    not (cp.ac <> None && dp.ac <> None) &&
+    induct_ok dp cp && induct_ok cp dp
 
 let allow_rewrite dp cp =
   dp.id <> cp.id && (!destructive_rewrites || allow cp)
@@ -1182,9 +1182,9 @@ let ac_kind f : (ac_type * str * typ) option =
                       if !debug > 0 then
                         printf "distributive operators: %s over %s\n\n"
                           (basic_const f) (basic_const g);
-                      distributive_ops := f_g :: !distributive_ops)
-                | None -> ());
-              None
+                      distributive_ops := f_g :: !distributive_ops);
+                    Some (Dist, "", unknown_type)
+                | None -> None)
 
 let gen_pformulas thm stmts : pformula list =
   let by_thms = thm_by thm in
@@ -1206,11 +1206,11 @@ let gen_pformulas thm stmts : pformula list =
                  by = mem (stmt_ref stmt) by_thms; ac = kind } in
           dbg_newline ();
           match kind_op with
-            | Some (kind, op, typ) ->
+            | Some (kind, op, typ) when op <> "" ->
                 if mem (ac_other kind, op, typ) ops then
                   (remove (kind, op, typ) ops, [p; ac_completion op typ])
                 else ((kind, op, typ) :: ops, [p])
-            | None -> (ops, [p]) in
+            | _ -> (ops, [p]) in
   concat (snd (fold_left_map scan [] stmts))
 
 let encode_consts known_stmts thm : statement list * statement =
