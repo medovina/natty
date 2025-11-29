@@ -9,6 +9,7 @@ let step_strategy = ref false
 let destructive_rewrites = ref false
 
 let formula_counter = ref 0
+
 let ac_ops = ref ([] : (id * typ) list)
 let distributive_ops = ref ([] : ((id * typ) * (id * typ)) list)
 
@@ -37,12 +38,17 @@ type pformula = {
   goal: bool;
   by: bool;
   derived: bool;
+  destruct: bool;
   rewritten: bool ref   (* true if this formula was non-destructively rewritten *)
 }
 
 let id_of pf = pf.id
 
 let is_hyp p = p.hypothesis > 0
+
+let safe_for_rewrite = ref ([] : pformula list)
+
+let is_safe_for_rewrite p = memq p !safe_for_rewrite
 
 let rec num_literals f = match bool_kind f with
   | True | False -> 0
@@ -195,7 +201,7 @@ let mk_pformula rule description parents step formula =
     definition = not step && parents <> [] && for_all (fun p -> p.definition) parents;
     by = parents <> [] && for_all (fun p -> p.by) parents;
     derived = step || exists (fun p -> p.derived) parents;
-    rewritten = ref false
+    rewritten = ref false; destruct = false
   }
 
 let number_formula pformula : pformula =
@@ -220,7 +226,7 @@ let number_formula pformula : pformula =
 
 let const_gt c d : bool = c > d
             
-let get_index x map =
+let get_index x map : int =
   match index_of_opt x !map with
     | Some i -> length !map - 1 - i
     | None ->
@@ -314,14 +320,15 @@ let term_gt = lpo_gt
 
 let term_ge s t = s = t || term_gt s t
 
-let terms = function
+let terms with_iff f : bool * formula * formula = match f with
   | Eq (f, g) -> (true, f, g)
+  | App (App (Const ("(↔)", _), f), g) when with_iff -> (true, f, g)
   | App (Const ("(¬)", _), Eq (f, g)) -> (false, f, g)
   | App (Const ("(¬)", _), f) -> (true, f, _false)
   | f -> (true, f, _true)
 
-let lit_to_multi f =
-  let eq, t, u = terms f in
+let lit_to_multi f : formula list list =
+  let eq, t, u = terms false f in
   if eq then [[t]; [u]] else [[t; _false]; [u; _false]]
 
 let lit_gt f g =
@@ -329,7 +336,7 @@ let lit_gt f g =
 
 let clause_gt = multi_gt lit_gt
 
-let or_split f = match bool_kind f with
+let or_split f : (formula * formula) option = match bool_kind f with
   | Binary ("(∨)", _, s, t) -> Some (s, t)
   | Binary ("(→)", _, s, t) -> Some (negate s, t)
   | Not g -> (match bool_kind g with
@@ -339,7 +346,7 @@ let or_split f = match bool_kind f with
   | _ -> None
 
 (* Clausify ignoring quantifiers and conjunctions *)
-let rec mini_clausify f = match or_split f with
+let rec mini_clausify f : formula list = match or_split f with
     | Some (f, g) -> mini_clausify f @ mini_clausify g
     | _ -> [f]
 
@@ -475,7 +482,7 @@ let is_higher (_, vsubst) = vsubst |> exists (fun (_, f) -> is_lambda f)
 let oriented upward t t' = [(t, t'); (t', t)] |>
   filter (fun (t, t') -> upward || not (term_ge t' t))
 
-let eq_pairs upward f = match terms f with
+let eq_pairs with_iff upward f = match terms with_iff f with
   | (true, t, t') ->
       if is_bool_const t' then [(t, t')]
       else (Eq (t, t'), _true) :: oriented upward t t'   (* iii: pre-check *)
@@ -511,7 +518,7 @@ let def_consts p : id list =
           if mem c logical_binary then concat_map find args
           else [c]
       | _ -> [] in
-  let cs = find (snd (remove_for_all p.formula)) in
+  let cs = find (remove_for_all p.formula) in
   subtract cs logical_ops
 
 let expand_limit = 2
@@ -544,11 +551,14 @@ let is_def_expansion parents =
 
 let is_hyp_expansion parents =
   if at_limit parents _expand_hyp hyp_expand_limit then false else
-  let hyp = parents |> find_opt (fun p -> p.hypothesis > 1) in
-  let last = parents |> find_opt (fun p -> orig_goal p || p.hypothesis = 1) in
-  match hyp, last with
-    | Some hyp, Some last ->
-        overlap (eq_consts hyp) (top_consts true last)
+  match opt_or_opt (find_opt orig_goal parents)
+                   (find_opt (fun p -> p.hypothesis = 1) parents) with
+    | Some last ->
+        let i = if last.goal then 1 else 2 in (
+        match (parents |> find_opt (fun p -> p.hypothesis >= i)) with
+          | Some hyp ->
+              overlap (eq_consts hyp) (top_consts true last)
+          | _ -> false)
     | _ -> false
 
 let is_by parents = exists orig_goal parents && exists orig_by parents
@@ -564,8 +574,6 @@ let cost p : float * bool =
   let qs = p.parents |> filter (fun p -> p.goal || is_hyp p) in
   let qs = if qs = [] then p.parents else qs in
   let max = maximum (map (fun p -> weight p.formula) qs) in
-  if p.rule = "rw" then
-    ((if weight p.formula > max then infinite_cost else 0.0), p.derived) else
   let by = is_by p.parents in
   let c =
     if by then by_cost else
@@ -627,7 +635,7 @@ let super rule with_para lenient upward dp d' pairs cp c_lits c_lit : pformula l
 
 let allow p = is_hyp p || p.goal || p.ac = Some Comm
 
-let is_unit_equality f = is_eq (snd (remove_for_all f))
+let is_unit_equality f = is_eq (remove_for_all f)
 
 let all_super1 dp cp : pformula list =
   let by = is_by [dp; cp] in
@@ -644,7 +652,7 @@ let all_super1 dp cp : pformula list =
   let+ (d_lits, new_lits, _) = d_steps in
   let d_lits, new_lits = map prefix_vars d_lits, map prefix_vars new_lits in
   let+ t_t' = new_lits in
-  let pairs = eq_pairs upward t_t' in  (* iii: pre-check *)
+  let pairs = eq_pairs false upward t_t' in  (* iii: pre-check *)
   let+ (c_lits, _, exposed_lits) = c_steps in
   let+ c_lit = exposed_lits in
   let with_para = (allow cp && (not !step_strategy || is_unit_equality dp.formula)) ||
@@ -657,9 +665,6 @@ let allow_super dp cp =
   dp.id <> cp.id && (allow dp || allow cp) &&
     not (cp.ac <> None && dp.ac <> None) &&
     induct_ok dp cp && induct_ok cp dp
-
-let allow_rewrite dp cp =
-  dp.id <> cp.id && (!destructive_rewrites || allow cp)
 
 let all_super queue dp cp : pformula list = profile @@
   let dbg = (dp.id, cp.id) = !debug_super in
@@ -681,7 +686,7 @@ let all_super queue dp cp : pformula list = profile @@
  *         C'σ          σ ∈ csu(s, t)  *)
 
 let eres cp c' c_lit : pformula list =
-  match terms c_lit with
+  match terms false c_lit with
     | (true, _, _) -> []
     | (false, u, u') ->
         match unify u u' with
@@ -703,6 +708,7 @@ let all_eres cp = run_clausify cp eres
  *)
 
 let all_split p : pformula list =
+  if p.definition && is_safe_for_rewrite p then [] else
   let skolem_names = ref [] in
   let rec run lits : formula list list =
     let lits1 : formula list = clausify1 p.id lits (Some skolem_names) in
@@ -733,12 +739,15 @@ let update p rewriting f : pformula =
     | None -> ([], true) in
   if p.id = 0 then
     { p with rewrites = r @ p.rewrites; simp = p.simp || simp; formula = f }
-  else (  (* non-destructive rewrite *)
-    assert (not !(p.rewritten));
-    p.rewritten := true;
+  else (
     { p with id = 0; rule = if simp then "simp" else "rw"; rewrites = r; simp; parents = [p];
-        delta = 0.0; formula = f; rewritten = ref false }
+        delta = 0.0; formula = f }
   )
+
+let allow_rewrite dp cp =
+  dp.id <> cp.id &&
+    (!destructive_rewrites || allow cp || is_safe_for_rewrite dp) &&
+    not (orig_hyp dp && (orig_hyp cp || orig_goal cp))
 
 (*     t = t'    C⟪tσ⟫
  *   ═══════════════════   rw
@@ -747,9 +756,10 @@ let update p rewriting f : pformula =
  *   (i) tσ > t'σ
  *)
 let rewrite dp cp c_subterms : pformula list =
-  if not (allow_rewrite dp cp) || orig_hyp dp && orig_hyp cp then [] else
+  if not (allow_rewrite dp cp) then [] else
   let d = remove_universal dp.formula in
-  if num_literals d > 1 then [] else
+  let safe = is_safe_for_rewrite dp in
+  if not (num_literals d <= 1 || safe && is_iff d) then [] else
     let c = cp.formula in
     let rewrite_with (t, t', u) =
       match try_match ([], []) t u with
@@ -761,10 +771,11 @@ let rewrite dp cp c_subterms : pformula list =
             else None
         | _ -> None in
     let all =
-      let+ (t, t') = eq_pairs false d in  (* i: pre-check *)
+      let+ (t, t') =
+        eq_pairs safe false d in  (* i: pre-check *)
       let t, t' = prefix_vars t, prefix_vars t' in
-      let+ u = c_subterms in
-      [(t, t', u)] in
+      let& u = c_subterms in
+      (t, t', u) in
     Option.to_list (find_map rewrite_with all)
 
 (*     C    Cσ ∨ R
@@ -945,8 +956,9 @@ end)
 let queue_class p : int =
   if p.cost = 0.0 then
     if is_ac p then 0
-    else if p.by then 1
-    else if orig_goal p then 2
+    else if is_safe_for_rewrite p then 1
+    else if p.by then 2
+    else if orig_goal p then 3
     else if orig_hyp p then 100 - p.hypothesis
     else 100 + p.id
   else 0
@@ -970,7 +982,7 @@ let rewrite_from ps q : pformula option =
   find_map (fun p -> rewrite_opt p q q_subterms) ps
 
 let repeat_rewrite used p : pformula = profile @@
-  let rec loop p = match rewrite_from !used p with
+  let rec loop p = match rewrite_from used p with
     | None -> p
     | Some p -> loop p in
   loop p
@@ -982,8 +994,15 @@ let finish p f_canonical found delta cost : pformula =
   if p.id = !(opts.show_proof_of) then output_proof p;
   p
 
+let remove_from_map found p =
+  let f_canonical = canonical p in
+  assert (FormulaMap.mem f_canonical !found);
+  found := FormulaMap.remove f_canonical !found
+
 let rw_simplify cheap src queue used found p : pformula option =
-  let p1 = if p.rule = "rw" || !destructive_rewrites then repeat_rewrite used p else p in
+  let rewrite_with =
+    if p.destruct || !destructive_rewrites then !used else !safe_for_rewrite in
+  let p1 = repeat_rewrite rewrite_with p in
   let p = simplify p1 in
   let taut = is_tautology p.formula in
   if taut || not (is_ac p) && is_ac_tautology p.formula then (
@@ -999,11 +1018,7 @@ let rw_simplify cheap src queue used found p : pformula option =
           if !debug > 0 then (
             let prefix = sprintf "%s subsumed by #%d: " src pf.id in
             print_line (prefix_show prefix p.formula));
-            if p.id > 0 then (
-              let f_canonical = canonical p in
-              assert (FormulaMap.mem f_canonical !found);
-              found := FormulaMap.remove f_canonical !found
-            );
+          if p.id > 0 then remove_from_map found p;
           None
       | None ->
           if p.id > 0 then Some p else
@@ -1027,10 +1042,9 @@ let rw_simplify cheap src queue used found p : pformula option =
                         else printf "(%d is a duplicate of %d; replacing with lower cost of %.2f)\n"
                           p.id pf.id p.cost;
                       if PFQueue.mem (Unprocessed pf) !queue then
-                        queue := PFQueue.add (Unprocessed p) (queue_cost p)
-                          (PFQueue.remove (Unprocessed pf) !queue)
+                        queue := PFQueue.remove (Unprocessed pf) !queue
                       else
-                        used := p :: remove1 pf !used;
+                        used := remove1 pf !used;
                       (* Ideally we would also update descendents of pf
                         to have p as an ancestor instead. *)
                       Some p
@@ -1056,16 +1070,17 @@ let szs = function
 let forward_simplify queue used found p : pformula option = profile @@
   rw_simplify false (sprintf "given (#%d) is" p.id) queue used found p
   
-let back_simplify from used : pformula list = profile @@
-  let back_simp p =
+let back_simplify found from used : pformula list = profile @@
+  let back_simp p : pformula list * pformula list =
     if subsumes1 from p then (
       if !debug > 0 then
         printf "%d. %s was back subsumed by %d. %s\n"
           p.id (show_formula p.formula) from.id (show_formula from.formula);
+      remove_from_map found p;
       ([], []))
     else match rewrite_from [from] p with
       | Some p' -> (
-          (if !destructive_rewrites || p.rule = "rw" then [] else [p]),
+          (if !destructive_rewrites || p.destruct then [] else [p]),
           [p'])
       | None -> ([p], []) in
   let (new_used, rewritten) = map_pair concat (unzip (map back_simp !used)) in
@@ -1073,9 +1088,12 @@ let back_simplify from used : pformula list = profile @@
   rewritten
 
 let nondestruct_rewrite used p : pformula list = profile @@
-  if !destructive_rewrites || p.rule = "rw" then [] else
+  if !destructive_rewrites || !(p.rewritten) || p.destruct then [] else (
     (* perform just a single rewrite here; remaining will occur in rw_simplify_all *)
-    Option.to_list (rewrite_from used p)
+    let& q = Option.to_list (rewrite_from used p) in
+    p.rewritten := true;
+    {q with destruct = true; rewritten = ref false}
+  )
 
 let generate queue p used : pformula list = profile @@
   nondestruct_rewrite !used p @
@@ -1129,7 +1147,7 @@ let refute pformulas cancel_check : proof_result = profile @@
                       incr count;
                       dbg_print_formula false (sprintf "[%.3f s] given: " elapsed) given;
                       if p.formula = _false then ([], [p]) else
-                        let rewritten = back_simplify p used in
+                        let rewritten = back_simplify found p used in
                         used := p :: !used;
                         let generated = generate queue p used in
                         (rewritten, generated)))
@@ -1146,6 +1164,11 @@ let refute pformulas cancel_check : proof_result = profile @@
             | Some p -> Proof (p, stats ())
             | None -> loop () in
   loop ()
+
+let flip_template = prefix_vars (Parser.parse_formula "f(x)(y) ↔ g(y)(x)")
+
+let def_safe_for_rewrite f =
+  Option.is_some (_match flip_template (remove_for_all f))
 
 (* Given an associative/commutative operator *, construct the axiom
  *     x * (y * z) = y * (x * z)
@@ -1204,6 +1227,8 @@ let gen_pformulas thm stmts : pformula list =
           let p = { (to_pformula (stmt_id_name stmt) f)
             with hypothesis = hyp; definition = is_definition stmt;
                  by = mem (stmt_ref stmt) by_thms; ac = kind } in
+          if p.definition && def_safe_for_rewrite p.formula then
+            safe_for_rewrite := p :: !safe_for_rewrite;
           dbg_newline ();
           match kind_op with
             | Some (kind, op, typ) when op <> "" ->
@@ -1236,6 +1261,8 @@ let prove known_stmts thm cancel_check : proof_result * float =
   destructive_rewrites := not !step_strategy;
   let known_stmts, thm = encode_consts known_stmts thm in
   ac_ops := [];
+  distributive_ops := [];
+  safe_for_rewrite := [];
   formula_counter := 0;
   let known = gen_pformulas thm known_stmts in
   let goal = to_pformula (stmt_id_name thm) (Option.get (stmt_formula thm)) in

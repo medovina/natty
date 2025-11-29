@@ -48,7 +48,7 @@ let map_assume_step env vars step = match step with
   | _ -> step
 
 let has_premise f g =
-  match snd (remove_for_all (strip_ranges f)) with
+  match remove_for_all (strip_ranges f) with
     | App (App (Const ("(→)", _), g'), _) when g' = strip_ranges g -> true
     | _ -> false
 
@@ -440,7 +440,7 @@ and block_steps in_proof env lenv (Block (step, children)) : statement list list
           | _ -> mk_concl g in
         (fs, concl)
     | Assume a ->
-        let (ids_typs, f) = remove_exists a in
+        let (ids_typs, f) = gather_exists a in
         let decls = const_decls ids_typs in
         let decls = Hypothesis ("hyp", top_infer (decls @ env) f) :: decls in
         let (fs, concl) = child_steps decls in

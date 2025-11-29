@@ -214,7 +214,9 @@ Proof.
 
     c. Suppose that a > 0 and b > 0.  There are some n, j, k, i : ℕ such that a = z(n, j) and b = z(k, i). Then z(n, j) > 0, so j < n.  Similarly z(k, i) > 0, so i < k.  Now a + b = z(n + k, j + i).  By [< add left right] we know that j + i < n + k.  Hence z(n + k, j + i) > 0, so a + b > 0.
 
-    d. Suppose that a > 0 and b > 0.  There are some n, j, k, i : ℕ such that a = z(n, j) and b = z(k, i). Then z(n, j) > 0, so j < n.  Similarly z(k, i) > 0, so i < k.  We know that k = i + s(u) for some u : ℕ.  Since j < n, by [< multiply right] we have j · s(u) < n · s(u).  Hence
+    d. Suppose that a > 0 and b > 0.  There are some n, j, k, i : ℕ such that a = z(n, j) and b = z(k, i). Then z(n, j) > 0, so j < n.  Similarly z(k, i) > 0, so i < k.
+    
+    We know that k = i + s(u) for some u : ℕ.  Since j < n, by [< multiply right] we have j · s(u) < n · s(u).  Hence
 
         n · i + j · k = n · i + j · (i + s(u))
                          = n · i + j · i + j · s(u)

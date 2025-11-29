@@ -120,6 +120,10 @@ let is_neq = function
   | App (Const ("(¬)", _), Eq _) -> true
   | _ -> false
 
+let is_iff = function
+  | App (App (Const ("(↔)", _), _), _) -> true
+  | _ -> false
+
 let app_or_eq h f g = match h with
   | App _ -> App (f, g)
   | Eq _ -> Eq (f, g)
@@ -578,14 +582,9 @@ let rec gather_lambdas = function
       ((x, typ) :: vars, g)
   | f -> ([], f)
 
-let rec remove_quant q f : (id * typ) list * formula = match kind f with
-  | Quant (q', x, typ, g) when q = q' ->
-      let (xs, h) = remove_quant q g in
-      ((x, typ) :: xs, h)
-  | _ -> ([], f)
-
-let remove_for_all = remove_quant "(∀)"
-let remove_exists = remove_quant "(∃)"
+let gather_for_all = gather_quant "(∀)"
+let remove_for_all f = snd (gather_for_all f)
+let gather_exists = gather_quant "(∃)"
 
 let remove_quants with_existential : formula -> formula * id list =
   let rec remove f = match kind f with
@@ -627,7 +626,7 @@ let mk_var_or_type_const (id, typ) =
 let extract_definition f : (formula * (id * typ) list * formula) option =
   (* Look for f of the form ∀x₁...xₙ C y₁...yₙ = D.  The arguments yᵢ must be
      a permutation of the variables xⱼ.  *)
-  let (xs, f) = remove_for_all f in
+  let (xs, f) = gather_for_all f in
   let xs_vars = map mk_var' xs in
   match is_eq_or_iff f with
     | Some (head, g) ->
