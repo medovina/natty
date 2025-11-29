@@ -34,9 +34,13 @@ let strip_range f : formula = match f with
   | App (Const (c, _), g) when starts_with "@" c -> g
   | _ -> f
 
-let range_of f : str = match f with
-  | App (Const (c, _), _) when starts_with "@" c -> c
-  | _ -> ""
+let rec strip_ranges f : formula =
+  map_formula strip_ranges (strip_range f)
+
+let rec range_of f : range = match f with
+  | App (Const (c, _), _) when starts_with "@" c -> decode_range c
+  | App (Const ("(∀)", _), Lambda (_, _, g)) -> range_of g
+  | _ -> empty_range
 
 type chain = (id * formula * (string * range) list) list  (* op, formula, reason(s) *)
 

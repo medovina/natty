@@ -69,7 +69,7 @@ super_term = super_digit;
 id_sub = base_id [sub_expr];
 
 base_term =
-    sym | id_sub [parens_exprs | "⋯" id_sub]
+    sym | id_sub ["⋯" id_sub]
   | '⊤' | '⊥' | parens_exprs
   | '{' var of_type '|' proposition '}';
 

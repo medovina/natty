@@ -197,6 +197,7 @@ let map_pair f (a, b) = (f a, f b)
 (* lists *)
 
 let (let+) = fun a f -> concat_map f a
+let (let&) = fun a f -> concat_map (fun x -> [f x]) a
 
 let head_opt xs = nth_opt xs 0
 

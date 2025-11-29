@@ -226,12 +226,10 @@ and range_term f f_sub =
           App (_const "∏", mk_tuple [f; f_sub; g_sub])
       | _ -> failwith "subscript expected");
 
-and id_term s = (id_sub >>=
-  (fun (f, f_sub) -> choice [
-    parens_exprs |>> (fun args -> App (mk_sub f f_sub, mk_tuple args));
-    range_term f f_sub;
-    return (mk_sub f f_sub)
-  ])) s
+and id_term s = (
+  let> (f, f_sub) = id_sub in
+  opt (mk_sub f f_sub) (range_term f f_sub)
+  ) s
 
 and base_term s : formula pr = (record_formula @@ choice [
   (sym |>> _const);
@@ -714,7 +712,8 @@ let _module : statement list p = optional using >>
 let parse_module_text text init_state : (statement list * state) MParser.result =
   MParser.parse_string (pair _module get_user_state) text init_state
 
-let parse_formula text = always_parse expr text (empty_state ())
+let parse_formula text : formula =
+  strip_ranges (always_parse expr text (empty_state ()))
 
 let relative_name from f = mk_path (Filename.dirname from) (f ^ ".n")
   

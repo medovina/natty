@@ -10,18 +10,6 @@ exception Check_error of string * range
 let error s range = raise (Check_error (s, range))
 let errorf s f range = error (sprintf "%s: %s" s (show_formula f)) range
 
-let strip_range f : formula = match f with
-  | App (Const (c, _), g) when starts_with "@" c -> g
-  | _ -> f
-
-let rec strip_ranges f : formula =
-  map_formula strip_ranges (strip_range f)
-
-let rec range_of f : range = match f with
-  | App (Const (c, _), _) when starts_with "@" c -> decode_range c
-  | App (Const ("(∀)", _), Lambda (_, _, g)) -> range_of g
-  | _ -> empty_range
-
 let is_declared env id =
   env |> exists (fun stmt -> match decl_var stmt with
     | Some (id', _) when id' = id -> true

@@ -39,7 +39,6 @@ let rec target_type = function
   | t -> t
 
 let unknown_type = Base "?"
-let unknown_type_n n = Base (sprintf "?%d" n)
 
 let is_unknown = function
   | Base id -> id.[0] = '?'
@@ -754,7 +753,9 @@ let unify_or_match is_unify subst t u : subst option =
     let unify_pairs f g f' g' : subst option =
       let* subst = unify' subst f f' in
       unify' subst g g' in
-    let unify_term_types = unify_or_match_types is_unify (Fun.const true) tsubst in
+    let unify_term_types t u =
+      if t = unknown_type || u = unknown_type then Some tsubst else
+      unify_or_match_types is_unify (Fun.const true) tsubst t u in
     match eta t, eta u with
       | Const (c, t), Const (c', u) when c = c' ->
           let* tsubst = unify_term_types t u in
