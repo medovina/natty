@@ -1157,9 +1157,9 @@ let to_pformula name f =
   create_pformula name [] (rename_vars (lower_definition f))
 
 let ac_completion op typ : pformula =
-  if !debug > 0 then printf "AC operator: %s\n\n" op;
+  if !debug > 0 then printf "AC operator: %s\n\n" (strip_prefix op);
   ac_ops := (op, typ) :: !ac_ops;
-  let name = "AC completion: " ^ without_type_suffix op in
+  let name = "AC completion: " ^ basic_const op in
   let axiom = { (to_pformula name (ac_axiom op typ)) with ac = Some Extra } in
   dbg_newline ();
   axiom

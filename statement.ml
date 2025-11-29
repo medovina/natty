@@ -186,7 +186,7 @@ let stmt_kind = function
   | Theorem _ | HTheorem _ -> "theorem"
 
 let stmt_id_name stmt =
-  let base = stmt_kind stmt ^ " " ^ stmt_id stmt in
+  let base = stmt_kind stmt ^ " " ^ strip_prefix (stmt_id stmt) in
   match stmt with
   | Axiom (_, _, name)
   | Theorem { name; _ } -> 

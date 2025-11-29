@@ -425,7 +425,7 @@ and show_type t =
       | Type -> "*"
       | Base id -> id
       | TypeVar id -> id
-      | Fun (t, u) -> op 1 "(→)" t u
+      | Fun (t, u) -> op 1 "→" t u
       | Pi (id, t) ->
           parens_if (0 < outer) (sprintf "Π%s.%s" id (show 0 false t))
       | TypeApp (c, [typ]) when c.[0] = '@' -> show outer left typ
@@ -472,7 +472,7 @@ and show_formula_multi multi f =
           else layout multi in
           parens_if p s
       | Quant (q, id, typ, u) ->
-          let prefix = sprintf "%s%s:%s." q id (show_type typ) in
+          let prefix = sprintf "%s%s:%s." (strip_prefix q) id (show_type typ) in
           parens_if (quantifier_prec < outer)
             (prefix ^ show (indent + utf8_len prefix) multi quantifier_prec false u)
       | _ -> match f with
