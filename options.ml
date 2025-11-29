@@ -12,6 +12,7 @@ type options = {
   only_thm: string option ref;
   pipe: string ref;
   server: bool ref;
+  show_structure: bool ref;
   show_proofs: bool ref;
   show_proof_of: int ref;
   stats: bool ref;
@@ -33,6 +34,7 @@ let opts = {
   server = ref false;
   show_proofs = ref false;
   show_proof_of = ref 0;
+  show_structure = ref false;
   stats = ref false;
   timeout = ref 5.0;
   verbose = ref false
@@ -53,6 +55,7 @@ let usage () =
       -h                print this help message
       -i                print proof statistics
       -l                run as language server
+      -n                show inferred proof structure
       -o<name>          only prove/export given theorem or proof step
       -p[<id>]          output proof of theorems, or only of given formula
       --pipe=<name>     pipe name for language server
@@ -84,6 +87,7 @@ let parse_args args =
             | 'h' -> usage ()
             | 'i' -> opts.stats := true
             | 'l' -> opts.server := true
+            | 'n' -> opts.show_structure := true
             | 'o' -> opts.only_thm := Some value
             | 'p' -> if arg = "-p" then opts.show_proofs := true
                      else opts.show_proof_of := int_val ()

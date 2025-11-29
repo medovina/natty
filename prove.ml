@@ -1121,8 +1121,7 @@ let refute pformulas cancel_check : proof_result = profile @@
                   | None -> ([], [])
                   | Some p -> (
                       incr count;
-                      let prefix = if !count = 0 then "" else sprintf "#%d, " !count in
-                      dbg_print_formula false (sprintf "[%s%.3f s] given: " prefix elapsed) given;
+                      dbg_print_formula false (sprintf "[%.3f s] given: " elapsed) given;
                       if p.formula = _false then ([], [p]) else
                         let rewritten = back_simplify p used in
                         used := p :: !used;

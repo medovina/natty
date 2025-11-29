@@ -518,7 +518,7 @@ let rec expand_proof stmt env steps proof_steps : formula * statement list list 
       if duplicate_lets (collect_lets init) proof_steps
         then proof_steps @ [Assert [("", concl, [])]]
         else init @ proof_steps @ [f] in
-    if !debug > 0 then (
+    if !(opts.show_structure) then (
       printf "%s:\n\n" (stmt_id_name stmt);
       if !debug > 1 then (
         proof_steps |> iter (fun s -> print_endline (show_proof_step s));
@@ -526,7 +526,7 @@ let rec expand_proof stmt env steps proof_steps : formula * statement list list 
       );
     );
     let blocks = infer_blocks env proof_steps in
-    if !debug > 0 then print_blocks blocks;
+    if !(opts.show_structure) then print_blocks blocks;
     let (stmtss, _concl) = blocks_steps true env [] blocks in
     map rev stmtss in
   (top_infer env concl, stmtss)
