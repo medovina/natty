@@ -264,7 +264,7 @@ let is_const_decl id def : typ option =
 let definition_id f : id =
   match is_eq_or_iff (strip_range (remove_universal f)) with
     | Some (f, _g) ->
-        get_const_or_var (fst (collect_args f))
+        get_const_or_var (head_of f)
     | _ -> failwith "definition_id: definition expected"
 
 let number_hypotheses name stmts =

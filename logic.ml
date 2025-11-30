@@ -317,14 +317,16 @@ let without_type_suffix id =
   let id = fst (split_type_suffix id) in
   if id = "u-" then "-" else id  (* display unary minus as ordinary minus *)
 
-let collect_args t : formula * formula list =
+let collect_args f : formula * formula list =
   let rec collect = function
     | App (f, g) ->
         let (head, args) = collect f in
         (head, g :: args)
     | head -> (head, []) in
-  let (head, args) = collect t in
+  let (head, args) = collect f in
   (head, rev args)
+
+let head_of f : formula = fst (collect_args f)
 
 let is_eq_or_iff f = match f with
   | Eq (f, g) | App (App (Const ("(↔)", _), f), g) -> Some (f, g)

@@ -526,6 +526,13 @@ let def_consts p : id list =
   let cs = find (remove_for_all p.formula) in
   subtract cs logical_ops
 
+let top_def_consts f : (id * id) option = match remove_for_all f with
+  | Eq (f, g) -> (
+      match head_of f, head_of g with
+        | Const (c, _), Const (d, _) -> Some (c, d)
+        | _ -> None)
+  | _ -> None
+
 let expand_limit = 2
 let def_expand_limit = 2
 let hyp_expand_limit = 2
@@ -1237,14 +1244,25 @@ let use_premise const_map proof_consts f =
 let const_def f : (id * id) option =
   opt_or_opt (def_is_synonym f) (def_is_or_equal f)
 
+let find_proof_consts thm stmts by_thms hyps const_map =
+  let proof_consts =
+    let+ stmt = thm :: by_thms @ hyps in
+    consts_of const_map (get_stmt_formula stmt) in
+  let goal_consts = all_consts (get_stmt_formula thm) in
+  let extra = stmts |> concat_map (function
+    | Definition (_, _, f) -> (match top_def_consts f with
+        | Some (c, d) when mem c goal_consts && mem d proof_consts ->
+            consts_of const_map f
+        | _ -> [])
+    | _ -> []) in
+  unique (proof_consts @ extra)
+
 let gen_pformulas thm stmts : pformula list =
   let by_thms = stmts |> filter (fun s -> mem (stmt_ref s) (thm_by thm)) in
   let by_contradiction = (stmt_formula thm = Some _false) in
   let hyps = rev (filter is_hypothesis stmts) in
   let const_map = filter_map const_def (filter_map stmt_formula stmts) in
-  let proof_consts = unique @@
-    let+ stmt = thm :: by_thms @ hyps in
-    consts_of const_map (get_stmt_formula stmt) in
+  let proof_consts = find_proof_consts thm stmts by_thms hyps const_map in
   let scan ops stmt =
     match stmt_formula stmt with
       | None -> (ops, [])
