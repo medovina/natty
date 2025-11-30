@@ -490,25 +490,30 @@ let eq_pairs with_iff upward f = match terms with_iff f with
 
 let by_induction p = exists is_inductive p.parents
 
-(* Find constants such as c in "c = ...". *)
-let eq_consts p : id list =
+(* Find terms such as g in "g = ...". *)
+let eq_terms p : formula list =
   let rec find f = match f with
     | App (Const ("(¬)", _), f) -> find f
-    | Eq (Const (c, _), _) | Eq (_, Const (c, _)) -> [c]
+    | Eq (g, h) -> [g; h]
     | _ -> []
   in find p.formula
 
-(* Find constants such as f in "f x y z = ...", optionally along with
+let eq_consts p = filter_map opt_const (eq_terms p)
+
+(* Find terms such as f in "f x y z = ...", optionally along with
  * f's arguments if they are constant. *)
-let top_consts with_args p : id list =
+let top_terms with_args p : formula list =
   let rec find f = match f with
     | App (Const ("(¬)", _), f) -> find f
     | App (Const ("(∀)", _), Lambda (_, _, f)) -> find f
     | Eq (f, g) -> find f @ find g
     | _ ->
         let f, args = collect_args f in
-        filter_map opt_const (f :: if with_args then args else []) in
-  subtract (find p.formula) logical_ops
+        if with_args then f :: args else [f] in
+  find p.formula
+
+let top_consts p : id list =
+  subtract (filter_map opt_const (top_terms false p)) logical_ops
 
 (* Find constants such as f in "f x y → ...". *)
 let def_consts p : id list =
@@ -544,9 +549,9 @@ let is_def_expansion parents =
     | Some def, Some last ->
         let goal_consts =
           if orig_goal last then all_consts last.formula
-                            else top_consts false last in
+                            else top_consts last in
         overlap (eq_consts def) goal_consts ||
-        overlap (def_consts def) (top_consts false last)
+        overlap (def_consts def) (top_consts last)
     | _ -> false
 
 let is_hyp_expansion parents =
@@ -557,7 +562,7 @@ let is_hyp_expansion parents =
         let i = if last.goal then 1 else 2 in (
         match (parents |> find_opt (fun p -> p.hypothesis >= i)) with
           | Some hyp ->
-              overlap (eq_consts hyp) (top_consts true last)
+              overlap (eq_terms hyp) (top_terms true last)
           | _ -> false)
     | _ -> false
 
