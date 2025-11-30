@@ -42,7 +42,9 @@ let rec range_of f : range = match f with
   | App (Const ("(∀)", _), Lambda (_, _, g)) -> range_of g
   | _ -> empty_range
 
-type chain = (id * formula * (string * range) list) list  (* op, formula, reason(s) *)
+type reason = (string * range) list
+
+type chain = (id * formula * reason) list  (* op, formula, reason(s) *)
 
 type proof_step =
   | Assert of chain

@@ -317,13 +317,13 @@ and id_eq_term s = (id >> str "=" >> term) s
 and theorem_ref s : string pr = brackets (
   name << optional (str ":" << sep_by1 id_eq_term (str ","))) s
 
-and reference s : (string * range) list pr = choice [
+and reference s : reason pr = choice [
   single (with_range theorem_ref);
   any_str ["our"; "the"] >>? str "assumption that" >> atomic >>$ [];
   str "part" >> parens number >> opt_str "of this theorem" >>$ []
   ] s
 
-and reason s : (string * range) list pr = (
+and reason s : reason pr = (
   reference <|>
   (choice [
     str "contradiction with" >> reference >>$ "";
@@ -333,7 +333,7 @@ and reason s : (string * range) list pr = (
     str "the definition of" << term;
     str "transitivity of ="] >>$ [])) s
 
-and by_reason s : (string * range) list pr =
+and by_reason s : reason pr =
   (opt_str "again" >> str "by" >> sep_by1 reason (str "and") |>> concat) s
 
 (* so / have *)
@@ -344,20 +344,22 @@ and so = choice [
   str "but" << opt_str "then";
   str "which implies" << opt_str "that" ]
 
-and have s = choice [
-  any_str ["clearly"; "it must be that";
-    "observe that"; "the only alternative is"; "this means that";
-    "this shows that"; "trivially";
-    "we conclude that"; "we deduce that";
-    "we know that"; "we must have"; "we see that"];
-  any_str ["it follows"; "it then follows"] >>
-    optional ((str "from" >> reference) <|> by_reason) >> str "that";
-  str "it is" >> any_str ["clear"; "obvious"] >> str "that";
-  any_str ["on the other hand"; "similarly"] << opt_str ",";
-  str "we have" << opt_str "shown that"
-  ] s
+and have s : reason pr = (
+  (any_str ["it follows"; "it then follows"] >>
+    opt [] ((str "from" >> reference) <|> by_reason) << str "that") <|>
+  (choice [
+    any_str ["clearly"; "it must be that";
+      "observe that"; "the only alternative is"; "this means that";
+      "this shows that"; "trivially";
+      "we conclude that"; "we deduce that";
+      "we know that"; "we must have"; "we see that"];
+    str "it is" >> any_str ["clear"; "obvious"] >> str "that";
+    any_str ["on the other hand"; "similarly"] << opt_str ",";
+    str "we have" << opt_str "shown that"
+  ] >>$ [])) s
 
-and new_phrase s = (so <|> (optional by_reason >> have) <|> str "that") s
+and new_phrase s =
+  (so <|> (optional by_reason >> have >>$ "") <|> str "that") s
 
 and and_op s = (str "and" <<? not_before new_phrase) s
 
@@ -602,7 +604,7 @@ let contradiction : proof_step list p =
 let which_is_contradiction : proof_step list p = str "," >>?
   (opt_str "which is" >>? optional (any_str ["again"; "also"; "similarly"])) >>? contradiction
 
-let prop_reason : (formula * (string * range) list) p =
+let prop_reason : (formula * reason) p =
   pair proposition (opt [] by_reason)
 
 let proof_eq_props : chain p =
@@ -612,18 +614,19 @@ let proof_eq_props : chain p =
 
 let proof_prop : proof_step list p =
   let> reason = opt [] (by_reason << opt_str ",") in
-  let> chain = optional have >> proof_eq_props in
+  let> reason2 = opt [] have in
+  let> chain = proof_eq_props in
   let$ c = opt [] which_is_contradiction in
   let chain = match chain with
-    | (op, f, r) :: rest -> (op, f, reason @ r) :: rest
+    | (op, f, r) :: rest -> (op, f, reason @ reason2 @ r) :: rest
     | _ -> failwith "proof_prop" in
   mk_step chain :: c
 
-let proof_if_prop : proof_step list p = pipe3
-  (str "if" >> small_prop)
-  (opt_str "," >> str "then" >> proof_prop)
-  (many_concat (str "," >> so >> proof_prop))
-  (fun f gs hs -> [Group (Assume f :: gs @ hs)])
+let proof_if_prop : proof_step list p =
+  let> f = str "if" >> small_prop in
+  let> gs = opt_str "," >> str "then" >> proof_prop in
+  let$ hs = many_concat (str "," >> so >> proof_prop) in
+  [Group (Assume f :: gs @ hs)]
 
 let and_or_so = (str "and" << optional so) <|> so
 
