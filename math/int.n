@@ -125,17 +125,39 @@ Proof.
               = z(n, j) by [def of ·]
               = a.
     
-Theorem.  Let i, j : ℤ.  If i · j = 0, then i = 0 or j = 0.  [zero product]
+Theorem.  Let a, b : ℤ.  If a ≠ 0 and b ≠ 0, then a · b ≠ 0.  [zero product]
 
-Proof.
+Proof.  Assume that a ≠ 0 and b ≠ 0.  There are some n, j, k, i : ℕ such that a = z(n, j) and b = z(k, i).  It follows that n ≠ j and k ≠ i.  Since k ≠ i, by [trichotomy] k < i or i < k.
 
-  Suppose that i · j = 0 and that i ≠ 0.  We will deduce that j = 0.  There are some a, b, c, d : ℕ such that i = z(a, b) and j = z(c, d).  Then a ≠ b by [ℤ zero].  By [def of ·] we see that 0 = i · j = z(a, b) · z(c, d) = z(a · c + b · d, b · c + a · d).  Then a · c + b · d = a · d + b · c by [ℤ zero].  By [trichotomy] we know that either a < b or a > b.
-  
-  First, suppose that a < b.  Then there is some g : ℕ such that a + s(g) = b.  Hence a · c + (a + s(g)) · d = a · d + (a + s(g)) · c.  So a · c + a · d + s(g) · d = a · d + a · c + s(g) · c, so s(g) · d = s(g) · c.  We deduce that d = c.
+Suppose that i < k.  Then k = i + s(u) for some u : ℕ.  Since n ≠ j, it follows by [cancellation law for multiplication] that n · s(u) ≠ j · s(u).  Hence
 
-  Next, suppose that a > b.  Then there is some g : ℕ such that b + s(g) = a.  Hence (b + s(g)) · c + b · d = (b + s(g)) · d + b · c.  So b · c + s(g) · c + b · d = b · d + s(g) · d + b · c, so s(g) · c = s(g) · d.  We deduce that c = d.
+    n · k + j · i = n · (i + s(u)) + j · i
+                     = n · i + n · s(u) + j · i
+                     ≠ n · i + j · s(u) + j · i by [cancellation law for addition].
 
-  In either case c = d.  Then j = 0 by [ℤ zero].
+But
+
+    n · i + j · s(u) + j · i = j · (i + s(u)) + n · i
+                                   = j · k + n · i.
+
+Thus n · k + j · i ≠ j · k + n · i.
+
+Now suppose that k < i.  Then i = k + s(u) for some u : ℕ.  Since n ≠ j, it follows by [cancellation law for multiplication] that n · s(u) ≠ j · s(u).  Hence
+
+    n · k + j · i = n · k + j · (k + s(u))
+                     = n · k + j · k + j · s(u)
+                     ≠ n · k + j · k + n · s(u) by [cancellation law for addition].
+
+But
+
+    n · k + j · k + n · s(u) = n · (k + s(u)) + j · k
+                                      = n · i + j · k.
+
+Thus n · k + j · i ≠ j · k + n · i.
+
+In any case n · k + j · i ≠ j · k + n · i, so
+
+    a · b = z(n · k + j · i, j · k + n · i) ≠ 0.
 
 # Theorems that hold in ℤ and any ring
 
@@ -200,6 +222,8 @@ Axiom.  There is a relation < : ℤ → ℤ → 𝔹 such that for all a, b, c, 
 Definition.  For all i, j ∈ ℤ, i ≤ j iff i < j or i = j.
 
 Definition.  For all i, j ∈ ℤ, we write i > j iff j < i.  We write i ≥ j iff j ≤ i.
+
+Lemma.  For all n, j : ℕ, z(n, j) > 0 iff j < n.
 
 Theorem.  Let a, b : ℤ.
 
