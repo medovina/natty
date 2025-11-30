@@ -129,7 +129,7 @@ let write_thf dir name using proven (stmt: statement option) =
   if not (Sys.file_exists f) then (
     let out = open_out f in
     stmt |> Option.iter (fun stmt ->
-      let problem = Option.get (stmt_formula stmt) in
+      let problem = get_stmt_formula stmt in
       let problem =
         if free_vars problem = [] then remove_universal problem else problem in
       fprintf out "%% Problem: %s\n\n" (show_formula problem));

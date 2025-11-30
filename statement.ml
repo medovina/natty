@@ -163,8 +163,9 @@ let with_stmt_id id = function
   | _ -> assert false
 
 let stmt_prefix = function
-  | Axiom _ -> "ax" | Theorem _ -> "thm" | Hypothesis _ -> "hyp"
-  | Definition _ -> "def"
+  | TypeDecl _ -> "typedef" | ConstDecl _ -> "const"
+  | Axiom _ -> "ax" | Hypothesis _ -> "hyp" | Definition _ -> "def"
+  | Theorem _ -> "thm"
   | _ -> failwith "stmt_prefix"
 
 let stmt_prefix_id sep stmt = stmt_prefix stmt ^ sep ^ stmt_id stmt
@@ -189,7 +190,7 @@ let stmt_kind = function
   | Definition _ -> "definition"
   | Theorem _ | HTheorem _ -> "theorem"
 
-let stmt_id_name stmt =
+let stmt_id_name stmt : string =
   let base = stmt_kind stmt ^ " " ^ strip_prefix (stmt_id stmt) in
   match stmt with
   | Axiom (_, _, name)
@@ -199,10 +200,12 @@ let stmt_id_name stmt =
         | _ -> "")
   | _ -> base
 
-let stmt_formula = function
+let stmt_formula stmt : formula option = match stmt with
   | Axiom (_, f, _) | Hypothesis (_, f) | Theorem { formula = f; _ } -> Some f
   | Definition (_id, _typ, f) -> Some f
   | _ -> None
+
+let get_stmt_formula f : formula = Option.get (stmt_formula f)
 
 let thm_by = function
   | Theorem { by; _ } -> by | _ -> failwith "thm_by"

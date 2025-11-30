@@ -430,7 +430,8 @@ and block_steps in_proof env lenv (Block (step, children)) : statement list list
         (fs, for_all_vars_types_if_free ids_types (implies imps concl))
     | LetDef (_id, _typ, g) ->
         let (id, typ, f) = infer_definition env g in
-        let (fs, concl) = child_steps [Definition (id, typ, f)] in
+        let (fs, concl) =
+          child_steps [Hypothesis ("hyp", f); ConstDecl (id, typ)] in
         let mk_concl h = _for_all id (with_type_vars lenv typ) (implies h concl) in
         let concl = match g with
           | Eq (Const (id, typ), value) ->

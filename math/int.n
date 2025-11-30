@@ -122,7 +122,7 @@ Proof.
 
         a · 1 = z(n, j) · 1
               = z(n, j) · z(1, 0)
-              = z(n, j)
+              = z(n, j) by [def of ·]
               = a.
     
 Theorem.  Let i, j : ℤ.  If i · j = 0, then i = 0 or j = 0.  [zero product]

@@ -1044,7 +1044,7 @@ let rw_simplify cheap src queue used found p : pformula option =
                       if PFQueue.mem (Unprocessed pf) !queue then
                         queue := PFQueue.remove (Unprocessed pf) !queue
                       else
-                        used := remove1 pf !used;
+                        used := remove1q pf !used;
                       (* Ideally we would also update descendents of pf
                         to have p as an ancestor instead. *)
                       Some p
@@ -1072,17 +1072,16 @@ let forward_simplify queue used found p : pformula option = profile @@
   
 let back_simplify found from used : pformula list = profile @@
   let back_simp p : pformula list * pformula list =
-    if subsumes1 from p then (
+    let keep, rewritten = if subsumes1 from p then (
       if !debug > 0 then
         printf "%d. %s was back subsumed by %d. %s\n"
           p.id (show_formula p.formula) from.id (show_formula from.formula);
-      remove_from_map found p;
-      ([], []))
+      (false, []))
     else match rewrite_from [from] p with
-      | Some p' -> (
-          (if !destructive_rewrites || p.destruct then [] else [p]),
-          [p'])
-      | None -> ([p], []) in
+      | Some p' -> (not (!destructive_rewrites || p.destruct), [p'])
+      | None -> (true, []) in
+    if not keep then remove_from_map found p;
+    ((if keep then [p] else []), rewritten) in
   let (new_used, rewritten) = map_pair concat (unzip (map back_simp !used)) in
   used := new_used;
   rewritten
@@ -1165,10 +1164,19 @@ let refute pformulas cancel_check : proof_result = profile @@
             | None -> loop () in
   loop ()
 
-let flip_template = prefix_vars (Parser.parse_formula "f(x)(y) ↔ g(y)(x)")
+let def_match template f : (id * id) option =
+  let g = prefix_vars (Parser.parse_formula template) in
+  let* (_, vsubst) = _match g (remove_for_all f) in
+  match (let& x = ["f"; "g"; "x"; "y"] in assoc ("$" ^ x) vsubst) with
+    | [Const (c, _ctyp); Const (d, _dtyp); Var _; Var _] -> Some (c, d)
+    | _ -> None
+
+let def_is_or_equal f = def_match "f(x)(y) ↔ g(x)(y) ∨ x = y" f
+
+let def_is_synonym f = def_match "f(x)(y) ↔ g(y)(x)" f
 
 let def_safe_for_rewrite f =
-  Option.is_some (_match flip_template (remove_for_all f))
+  Option.is_some (def_is_synonym f)
 
 (* Given an associative/commutative operator *, construct the axiom
  *     x * (y * z) = y * (x * z)
@@ -1209,14 +1217,37 @@ let ac_kind f : (ac_type * str * typ) option =
                     Some (Dist, "", unknown_type)
                 | None -> None)
 
+let rec map_const const_map c : id =
+  match assoc_opt c const_map with
+    | Some d -> map_const const_map d
+    | None -> c
+
+let consts_of const_map f : id list =
+  let consts = map (map_const const_map) (all_consts f) in
+  subtract consts logical_ops
+
+let use_premise const_map proof_consts f =
+  subset (consts_of const_map f) proof_consts
+
+let const_def f : (id * id) option =
+  opt_or_opt (def_is_synonym f) (def_is_or_equal f)
+
 let gen_pformulas thm stmts : pformula list =
-  let by_thms = thm_by thm in
+  let by_thms = stmts |> filter (fun s -> mem (stmt_ref s) (thm_by thm)) in
   let by_contradiction = (stmt_formula thm = Some _false) in
   let hyps = rev (filter is_hypothesis stmts) in
+  let const_map = filter_map const_def (filter_map stmt_formula stmts) in
+  let proof_consts = unique @@
+    let+ stmt = thm :: by_thms @ hyps in
+    consts_of const_map (get_stmt_formula stmt) in
   let scan ops stmt =
     match stmt_formula stmt with
       | None -> (ops, [])
       | Some f ->
+          let by = memq stmt by_thms in
+          if !step_strategy && not (
+            by || is_hypothesis stmt || use_premise const_map proof_consts f)
+          then (ops, []) else
           let kind_op = ac_kind f in
           let kind = Option.map (fun (kind, _, _) -> kind) kind_op in
           let hyp = match index_of_opt stmt hyps with
@@ -1226,7 +1257,7 @@ let gen_pformulas thm stmts : pformula list =
             | _ -> 0 in
           let p = { (to_pformula (stmt_id_name stmt) f)
             with hypothesis = hyp; definition = is_definition stmt;
-                 by = mem (stmt_ref stmt) by_thms; ac = kind } in
+                 by; ac = kind } in
           if p.definition && def_safe_for_rewrite p.formula then
             safe_for_rewrite := p :: !safe_for_rewrite;
           dbg_newline ();
@@ -1265,7 +1296,7 @@ let prove known_stmts thm cancel_check : proof_result * float =
   safe_for_rewrite := [];
   formula_counter := 0;
   let known = gen_pformulas thm known_stmts in
-  let goal = to_pformula (stmt_id_name thm) (Option.get (stmt_formula thm)) in
+  let goal = to_pformula (stmt_id_name thm) (get_stmt_formula thm) in
   let goals = if !(opts.disprove) then [goal] else
       [create_pformula "negate" [goal] (negate goal.formula)] in
   let goals = goals |> map (fun g -> {g with goal = true}) in
