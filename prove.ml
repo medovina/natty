@@ -57,7 +57,7 @@ let rec num_literals f = match bool_kind f with
   | Quant (_, _, _, u) -> num_literals u
   | Other _ -> 1
 
-let weight f =
+let weight f : int =
   let rec weigh f = match f with
     | Const (c, _typ) -> if c = "(¬)" || f = _false then 0 else 1
     | Var _ -> 1
@@ -965,6 +965,10 @@ module FormulaMap = Map.Make (struct
   let compare = Stdlib.compare
 end)
 
+let expansion f = match remove_for_all f with
+  | Eq (f, g) -> weight g - weight f
+  | _ -> 0
+
 let queue_class p : int =
   if p.cost = 0.0 then
     if is_ac p then 0
@@ -972,7 +976,8 @@ let queue_class p : int =
     else if p.by then 2
     else if orig_goal p then 3
     else if orig_hyp p then 100 - p.hypothesis
-    else 100 + p.id
+    else if expansion p.formula >= 0 then 100 + p.id
+    else 1000 + p.id
   else 0
 
 let queue_cost p : float * int * int =
