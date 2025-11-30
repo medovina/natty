@@ -152,7 +152,8 @@ exists_prop =
     there_exists ['some' | 'an operation' | 'no'] decl_ids_types [with_exprs]
     'such that' small_prop;
 
-precisely_prop = ('Exactly' | 'Precisely') 'one of' small_prop 'holds';
+precisely_prop =
+    ('Exactly' | 'Precisely') 'one of' ['the conditions'] small_prop 'holds';
 
 prop_op = 'and' | 'or' | 'if' | 'implies' ['that'] | 'if and only if' | 'iff' |
           ', and' | ', or';

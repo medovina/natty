@@ -1,52 +1,5 @@
 using int;
 
-# Integers: inequalities
-
-Corollary.  For all a, b, c, d ∈ ℕ,
-
-    z(a, b) ≤ z(c, d) if and only if a + d ≤ b + c.     [int_le]
-
-Definition.  For all i, j ∈ ℤ, we write i > j iff j < i.  We write i ≥ j iff j ≤ i.
-
-Theorem.  Let i, j, k ∈ ℤ.
-
-  1. Precisely one of i < j or i = j or i > j holds.    [int_trichotomy]
-  2. If i < j and j < k, then i < k.        [int_lt_trans]
-  3. If i ≤ j and j < k, then i < k.
-  4. If i < j and j ≤ k, then i < k.        [int_lt_le_trans]
-  5. If i ≤ j and j ≤ k, then i ≤ k.        [int_le_trans]
-  6. If i < j then i + k < j + k.            [int_lt_add_right]
-  7. If i < j and k > 0, then ik < jk.    [int_lt_mul_right]
-
-Proof.
-
-  1. Let i, j ∈ ℤ.  Then there are some a, b, c, d ∈ ℕ such that i = z(a, b) and j = z(c, d).  By [trichotomy] we know that exactly one of a + d < b + c or a + d = b + c or a + d > b + c holds.  The result follows by [int_lt_def].
-
-  2. Let i, j, k ∈ ℤ, and suppose that i < j and j < k.  There are some a, b, c, d, e, f ∈ ℕ such that i = z(a, b) and j = z(c, d) and k = z(e, f).  Then z(a, b) < z(c, d) and z(c, d) < z(e, f), so a + d < b + c and c + f < d + e.  It follows that a + d + f < b + c + f and b + c + f < b + d + e, so a + d + f < b + d + e.  Then a + f < b + e by [< add left], so i < k.
-
-  6. Let i, j, k ∈ ℤ, and suppose that i < j.  There are some a, b, c, d, e, f ∈ ℕ such that i = z(a, b) and j = z(c, d) and k = z(e, f).  Then z(a, b) < z(c, d), and therefore a + d < b + c.  Hence (a + d) + (e + f) < (b + c) + (e + f), and therefore (a + e) + (d + f) < (b + f) + (c + e).  It follows by [int_lt_def] that z(a + e, b + f) < z(c + e, d + f), and hence z(a, b) + z(e, f) < z(c, d) + z(e, f), which means that i + k < j + k.
-
-  7. Let i, j, k ∈ ℤ, and suppose that i < j and k > 0.  There are some a, b, c, d, e, f ∈ ℕ such that i = z(a, b) and j = z(c, d) and k = z(e, f). So z(a, b) < z(c, d) and z(e, f) > 0, which means that a + d < b + c and f < e.  So by [nat_add_prod] we have
-  
-    (b + c)f + (a + d)e < (a + d)f + (b + c)e.
-
-  Then
-  
-    (ae + bf) + (cf + de) < (af + be) + (ce + df).
-    
-  So z(ae + bf, af + be) < z(ce + df, cf + de) by [int_lt_def].  And so z(a, b) · z(e, f) < z(c, d) · z(e, f), so we have ik < jk.
-
-Theorem.  Let i, j ∈ ℤ.
-
-  1. i > 0 if and only if −i < 0, and i < 0 if and only if −i > 0.  [int_lt_neg]
-  2. 0 : ℤ < 1 : ℤ.
-  3. If i ≤ j and j ≤ i, then i = j.       [int_le_antisymm]
-  4. If i > 0 and j > 0, then ij > 0.
-  5. If i > 0 and j < 0, then ij < 0.
-  6. If i > 0 and j ≤ 0, then ij ≤ 0.   [int_mul_pos_nonneg]
-  7. If i < 0 and j < 0, then ij > 0.   [int_mul_neg_neg]
-  8. If i ≤ 0 and j ≤ 0, then ij ≥ 0.
-
 # Bijection between naturals and non-negative integers
 
 Axiom (int_nat_proj). There is a function π : ℤ → ℕ such that for all i ∈ ℤ, if i ≥ 0 then i = z(π(i), 0).

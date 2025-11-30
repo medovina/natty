@@ -262,10 +262,10 @@ If a < b then z(n, j) < z(k, i), so n + i < j + k, so b − a > 0.  If b − a >
 
 Theorem.  Let x, y, z : ℤ.
 
-  a. x ≮ x.
-  b. If x < y and y < z then x < z.
-  c. x < y or x = y or y < x.
-  d. If x < y then x + z < y + z.
+  a. x ≮ x.  [not less than self]
+  b. If x < y and y < z then x < z.  [< on ℤ is transitive]
+  c. x < y or x = y or y < x.  [weak trichotomy]
+  d. If x < y then x + z < y + z. [< add right on ℤ]
   e. If x < y and 0 < z, then x · z < y · z.
 
 Proof.
@@ -279,3 +279,24 @@ Proof.
   d. Suppose that x < y.  Then y − x > 0.  But (y + z) − (x + z) = y − x.  So (y + z) − (x + z) > 0, hence x + z < y + z.
 
   e. Suppose that x < y and 0 < z.  Then y − x > 0 and z − 0 > 0.  But z − 0 = z, so z > 0.  By [product of positives is positive] (y − x) · z > 0.  But (y − x) · z = y · z − x · z by [right distribute −].  Hence y · z − x · z > 0, so x · z < y · z.
+
+# Theorems that hold in any ordered integral domain
+
+Theorem.  Let x, y, z, u, v : ℤ.
+
+  a. Exactly one of the conditions x < y or x = y or y < x holds.
+  b. If x < y and u < v then x + u < y + v.  [< add left right on ℤ]
+  c. If x < y and u ≤ v then x + u < y + v.
+  d. If x ≤ y and u < v then x + u < y + v.
+  e. If x ≤ y and u ≤ v then x + u ≤ y + v.
+  f. If 0 < z and x · z < y · z then x < y.
+
+Proof.
+
+  a. By [weak trichotomy] we have x < y or x = y or y < x.  If x < y and x = y then x < x, contradicting [not less than self].  If x = y and y < x then x < x, contradicting [not less than self].  If x < y and y < x then by [< on ℤ is transitive] we have x < x, again contradicting [not less than self].
+
+  b. Assume that x < y and u < v.  Since x < y we have x + u < y + u by [< add right on ℤ].  Since u < v we have y + u < y + v by [< add right on ℤ].  Hence by [< on ℤ is transitive] we have x + u < y + v.
+
+  d. Suppose that x ≤ y and u < v.  If x < y then x + u < y + v by [< add left right on ℤ].  If x = y then x + u < y + v by [< add right on ℤ].
+
+  f. Suppose that 0 < z and x · z < y · z.  Also suppose that x ≮ y.  Then y < x or y = x.  If y < x then y · z < x · z, a contradiction.  If y = x then y · z = x · z, a contradiction.

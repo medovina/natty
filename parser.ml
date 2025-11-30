@@ -413,7 +413,8 @@ and exists_prop s : formula pr = pipe4
     (if some then Fun.id else _not) (exists_with ids_types p with_exprs)) s
 
 and precisely_prop s : formula pr = (
-  any_str ["Exactly"; "Precisely"] >> str "one of" >> small_prop << str "holds" |>>
+  any_str ["Exactly"; "Precisely"] >> str "one of" >> opt_str "the conditions" >>
+    small_prop << str "holds" |>>
     fun f ->
       let gs = gather_or f in
       assert (length gs > 1);
