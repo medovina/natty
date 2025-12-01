@@ -526,11 +526,12 @@ let def_consts p : id list =
   let cs = find (remove_for_all p.formula) in
   subtract cs logical_ops
 
-let top_def_consts f : (id * id) option = match remove_for_all f with
-  | Eq (f, g) -> (
-      match head_of f, head_of g with
-        | Const (c, _), Const (d, _) -> Some (c, d)
-        | _ -> None)
+let top_def_consts f : (id * id list) option = match remove_for_all f with
+  | Eq (f, g) | App (App (Const ("(↔)", _), f), g) ->
+      let c, ds = head_of f, map head_of (gather_and g) in
+      if for_all is_const (c :: ds) then
+        Some (get_const c, map get_const ds)
+      else None
   | _ -> None
 
 let expand_limit = 2
@@ -1265,12 +1266,9 @@ let find_proof_consts thm stmts by_thms hyps const_map =
   let proof_consts =
     let+ stmt = thm :: by_thms @ hyps in
     consts_of const_map (get_stmt_formula stmt) in
-  let goal_consts = unique @@
-    let+ t = Option.to_list (head_opt hyps) @ [thm] in
-    all_consts (get_stmt_formula t) in
   let extra = stmts |> concat_map (function
     | Definition (_, _, f) -> (match top_def_consts f with
-        | Some (c, d) when mem c goal_consts && mem d proof_consts ->
+        | Some (c, ds) when mem c proof_consts && overlap ds proof_consts ->
             consts_of const_map f
         | _ -> [])
     | _ -> []) in
