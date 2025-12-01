@@ -327,6 +327,9 @@ let infer_definition env f : id * typ * formula =
   match strip_range f with
     | Eq (f, g) | App (App (Const ("(↔)", _), f), g) | App (App (Const ("(→)", _), g), f)->
         let (c, args) = collect_args (strip_range f) in
+        let (c, args) = match c with
+          | Const (c, _) when c.[0] = '@' -> (hd args, tl args)
+          | _ -> (c, args) in
         let (c, decl_type, args) = match c with
           | Const (":", Fun (typ, _)) -> (hd args, Some (check_type env typ), tl args)
           | _ -> (c, None, args) in (
