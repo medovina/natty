@@ -244,7 +244,9 @@ let _not f = App (Const ("(¬)", Fun (Bool, Bool)), f)
 
 let logical_binary = ["(∧)"; "(∨)"; "(→)"; "(↔)"]
 
-let logical_ops = ["%⊥"; "%⊤"; "(¬)"; "(∀)"; "(∃)"] @ logical_binary
+let logical_syms = ["(¬)"; "(∀)"; "(∃)"] @ logical_binary
+
+let logical_ops = ["%⊥"; "%⊤"] @ logical_syms
 
 let binop op typ f g = App (App (Const (op, typ), f), g) 
 let binop_unknown op = binop op unknown_type
@@ -751,7 +753,7 @@ let unify_or_match is_unify subst t u : subst option =
       | Const (c, t), Const (c', u) when c = c' ->
           let* tsubst = unify_term_types t u in
           Some (tsubst, vsubst)
-      | Var _, Const ("(¬)", _) -> None
+      | Var _, Const (c, _) when mem c logical_syms -> None
       | Var _, App (Const ("(∨)", _), _) -> None
       | Var (x, typ), f ->
           if f = Var (x, typ) then Some subst
