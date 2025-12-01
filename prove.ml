@@ -1265,7 +1265,9 @@ let find_proof_consts thm stmts by_thms hyps const_map =
   let proof_consts =
     let+ stmt = thm :: by_thms @ hyps in
     consts_of const_map (get_stmt_formula stmt) in
-  let goal_consts = all_consts (get_stmt_formula thm) in
+  let goal_consts = unique @@
+    let+ t = Option.to_list (head_opt hyps) @ [thm] in
+    all_consts (get_stmt_formula t) in
   let extra = stmts |> concat_map (function
     | Definition (_, _, f) -> (match top_def_consts f with
         | Some (c, d) when mem c goal_consts && mem d proof_consts ->
