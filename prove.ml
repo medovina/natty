@@ -820,7 +820,7 @@ let prefix_lits dp : formula list * id list =
   (mini_clausify (prefix_vars f), map prefix_var exist)
 
 let any_subsumes cs dp : pformula option = profile @@
-  if orig_goal dp then None else
+  if orig_goal dp || orig_hyp dp then None else
   let d_lits = prefix_lits dp in
   cs |> find_opt (fun cp -> subsumes cp d_lits)
 
