@@ -320,8 +320,7 @@ let infer_definition env f : id * typ * formula =
   (* f has the form ∀σ₁...σₙ v₁...vₙ (C φ₁ ... φₙ = ψ) .  We check types and build
     * a formula of the form ∀σ₁...σₙ v₁...vₙ (C σ₁...σₙ φ₁ ... φₙ = ψ) .*)
   let (vs, f) = gather_quant "(∀)" (strip_range f) in
-  let (vs2, f) = gather_quant "(∀)" f in
-  let (type_vars, vars) = (vs @ vs2) |> partition (fun (_, typ) -> typ = Type) in
+  let (type_vars, vars) = vs |> partition (fun (_, typ) -> typ = Type) in
   let univ = map fst type_vars in
   let vars = vars |> map (fun (v, typ) -> (v, check_type1 env type_vars typ)) in
   let vs = type_vars @ vars in (
