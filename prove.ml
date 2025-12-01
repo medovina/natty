@@ -1188,12 +1188,24 @@ let def_match template f : (id * id) option =
     | [Const (c, _ctyp); Const (d, _dtyp); Var _; Var _] -> Some (c, d)
     | _ -> None
 
-let def_is_or_equal f = def_match "f(x)(y) ↔ g(x)(y) ∨ x = y" f
+let def_is_or_equal f : (str * str) option =
+  def_match "f(x)(y) ↔ g(x)(y) ∨ x = y" f
 
-let def_is_synonym f = def_match "f(x)(y) ↔ g(y)(x)" f
+let def_is_synonym f : (str * str) option =
+  def_match "f(x)(y) ↔ g(y)(x)" f
+
+let is_atomic f = match head_of f with
+  | Const (c, _) when not (mem c logical_ops) -> true
+  | Var _ -> true
+  | _ -> false
+
+let def_is_atomic f = match f with
+  | App (App (Const ("(↔)", _), _), g) -> is_atomic g
+  | _ -> false
 
 let def_safe_for_rewrite f =
-  Option.is_some (def_is_synonym f)
+  let xs, f = gather_for_all f in
+  Option.is_some (def_is_synonym f) || length xs <= 1 && def_is_atomic f
 
 (* Given an associative/commutative operator *, construct the axiom
  *     x * (y * z) = y * (x * z)
