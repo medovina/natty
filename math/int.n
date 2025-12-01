@@ -178,8 +178,8 @@ Theorem.  Let x, y, z : ℤ.
     e. −(x + y) = (−x) + (−y).
     f. If x + y = x, then y = 0.    [addend is 0]
     g. x · 0 = 0 = 0 · x.
-    h. −(x · y) = (−x) · y = x · (−y).
-    i. (−x) · (−y) = x · y.
+    h. −(x · y) = (−x) · y = x · (−y).  [multiply by negative]
+    i. (−x) · (−y) = x · y.  [mul neg neg]
 
 Proof.
 
@@ -267,7 +267,7 @@ Theorem.  Let x, y, z : ℤ.
   b. If x < y and y < z then x < z.  [< on ℤ is transitive]
   c. x < y or x = y or y < x.  [weak trichotomy]
   d. If x < y then x + z < y + z. [< add right on ℤ]
-  e. If x < y and 0 < z, then x · z < y · z.
+  e. If x < y and 0 < z, then x · z < y · z. [< mul right on ℤ]
 
 Proof.
 
@@ -306,22 +306,34 @@ Definition.  For all x : ℤ, x is positive iff 0 < x.  x is negative iff x < 0.
 
 Theorem.  Let x, y, z : ℤ.
 
-  a. x < y iff y − x is positive.   [> if difference positive]
-  b. x < y iff x − y is negative.  [< if difference negative]
+  a. x < y iff y − x is positive.   [> iff difference positive]
+  b. x < y iff x − y is negative.  [< iff difference negative]
   c. y is positive iff −y is negative.
-  d. x is negative iff −x is positive.
-  e. x < y iff −y < −x.
+  d. x is negative iff −x is positive.  [negative iff inverse positive]
+  e. x < y iff −y < −x. [less iff negative less]
+  f. If x < y and z < 0 then y · z < x · z.
+  g. If x > 0 and y > 0 then x + y > 0 and x · y > 0. [sum and product positive]
+  h. If x < 0 and y < 0 then x · y > 0.
+  i. If x > 0 and y < 0 then x · y < 0.
 
 Proof.
 
   b. Suppose that x < y.  By [< add right on ℤ] x + (−y) < y + (−y), so x − y < 0.  Conversely, suppose that x − y < 0.  By [< add right on ℤ] (x − y) + y < 0 + y, so x < y.
 
-  c. By [< if difference negative] 0 < y iff 0 − y is negative.
+  c. By [< iff difference negative] 0 < y iff 0 − y is negative.
 
-  d. By [> if difference positive] x < 0 iff 0 − x is positive.
+  d. By [> iff difference positive] x < 0 iff 0 − x is positive.
 
-  e. By [> if difference positive] x < y iff 0 < y − x.  Also by [> if difference positive]
+  e. By [> iff difference positive] x < y iff 0 < y − x.  Also by [> iff difference positive]
 
       −y < −x iff 0 < (−x) − (−y).
 
   But (−x) − (−y) = (−x) + (−(−y)) = (−x) + y = y − x.
+
+  f. Suppose that x < y and z < 0.  By [negative iff inverse positive] 0 < −z.  Hence by [< mul right on ℤ] x · (−z) < y · (−z).  But by [multiply by negative] x · (−z) = −(x · z) and y · (−z) = −(y · z).  Hence −(x · z) < −(y · z).  Therefore by [less iff negative less] y · z < x · z.
+
+  g. Suppose that 0 < x and 0 < y.  By [< add left right on ℤ] 0 + 0 < x + y.  Also by [< mul right on ℤ] 0 · y < x · y.  But 0 · y = 0.
+
+  h. Suppose that x < 0 and y < 0.  Then by [negative iff inverse positive] 0 < −x and 0 < −y.  Hence by [sum and product positive] 0 < (−x) · (−y).  But (−x) · (−y) = x · y by [mul neg neg].
+
+  i. Suppose that x > 0 and y < 0.  Then 0 < −y by [negative iff inverse positive].  Hence 0 < x · (−y) by [sum and product positive].  But x · (−y) = −(x · y) by [multiply by negative].  Hence 0 < −(x · y).  Then x · y < 0 by [negative iff inverse positive].
