@@ -290,7 +290,7 @@ and infer_formula env vars formula : typ * formula =
             | _ -> errorf "ambiguous comparison" formula range in
   match check empty_range vars [] formula with
     | [(tsubst, typ, f)] ->
-        (typ, subst_types_in_formula tsubst f)
+        (subst_types tsubst typ, subst_types_in_formula tsubst f)
     | [] -> failwith "infer_formula"
     | _ -> errorf "ambiguous" formula (range_of formula)
 
