@@ -497,6 +497,12 @@ let free_type_vars_in_steps steps : id list =
           | _ -> type_vars in
   unique (find steps)
 
+let rec gather_eif f = match collect_args f with
+  | (c, [_type; p; f; g]) when c = _eif_c ->
+      (p, f) :: gather_eif g
+  | (c, [_type]) when c = undefined -> []
+  | _ -> failwith "gather_eif"
+
 let rec expand_proof stmt env steps proof_steps : formula * statement list list =
   let steps = trim_lets steps in
   let type_vars = free_type_vars_in_steps steps in
@@ -522,34 +528,55 @@ let rec expand_proof stmt env steps proof_steps : formula * statement list list 
     map rev stmtss in
   (top_infer env concl, stmtss)
 
-and infer_stmt env stmt : statement =
+and translate_if_block f : formula option * formula =
+  let vs, f' = gather_for_all f in
+  match f' with
+    | Eq (x, g) when head_of g = _eif_c ->
+        let conds_vals = gather_eif g in
+        let justify = multi_and (
+          let& (c, d) = all_pairs (map fst conds_vals) in
+          _not (_and c d)) in
+        let eqs = multi_and (
+          let& (c, d) = conds_vals in
+          implies c (Eq (x, d))
+        ) in
+        Some (for_all_vars_types vs justify), for_all_vars_types vs eqs
+    | _ -> None, f
+
+and infer_stmt env stmt : statement list =
   match stmt with
-    | TypeDecl (id, name) -> infer_type_decl env id name
-    | ConstDecl (id, typ) -> infer_const_decl env id typ
+    | TypeDecl (id, name) -> [infer_type_decl env id name]
+    | ConstDecl (id, typ) -> [infer_const_decl env id typ]
     | Axiom _ -> failwith "infer_stmt"
-    | Hypothesis (id, f) -> Hypothesis (id, top_infer env f)
+    | Hypothesis (id, f) -> [Hypothesis (id, top_infer env f)]
     | Definition (_id, _typ, f) ->
         let (id, typ, f') = infer_definition env (generalize f) in
         check_dup_const env id typ "definition" (range_of f);
-        Definition (id, typ, f')
+        let justify, f' = translate_if_block f' in
+        let justify =
+          let& j = Option.to_list justify in
+          Theorem { id = id ^ "_justify"; name = None; formula = j;
+                    steps = []; by = []; is_step = false; range = empty_range } in
+        justify @ [Definition (id, typ, f')]
     | Theorem _ -> failwith "infer_stmt"
     | HAxiom (id, steps, name) ->
         let blocks = infer_blocks env steps in
         let (_, f) = blocks_steps false env [] blocks in
-        Axiom (id, top_infer env f, name)
+        [Axiom (id, top_infer env f, name)]
     | HTheorem { id; name; steps; proof_steps } ->
         let (f, stmts) = expand_proof stmt env steps proof_steps in
         let range = match (last steps) with
           | Assert [(_, f, _)] -> range_of f
           | Assert _ -> failwith "infer_stmt"
           | _ -> failwith "assert expected" in
-        Theorem { id; name; formula = f; steps = stmts; by = []; is_step = false; range }
+        [Theorem { id; name; formula = f; steps = stmts;
+                   by = []; is_step = false; range }]
 
 and infer_stmts initial_env stmts : statement list =
   let check env stmt =
-    let stmt = infer_stmt env stmt in
-    (stmt :: env, stmt) in
-  snd (fold_left_map check initial_env stmts)
+    let stmts = infer_stmt env stmt in
+    (stmts @ env, stmts) in
+  concat (snd (fold_left_map check initial_env stmts))
 
 let infer_module checked md : (_module list, string * frange) result =
   let env : statement list = module_env md checked in

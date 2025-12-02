@@ -266,10 +266,10 @@ let elem = binop "∈" (Pi ("σ",
 
 let not_elem f g = _not (elem f g)
 
-let _if_c = Const ("if", Pi ("σ",
+let _eif_c = Const ("eif", Pi ("σ",
     Fun (Bool, Fun (TypeVar "σ", Fun (TypeVar "σ", TypeVar "σ")))))  (* 𝔹 → σ → σ → σ *)
 
-let _if p f g = apply [_if_c; p; f; g]
+let _eif p f g = apply [_eif_c; p; f; g]  (* exclusive if *)
 
 let multi_and = function
   | [] -> _true

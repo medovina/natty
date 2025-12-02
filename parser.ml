@@ -247,7 +247,7 @@ and if_clause s : (formula * formula) pr =
 
 and if_block s : formula pr = (
   let$ cs = str "{" >> sep_by1 if_clause (str ";") << str "}" in
-  fold_right (fun (f, p) g -> _if p f g) cs undefined) s
+  fold_right (fun (f, p) g -> _eif p f g) cs undefined) s
 
 and base_term s : formula pr = (unit_term <|> record_formula @@ choice [
   (sym |>> _const);
