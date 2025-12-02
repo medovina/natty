@@ -516,22 +516,25 @@ let top_consts p : id list =
   subtract (filter_map opt_const (top_terms false p)) logical_ops
 
 (* Find constants such as f in "f x y → ...". *)
-let def_consts p : id list =
+let def_consts f : id list =
   let rec find f = match f with
+    | App (Const _ as c, Lambda (_, _, g)) when is_quantifier c ->
+        find g
     | _ -> match collect_args f with
       | Const (c, _), args ->
           if mem c logical_binary then concat_map find args
           else [c]
       | _ -> [] in
-  let cs = find (remove_for_all p.formula) in
+  let cs = find (remove_for_all f) in
   subtract cs logical_ops
 
 let top_def_consts f : (id * id list) option = match remove_for_all f with
-  | Eq (f, g) | App (App (Const ("(↔)", _), f), g) ->
-      let c, ds = head_of f, map head_of (gather_and g) in
-      if for_all is_const (c :: ds) then
-        Some (get_const c, map get_const ds)
-      else None
+  | Eq (f, g) | App (App (Const ("(↔)", _), f), g) -> (
+      match head_of f with
+        | Const (c, _) ->
+            let ds = map def_consts (gather_and g) in
+            Some (c, if exists ((=) []) ds then [] else unique (concat ds))
+        | _ -> None)
   | _ -> None
 
 let expand_limit = 2
@@ -559,7 +562,7 @@ let is_def_expansion parents =
           if orig_goal last then all_consts last.formula
                             else top_consts last in
         overlap (eq_consts def) goal_consts ||
-        overlap (def_consts def) (top_consts last)
+        overlap (def_consts def.formula) (top_consts last)
     | _ -> false
 
 let is_hyp_expansion parents =
@@ -1268,7 +1271,8 @@ let find_proof_consts thm stmts by_thms hyps const_map =
     consts_of const_map (get_stmt_formula stmt) in
   let extra = stmts |> concat_map (function
     | Definition (_, _, f) -> (match top_def_consts f with
-        | Some (c, ds) when mem c proof_consts && overlap ds proof_consts ->
+        | Some (c, ds) when mem c proof_consts &&
+                            (ds = [] || overlap ds proof_consts) ->
             consts_of const_map f
         | _ -> [])
     | _ -> []) in
