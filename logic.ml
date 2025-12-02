@@ -364,27 +364,6 @@ let rec get_const_type f = match f with
       printf "get_const_type: f = %s (%b)\n" (show_formula f) (is_const f);
       failwith "type expected"
 
-and type_of1 tsubst f : typ = match f with
-  | Const (_, typ) | Var (_, typ) -> typ
-  | App (f, g) -> (match type_of f with
-      | Fun (t, u) ->
-          let g_type = type_of g in
-          if g_type <> t &&  (* optimization: try direct comparison first *)
-              subst_types tsubst g_type <> subst_types tsubst t then (
-            printf "f = %s, type(f) = %s, g = %s, type(g) = %s\n"
-              (show_formula f) (show_type (type_of f))
-              (show_formula g) (show_type (type_of g));
-            failwith "type_of"
-          );
-          u
-      | Pi (x, t) -> type_subst t (get_const_type g) x
-      | _ -> assert false)
-  | Lambda (id, Type, f) -> Pi (id, type_of f)
-  | Lambda (_, typ, f) -> Fun (typ, type_of f)
-  | Eq (_, _) -> Bool
-
-and type_of f : typ = type_of1 [] f
-
 and fkind boolean f : formula_kind = match f with
   | Const ("%⊤", _) -> True
   | Const ("%⊥", _) -> False
@@ -395,9 +374,6 @@ and fkind boolean f : formula_kind = match f with
         Binary (op, typ, t, u)
   | App (Const (q, _) as c, Lambda (id, typ, u)) when is_quantifier c ->
       Quant(q, id, typ, u)
-  | Eq (f, g) when boolean && type_of f = Bool -> (
-      assert (type_of g = Bool);
-      Binary ("(↔)", logical_op_type, f, g))   (* via boolean extensionality *)
   | f -> Other f
 
 and bool_kind f = fkind true f
@@ -495,6 +471,7 @@ and show_formula_multi multi f =
   show 0 multi (-1) false f
 
 and show_formula f = show_formula_multi false f
+
 let show_formulas fs =
   sprintf "[%s]" (comma_join (map show_formula fs))
   
@@ -502,12 +479,6 @@ let show_multi = show_formula_multi true
 
 let prefix_show prefix f =
   indent_with_prefix prefix (show_multi f)
-
-let erase_sub typ = match typ with
-  | Sub f -> (match type_of f with
-      | Fun (t, Bool) -> t
-      | _ -> failwith "erase_sub")
-  | typ -> typ
 
 let negate f = match bool_kind f with
   | Not f -> f
@@ -631,31 +602,6 @@ let rec apply_types_in_formula f : formula = match f with
 let mk_var_or_type_const (id, typ) =
   if typ = Type then type_const (TypeVar id) else Var (id, typ)
 
-let extract_definition f : (formula * (id * typ) list * formula) option =
-  (* Look for f of the form ∀x₁...xₙ C y₁...yₙ = D.  The arguments yᵢ must be
-     a permutation of the variables xⱼ.  *)
-  let (xs, f) = gather_for_all f in
-  let xs_vars = map mk_var' xs in
-  match is_eq_or_iff f with
-    | Some (head, g) ->
-        let (c, ys) = collect_args head in (
-        match c with
-          | Const _ when subset ys xs_vars && subset xs_vars ys ->
-              Some (c, map get_var ys, g)
-          | _ -> None)
-    | _ -> None
-
-(* Transform ∀x₁...xₙ C x₁...xₙ = λy₁...yₙ.φ to
-              ∀x₁...xₙ y₁...yₙ (C x₁...xₙ y₁...yₙ = φ) .*)
-let lower_definition f : formula =
-  match extract_definition f with
-    | Some (c, xs, g) ->
-        let (ys, g) = gather_lambdas g in
-        let eq = if type_of g = Bool then _iff else mk_eq in
-        for_all_vars_types (xs @ ys) (
-          eq (apply (c :: map mk_var' xs @ map mk_var_or_type_const ys)) g)
-    | None -> f
-
 let suffix id avoid : id =
   let rec try_suffix n =
     let id' = sprintf "%s_%d" id n in
@@ -739,6 +685,28 @@ let unify_types_or_pi is_var tsubst t u = match t, u with
   | Fun (Type, t), Pi (_, u) -> unify_types is_var tsubst t u
   | _ -> unify_types is_var tsubst t u
 
+let rec type_of1 tsubst f : typ = match f with
+  | Const (_, typ) | Var (_, typ) -> typ
+  | App (f, g) -> (match type_of f with
+      | Fun (t, u) ->
+          let g_type = type_of g in
+          if t = g_type then u (* optimization: try direct comparison first *)
+          else (match unify_types (Fun.const true) tsubst t g_type with
+            | Some tsubst -> subst_types tsubst u
+            | None ->
+                printf "f = %s, type(f) = %s, g = %s, type(g) = %s\n"
+                  (show_formula f) (show_type (type_of f))
+                  (show_formula g) (show_type (type_of g));
+                failwith "type_of1"
+          )
+      | Pi (x, t) -> type_subst t (get_const_type g) x
+      | _ -> assert false)
+  | Lambda (id, Type, f) -> Pi (id, type_of f)
+  | Lambda (_, typ, f) -> Fun (typ, type_of f)
+  | Eq (_, _) -> Bool
+
+and type_of f : typ = type_of1 [] f
+
 (* f and g unify if fσ = gσ for some substitution σ.
    f matches g if fσ = g for some substitution σ.   *)
 let unify_or_match is_unify subst t u : subst option =
@@ -793,6 +761,37 @@ let unify_or_match is_unify subst t u : subst option =
 let unify = unify_or_match true ([], [])
 let _match = unify_or_match false ([], [])
 let try_match = unify_or_match false
+
+let erase_sub typ = match typ with
+  | Sub f -> (match type_of f with
+      | Fun (t, Bool) -> t
+      | _ -> failwith "erase_sub")
+  | typ -> typ
+
+let extract_definition f : (formula * (id * typ) list * formula) option =
+  (* Look for f of the form ∀x₁...xₙ C y₁...yₙ = D.  The arguments yᵢ must be
+     a permutation of the variables xⱼ.  *)
+  let (xs, f) = gather_for_all f in
+  let xs_vars = map mk_var' xs in
+  match is_eq_or_iff f with
+    | Some (head, g) ->
+        let (c, ys) = collect_args head in (
+        match c with
+          | Const _ when subset ys xs_vars && subset xs_vars ys ->
+              Some (c, map get_var ys, g)
+          | _ -> None)
+    | _ -> None
+
+(* Transform ∀x₁...xₙ C x₁...xₙ = λy₁...yₙ.φ to
+              ∀x₁...xₙ y₁...yₙ (C x₁...xₙ y₁...yₙ = φ) .*)
+let lower_definition f : formula =
+  match extract_definition f with
+    | Some (c, xs, g) ->
+        let (ys, g) = gather_lambdas g in
+        let eq = if type_of g = Bool then _iff else mk_eq in
+        for_all_vars_types (xs @ ys) (
+          eq (apply (c :: map mk_var' xs @ map mk_var_or_type_const ys)) g)
+    | None -> f
 
 let first_var start_var = function
   | Fun (_, Bool) -> "P"
