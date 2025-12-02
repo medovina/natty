@@ -1214,18 +1214,18 @@ let def_is_or_equal f : (str * str) option =
 let def_is_synonym f : (str * str) option =
   def_match "f(x)(y) ↔ g(y)(x)" f
 
-let is_atomic f = match head_of f with
-  | Const (c, _) when not (mem c logical_ops) -> true
-  | Var _ -> true
-  | _ -> false
-
-let def_is_atomic f = match f with
-  | App (App (Const ("(↔)", _), _), g) -> is_atomic g
-  | _ -> false
+let def_is_atomic f : (str * str) option = match remove_for_all f with
+  | App (App (Const ("(↔)", _), f), g) -> (
+      match head_of f, head_of g with
+        | Const (c, _), Const (d, _) when not (mem d logical_ops) ->
+            Some (c, d)
+        | _ -> None)
+  | _ -> None
 
 let def_safe_for_rewrite f =
-  let xs, f = gather_for_all f in
-  Option.is_some (def_is_synonym f) || length xs <= 1 && def_is_atomic f
+  let xs, _ = gather_for_all f in
+  Option.is_some (def_is_synonym f) ||
+    length xs <= 1 && Option.is_some (def_is_atomic f)
 
 (* Given an associative/commutative operator *, construct the axiom
  *     x * (y * z) = y * (x * z)
@@ -1279,7 +1279,8 @@ let use_premise const_map proof_consts f =
   subset (consts_of const_map f) proof_consts
 
 let const_def f : (id * id) option =
-  opt_or_opt (def_is_synonym f) (def_is_or_equal f)
+  opt_or_opt (def_is_synonym f)
+    (opt_or_opt (def_is_or_equal f) (def_is_atomic f))
 
 let find_proof_consts thm stmts by_thms hyps const_map =
   let proof_consts =
@@ -1304,7 +1305,9 @@ let gen_pformulas thm stmts : pformula list =
   let by_thms = stmts |> filter (fun s -> mem (stmt_ref s) (thm_by thm)) in
   let by_contradiction = (stmt_formula thm = Some _false) in
   let hyps = rev (filter is_hypothesis stmts) in
-  let const_map = filter_map const_def (filter_map stmt_formula stmts) in
+  let const_map =
+    let+ s = filter is_definition stmts in
+    Option.to_list (const_def (get_stmt_formula s)) in
   let proof_consts = find_proof_consts thm stmts by_thms hyps const_map in
   let scan ops stmt =
     match stmt_formula stmt with
