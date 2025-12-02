@@ -12,6 +12,7 @@ let formula_counter = ref 0
 
 let ac_ops = ref ([] : (id * typ) list)
 let distributive_ops = ref ([] : ((id * typ) * (id * typ)) list)
+let or_equal_ops = ref ([] : id list)
 
 let output = ref false
 
@@ -518,24 +519,39 @@ let top_consts p : id list =
 (* Find constants such as f in "f x y → ...". *)
 let def_consts f : id list =
   let rec find f = match f with
+    | Eq (f, g) -> find f @ find g
     | App (Const _ as c, Lambda (_, _, g)) when is_quantifier c ->
         find g
     | _ -> match collect_args f with
       | Const (c, _), args ->
           if mem c logical_binary then concat_map find args
+          else if mem c !or_equal_ops then c :: concat_map find args
           else [c]
       | _ -> [] in
   let cs = find (remove_for_all f) in
   subtract cs logical_ops
 
-let top_def_consts f : (id * id list) option = match remove_for_all f with
-  | Eq (f, g) | App (App (Const ("(↔)", _), f), g) -> (
-      match head_of f with
-        | Const (c, _) ->
-            let ds = map def_consts (gather_and g) in
-            Some (c, if exists ((=) []) ds then [] else unique (concat ds))
-        | _ -> None)
-  | _ -> None
+let is_def_by_cases f : id option =
+  let is_case f = match collect_args f with
+    | Const ("(→)", _), [_; Eq (g, _)] -> Some (head_of g)
+    | _ -> None in
+  match map is_case (gather_and f) with
+    | Some (Const (c, _)) as g :: rest
+        when length rest >= 1 && for_all ((=) g) rest
+          -> Some c
+    | _ -> None
+
+let top_def_consts f : (id * id list) option =
+  match remove_for_all f with
+    | Eq (f, g) | App (App (Const ("(↔)", _), f), g) -> (
+        match head_of f with
+          | Const (c, _) ->
+              let ds = map def_consts (gather_and g) in
+              Some (c, if exists ((=) []) ds then [] else unique (concat ds))
+          | _ -> None)
+    | f ->
+        let* c = is_def_by_cases f in
+        Some (c, remove c (def_consts f))
 
 let expand_limit = 2
 let def_expand_limit = 2
@@ -1278,6 +1294,12 @@ let find_proof_consts thm stmts by_thms hyps const_map =
     | _ -> []) in
   unique (proof_consts @ extra)
 
+let find_or_equal_ops stmts : id list =
+  let+ s = filter is_definition stmts in
+  let f = Option.get (stmt_formula s) in
+  let& (c, _) = Option.to_list (def_is_or_equal f) in
+  c
+
 let gen_pformulas thm stmts : pformula list =
   let by_thms = stmts |> filter (fun s -> mem (stmt_ref s) (thm_by thm)) in
   let by_contradiction = (stmt_formula thm = Some _false) in
@@ -1338,6 +1360,7 @@ let prove known_stmts thm cancel_check : proof_result * float =
   ac_ops := [];
   distributive_ops := [];
   safe_for_rewrite := [];
+  or_equal_ops := find_or_equal_ops known_stmts;
   formula_counter := 0;
   let known = gen_pformulas thm known_stmts in
   let goal = to_pformula (stmt_id_name thm) (get_stmt_formula thm) in
