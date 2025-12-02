@@ -231,21 +231,27 @@ and id_term s = (
   opt (mk_sub f f_sub) (range_term f f_sub)
   ) s
 
-and base_term s : formula pr = (record_formula @@ choice [
-  (sym |>> _const);
+and unit_term s : formula pr = (record_formula @@ choice [
   id_term;
+  parens_exprs |>> mk_tuple
+]) s  
+
+and base_term s : formula pr = (unit_term <|> record_formula @@ choice [
+  (sym |>> _const);
   str "⊤" >>$ _true;
   str "⊥" >>$ _false;
-  parens_exprs |>> mk_tuple;
   pipe3 (str "{" >> var) of_type (str "|" >> proposition << str "}")
     (fun var typ expr ->
       App (Const ("{}", unknown_type), Lambda (var, typ, expr)))
  ]) s
 
-and term s = pipe2 base_term (option super_term) (fun f super ->
-  opt_fold (fun c f -> apply [_var "^"; f; c]) super f) s
+and apply_super f super =
+  opt_fold (fun c f -> apply [_var "^"; f; c]) super f
 
-and next_term s = (not_before space >>? term) s
+and term s = (pipe2 base_term (option super_term) apply_super) s
+
+and next_term s = (not_before space >>?
+  pipe2 unit_term (option super_term) apply_super ) s
 
 and terms s = (term >>= fun t -> many_fold_left mk_app t next_term) s
 
@@ -265,6 +271,7 @@ and operators = [
   [ Postfix (str ":" >> typ |>> ascribe) ];
   [ Prefix (minus >>$ unary_minus) ];
   [ Prefix (str "¬" >>$ _not) ];
+  [ infix_binop "^" Assoc_right ];
   [ infix_binop "·" Assoc_left ];
   [ infix_binop "+" Assoc_left;
     infix_binop1 minus "-" Assoc_left ];
@@ -570,12 +577,10 @@ let def_prop : formula p =
       record_formula small_prop << str "."
 
 let definition : statement list p = str "Definition." >>
-  choice [
-    let> let_ids_types = many (let_decl <<? str ".") in
-    let> ids_types = opt [] (for_all_ids << str ",") in
-    let$ props = many1 (opt_str "Let" >> def_prop) in
-    map (define (concat let_ids_types @ ids_types)) props
-  ]
+  let> let_ids_types = many (let_decl <<? str ".") in
+  let> ids_types = opt [] (for_all_ids << str ",") in
+  let$ props = many1 (opt_str "Let" >> def_prop) in
+  map (define (concat let_ids_types @ ids_types)) props
 
 (* proofs *)
 

@@ -68,18 +68,22 @@ super_term = super_digit;
 
 id_sub = base_id [sub_expr];
 
-base_term =
-    sym | id_sub ["⋯" id_sub]
-  | '⊤' | '⊥' | parens_exprs
+unit_term = id_sub ["⋯" id_sub] | parens_exprs;
+
+base_term = unit_term
+  | sym
+  | '⊤' | '⊥' 
   | '{' var of_type '|' proposition '}';
 
 term = base_term [super_term];
 
-terms = term+;
+next_term = unit_term [super_term];
+
+terms = term {next_term};
 
 (* expressions *)
 
-binary_op = '·' | '+' | '-' | '∈' | '∉' | '|' | '∤' | '∧' | '∨' | '→' | '↔';
+binary_op = '·' | '+' | '-' | '^' | '∈' | '∉' | '|' | '∤' | '∧' | '∨' | '→' | '↔';
 
 compare_op = '=' | '<' | '≤' | '>' | '≥' | '~' | '⊆';
 
