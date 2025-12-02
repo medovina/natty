@@ -69,6 +69,8 @@ Axiom.  There is a binary operation · : ℤ → ℤ → ℤ such that for all n
 
     z(n, j) · z(k, i) = z(n · k + j · i, j · k + n · i).  [def of ·]
 
+Definition.  For all x : ℤ, x^(2 : ℤ) = x · x.
+
 Theorem.  Let a, b, c : ℤ.
 
   a. a · b = b · a.
@@ -313,8 +315,11 @@ Theorem.  Let x, y, z : ℤ.
   e. x < y iff −y < −x. [less iff negative less]
   f. If x < y and z < 0 then y · z < x · z.
   g. If x > 0 and y > 0 then x + y > 0 and x · y > 0. [sum and product positive]
-  h. If x < 0 and y < 0 then x · y > 0.
+  h. If x < 0 and y < 0 then x · y > 0.  [product of negatives is positive]
   i. If x > 0 and y < 0 then x · y < 0.
+  j. If x ≠ 0 then x² > 0.
+  k. x² ≥ 0.
+  l. −1 < 0 : ℤ < 1.
 
 Proof.
 
@@ -337,3 +342,5 @@ Proof.
   h. Suppose that x < 0 and y < 0.  Then by [negative iff inverse positive] 0 < −x and 0 < −y.  Hence by [sum and product positive] 0 < (−x) · (−y).  But (−x) · (−y) = x · y by [mul neg neg].
 
   i. Suppose that x > 0 and y < 0.  Then 0 < −y by [negative iff inverse positive].  Hence 0 < x · (−y) by [sum and product positive].  But x · (−y) = −(x · y) by [multiply by negative].  Hence 0 < −(x · y).  Then x · y < 0 by [negative iff inverse positive].
+
+  j. Suppose that x ≠ 0.  Then x < 0 or 0 < x by [weak trichotomy].  If 0 < x then x² > 0 by [sum and product positive].  If x < 0 then x² > 0 by [product of negatives is positive].
