@@ -179,7 +179,7 @@ Theorem.  Let x, y, z : ℤ.
     d. If −x = −y, then x = y.
     e. −(x + y) = (−x) + (−y).
     f. If x + y = x, then y = 0.    [addend is 0]
-    g. x · 0 = 0 = 0 · x.
+    g. x · 0 = 0 = 0 · x.  [multiply by 0]
     h. −(x · y) = (−x) · y = x · (−y).  [multiply by negative]
     i. (−x) · (−y) = x · y.  [mul neg neg]
 
@@ -287,7 +287,7 @@ Proof.
 
 Theorem.  Let x, y, z, u, v : ℤ.
 
-  a. Exactly one of the conditions x < y or x = y or y < x holds.
+  a. Exactly one of the conditions x < y or x = y or y < x holds. [trichotomy on ℤ]
   b. If x < y and u < v then x + u < y + v.  [< add left right on ℤ]
   c. If x < y and u ≤ v then x + u < y + v.
   d. If x ≤ y and u < v then x + u < y + v.
@@ -344,3 +344,23 @@ Proof.
   i. Suppose that x > 0 and y < 0.  Then 0 < −y by [negative iff inverse positive].  Hence 0 < x · (−y) by [sum and product positive].  But x · (−y) = −(x · y) by [multiply by negative].  Hence 0 < −(x · y).  Then x · y < 0 by [negative iff inverse positive].
 
   j. Suppose that x ≠ 0.  Then x < 0 or 0 < x by [weak trichotomy].  If 0 < x then x² > 0 by [sum and product positive].  If x < 0 then x² > 0 by [product of negatives is positive].
+
+# Absolute value
+
+Definition.  For all x : ℤ, |x| = { x if 0 ≤ x;
+                                               −x if x < 0 }.
+
+Theorem.  Let x, y : ℤ.
+
+    a. 0 ≤ |x|.
+    b. |x| = 0 if and only if x = 0.
+    c. |−x| = |x|.  [abs of negative]
+    d. |x − y| = |y − x|.
+
+Proof.
+
+    b. If x = 0 then |x| = x = 0.  If x ≠ 0 then by [weak trichotomy] 0 < x or x < 0.  If 0 < x then |x| = x > 0.  If x < 0 then |x| = −x > 0.
+
+    c. By [trichotomy on ℤ] either 0 < x or 0 = x or x < 0.  If 0 < x then −x < 0, so |x| = x and |−x| = −(−x) = x.  If 0 = x then −x = 0 = x.  If x < 0 then −x > 0, so |x| = −x and |−x| = −x.
+
+    d. x − y = −(y − x), so by [abs of negative] |x − y| = |y − x|.
