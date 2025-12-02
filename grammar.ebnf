@@ -68,12 +68,21 @@ super_term = super_digit;
 
 id_sub = base_id [sub_expr];
 
-unit_term = id_sub ["⋯" id_sub] | parens_exprs;
+unit_term =
+    id_sub ["⋯" id_sub] | parens_exprs;
+
+comprehension = '{' var of_type '|' proposition '}';
+
+if_clause = expr 'if' expr;
+
+if_block = '{' if_clause { ';' if_clause } '}';
 
 base_term = unit_term
   | sym
   | '⊤' | '⊥' 
-  | '{' var of_type '|' proposition '}';
+  | '|' expr '|'
+  | comprehension
+  | if_block;
 
 term = base_term [super_term];
 

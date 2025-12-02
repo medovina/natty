@@ -386,6 +386,7 @@ let (<<?) p q = attempt (p << q)
 let (>>=?) p q = attempt (p >>= q)
 
 let (let>) = bind
+let (let>?) = (>>=?)
 
 let bind_ret p f = p >>= (fun x -> return (f x))
 

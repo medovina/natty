@@ -56,7 +56,7 @@ let base_id = long_id <|> (empty >>? letter1)
 let id = long_id <|> var
 
 let sym = choice [
-  empty >>? (digit <|> any_of "+-<>|~^") |>> char_to_string;
+  empty >>? (digit <|> any_of "+-<>~^") |>> char_to_string;
   any_str ["·"; "≤"; "≥"; "≮"; "≯"; "≁"; "⊆"];
   str "−" >>$ "-"]
 
@@ -216,7 +216,7 @@ let mk_sub f sub : formula = match sub with
   | Some sub -> App (f, sub)  (* not a variable *)
   | None -> f
 
-let rec parens_exprs s = (str "(" >> (sep_by1 expr (str ",") << str ")")) s
+let rec parens_exprs s = (parens (sep_by1 expr (str ","))) s
 
 and range_term f f_sub =
   mid_ellipsis >> id_sub |>> (fun (g, g_sub) ->
@@ -236,16 +236,29 @@ and unit_term s : formula pr = (record_formula @@ choice [
   parens_exprs |>> mk_tuple
 ]) s  
 
+and comprehension s : formula pr = (
+  let>? var = str "{" >> var in
+  let>? typ = of_type in
+  let$ expr = str "|" >> proposition << str "}" in
+  App (Const ("{}", unknown_type), Lambda (var, typ, expr))) s
+
+and if_clause s : (formula * formula) pr =
+  (pair expr (str "if" >> expr)) s
+
+and if_block s : formula pr = (
+  let$ cs = str "{" >> sep_by1 if_clause (str ";") << str "}" in
+  fold_right (fun (f, p) g -> _if p f g) cs undefined) s
+
 and base_term s : formula pr = (unit_term <|> record_formula @@ choice [
   (sym |>> _const);
   str "⊤" >>$ _true;
   str "⊥" >>$ _false;
-  pipe3 (str "{" >> var) of_type (str "|" >> proposition << str "}")
-    (fun var typ expr ->
-      App (Const ("{}", unknown_type), Lambda (var, typ, expr)))
+  str "|" >> expr1 false << str "|" |>> (fun f -> App (_const "abs", f));
+  comprehension;
+  if_block
  ]) s
 
-and apply_super f super =
+and apply_super f super : formula =
   opt_fold (fun c f -> apply [_var "^"; f; c]) super f
 
 and term s = (pipe2 base_term (option super_term) apply_super) s
@@ -267,7 +280,7 @@ and eq_op s = choice ([
   str "≁" >>$ mk_not_binop "~" ] @
   map (fun op -> const_op (str op) op false) compare_ops) s
 
-and operators = [
+and operators with_bar = [
   [ Postfix (str ":" >> typ |>> ascribe) ];
   [ Prefix (minus >>$ unary_minus) ];
   [ Prefix (str "¬" >>$ _not) ];
@@ -275,11 +288,11 @@ and operators = [
   [ infix_binop "·" Assoc_left ];
   [ infix_binop "+" Assoc_left;
     infix_binop1 minus "-" Assoc_left ];
-  [ infix "∈" elem Assoc_none ;
-    infix "∉" not_elem Assoc_none ;
-    infix_binop "|" Assoc_none;
-    infix_negop "∤" "|" Assoc_none   (* does not divide *)
-    ];
+  (if with_bar then [ infix_binop "|" Assoc_none ] else []) @
+  [ infix_negop "∤" "|" Assoc_none;   (* does not divide *)
+    infix "∈" elem Assoc_none ;
+    infix "∉" not_elem Assoc_none
+  ];
   [ Infix (eq_op,  Assoc_left) ];
   [ infix "∧" _and Assoc_left ];
   [ infix "∨" _or Assoc_left ];
@@ -289,7 +302,9 @@ and operators = [
              (fun ids_type -> for_all_vars_typ ids_type)) ] 
 ]
 
-and expr s = record_formula (expression operators terms) s
+and expr1 with_bar s = record_formula (expression (operators with_bar) terms) s
+
+and expr s = expr1 true s
 
 and exprs s = (sep_by1 expr (str "and") |>> multi_and) s
 
@@ -381,7 +396,7 @@ and for_with text q s : (formula -> formula) pr =
 and post_for_all_with s = for_with "for all" for_all_with s
 and post_for_some_with s = for_with "for some" exists_with s
 
-and _if = str "if" <<? not_before (str "and only")
+and _if_op = str "if" <<? not_before (str "and only")
 
 and prop_operators () = [
   [ Infix (and_op >>$ _and, Assoc_left) ];
@@ -390,7 +405,7 @@ and prop_operators () = [
   [ Postfix post_for_all_with ];
   [ Postfix post_for_some_with ];
   [ Infix (any_str ["iff"; "if and only if"] >>$ _iff, Assoc_right);
-    Infix (_if >>$ Fun.flip implies1, Assoc_right) ];
+    Infix (_if_op >>$ Fun.flip implies1, Assoc_right) ];
   [ Infix (str "," >>? and_op >>$ _and, Assoc_left) ];
   [ Infix (str "," >>? str "or" >>$ _or, Assoc_left) ];
 ]

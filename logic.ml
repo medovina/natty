@@ -238,6 +238,8 @@ let rec count_binders = function
 let _false = Const ("%⊥", Bool)
 let _true = Const ("%⊤", Bool)
 
+let undefined = Const ("undef", Pi ("σ", TypeVar "σ"))
+
 let is_bool_const x = x = _true || x = _false
 
 let _not f = App (Const ("(¬)", Fun (Bool, Bool)), f)
@@ -248,7 +250,7 @@ let logical_syms = ["(¬)"; "(∀)"; "(∃)"] @ logical_binary
 
 let logical_ops = ["%⊥"; "%⊤"] @ logical_syms
 
-let binop op typ f g = App (App (Const (op, typ), f), g) 
+let binop op typ f g : formula = App (App (Const (op, typ), f), g) 
 let binop_unknown op = binop op unknown_type
 
 let logical_op_type = Fun (Bool, Fun (Bool, Bool))
@@ -263,6 +265,11 @@ let elem = binop "∈" (Pi ("σ",
     Fun (TypeVar "σ", Fun (Fun (TypeVar "σ", Bool), Bool))))  (* σ → (σ → 𝔹) → 𝔹 *)
 
 let not_elem f g = _not (elem f g)
+
+let _if_c = Const ("if", Pi ("σ",
+    Fun (Bool, Fun (TypeVar "σ", Fun (TypeVar "σ", TypeVar "σ")))))  (* 𝔹 → σ → σ → σ *)
+
+let _if p f g = apply [_if_c; p; f; g]
 
 let multi_and = function
   | [] -> _true
