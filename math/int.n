@@ -337,9 +337,9 @@ Proof.
 
   f. Suppose that x < y and z < 0.  By [negative iff inverse positive] 0 < −z.  Hence by [< mul right on ℤ] x · (−z) < y · (−z).  But by [multiply by negative] x · (−z) = −(x · z) and y · (−z) = −(y · z).  Hence −(x · z) < −(y · z).  Therefore by [less iff negative less] y · z < x · z.
 
-  g. Suppose that 0 < x and 0 < y.  By [< add left right on ℤ] 0 + 0 < x + y.  Also by [< mul right on ℤ] 0 · y < x · y.  But 0 · y = 0.
+  g. Suppose that 0 < x and 0 < y.  By [< add left right on ℤ] 0 + 0 < x + y.  Also by [< mul right on ℤ] 0 · y < x · y.  But 0 · y = 0.  So x + y > 0 and x · y > 0.
 
-  h. Suppose that x < 0 and y < 0.  Then by [negative iff inverse positive] 0 < −x and 0 < −y.  Hence by [sum and product positive] 0 < (−x) · (−y).  But (−x) · (−y) = x · y by [mul neg neg].
+  h. Suppose that x < 0 and y < 0.  Then by [negative iff inverse positive] 0 < −x and 0 < −y.  Hence by [sum and product positive] 0 < (−x) · (−y).  But (−x) · (−y) = x · y by [mul neg neg], so x · y > 0.
 
   i. Suppose that x > 0 and y < 0.  Then 0 < −y by [negative iff inverse positive].  Hence 0 < x · (−y) by [sum and product positive].  But x · (−y) = −(x · y) by [multiply by negative].  Hence 0 < −(x · y).  Then x · y < 0 by [negative iff inverse positive].
 
