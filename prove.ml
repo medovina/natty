@@ -166,6 +166,7 @@ let orig_hyp p = is_hyp p && not p.derived
 let orig_goal p = p.goal && not p.derived
 let orig_def p = p.definition && not p.derived
 let orig_by p = p.by && not p.derived
+let orig_goal_or_last_hyp p = (p.hypothesis = 1 || p.goal) && not p.derived
 
 type queue_item =
   | Unprocessed of pformula
@@ -610,7 +611,8 @@ let cost p : float * bool =
   let c =
     if by then by_cost else
     if is_expand p then expand_cost else
-    if weight p.formula <= max then step_cost else
+    if weight p.formula <= max ||
+       for_all orig_goal_or_last_hyp p.parents then step_cost else
       if not !step_strategy && by_induction p then induction_cost
       else infinite_cost in
   (c, p.derived && not (is_expand p))
@@ -687,8 +689,9 @@ let all_super1 dp cp : pformula list =
   let pairs = eq_pairs false upward t_t' in  (* iii: pre-check *)
   let+ (c_lits, _, exposed_lits) = c_steps in
   let+ c_lit = exposed_lits in
-  let with_para = (allow cp && (not !step_strategy || is_unit_equality dp.formula)) ||
-    dp.ac = Some Comm || by || def_expand || const_expand in
+  let with_para = dp.ac = Some Comm || by || def_expand || const_expand ||
+    allow cp && (not !step_strategy ||
+                 is_unit_equality dp.formula || orig_goal_or_last_hyp dp) in
   super rule with_para lenient upward dp (remove1 t_t' d_lits) pairs cp c_lits c_lit
 
 let allow_super dp cp =
