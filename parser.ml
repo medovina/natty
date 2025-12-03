@@ -687,7 +687,7 @@ let proof_clause : proof_step list p = pipe2
   (let_or_assumes <|> assert_steps)
   (fun now steps ->
     let esc = if now = 1 && is_assume (hd steps) || now = 2
-                then [Escape] else []
+                then [Escape false] else []
     in esc @ steps)
 
 let proof_sentence : proof_step list p =
