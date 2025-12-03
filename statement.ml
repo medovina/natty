@@ -52,7 +52,7 @@ type proof_step =
   | LetDef of id * typ * formula
   | Assume of formula
   | IsSome of id list * typ * formula
-  | Escape of bool
+  | Escape
   | Group of proof_step list
 
 let mk_assert f = Assert [("", f, [])]
@@ -79,7 +79,7 @@ let rec step_decl_vars = function
 
 let rec step_formulas = function
   | Assert fs -> let+ (_, f, _) = fs in [f]
-  | Let _ | Escape _ -> []
+  | Let _ | Escape -> []
   | LetDef (_, _, f) -> [f]
   | Assume f -> [f]
   | IsSome (_, _, f) -> [f]
@@ -112,7 +112,7 @@ let rec show_proof_step step : string = match step with
   | Assume f -> sprintf "assume %s" (show_formula f)
   | IsSome (ids, typ, f) -> sprintf "is_some %s : %s : %s"
       (comma_join ids) (show_type typ) (show_formula f)
-  | Escape _ -> "escape"
+  | Escape -> "escape"
   | Group steps ->
       sprintf "[%s]" (comma_join (map show_proof_step steps))
 

@@ -53,7 +53,7 @@ let has_premise f g =
     | _ -> false
 
 let trim_escape rest : proof_step list = match rest with
-  | Escape false :: rest -> rest  (* ignore an escape that immediately follows an assert ⊥ *)
+  | Escape :: rest -> rest  (* ignore an escape that immediately follows an assert ⊥ *)
   | _ -> rest
 
 let is_assert_false step = match step with
@@ -61,28 +61,28 @@ let is_assert_false step = match step with
   | _ -> false
 
 let infer_blocks env steps : block list =
-  let rec infer vars scope_vars in_assume steps : block list * proof_step list * int =
+  let rec infer vars scope_vars in_assume steps : block list * proof_step list * bool =
     match steps with
-      | [] -> ([], steps, 0)
+      | [] -> ([], steps, false)
       | step :: rest ->
           let step = map_assume_step env vars step in
-          if overlap (step_decl_vars step) (concat vars) then ([], steps, 0) else
+          if overlap (step_decl_vars step) (concat vars) then ([], steps, false) else
           let in_use = "·" :: all_vars steps in
           let vars_in_use = head_opt vars |> opt_for_all (fun top_vars
             -> overlap top_vars in_use) in
           let let_vars_in_use = head_opt scope_vars |> opt_for_all (fun top_vars
             -> overlap top_vars in_use) in
           if not (is_assert_false step) && not vars_in_use && not let_vars_in_use
-            then ([], steps, 0)
+            then ([], steps, false)
           else match step with
-            | Escape all ->
-                if Option.is_some in_assume then ([], rest, if all then 2 else 1)
+            | Escape ->
+                if Option.is_some in_assume then ([], rest, true)
                   else infer vars scope_vars None rest
             | Assert [(_, f, _)] when opt_exists (has_premise f) in_assume ->
-                ([], steps, 1)  (* proof invoked last assumption as a premise, so exit scope *)
+                ([], steps, true)  (* proof invoked last assumption as a premise, so exit scope *)
             | Assert [(_, f, _)] when strip_range f = _false ->
                 if Option.is_some in_assume then
-                  ([Block (step, [])], trim_escape rest, 1)
+                  ([Block (step, [])], trim_escape rest, true)
                 else error "contradiction without assumption" (range_of f)
             | Group steps ->
                 let rec group_blocks steps : block list = match steps with
@@ -98,17 +98,17 @@ let infer_blocks env steps : block list =
               let (children, rest1, bail) =
                 match step with
                   | Assume f ->
-                      let (blocks, rest, bail) =
+                      let (blocks, rest, _bail) =
                         infer vars scope_vars (Some f) rest in
-                      (blocks, rest, if bail = 2 && Option.is_some in_assume then 2 else 0)
+                      (blocks, rest, false)
                   | _ -> match step_decl_vars step with
-                    | [] -> ([], rest, 0)
+                    | [] -> ([], rest, false)
                     | step_vars ->
                         let scope_vars = if is_function_definition step
                           then scope_vars else step_vars :: scope_vars in
                         infer (step_vars :: vars) scope_vars in_assume rest in
               let (blocks, rest2, bail) =
-                if bail >= 1 then ([], rest1, bail) else infer vars scope_vars in_assume rest1 in
+                if bail then ([], rest1, true) else infer vars scope_vars in_assume rest1 in
               let out_blocks = match step with
                 | IsSome _ ->
                     [Block (step, children @ blocks)]  (* pull siblings into block *)
@@ -456,7 +456,7 @@ and block_steps in_proof env lenv (Block (step, children)) : statement list list
         let (fs, concl) = child_steps stmts in
         (mk_thm (ex, []) :: fs,
          if any_free_in ids concl then exists_vars_typ (ids, typ) concl else concl)
-    | Escape _ | Group _ -> failwith "block_formulas"
+    | Escape | Group _ -> failwith "block_formulas"
 
 let trim_lets steps : proof_step list =
   let vs = unique (steps |> concat_map step_free_vars) in
@@ -513,8 +513,8 @@ let rec expand_proof stmt env steps proof_steps : formula * statement list list 
     let (init, f) = split_last steps in
     let proof_steps =
       if duplicate_lets (collect_lets init) proof_steps
-        then proof_steps @ [Escape true; Assert [("", concl, [])]]
-        else init @ proof_steps @ [Escape true; f] in
+        then proof_steps @ [Assert [("", concl, [])]]
+        else init @ proof_steps @ [f] in
     if !(opts.show_structure) then (
       printf "%s:\n\n" (stmt_id_name stmt);
       if !debug > 1 then (
