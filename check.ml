@@ -503,6 +503,14 @@ let rec gather_eif f = match collect_args f with
   | (c, [_type]) when c = undefined -> []
   | _ -> failwith "gather_eif"
 
+let rec insert_conclusion_step blocks init f : block list =
+  match init, blocks with
+    | [], blocks -> blocks @ [Block (f, [])]
+    | step :: steps, [Block (step', blocks)] ->
+        assert (step = step');
+        [Block (step, insert_conclusion_step blocks steps f)]
+    | _ -> failwith "insert_conclusion_step"
+
 let rec expand_proof stmt env steps proof_steps : formula * statement list list =
   let steps = trim_lets steps in
   let type_vars = free_type_vars_in_steps steps in
@@ -511,10 +519,8 @@ let rec expand_proof stmt env steps proof_steps : formula * statement list list 
   let (_, concl) = blocks_steps false env [] blocks0 in
   let stmtss = if proof_steps = [] then [] else
     let (init, f) = split_last steps in
-    let proof_steps =
-      if duplicate_lets (collect_lets init) proof_steps
-        then proof_steps @ [Assert [("", concl, [])]]
-        else init @ proof_steps @ [f] in
+    let include_init = not (duplicate_lets (collect_lets init) proof_steps) in
+    let proof_steps = (if include_init then init else []) @ proof_steps in
     if !(opts.show_structure) then (
       printf "%s:\n\n" (stmt_id_name stmt);
       if !debug > 1 then (
@@ -523,6 +529,8 @@ let rec expand_proof stmt env steps proof_steps : formula * statement list list 
       );
     );
     let blocks = infer_blocks env proof_steps in
+    let blocks = if include_init then insert_conclusion_step blocks init f
+      else blocks @ [Block (Assert [("", concl, [])], [])] in
     if !(opts.show_structure) then print_blocks blocks;
     let (stmtss, _concl) = blocks_steps true env [] blocks in
     map rev stmtss in
