@@ -41,7 +41,7 @@ The `-x` option will cause Natty to export each theorem from the input file (and
 You can also run Natty on a THF file directly:
 
 ```
-$ ./natty thf/nat/2_s1.thf
+$ ./natty thf/nat/11_s1.thf
 ```
 
 To see a list of other available options, run Natty with no command-line arguments:
@@ -55,14 +55,12 @@ $ ./natty
 Natty's math library is in the `math` subdirectory, and includes several files:
 
 * `nat.n` - a definition of the natural numbers plus many theorems about them
-* `int.n` - a definition of the integers based on the natural numbers, plus some theorems about them
+* `int.n` - a definition of the integers based on the natural numbers, plus many theorems about them
 * `set.n` - definitions about sets
 * `fun.n` - definitions about functions
 * `card.n` - cardinality of sets, including a proof of Cantor's theorem
 
 The theorems and proofs in `nat.n` and `int.n` largely follow those in the excellent textbook Number Systems and the Foundations of Analysis (Elliott Mendelson, 1973).  However in Mendelson the first natural number is 1 but in Natty's library it is 0, so I have adapted various proofs accordingly.
-
-There are also files `int1.n` and `num1.n` containing more mathematics that Natty can parse and type check but not yet verify, though I am working on that.
 
 ### Documentation
 
