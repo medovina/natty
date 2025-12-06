@@ -2,8 +2,9 @@ open Printf
 
 open MParser
 
+open Hstatement
 open Logic
-open Statement
+open Module
 open Util
 
 type state = {
@@ -546,52 +547,52 @@ let words2 : string p =
     pipe2 word (option word) (fun w x ->
         unwords (w :: Option.to_list x)) 
 
-let type_decl : statement p =
+let type_decl : hstatement p =
     pipe2 (str "a type" >> id) (option (parens (str "the" >> words2)))
-        (fun id opt_name -> TypeDecl (id, Option.map singular opt_name))
+        (fun id opt_name -> HTypeDecl (id, Option.map singular opt_name))
 
-let const_decl : statement p =
+let const_decl : hstatement p =
     pipe2 ((any_str ["a constant"; "an element"; "a function"] <|> operation) >> id_or_sym)
         of_type
-        (fun c typ -> ConstDecl (unary_prefix c typ, typ))
+        (fun c typ -> HConstDecl (unary_prefix c typ, typ))
 
-let axiom_decl : statement p = type_decl <|> const_decl
+let axiom_decl : hstatement p = type_decl <|> const_decl
 
 let count_sub_index num sub_index =
   if sub_index = "" then sprintf "%d" num
   else sprintf "%d.%s" num sub_index
 
-let axiom_propositions name : statement list p =
+let axiom_propositions name : hstatement list p =
   let> st = get_user_state in
   incr st.axiom_count;
   propositions name |>> map (fun (sub_index, steps, name) ->
     HAxiom (count_sub_index (!(st.axiom_count)) sub_index, steps, name))
 
-let axiom_exists name : statement list p =
+let axiom_exists name : hstatement list p =
   there_exists >>? pipe2
   (sep_by1 axiom_decl (any_str ["and"; "with"]))
   ((str "such that" >> axiom_propositions name) <|> (str "." >>$ []))
   (@)
 
-let axiom_group : statement list p =
+let axiom_group : hstatement list p =
   (str "Axiom" >> option stmt_name << str ".") >>= fun name ->
   (axiom_exists name <|> axiom_propositions name)
 
 (* definitions *)
 
-let mk_def id typ formula = Definition (id, typ, Eq (Const (id, typ), formula))
+let mk_def id typ formula = HDefinition (id, typ, Eq (Const (id, typ), formula))
 
 let new_paragraph : id p = empty >>? (any_str keywords <|> sub_index)
 
-let define ids_types prop : statement =
+let define ids_types prop : hstatement =
   let prop = for_all_vars_types ids_types prop in
-  Definition ("_", unknown_type, prop)
+  HDefinition ("_", unknown_type, prop)
 
 let def_prop : formula p = 
     not_before new_paragraph >> opt_str "we write" >>
       record_formula small_prop << str "."
 
-let definition : statement list p = str "Definition." >>
+let definition : hstatement list p = str "Definition." >>
   let> let_ids_types = many (let_decl <<? str ".") in
   let> ids_types = opt [] (for_all_ids << str ",") in
   let$ props = many1 (opt_str "Let" >> def_prop) in
@@ -710,7 +711,7 @@ let proofs : (id * proof_step list) list p = str "Proof." >> choice [
 
 (* theorems *)
 
-let theorem_group : statement list p =
+let theorem_group : hstatement list p =
   any_str ["Corollary"; "Lemma"; "Theorem"] >> option stmt_name << str "." >>= fun name -> 
   many_concat (let_step << str ".") >>=
   fun let_steps ->
@@ -730,10 +731,10 @@ let module_name = empty >>? many1_chars (alphanum <|> char '_')
 
 let using : string list p = str "using" >> sep_by1 module_name (str ",") << str ";"
 
-let _module : statement list p = optional using >>
+let _module : hstatement list p = optional using >>
   many (axiom_group <|> definition <|> theorem_group) << empty << eof |>> concat
 
-let parse_module_text text init_state : (statement list * state) MParser.result =
+let parse_module_text text init_state : (hstatement list * state) MParser.result =
   MParser.parse_string (pair _module get_user_state) text init_state
 
 let parse_formula text : formula =
@@ -741,11 +742,11 @@ let parse_formula text : formula =
 
 let relative_name from f = mk_path (Filename.dirname from) (f ^ ".n")
   
-let parse_files filenames sources : (_module list, string * frange) Stdlib.result =
-  let rec parse (modules, state) filename : (_module list * state, string * frange) Stdlib.result =
+let parse_files filenames sources : (hmodule list, string * frange) Stdlib.result =
+  let rec parse (modules, state) filename : (hmodule list * state, string * frange) Stdlib.result =
     if exists (fun m -> m.filename = filename) modules then Ok (modules, state) else
       let text = opt_or (assoc_opt filename sources) (fun () -> read_file filename) in
-      let using : str list =
+      let using : string list =
         map (relative_name filename) (always_parse (opt [] using) text (empty_state ())) in
       let** (modules, state) = fold_left_res parse (modules, state) using in
       match parse_module_text text state with

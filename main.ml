@@ -21,18 +21,20 @@ let source = parse_args (tl (Array.to_list Sys.argv)) in
             | Success formulas -> format_proof formulas
         else
           let ext = Filename.extension source in
-          let parser = match ext with
-            | ".n" -> Parser.parse_file
-            | ".thf" -> Thf_parse.parse_thf
+          let res = match ext with
+            | ".n" ->
+                let** modules =
+                  Result.bind (Parser.parse_file source) Check.check in
+                Ok (false, modules)
+            | ".thf" ->
+                let** modules =
+                  Result.bind (Thf_parse.parse_thf source) Check.check_modules in
+                Ok (true, modules)
             | _ -> failwith "unknown extension" in
-          let from_thf = (ext = ".thf") in
-          let res =
-            let** modules = parser source in
-            Check.check from_thf modules in
           match res with
             | Error (msg, (filename, range)) ->
                 printf "%s at %s: %s\n" msg filename (show_range range)
-            | Ok modules ->
+            | Ok (from_thf, modules) ->
                 if !(opts.verbose) then iter write_thm_info modules;
                 if !(opts.export) then (
                   clean_dir "thf";

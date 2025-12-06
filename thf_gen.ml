@@ -1,6 +1,7 @@
 open Printf
 
 open Logic
+open Module
 open Options
 open Statement
 open Util
@@ -95,7 +96,6 @@ let thf_statement is_conjecture stmt : string =
       (quote (id ^ "_decl")) (quote (prefix_upper id)) (thf_type typ) in
   let axiom name kind f =
     sprintf "%s, %s, %s" (quote name) kind (thf_formula f) in
-  let type_decl t = sprintf "%s, type, %s: $tType" (quote (t ^ "_type")) (quote t) in
   let thm_or_hyp stmt kind by f =
     let extra =
       (if is_step stmt then ["step"] else []) @
@@ -104,23 +104,17 @@ let thf_statement is_conjecture stmt : string =
         [sprintf "by([%s])" (comma_join (map adjust by))]) in
     let suffix =
       if extra = [] then "" else sprintf ", file, [%s]" (comma_join extra) in
-    [sprintf "%s, %s, %s%s"
-      (quote (stmt_prefix_id "_" stmt)) kind (thf_formula f) suffix] in
+    sprintf "%s, %s, %s%s"
+      (quote (stmt_prefix_id "_" stmt)) kind (thf_formula f) suffix in
   let conv stmt = match stmt with
-    | TypeDecl (id, _) -> [type_decl id]
-    | ConstDecl (id, typ) -> [const id typ]
-    | Axiom (_, f, _) -> [axiom (stmt_prefix_id "_" stmt) "axiom" f]
+    | ConstDecl (id, typ) -> const id typ
+    | Axiom (_, f, _) -> axiom (stmt_prefix_id "_" stmt) "axiom" f
     | Hypothesis (_, f) -> thm_or_hyp stmt "hypothesis" [] f
-    | Definition (id, typ, f) -> [
-        const id typ;
-        axiom (id ^ "_def") "definition" f
-        ]
+    | Definition (id, _typ, f) -> axiom (id ^ "_def") "definition" f
     | Theorem { formula = f; by; _ } ->
         let kind = if is_conjecture then "conjecture" else "theorem" in
-        thm_or_hyp stmt kind by f
-    | HAxiom _
-    | HTheorem _ -> failwith "thf_statement" in
-  unlines (map (sprintf "thf(%s).") (conv stmt))
+        thm_or_hyp stmt kind by f in
+  sprintf "thf(%s)." (conv stmt)
 
 let thf_file dir name = mk_path dir (name ^ ".thf")
 

@@ -153,10 +153,10 @@ let filename_to_uri f = "file://" ^ f
 let text_of sources file =
   opt_or (assoc_opt file sources) (fun () -> read_file file)
 
-let check (sources : (string * string) list) : (_module list, string * frange) result =
+let check (sources : (string * string) list) : (smodule list, string * frange) result =
   let res =
     let** modules = Parser.parse_files (map fst sources) sources in
-    Check.check false modules in
+    Check.check modules in
   match res with
     | Error (err, (filename, (pos1, pos2))) ->
         let text = text_of sources filename in

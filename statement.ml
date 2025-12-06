@@ -1,129 +1,13 @@
 open Printf
 
 open Logic
+open Module
 open Options
 open Util
 
 type str = string
 
-type pos = int * int   (* line number, column number *)
-
-type range = pos * pos
-let empty_range = ((0, 0), (0, 0))
-
-type frange = string * range  (* filename, position *)
-
-let show_pos (line, col) = sprintf "%d:%d" line col
-
-let show_range (pos1, pos2) : string =
-  if pos2 = (0, 0) then show_pos pos1
-  else sprintf "%s - %s" (show_pos pos1) (show_pos pos2)
-
-let encode_range ((line1, col1), (line2, col2)) : string =
-  sprintf "@ %d %d %d %d" line1 col1 line2 col2
-
-let decode_range s : range =
-  if s = "" then empty_range else
-  let words = String.split_on_char ' ' (string_from s 1) |>
-    filter ((<>) "") |> map int_of_string in
-  match words with
-    | [line1; col1; line2; col2] -> ((line1, col1), (line2, col2))
-    | _ -> failwith "decode_range"
-
-let strip_range f : formula = match f with
-  | App (Const (c, _), g) when starts_with "@" c -> g
-  | _ -> f
-
-let rec strip_ranges f : formula =
-  map_formula strip_ranges (strip_range f)
-
-let rec range_of f : range = match f with
-  | App (Const (c, _), _) when starts_with "@" c -> decode_range c
-  | App (Const ("(∀)", _), Lambda (_, _, g)) -> range_of g
-  | _ -> empty_range
-
-type reason = (string * range) list
-
-type chain = (id * formula * reason) list  (* op, formula, reason(s) *)
-
-type proof_step =
-  | Assert of chain
-  | Let of (id * typ) list
-  | LetDef of id * typ * formula
-  | Assume of formula
-  | IsSome of id list * typ * formula
-  | Escape
-  | Group of proof_step list
-
-let mk_assert f = Assert [("", f, [])]
-
-let is_assert f = function
-  | Assert [(_, f', _)] when f = f' -> true
-  | _ -> false
-
-let is_assume = function
-  | Assume _ -> true
-  | _ -> false
-
-let step_types step : typ list = match step with
-  | Let ids_types -> unique (map snd ids_types)
-  | LetDef (_, typ, _) | IsSome (_, typ, _) -> [typ]
-  | _ -> []
-  
-let rec step_decl_vars = function
-  | Let ids_types -> map fst ids_types
-  | LetDef (id, _, _) -> [id]
-  | IsSome (ids, _, _) -> ids
-  | Group steps -> unique (concat_map step_decl_vars steps)
-  | _ -> []
-
-let rec step_formulas = function
-  | Assert fs -> let+ (_, f, _) = fs in [f]
-  | Let _ | Escape -> []
-  | LetDef (_, _, f) -> [f]
-  | Assume f -> [f]
-  | IsSome (_, _, f) -> [f]
-  | Group steps -> concat_map step_formulas steps
-
-let step_free_vars step = unique @@
-  let vars =
-    concat_map free_vars_in_type (step_types step) @
-    concat_map free_vars (step_formulas step) in
-  match step with
-    | IsSome (ids, _, _) -> subtract vars ids
-    | _ -> vars
-
-let step_free_type_vars step = unique @@
-  concat_map free_type_vars_in_type (step_types step) @
-  concat_map free_type_vars (step_formulas step)
-
-let show_chain chain : string =
-  let to_str (op, f, _) =
-    let s = show_formula f in
-    if op = "" then s else op ^ " " ^ s in
-  unwords (map to_str chain)
-
-let rec show_proof_step step : string = match step with
-  | Assert chain -> sprintf "assert %s" (show_chain chain)
-  | Let ids_types ->
-      let show (id, typ) = sprintf "%s : %s" id (show_type typ) in
-      "let " ^ comma_join (map show ids_types)
-  | LetDef (_id, _typ, f) -> sprintf "let_def : %s" (show_formula f)
-  | Assume f -> sprintf "assume %s" (show_formula f)
-  | IsSome (ids, typ, f) -> sprintf "is_some %s : %s : %s"
-      (comma_join ids) (show_type typ) (show_formula f)
-  | Escape -> "escape"
-  | Group steps ->
-      sprintf "[%s]" (comma_join (map show_proof_step steps))
-
-let is_function_definition = function
-  | LetDef (_id, _typ, f) -> (match strip_range f with
-      | Eq _ -> false
-      | _ -> true)
-  | _ -> false
-
 type statement =
-  | TypeDecl of id * string option  (* e.g. "ℤ", "integer" *)
   | ConstDecl of id * typ
   | Axiom of id * formula * string option (* id, formula, name *)
   | Hypothesis of id * formula
@@ -131,14 +15,6 @@ type statement =
   | Theorem of
       { id: string; name: string option; formula: formula;
         steps: statement list list; by: id list; is_step: bool; range: range }
-  | HAxiom of id * proof_step list * string option (* num, steps, name *)
-  | HTheorem of
-      { id: string; name: string option;
-        steps: proof_step list; proof_steps: proof_step list }
-
-let is_type_decl id = function
-  | TypeDecl (id', _) when id = id' -> true
-  | _ -> false
 
 let is_hypothesis = function
   | Hypothesis _ -> true | _ -> false
@@ -154,10 +30,9 @@ let is_step = function
   | _ -> false
 
 let stmt_id = function
-  | TypeDecl (id, _) | ConstDecl (id, _) | Axiom (id, _, _)
+  | ConstDecl (id, _) | Axiom (id, _, _)
   | Hypothesis (id, _) | Definition (id, _, _)
-  | Theorem { id; _ } | HAxiom (id, _, _) | HTheorem { id; _ } ->
-      id
+  | Theorem { id; _ } -> id
 
 let with_stmt_id id = function
   | Hypothesis (_, formula) -> Hypothesis (id, formula)
@@ -165,10 +40,9 @@ let with_stmt_id id = function
   | _ -> assert false
 
 let stmt_prefix = function
-  | TypeDecl _ -> "typedef" | ConstDecl _ -> "const"
+  | ConstDecl _ -> "const"
   | Axiom _ -> "ax" | Hypothesis _ -> "hyp" | Definition _ -> "def"
   | Theorem _ -> "thm"
-  | _ -> failwith "stmt_prefix"
 
 let stmt_prefix_id sep stmt = stmt_prefix stmt ^ sep ^ stmt_id stmt
   
@@ -179,18 +53,12 @@ let stmt_name = function
   | Theorem { name; _ } -> name
   | _ -> None
 
-let with_stmt_name name = function
-  | Axiom (id, f, _) -> Axiom (id, f, name)
-  | Theorem thm -> Theorem { thm with name }
-  | _ -> failwith "with_stmt_name"
-
 let stmt_kind = function
-  | TypeDecl _ -> "type"
   | ConstDecl _ -> "const"
-  | Axiom _ | HAxiom _ -> "axiom"
+  | Axiom _ -> "axiom"
   | Hypothesis _ -> "hypothesis"
   | Definition _ -> "definition"
-  | Theorem _ | HTheorem _ -> "theorem"
+  | Theorem _ -> "theorem"
 
 let stmt_id_name stmt : string =
   let base = stmt_kind stmt ^ " " ^ strip_prefix (stmt_id stmt) in
@@ -220,7 +88,7 @@ let show_statement multi s : string =
   let name = stmt_id_name s in
   let show prefix f = indent_with_prefix prefix (show_formula_multi multi f) in
   match s with
-    | TypeDecl _ -> name
+    | ConstDecl (id, Type) -> "type " ^ id
     | ConstDecl (id, typ) ->
         sprintf "const %s : %s" (without_type_suffix id) (show_type typ)
     | Axiom (_, f, _) | Hypothesis (_, f) -> show (name ^ ": ") f
@@ -229,12 +97,9 @@ let show_statement multi s : string =
           sprintf "definition (%s: %s): " (without_type_suffix id) (show_type typ) in
         show prefix f
     | Theorem { formula = f; _ } -> show (name ^ ": ") f
-    | HAxiom (id, _, _) -> "haxiom: " ^ id
-    | HTheorem { id; _ } -> "htheorem: " ^ id
 
 let rec map_statement1 id_fn typ_fn fn stmt =
   match stmt with
-  | TypeDecl _ -> stmt
   | ConstDecl (id, typ) -> ConstDecl (id_fn typ id, typ_fn typ)
   | Axiom (id, f, name) -> Axiom (id, fn f, name)
   | Hypothesis (id, f) -> Hypothesis (id, fn f)
@@ -242,8 +107,6 @@ let rec map_statement1 id_fn typ_fn fn stmt =
   | Theorem ({ formula = f; steps = esteps; _ } as thm) ->
       let map_proof esteps = map (map (map_statement1 id_fn typ_fn fn)) esteps in
       Theorem { thm with formula = fn f; steps = map_proof esteps }
-  | HAxiom _
-  | HTheorem _ -> failwith "map_statement1"
 
 let map_statement = map_statement1 (fun _typ id -> id)
 
@@ -252,20 +115,16 @@ let map_stmt_formulas fn = map_statement Fun.id fn
 let apply_types_in_stmt = map_statement without_pi apply_types_in_formula
 
 let decl_var stmt : (id * typ) option = match stmt with
-  | TypeDecl (id, _) -> Some (id, Type)
   | ConstDecl (i, typ) -> Some (i, typ)
-  | Definition (i, typ, _f) -> Some (i, typ)
   | _ -> None
 
 let is_const_decl id def : typ option =
   let* (i, typ) = decl_var def in
   if i = id then Some typ else None
 
-let definition_id f : id =
-  match is_eq_or_iff (strip_range (remove_universal f)) with
-    | Some (f, _g) ->
-        get_const_or_var (head_of f)
-    | _ -> failwith "definition_id: definition expected"
+let is_type_decl id = function
+  | ConstDecl (id', Type) when id = id' -> true
+  | _ -> false
 
 let number_hypotheses name stmts =
   let f n = function
@@ -303,22 +162,6 @@ let expand_proofs apply_types stmts with_full : (statement * statement list) lis
     | [] -> [] in
   expand [] stmts
 
-type _module = {
-  filename: string;
-  using: string list;
-  stmts: statement list;
-}
-
-let find_module modules name : _module =
-    find (fun m -> m.filename = name) modules
-
-let all_using md existing : _module list =
-  let uses m = map (find_module existing) m.using in
-  rev (tl (dsearch md uses))
-
-let module_env md existing : statement list =
-  concat_map (fun m -> m.stmts) (all_using md existing)
-
 let expand_modules1 modules all_modules : (string * statement * statement list) list =
   let stmts =
     let+ m = modules in
@@ -345,3 +188,5 @@ let write_thm_info md =
     md.filename
     (length thms) (length step_groups) (length thms - length step_groups)
     (length (concat step_groups))
+
+type smodule = statement _module

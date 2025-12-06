@@ -1347,7 +1347,7 @@ let encode_consts known_stmts thm : statement list * statement =
     if n = 0 then 0 else 1 + log10 (n / 10) in
   let digits = log10 (length consts - 1) in
   let map_const _typ c =
-    if mem c logical_ops then c else
+    if c = "_" || mem c logical_ops then c else
       match index_of_opt c consts with
         | Some i -> sprintf "[%0*d]%s" digits i c
         | None ->

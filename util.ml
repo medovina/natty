@@ -330,11 +330,13 @@ let remove_all_assoc k pairs = pairs |> filter (fun (k', _v) -> k <> k')
 (* search *)
 
 (* return values in reverse topological order *)
-let dsearch (x: 'a) (neighbors: 'a -> 'a list) : 'a list =
+let dsearch1 (xs: 'a list) (neighbors: 'a -> 'a list) : 'a list =
   let rec find all x =
     if memq x all then all else
       x :: fold_left find all (neighbors x) in
-  find [] x
+  fold_left find [] xs
+
+let dsearch x neighbors = dsearch1 [x] neighbors
 
 let search1 sub (initial: 'a list) (neighbors: 'a -> 'a list) : 'a list =
   let rec loop visited = function
@@ -427,6 +429,22 @@ let multi_sub xs ys = fold_left (Fun.flip remove_once) xs ys
 let multi_gt gt xs ys =
   let xy, yx = multi_sub xs ys, multi_sub ys xs in
   xy <> [] && yx |> for_all (fun y -> xy |> exists (fun x -> gt x y))
+
+(* ranges *)
+
+type pos = int * int   (* line number, column number *)
+
+type range = pos * pos
+
+type frange = string * range  (* filename, position *)
+
+let empty_range = ((0, 0), (0, 0))
+
+let show_pos (line, col) = sprintf "%d:%d" line col
+
+let show_range (pos1, pos2) : string =
+  if pos2 = (0, 0) then show_pos pos1
+  else sprintf "%s - %s" (show_pos pos1) (show_pos pos2)
 
 (* profiling *)
 

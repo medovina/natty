@@ -1,6 +1,8 @@
 open Printf
 
+open Hstatement
 open Logic
+open Module
 open Options
 open Statement
 open Util
@@ -300,11 +302,11 @@ let top_infer_with_type env f =
 
 let top_infer env f = snd (top_infer_with_type env f)
 
-let infer_type_decl env id name =
+let infer_type_decl env id =
   if is_type_defined id env then (
     let e = sprintf "duplicate type definition: %s\n" id in
     error e empty_range);
-  TypeDecl (id, name)
+  ConstDecl (id, Type)
 
 let check_dup_const env id typ kind range =
   if mem typ (id_types env id) then (
@@ -396,7 +398,7 @@ let rec blocks_steps in_proof env lenv blocks : statement list list * formula =
 and block_steps in_proof env lenv (Block (step, children)) : statement list list * formula =
   let child_steps stmts = blocks_steps in_proof (stmts @ env) (stmts @ lenv) children in
   let const_decl (id, typ) =
-    if typ = Type then infer_type_decl env id None else infer_const_decl env id typ in
+    if typ = Type then infer_type_decl env id else infer_const_decl env id typ in
   let const_decls ids_typs = rev (map const_decl ids_typs) in
   let mk_thm (f, by) : statement list = Theorem {
     id = ""; name = None; formula = top_infer env f;
@@ -522,7 +524,7 @@ let rec expand_proof stmt env steps proof_steps : formula * statement list list 
     let include_init = not (duplicate_lets (collect_lets init) proof_steps) in
     let proof_steps = (if include_init then init else []) @ proof_steps in
     if !(opts.show_structure) then (
-      printf "%s:\n\n" (stmt_id_name stmt);
+      printf "%s:\n\n" (hstmt_id_name stmt);
       if !debug > 1 then (
         proof_steps |> iter (fun s -> print_endline (show_proof_step s));
         print_newline ()
@@ -555,11 +557,9 @@ and translate_if_block f : formula option * formula =
 
 and infer_stmt env stmt : statement list =
   match stmt with
-    | TypeDecl (id, name) -> [infer_type_decl env id name]
-    | ConstDecl (id, typ) -> [infer_const_decl env id typ]
-    | Axiom _ -> failwith "infer_stmt"
-    | Hypothesis (id, f) -> [Hypothesis (id, top_infer env f)]
-    | Definition (_id, _typ, f) ->
+    | HTypeDecl (id, _name) -> [infer_type_decl env id]
+    | HConstDecl (id, typ) -> [infer_const_decl env id typ]
+    | HDefinition (_id, _typ, f) ->
         let (id, typ, f') = infer_definition env (generalize f) in
         check_dup_const env id typ "definition" (range_of f);
         let justify, f' = translate_if_block f' in
@@ -567,8 +567,7 @@ and infer_stmt env stmt : statement list =
           let& j = Option.to_list justify in
           Theorem { id = id ^ "_justify"; name = None; formula = j;
                     steps = []; by = []; is_step = false; range = empty_range } in
-        justify @ [Definition (id, typ, f')]
-    | Theorem _ -> failwith "infer_stmt"
+        justify @ [ConstDecl (id, typ); Definition (id, typ, f')]
     | HAxiom (id, steps, name) ->
         let blocks = infer_blocks env steps in
         let (_, f) = blocks_steps false env [] blocks in
@@ -588,7 +587,7 @@ and infer_stmts initial_env stmts : statement list =
     (stmts @ env, stmts) in
   concat (snd (fold_left_map check initial_env stmts))
 
-let infer_module checked md : (_module list, string * frange) result =
+let infer_module checked (md: hmodule) : (smodule list, string * frange) result =
   let env : statement list = module_env md checked in
   try 
     let modd = { md with stmts = infer_stmts env md.stmts } in
@@ -597,7 +596,7 @@ let infer_module checked md : (_module list, string * frange) result =
     | Check_error (err, pos) ->
         Error (err, (md.filename, pos))
 
-let infer_modules modules : (_module list, string * frange) result =
+let infer_modules modules : (smodule list, string * frange) result =
   fold_left_res infer_module [] modules |> Result.map rev
 
 let type_as_id typ = str_replace " " "" (show_type typ)
@@ -662,7 +661,7 @@ let encode_stmt consts stmt : statement =
   let encode f = b_reduce (encode_formula consts f) in
   map_statement1 (encode_id consts) encode_type encode stmt
 
-let encode_module consts md : _module =
+let encode_module consts md : smodule =
   { md with stmts = map (encode_stmt consts) md.stmts }
 
 let basic_check env f : typ * formula =
@@ -728,22 +727,20 @@ let basic_check_stmts stmts : statement list =
         check (stmt :: env) stmts in
   check [] stmts
 
-let check_module md : (_module, string * frange) result =
+let check_module md : (smodule, string * frange) result =
   try
     Ok ({ md with stmts = basic_check_stmts md.stmts })
   with
     | Check_error (err, _item) ->
         Error (err, (md.filename, empty_range))
 
-let check_modules modules : (_module list, string * frange) result =
+let check_modules modules : (smodule list, string * frange) result =
     match modules with
       | [md] ->
           let** md = check_module md in Ok [md]
       | _ -> failwith "single module expected"
 
-let check from_thf modules : (_module list, string * frange) result =
-  if from_thf then check_modules modules
-  else
-    let** modules = infer_modules modules in
-    let consts = filter_map decl_var (concat_map (fun m -> m.stmts) modules) in
-    Ok (map (encode_module consts) modules)
+let check modules : (smodule list, string * frange) result =
+  let** modules = infer_modules modules in
+  let consts = filter_map decl_var (concat_map (fun m -> m.stmts) modules) in
+  Ok (map (encode_module consts) modules)

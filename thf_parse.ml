@@ -2,6 +2,7 @@ open MParser
 open Printf
 
 open Logic
+open Module
 open Statement
 open Util
 
@@ -96,7 +97,7 @@ and quantifier s mk =
 and formula s = expression operators term s
 
 let thf_type : statement p = id << str ":" >>= fun id ->
-   (str "$tType" >>$ TypeDecl (id, None)) <|>
+   (str "$tType" >>$ ConstDecl (id, Type)) <|>
    (typ |>> fun typ -> ConstDecl (id, typ))
 
 type thm_info = string list * bool  (* by, is_step *)
@@ -134,7 +135,7 @@ let thf_file : statement list p =
 
 let relative_name from f = mk_path (Filename.dirname from) f
 
-let parse_thf source : (_module list, string * frange) Stdlib.result =
+let parse_thf source : (smodule list, string * frange) Stdlib.result =
   let rec parse source : (statement list, string * frange) Stdlib.result =
     let text = read_file source in
     let inc : str list =
