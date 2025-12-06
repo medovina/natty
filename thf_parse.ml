@@ -96,9 +96,9 @@ and quantifier s mk =
     (build_quant mk)
 and formula s = expression operators term s
 
-let thf_type : statement p = id << str ":" >>= fun id ->
-   (str "$tType" >>$ ConstDecl (id, Type)) <|>
-   (typ |>> fun typ -> ConstDecl (id, typ))
+let thf_type : (id * statement) p = id << str ":" >>= fun id ->
+   (str "$tType" >>$ (id, ConstDecl (id, Type))) <|>
+   (typ |>> fun typ -> (id, ConstDecl (id, typ)))
 
 type thm_info = string list * bool  (* by, is_step *)
 
@@ -107,31 +107,40 @@ let extra_item : (thm_info -> thm_info) p = choice [
   let$ ids = str "by" >> parens (brackets (comma_sep1 id)) in
   fun (_, is_step) -> (ids, is_step)]
 
-let thf_formula : statement p = empty >>?
+let thf_formula last_const : (id * statement) p = empty >>?
   str "thf" >> parens (
     let> id, role = pair (id << str ",") (id << str ",") in
     match role with
       | "type" -> thf_type
-      | "axiom" | "theorem"  ->
-          formula |>> fun f -> Axiom (id, f, None)
-      | "definition" ->
-          formula |>> fun f -> Definition ("_", unknown_type, f)
-      | "hypothesis" ->
-          formula |>> fun f -> Hypothesis (id, f)
-      | "conjecture" ->
-          let> f = formula in
-          let$ extras =
-            opt [] (str "," >> str "file," >> brackets (comma_sep1 extra_item)) in
-          let (by, is_step) = (fold_left Fun.compose Fun.id extras) ([], false) in
-          Theorem { id; name = None; formula = f; steps = [];
-                    by; is_step; range = empty_range }
-      | _ -> failwith "unknown role")
+      | _ ->
+        let p = match role with
+          | "axiom" | "theorem"  ->
+              formula |>> fun f -> Axiom (id, f, None)
+          | "definition" ->
+              formula |>> fun f -> Definition (last_const, unknown_type, f)
+          | "hypothesis" ->
+              formula |>> fun f -> Hypothesis (id, f)
+          | "conjecture" ->
+              let> f = formula in
+              let$ extras =
+                opt [] (str "," >> str "file," >> brackets (comma_sep1 extra_item)) in
+              let (by, is_step) = (fold_left Fun.compose Fun.id extras) ([], false) in
+              Theorem { id; name = None; formula = f; steps = [];
+                        by; is_step; range = empty_range }
+          | _ -> failwith "unknown role" in
+        p |>> fun x -> (last_const, x))
   << str "."
 
 let _include = str "include" >> parens quoted_id << str "."
 
+let rec formulas last_const : statement list p =
+  opt [] (
+    let> (last_const, stmt) = thf_formula last_const in
+    let$ rest = formulas last_const in
+    stmt :: rest)
+
 let thf_file : statement list p =
-  many _include >> many thf_formula << empty << eof
+  many _include >> formulas "_" << empty << eof
 
 let relative_name from f = mk_path (Filename.dirname from) f
 

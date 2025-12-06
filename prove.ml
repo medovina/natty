@@ -532,27 +532,12 @@ let def_consts f : id list =
   let cs = find (remove_for_all f) in
   subtract cs logical_ops
 
-let is_def_by_cases f : id option =
-  let is_case f = match collect_args f with
-    | Const ("(→)", _), [_; Eq (g, _)] -> Some (head_of g)
-    | _ -> None in
-  match map is_case (gather_and f) with
-    | Some (Const (c, _)) as g :: rest
-        when length rest >= 1 && for_all ((=) g) rest
-          -> Some c
-    | _ -> None
-
-let top_def_consts f : (id * id list) option =
+let top_def_consts c f : id list =
   match remove_for_all f with
-    | Eq (f, g) | App (App (Const ("(↔)", _), f), g) -> (
-        match head_of f with
-          | Const (c, _) ->
-              let ds = map def_consts (gather_and g) in
-              Some (c, if exists ((=) []) ds then [] else unique (concat ds))
-          | _ -> None)
-    | f ->
-        let* c = is_def_by_cases f in
-        Some (c, remove c (def_consts f))
+    | Eq (_f, g) | App (App (Const ("(↔)", _), _f), g) ->
+        let ds = map def_consts (gather_and g) in
+        if exists ((=) []) ds then [] else unique (concat ds)
+    | f -> remove c (def_consts f)
 
 let expand_limit = 2
 let def_expand_limit = 2
@@ -1290,11 +1275,9 @@ let find_proof_consts thm stmts by_thms hyps const_map =
     let+ stmt = thm :: by_thms @ hyps in
     consts_of const_map (get_stmt_formula stmt) in
   let extra = stmts |> concat_map (function
-    | Definition (_, _, f) -> (match top_def_consts f with
-        | Some (c, ds) when mem c proof_consts &&
-                            (ds = [] || overlap ds proof_consts) ->
-            consts_of const_map f
-        | _ -> [])
+    | Definition (c, _, f) when mem c proof_consts ->
+        let ds = top_def_consts c f in
+        if ds = [] || overlap ds proof_consts then consts_of const_map f else []
     | _ -> []) in
   unique (proof_consts @ extra)
 
