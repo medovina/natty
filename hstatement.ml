@@ -111,32 +111,18 @@ type hstatement =
   | HTypeDecl of id * string option  (* e.g. "ℤ", "integer" *)
   | HConstDecl of id * typ
   | HAxiom of id * proof_step list * string option (* num, steps, name *)
-  | HDefinition of id * typ * formula
+  | HDefinition of formula
   | HTheorem of
       { id: string; name: string option;
         steps: proof_step list; proof_steps: proof_step list }
 
-let hstmt_id = function
-  | HTypeDecl (id, _) | HConstDecl (id, _) | HAxiom (id, _, _)
-  | HDefinition (id, _, _)
-  | HTheorem { id; _ } -> id
-
-let hstmt_kind = function
-  | HTypeDecl _ -> "typedecl"
-  | HConstDecl _ -> "const"
-  | HAxiom _ -> "axiom"
-  | HDefinition _ -> "definition"
-  | HTheorem _ -> "theorem"
-
-let hstmt_id_name stmt : string =
-  let base = hstmt_kind stmt ^ " " ^ strip_prefix (hstmt_id stmt) in
+let theorem_name stmt : string =
   match stmt with
-  | HAxiom (_, _, name)
-  | HTheorem { name; _ } -> 
-      base ^ (match name with
+  | HTheorem { id; name; _ } -> 
+      "theorem " ^ id ^ (match name with
         | Some name -> sprintf " (%s)" name
         | _ -> "")
-  | _ -> base
+  | _ -> failwith "theorem_name"
 
 let definition_id f : id =
   match is_eq_or_iff (strip_range (remove_universal f)) with

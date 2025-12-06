@@ -580,13 +580,11 @@ let axiom_group : hstatement list p =
 
 (* definitions *)
 
-let mk_def id typ formula = HDefinition (id, typ, Eq (Const (id, typ), formula))
-
 let new_paragraph : id p = empty >>? (any_str keywords <|> sub_index)
 
 let define ids_types prop : hstatement =
   let prop = for_all_vars_types ids_types prop in
-  HDefinition ("_", unknown_type, prop)
+  HDefinition prop
 
 let def_prop : formula p = 
     not_before new_paragraph >> opt_str "we write" >>

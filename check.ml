@@ -524,7 +524,7 @@ let rec expand_proof stmt env steps proof_steps : formula * statement list list 
     let include_init = not (duplicate_lets (collect_lets init) proof_steps) in
     let proof_steps = (if include_init then init else []) @ proof_steps in
     if !(opts.show_structure) then (
-      printf "%s:\n\n" (hstmt_id_name stmt);
+      printf "%s:\n\n" (theorem_name stmt);
       if !debug > 1 then (
         proof_steps |> iter (fun s -> print_endline (show_proof_step s));
         print_newline ()
@@ -559,7 +559,7 @@ and infer_stmt env stmt : statement list =
   match stmt with
     | HTypeDecl (id, _name) -> [infer_type_decl env id]
     | HConstDecl (id, typ) -> [infer_const_decl env id typ]
-    | HDefinition (_id, _typ, f) ->
+    | HDefinition f ->
         let (id, typ, f') = infer_definition env (generalize f) in
         check_dup_const env id typ "definition" (range_of f);
         let justify, f' = translate_if_block f' in
