@@ -1,5 +1,3 @@
-open Printf
-
 open MParser
 
 open Hstatement
@@ -7,16 +5,8 @@ open Logic
 open Module
 open Util
 
-type state = {
-    axiom_count : int ref; theorem_count : int ref;
-}
-
-let empty_state () = {
-    axiom_count = ref 0; theorem_count = ref 0
-}
-
-type 'a p = ('a, state) t   (* parser type *)
-type 'a pr = ('a, state) reply
+type 'a p = ('a, unit) t   (* parser type *)
+type 'a pr = ('a, unit) reply
 
 let comment = char '#' << skip_many_until any_char newline
 
@@ -558,15 +548,11 @@ let const_decl : hstatement p =
 
 let axiom_decl : hstatement p = type_decl <|> const_decl
 
-let count_sub_index num sub_index =
-  if sub_index = "" then sprintf "%d" num
-  else sprintf "%d.%s" num sub_index
-
 let axiom_propositions name : hstatement list p =
-  let> st = get_user_state in
-  incr st.axiom_count;
-  propositions name |>> map (fun (sub_index, steps, name) ->
-    HAxiom (count_sub_index (!(st.axiom_count)) sub_index, steps, name))
+  let$ props = propositions name in
+  [HAxiomGroup (
+    let& (sub_index, steps, name) = props in
+    { sub_index; name; steps })]
 
 let axiom_exists name : hstatement list p =
   there_exists >>? pipe2
@@ -575,8 +561,8 @@ let axiom_exists name : hstatement list p =
   (@)
 
 let axiom_group : hstatement list p =
-  (str "Axiom" >> option stmt_name << str ".") >>= fun name ->
-  (axiom_exists name <|> axiom_propositions name)
+  let> name = str "Axiom" >> option stmt_name << str "." in
+  axiom_exists name <|> axiom_propositions name
 
 (* definitions *)
 
@@ -710,18 +696,16 @@ let proofs : (id * proof_step list) list p = str "Proof." >> choice [
 (* theorems *)
 
 let theorem_group : hstatement list p =
-  any_str ["Corollary"; "Lemma"; "Theorem"] >> option stmt_name << str "." >>= fun name -> 
-  many_concat (let_step << str ".") >>=
-  fun let_steps ->
-    let> st = get_user_state in
-    incr st.theorem_count;
-    pipe2 (top_prop_or_items name) (opt [] proofs)
-    (fun props proofs ->
-      props |> map (fun (sub_index, steps, name) ->
-        HTheorem {
-          id = count_sub_index (!(st.theorem_count)) sub_index;
-          name; steps = let_steps @ steps;
-          proof_steps = opt_default (assoc_opt sub_index proofs) [] }))
+  any_str ["Corollary"; "Lemma"; "Theorem"] >>
+  let> name = option stmt_name << str "." in
+  let> let_steps = many_concat (let_step << str ".") in
+  let> props = top_prop_or_items name in
+  let$ proofs = opt [] proofs in [HTheoremGroup (
+  props |> map (fun (sub_index, steps, name) ->
+    { sub_index; name;
+      steps = let_steps @ steps;
+      proof_steps = opt_default (assoc_opt sub_index proofs) [] })
+  )]
 
 (* module *)
 
@@ -732,29 +716,29 @@ let using : string list p = str "using" >> sep_by1 module_name (str ",") << str 
 let _module : hstatement list p = optional using >>
   many (axiom_group <|> definition <|> theorem_group) << empty << eof |>> concat
 
-let parse_module_text text init_state : (hstatement list * state) MParser.result =
-  MParser.parse_string (pair _module get_user_state) text init_state
+let parse_module_text text : hstatement list MParser.result =
+  MParser.parse_string _module text ()
 
 let parse_formula text : formula =
-  strip_ranges (always_parse expr text (empty_state ()))
+  strip_ranges (always_parse expr text)
 
 let relative_name from f = mk_path (Filename.dirname from) (f ^ ".n")
   
 let parse_files filenames sources : (hmodule list, string * frange) Stdlib.result =
-  let rec parse (modules, state) filename : (hmodule list * state, string * frange) Stdlib.result =
-    if exists (fun m -> m.filename = filename) modules then Ok (modules, state) else
+  let rec parse modules filename : (hmodule list, string * frange) Stdlib.result =
+    if exists (fun m -> m.filename = filename) modules then Ok modules else
       let text = opt_or (assoc_opt filename sources) (fun () -> read_file filename) in
       let using : string list =
-        map (relative_name filename) (always_parse (opt [] using) text (empty_state ())) in
-      let** (modules, state) = fold_left_res parse (modules, state) using in
-      match parse_module_text text state with
-        | Success (stmts, state) ->
+        map (relative_name filename) (always_parse (opt [] using) text) in
+      let** modules = fold_left_res parse modules using in
+      match parse_module_text text with
+        | Success stmts ->
             let modd = { filename; using; stmts } in
-            Ok (modd :: modules, state)
+            Ok (modd :: modules)
         | Failed (err, Parse_error ((_index, line, col), _)) ->
             Error (err, (filename, ((line, col), (0, 0))))
         | Failed _ -> failwith "parse_files" in
-  let** (modules, _state) = fold_left_res parse ([], empty_state ()) filenames in
+  let** modules = fold_left_res parse [] filenames in
   Ok (rev modules)
 
 let parse_file filename = profile @@

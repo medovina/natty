@@ -107,22 +107,27 @@ let is_function_definition = function
       | _ -> true)
   | _ -> false
 
+type haxiom = {
+  sub_index: string; name: string option;
+  steps: proof_step list
+}
+
+type htheorem = {
+  sub_index: string; name: string option;
+  steps: proof_step list; proof_steps: proof_step list
+}
+
 type hstatement =
   | HTypeDecl of id * string option  (* e.g. "ℤ", "integer" *)
   | HConstDecl of id * typ
-  | HAxiom of id * proof_step list * string option (* num, steps, name *)
+  | HAxiomGroup of haxiom list
   | HDefinition of formula
-  | HTheorem of
-      { id: string; name: string option;
-        steps: proof_step list; proof_steps: proof_step list }
+  | HTheoremGroup of htheorem list
 
-let theorem_name stmt : string =
-  match stmt with
-  | HTheorem { id; name; _ } -> 
-      "theorem " ^ id ^ (match name with
-        | Some name -> sprintf " (%s)" name
-        | _ -> "")
-  | _ -> failwith "theorem_name"
+let theorem_name id name : string =
+  "theorem " ^ id ^ (match name with
+    | Some name -> sprintf " (%s)" name
+    | _ -> "")
 
 let definition_id f : id =
   match is_eq_or_iff (strip_range (remove_universal f)) with

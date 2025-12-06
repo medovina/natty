@@ -412,8 +412,8 @@ let trace msg s =
   s |>> (fun x ->
   printf "parsed %s\n" msg; x)
 
-let always_parse parser text state =
-  match MParser.parse_string parser text state with
+let always_parse parser text =
+  match MParser.parse_string parser text () with
     | Success x -> x
     | Failed _ -> failwith "parse failure"
 

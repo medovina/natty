@@ -9,6 +9,9 @@ open Util
 
 exception Check_error of string * range
 
+let axiom_count = ref 0
+let theorem_count = ref 0
+
 let error s range = raise (Check_error (s, range))
 let errorf s f range = error (sprintf "%s: %s" s (show_formula f)) range
 
@@ -499,6 +502,10 @@ let free_type_vars_in_steps steps : id list =
           | _ -> type_vars in
   unique (find steps)
 
+let count_sub_index num sub_index =
+  if sub_index = "" then sprintf "%d" num
+  else sprintf "%d.%s" num sub_index
+
 let rec gather_eif f = match collect_args f with
   | (c, [_type; p; f; g]) when c = _eif_c ->
       (p, f) :: gather_eif g
@@ -513,7 +520,7 @@ let rec insert_conclusion_step blocks init f : block list =
         [Block (step, insert_conclusion_step blocks steps f)]
     | _ -> failwith "insert_conclusion_step"
 
-let rec expand_proof stmt env steps proof_steps : formula * statement list list =
+let rec expand_proof id name env steps proof_steps : formula * statement list list =
   let steps = trim_lets steps in
   let type_vars = free_type_vars_in_steps steps in
   let steps = (type_vars |> map (fun id -> Let [(id, Type)])) @ steps in
@@ -524,7 +531,7 @@ let rec expand_proof stmt env steps proof_steps : formula * statement list list 
     let include_init = not (duplicate_lets (collect_lets init) proof_steps) in
     let proof_steps = (if include_init then init else []) @ proof_steps in
     if !(opts.show_structure) then (
-      printf "%s:\n\n" (theorem_name stmt);
+      printf "%s:\n\n" (theorem_name id name);
       if !debug > 1 then (
         proof_steps |> iter (fun s -> print_endline (show_proof_step s));
         print_newline ()
@@ -568,18 +575,27 @@ and infer_stmt env stmt : statement list =
           Theorem { id = id ^ "_justify"; name = None; formula = j;
                     steps = []; by = []; is_step = false; range = empty_range } in
         justify @ [ConstDecl (id, typ); Definition (id, typ, f')]
-    | HAxiom (id, steps, name) ->
+    | HAxiomGroup haxioms ->
+        incr axiom_count;
+        let+ { sub_index; name; steps } = haxioms in
+        let id = count_sub_index !axiom_count sub_index in
         let blocks = infer_blocks env steps in
         let (_, f) = blocks_steps false env [] blocks in
         [Axiom (id, top_infer env f, name)]
-    | HTheorem { id; name; steps; proof_steps } ->
-        let (f, stmts) = expand_proof stmt env steps proof_steps in
-        let range = match (last steps) with
-          | Assert [(_, f, _)] -> range_of f
-          | Assert _ -> failwith "infer_stmt"
-          | _ -> failwith "assert expected" in
-        [Theorem { id; name; formula = f; steps = stmts;
-                   by = []; is_step = false; range }]
+    | HTheoremGroup htheorems ->
+        incr theorem_count;
+        let check env htheorem : statement list * statement =
+          let { sub_index; name; steps; proof_steps } = htheorem in
+          let id = count_sub_index !theorem_count sub_index in
+          let (f, stmts) = expand_proof id name env steps proof_steps in
+          let range = match (last steps) with
+            | Assert [(_, f, _)] -> range_of f
+            | Assert _ -> failwith "infer_stmt"
+            | _ -> failwith "assert expected" in
+          let stmt = Theorem { id; name; formula = f; steps = stmts;
+                               by = []; is_step = false; range } in
+          (stmt :: env, stmt) in
+        snd (fold_left_map check env htheorems)
 
 and infer_stmts initial_env stmts : statement list =
   let check env stmt =
@@ -741,6 +757,8 @@ let check_modules modules : (smodule list, string * frange) result =
       | _ -> failwith "single module expected"
 
 let check modules : (smodule list, string * frange) result =
+  axiom_count := 0;
+  theorem_count := 0;
   let** modules = infer_modules modules in
   let consts = filter_map decl_var (concat_map (fun m -> m.stmts) modules) in
   Ok (map (encode_module consts) modules)

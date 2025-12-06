@@ -148,7 +148,7 @@ let parse_thf source : (smodule list, string * frange) Stdlib.result =
   let rec parse source : (statement list, string * frange) Stdlib.result =
     let text = read_file source in
     let inc : str list =
-      map (relative_name source) (always_parse (many _include) text ()) in
+      map (relative_name source) (always_parse (many _include) text) in
     let** inc_stmts = map_res parse inc in
     match MParser.parse_string thf_file text () with
       | Success stmts -> Ok (concat inc_stmts @ stmts)
