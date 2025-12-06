@@ -541,10 +541,12 @@ and translate_if_block f : formula option * formula =
   match f' with
     | Eq (x, g) when head_of g = _eif_c ->
         let conds_vals = gather_eif g in
-        let justify = multi_and (
-          let& (c, d) = all_pairs (map fst conds_vals) in
+        let conds, vals = unzip conds_vals in
+        let justify = multi_and (multi_or conds ::
+          let& (c, d) = all_pairs conds in
           _not (_and c d)) in
-        let eqs = multi_and (
+        let eq_some = multi_or (let& v = vals in Eq (x, v)) in
+        let eqs = multi_and (eq_some ::
           let& (c, d) = conds_vals in
           implies c (Eq (x, d))
         ) in
