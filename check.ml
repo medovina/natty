@@ -572,7 +572,9 @@ and infer_stmt env stmt : statement list =
         let justify, f' = translate_if_block f' in
         let justify =
           let& j = Option.to_list justify in
-          Theorem { id = id ^ "_justify"; name = None; formula = j;
+          incr theorem_count;
+          Theorem { id = sprintf "%d:justify_%s" !theorem_count id;
+                    name = None; formula = j;
                     steps = []; by = []; is_step = false; range = empty_range } in
         justify @ [ConstDecl (id, typ); Definition (id, typ, f')]
     | HAxiomGroup haxioms ->
