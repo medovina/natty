@@ -21,7 +21,7 @@ type prover_data = {
   notify_out: out_channel;
 
   (* filename, theorem to prove, known stmts *)
-  statements: (string * statement * statement list) list ref;
+  statements: (string * statement * statement list * statement list) list ref;
 
   progress: int ref;
   not_proven: (string * statement) list ref    (* filename, theorem *)
@@ -33,11 +33,11 @@ let cancel_check data stmts () : bool =
 let prove_stmts data stmts =
   let rec loop = function
     | [] -> ()
-    | (filename, thm, known) :: ss ->
+    | (filename, thm, env_known, known) :: ss ->
         let success =
           printf "proving %s\n%!" (stmt_id_name thm);
           let (proof, _elapsed) =
-            prove known thm (cancel_check data stmts) in
+            prove env_known known thm (cancel_check data stmts) in
           match proof with
             | Proof _ -> true
             | _ -> false in

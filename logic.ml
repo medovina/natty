@@ -139,10 +139,24 @@ let map_formula fn = function
   | Eq (f, g) -> Eq (fn f, fn g)
   | f -> f
 
-let rec formula_types f = match f with
+let rec base_types typ : id list =
+  let find = function
+    | Bool | Type | TypeVar _ -> []
+    | Base id -> [id]
+    | Fun (t, u) -> base_types t @ base_types u
+    | Pi (_, t) -> base_types t
+    | TypeApp (_, types) | Product types ->
+        concat_map base_types types
+    | Sub f -> concat_map base_types (formula_types f)
+  in unique (find typ)
+
+and formula_types f = unique @@ match f with
   | Const (_, typ) | Var (_, typ) -> [typ]
   | App (f, g) | Eq (f, g) -> concat_map formula_types [f; g]
   | Lambda (_, typ, f) -> typ :: formula_types f
+
+let formula_base_types f = unique @@
+  concat_map base_types (formula_types f)
 
 let rec rename id avoid =
   if mem id avoid then rename (id ^ "'") avoid else id

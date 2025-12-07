@@ -532,13 +532,6 @@ let def_consts f : id list =
   let cs = find (remove_for_all f) in
   subtract cs logical_ops
 
-let top_def_consts c f : id list =
-  match remove_for_all f with
-    | Eq (_f, g) | App (App (Const ("(↔)", _), _f), g) ->
-        let ds = map def_consts (gather_and g) in
-        if exists ((=) []) ds then [] else unique (concat ds)
-    | f -> remove c (def_consts f)
-
 let expand_limit = 2
 let def_expand_limit = 2
 let hyp_expand_limit = 2
@@ -796,7 +789,7 @@ let rewrite dp cp c_subterms : pformula list =
       let t, t' = prefix_vars t, prefix_vars t' in
       let& u = c_subterms in
       (t, t', u) in
-    Option.to_list (find_map rewrite_with all)
+    opt_to_list (find_map rewrite_with all)
 
 (*     C    Cσ ∨ R
  *   ═══════════════   subsume
@@ -1114,7 +1107,7 @@ let back_simplify found from used : pformula list = profile @@
 let nondestruct_rewrite used p : pformula list = profile @@
   if !destructive_rewrites || !(p.rewritten) || p.destruct then [] else (
     (* perform just a single rewrite here; remaining will occur in rw_simplify_all *)
-    let& q = Option.to_list (rewrite_from used p) in
+    let& q = opt_to_list (rewrite_from used p) in
     p.rewritten := true;
     {q with destruct = true; rewritten = ref false}
   )
@@ -1270,38 +1263,44 @@ let const_def f : (id * id) option =
   opt_or_opt (def_is_synonym f)
     (opt_or_opt (def_is_or_equal f) (def_is_atomic f))
 
-let find_proof_consts thm stmts by_thms hyps const_map =
-  let proof_consts =
-    let+ stmt = thm :: by_thms @ hyps in
-    consts_of const_map (get_stmt_formula stmt) in
-  let extra = stmts |> concat_map (function
-    | Definition (c, _, f) when mem c proof_consts ->
-        let ds = top_def_consts c f in
-        if ds = [] || overlap ds proof_consts then consts_of const_map f else []
-    | _ -> []) in
+let find_proof_consts thm all_known local_known by_thms hyps const_map =
+  let main_premises = map get_stmt_formula (thm :: by_thms @ hyps) in
+  let proof_consts = unique (concat_map (consts_of const_map) main_premises) in
+  let proof_types = unique (concat_map formula_base_types main_premises) in
+  let extra =
+    if !step_strategy then
+      all_known |> concat_map (function
+        | Definition (c, _, f) when mem c proof_consts ->
+            if subset (formula_base_types f) proof_types
+              then consts_of const_map f else []
+        | _ -> [])
+    else
+      let+ stmt = local_known in
+      let+ f = opt_to_list (stmt_formula stmt) in
+      let cs = consts_of const_map f in
+      if overlap cs proof_consts then cs else [] in
   unique (proof_consts @ extra)
 
 let find_or_equal_ops stmts : id list =
   let+ s = filter is_definition stmts in
   let f = Option.get (stmt_formula s) in
-  let& (c, _) = Option.to_list (def_is_or_equal f) in
+  let& (c, _) = opt_to_list (def_is_or_equal f) in
   c
 
-let gen_pformulas thm stmts : pformula list =
-  let by_thms = stmts |> filter (fun s -> mem (stmt_ref s) (thm_by thm)) in
+let gen_pformulas thm all_known local_known : pformula list =
+  let by_thms = all_known |> filter (fun s -> mem (stmt_ref s) (thm_by thm)) in
   let by_contradiction = (stmt_formula thm = Some _false) in
-  let hyps = rev (filter is_hypothesis stmts) in
+  let hyps = rev (filter is_hypothesis local_known) in
   let const_map =
-    let+ s = filter is_definition stmts in
-    Option.to_list (const_def (get_stmt_formula s)) in
-  let proof_consts = find_proof_consts thm stmts by_thms hyps const_map in
+    let+ s = filter is_definition all_known in
+    opt_to_list (const_def (get_stmt_formula s)) in
+  let proof_consts = find_proof_consts thm all_known local_known by_thms hyps const_map in
   let scan ops stmt =
     match stmt_formula stmt with
       | None -> (ops, [])
       | Some f ->
           let by = memq stmt by_thms in
-          if !step_strategy && not (
-            by || is_hypothesis stmt || use_premise const_map proof_consts f)
+          if not ( by || is_hypothesis stmt || use_premise const_map proof_consts f)
           then (ops, []) else
           let kind_op = ac_kind f in
           let kind = Option.map (fun (kind, _, _) -> kind) kind_op in
@@ -1322,10 +1321,10 @@ let gen_pformulas thm stmts : pformula list =
                   (remove (kind, op, typ) ops, [p; ac_completion op typ])
                 else ((kind, op, typ) :: ops, [p])
             | _ -> (ops, [p]) in
-  concat (snd (fold_left_map scan [] stmts))
+  concat (snd (fold_left_map scan [] all_known))
 
-let encode_consts known_stmts thm : statement list * statement =
-  let consts = map fst (filter_map decl_var known_stmts) in
+let encode_consts all_known local_known thm : statement list * statement list * statement =
+  let consts = map fst (filter_map decl_var all_known) in
   let rec log10 n =
     if n = 0 then 0 else 1 + log10 (n / 10) in
   let digits = log10 (length consts - 1) in
@@ -1340,18 +1339,20 @@ let encode_consts known_stmts thm : statement list * statement =
     | Const (c, typ) -> Const (map_const typ c, typ)
     | f -> map_formula mapf f in
   let map_stmt = map_statement1 map_const Fun.id mapf in
-  (map map_stmt (map strip_proof known_stmts), map_stmt thm)
+  (map map_stmt (map strip_proof all_known),
+   map map_stmt (map strip_proof local_known),
+   map_stmt thm)
 
-let prove known_stmts thm cancel_check : proof_result * float =
+let prove all_known local_known thm cancel_check : proof_result * float =
   step_strategy := is_step thm;
   destructive_rewrites := not !step_strategy;
-  let known_stmts, thm = encode_consts known_stmts thm in
+  let all_known, local_known, thm = encode_consts all_known local_known thm in
   ac_ops := [];
   distributive_ops := [];
   safe_for_rewrite := [];
-  or_equal_ops := find_or_equal_ops known_stmts;
+  or_equal_ops := find_or_equal_ops all_known;
   formula_counter := 0;
-  let known = gen_pformulas thm known_stmts in
+  let known = gen_pformulas thm all_known local_known in
   let goal = to_pformula (stmt_id_name thm) (get_stmt_formula thm) in
   let goals = if !(opts.disprove) then [goal] else
       [create_pformula "negate" [goal] (negate goal.formula)] in
@@ -1385,12 +1386,12 @@ let prove_all thf modules = profile @@
               printf "%d theorems/steps disproved.\n" failed
             else
               printf "%d theorems/steps proved, %d not proved.\n" succeeded failed
-    | (_, thm, known) :: rest ->
+    | (_, thm, all_known, local_known) :: rest ->
         let (succeed, fail) = match thm with
           | Theorem { steps = []; _ } ->
               print_endline (show_statement true thm ^ "\n");
               let (result, elapsed) =
-                prove known thm (Fun.const false) in
+                prove all_known local_known thm (Fun.const false) in
               let b = match result with
                   | Proof (pf, stats) -> show_proof pf dis elapsed stats; true
                   | GaveUp -> printf "Not %sproved.\n" dis; false

@@ -162,21 +162,25 @@ let expand_proofs apply_types stmts with_full : (statement * statement list) lis
     | [] -> [] in
   expand [] stmts
 
-let expand_modules1 modules all_modules : (string * statement * statement list) list =
+let expand_modules1 modules all_modules :
+    (string * statement * statement list * statement list) list =
   let stmts =
     let+ m = modules in
     let env = map apply_types_in_stmt (module_env m all_modules) in
     let+ (stmt, known) =
       expand_proofs apply_types_in_stmt (map apply_types_in_stmt m.stmts) false in
-    [(m.filename, stmt, env @ rev known)] in
+    let known = rev known in
+    [(m.filename, stmt, env @ known, known)] in
   let stmts = match !(opts.from_thm) with
-    | Some id -> stmts |> drop_while (fun (_filename, stmt, _known) -> not (match_thm stmt id))
+    | Some id -> stmts |> drop_while (fun (_, stmt, _, _) -> not (match_thm stmt id))
     | None -> stmts in
   if (Option.is_some !(opts.only_thm) || Option.is_some !(opts.from_thm)) && stmts = [] then
     failwith "theorem not found";
   stmts
 
-let expand_modules modules = expand_modules1 modules modules
+let expand_modules modules :
+    (string * statement * statement list * statement list) list =
+  expand_modules1 modules modules
 
 let write_thm_info md =
   let thms = filter is_theorem md.stmts in

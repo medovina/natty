@@ -7,6 +7,7 @@ open Statement
 open Util
 
 type 'a p = ('a, unit) t   (* parser type *)
+type 'a pr = ('a, unit) reply
 
 let comment = (any_of "%#" >> skip_many_until any_char newline)
   <|> (string "/*" >> skip_many_until any_char (string "*/"))
@@ -142,22 +143,9 @@ let rec formulas last_const : statement list p =
 let thf_file : statement list p =
   many _include >> formulas "_" << empty << eof
 
-let relative_name from f = mk_path (Filename.dirname from) f
-
 let parse_thf source : (smodule list, string * frange) Stdlib.result =
-  let rec parse source : (statement list, string * frange) Stdlib.result =
-    let text = read_file source in
-    let inc : str list =
-      map (relative_name source) (always_parse (many _include) text) in
-    let** inc_stmts = map_res parse inc in
-    match MParser.parse_string thf_file text () with
-      | Success stmts -> Ok (concat inc_stmts @ stmts)
-      | Failed (err, Parse_error ((_index, line, col), _)) ->
-          Error (err, (source, ((line, col), (0, 0))))
-      | _ -> failwith "parse_thf" in
-  let** stmts = parse source in
-  Ok [{ filename = source; using = []; stmts }]
-
+  parse_modules (many _include) thf_file [source] []
+  
 type derivation =
   | Step of id
   | Inference of id * derivation list

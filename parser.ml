@@ -535,7 +535,7 @@ let unary_prefix id typ =
 
 let words2 : string p =
     pipe2 word (option word) (fun w x ->
-        unwords (w :: Option.to_list x)) 
+        unwords (w :: opt_to_list x)) 
 
 let type_decl : hstatement p =
     pipe2 (str "a type" >> id) (option (parens (str "the" >> words2)))
@@ -709,37 +709,21 @@ let theorem_group : hstatement list p =
 
 (* module *)
 
-let module_name = empty >>? many1_chars (alphanum <|> char '_')
+let module_name : string p =
+  let$ name = empty >>? many1_chars (alphanum <|> char '_') in
+  name ^ ".n"
 
-let using : string list p = str "using" >> sep_by1 module_name (str ",") << str ";"
+let using : string list p =
+  str "using" >> sep_by1 module_name (str ",") << str ";"
 
 let _module : hstatement list p = optional using >>
   many (axiom_group <|> definition <|> theorem_group) << empty << eof |>> concat
 
-let parse_module_text text : hstatement list MParser.result =
-  MParser.parse_string _module text ()
-
 let parse_formula text : formula =
   strip_ranges (always_parse expr text)
 
-let relative_name from f = mk_path (Filename.dirname from) (f ^ ".n")
-  
 let parse_files filenames sources : (hmodule list, string * frange) Stdlib.result =
-  let rec parse modules filename : (hmodule list, string * frange) Stdlib.result =
-    if exists (fun m -> m.filename = filename) modules then Ok modules else
-      let text = opt_or (assoc_opt filename sources) (fun () -> read_file filename) in
-      let using : string list =
-        map (relative_name filename) (always_parse (opt [] using) text) in
-      let** modules = fold_left_res parse modules using in
-      match parse_module_text text with
-        | Success stmts ->
-            let modd = { filename; using; stmts } in
-            Ok (modd :: modules)
-        | Failed (err, Parse_error ((_index, line, col), _)) ->
-            Error (err, (filename, ((line, col), (0, 0))))
-        | Failed _ -> failwith "parse_files" in
-  let** modules = fold_left_res parse [] filenames in
-  Ok (rev modules)
+  parse_modules (opt [] using) _module filenames sources
 
 let parse_file filename = profile @@
   parse_files [filename] []

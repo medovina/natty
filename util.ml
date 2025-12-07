@@ -15,6 +15,8 @@ let (let*) = Option.bind
 
 let mk_some x = Some x
 
+let opt_to_list = Option.to_list
+
 let opt_default opt def = Option.value opt ~default:def
 
 let opt_for_all f = function
@@ -27,7 +29,7 @@ let opt_exists f = function
   | Some x -> f x
   | None -> false
 
-let opt_fold f opt acc = fold_right f (Option.to_list opt) acc
+let opt_fold f opt acc = fold_right f (opt_to_list opt) acc
 
 let opt_or (x: 'a option) (y: unit -> 'a) : 'a = match x with
   | Some x -> x

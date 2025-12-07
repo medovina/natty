@@ -571,7 +571,7 @@ and infer_stmt env stmt : statement list =
         check_dup_const env id typ "definition" (range_of f);
         let justify, f' = translate_if_block f' in
         let justify =
-          let& j = Option.to_list justify in
+          let& j = opt_to_list justify in
           incr theorem_count;
           Theorem { id = sprintf "%d:justify_%s" !theorem_count id;
                     name = None; formula = j;

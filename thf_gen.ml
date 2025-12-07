@@ -152,7 +152,7 @@ let export_module dir all_modules md =
   expand_proofs Fun.id md.stmts !(opts.export_full) |> iter (fun (thm, known) ->
     match thm with
       | Theorem { id; name; _ } ->
-          let filename = String.concat ":" ([id] @ Option.to_list name) in
+          let filename = String.concat ":" ([id] @ opt_to_list name) in
           write_thf subdir (fix_filename filename) using (rev known) (Some thm)
       | _ -> failwith "theorem expected");
   write_thf subdir module_name [] md.stmts None
