@@ -243,13 +243,6 @@ axiom_exists =
 
 axiom_group = 'Axiom' [stmt_name] '.' (axiom_exists | propositions);
 
-(* definitions *)
-
-def_prop = ['we write'] small_prop '.';
-
-definition =
-    'Definition.' {let_decl '.'} [for_all_ids ','] {['Let'] def_prop}+;
-
 (* proofs *)
 
 because_prop = ['because' | 'since'] proposition;
@@ -304,6 +297,15 @@ proof_steps = proof_sentence+;
 proof_item = sub_index proof_steps;
 
 proofs = 'Proof.' (proof_item+ | proof_steps);
+
+(* definitions *)
+
+def_prop = ['we write'] small_prop '.';
+
+definition_body = {let_decl '.'} [for_all_ids ','] {['Let'] def_prop}+;
+
+definition =
+    'Definition.' definition_body ['Justification.' proof_steps];
 
 (* theorems *)
 

@@ -15,6 +15,10 @@ let decode_range s : range =
     | [line1; col1; line2; col2] -> ((line1, col1), (line2, col2))
     | _ -> failwith "decode_range"
 
+let strip_type_range t : typ = match t with
+  | TypeApp (c, [typ]) when c.[0] = '@' -> typ
+  | _ -> t
+
 let strip_range f : formula = match f with
   | App (Const (c, _), g) when starts_with "@" c -> g
   | _ -> f
@@ -42,9 +46,9 @@ type proof_step =
 
 let mk_assert f = Assert [("", f, [])]
 
-let is_assert f = function
-  | Assert [(_, f', _)] when f = f' -> true
-  | _ -> false
+let get_assert step = match step with
+  | Assert [("", f, [])] -> f
+  | _ -> failwith "get_assert"
 
 let is_assume = function
   | Assume _ -> true
@@ -121,7 +125,7 @@ type hstatement =
   | HTypeDecl of id * string option  (* e.g. "ℤ", "integer" *)
   | HConstDecl of id * typ
   | HAxiomGroup of haxiom list
-  | HDefinition of formula
+  | HDefinition of formula * proof_step list
   | HTheoremGroup of htheorem list
 
 let theorem_name id name : string =

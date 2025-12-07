@@ -237,6 +237,11 @@ let count_false p = count_true (Fun.negate p)
 
 let count_eq x = count_true ((=) x)
 
+let rec list_starts_with xs ys = match xs, ys with
+  | [], _ -> true
+  | _, [] -> false
+  | x :: xs, y :: ys -> x = y && list_starts_with xs ys
+
 let rec all_pairs = function
   | [] -> []
   | x :: xs -> map (fun y -> (x, y)) xs @ all_pairs xs
@@ -288,8 +293,6 @@ let all_same = function
   | [] -> true
   | (x :: xs) -> for_all ((=) x) xs
 
-let minimum (xs: 'a list) : 'a = fold_left1 min xs
-
 let maximum (xs: 'a list) : 'a = fold_left1 max xs
 
 let is_maximal gt x ys =
@@ -299,14 +302,6 @@ let maximum_by f xs =
   snd (maximum (map (fun x -> (f x, x)) xs))
 
 let sum xs = fold_left (+.) 0.0 xs
-
-(* span f xs returns (take_while f xs, drop_while f xs). *)
-let rec span f = function
-  | [] -> ([], [])
-  | x :: xs ->
-      if f x then 
-        let (xs, ys) = span f xs in (x :: xs, ys)
-      else ([], x :: xs)
 
 let group_by key_fun fold init xs =
   let rec gather = function
@@ -357,9 +352,6 @@ let print_line = print_endline
 
 let mk_path = Filename.concat
 
-let change_extension path ext =
-  Filename.chop_extension path ^ ext
-
 let mk_dir dir = Sys.mkdir dir 0o755
 
 let rec empty_dir dir =
@@ -402,8 +394,6 @@ let pipe2a p1 p2 f =
   p1 >>=? fun x1 ->
   p2 >>= fun x2 ->
   return (f x1 x2)
-
-let triple p q r = pipe3 p q r (fun x y z -> (x, y, z))
 
 let not_before p = not_followed_by p ""
 

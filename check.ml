@@ -512,12 +512,20 @@ let rec gather_eif f = match collect_args f with
   | (c, [_type]) when c = undefined -> []
   | _ -> failwith "gather_eif"
 
-let rec insert_conclusion_step blocks init f : block list =
+let rec insert_conclusion_step blocks init last_step : block list =
   match init, blocks with
-    | [], blocks -> blocks @ [Block (f, [])]
+    | [], ([Block (Let ids_typs, blocks)] as b) ->
+        let f = get_assert last_step in
+        let (xs, g) = gather_for_all f in
+        let strip (id, typ) = (id, strip_type_range typ) in
+        if list_starts_with (map strip ids_typs) (map strip xs) then (
+          let f = for_all_vars_types (drop (length ids_typs) xs) g in
+          [Block (Let ids_typs, insert_conclusion_step blocks [] (mk_assert f))])
+        else b @ [Block (last_step, [])]
+    | [], blocks -> blocks @ [Block (last_step, [])]
     | step :: steps, [Block (step', blocks)] ->
         assert (step = step');
-        [Block (step, insert_conclusion_step blocks steps f)]
+        [Block (step, insert_conclusion_step blocks steps last_step)]
     | _ -> failwith "insert_conclusion_step"
 
 let rec expand_proof id name env steps proof_steps : formula * statement list list =
@@ -527,7 +535,7 @@ let rec expand_proof id name env steps proof_steps : formula * statement list li
   let blocks0 = chain_blocks steps in
   let (_, concl) = blocks_steps false env [] blocks0 in
   let stmtss = if proof_steps = [] then [] else
-    let (init, f) = split_last steps in
+    let (init, last_step) = split_last steps in
     let include_init = not (duplicate_lets (collect_lets init) proof_steps) in
     let proof_steps = (if include_init then init else []) @ proof_steps in
     if !(opts.show_structure) then (
@@ -538,7 +546,7 @@ let rec expand_proof id name env steps proof_steps : formula * statement list li
       );
     );
     let blocks = infer_blocks env proof_steps in
-    let blocks = if include_init then insert_conclusion_step blocks init f
+    let blocks = if include_init then insert_conclusion_step blocks init last_step
       else blocks @ [Block (Assert [("", concl, [])], [])] in
     if !(opts.show_structure) then print_blocks blocks;
     let (stmtss, _concl) = blocks_steps true env [] blocks in
@@ -566,16 +574,19 @@ and infer_stmt env stmt : statement list =
   match stmt with
     | HTypeDecl (id, _name) -> [infer_type_decl env id]
     | HConstDecl (id, typ) -> [infer_const_decl env id typ]
-    | HDefinition f ->
+    | HDefinition (f, justification) ->
         let (id, typ, f') = infer_definition env (generalize f) in
         check_dup_const env id typ "definition" (range_of f);
         let justify, f' = translate_if_block f' in
         let justify =
           let& j = opt_to_list justify in
           incr theorem_count;
-          Theorem { id = string_of_int !theorem_count;
-                    name = Some ("justify " ^ id); formula = j;
-                    steps = []; by = []; is_step = false; range = empty_range } in
+          let thm_id = string_of_int !theorem_count in
+          let name = Some ("justify " ^ id) in
+          let steps = if justification = [] then [] else
+            snd (expand_proof thm_id name env [mk_assert j] justification) in
+          Theorem { id = thm_id; name; formula = j; steps; by = [];
+                    is_step = false; range = empty_range } in
         justify @ [ConstDecl (id, typ); Definition (id, typ, f')]
     | HAxiomGroup haxioms ->
         incr axiom_count;

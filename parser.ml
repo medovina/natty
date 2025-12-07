@@ -92,7 +92,9 @@ let super_digits = map fst super_digit_map
 
 let super_digit = any_str super_digits |>> fun s -> assoc s super_digit_map
 
-let keywords = ["axiom"; "corollary"; "definition"; "lemma"; "proof"; "theorem"]
+let keywords = [
+  "axiom"; "corollary"; "definition"; "justification"; "lemma"; "proof"; "theorem"
+]
 
 let with_range (p : 'a p) : (('a * range) p) = empty >>?
   (get_pos >>= fun (_index, line1, col1) ->
@@ -564,24 +566,6 @@ let axiom_group : hstatement list p =
   let> name = str "Axiom" >> option stmt_name << str "." in
   axiom_exists name <|> axiom_propositions name
 
-(* definitions *)
-
-let new_paragraph : id p = empty >>? (any_str keywords <|> sub_index)
-
-let define ids_types prop : hstatement =
-  let prop = for_all_vars_types ids_types prop in
-  HDefinition prop
-
-let def_prop : formula p = 
-    not_before new_paragraph >> opt_str "we write" >>
-      record_formula small_prop << str "."
-
-let definition : hstatement list p = str "Definition." >>
-  let> let_ids_types = many (let_decl <<? str ".") in
-  let> ids_types = opt [] (for_all_ids << str ",") in
-  let$ props = many1 (opt_str "Let" >> def_prop) in
-  map (define (concat let_ids_types @ ids_types)) props
-
 (* proofs *)
 
 let mk_step chain : proof_step =
@@ -678,6 +662,8 @@ let proof_clause : proof_step list p = pipe2
 let proof_sentence : proof_step list p =
   (sep_by1 proof_clause (str ";") |>> concat) << str "." << optional label
 
+let new_paragraph : id p = empty >>? (any_str keywords <|> sub_index)
+
 let proof_steps : proof_step list p =
   many1 (not_before new_paragraph >> proof_sentence) |>>
     (fun steps -> concat steps)
@@ -692,6 +678,29 @@ let proof_items : (id * proof_step list) list p =
 let proofs : (id * proof_step list) list p = str "Proof." >> choice [
   proof_items;
   proof_steps |>> (fun steps -> [("", steps)])]
+
+(* definitions *)
+
+let define ids_types justification prop : hstatement =
+  let prop = for_all_vars_types ids_types prop in
+  HDefinition (prop, justification)
+
+let def_prop : formula p = 
+    not_before new_paragraph >> opt_str "we write" >>
+      record_formula small_prop << str "."
+
+let definition_body : ((id * typ) list * formula list) p =
+  let> let_ids_types = many (let_decl <<? str ".") in
+  let> ids_types = opt [] (for_all_ids << str ",") in
+  let$ props = many1 (opt_str "Let" >> def_prop) in
+  let ids_types = concat let_ids_types @ ids_types in
+  (ids_types, props)
+
+let definition : hstatement list p = str "Definition." >>
+  let> (ids_types, props) = definition_body in
+  let$ justification = opt [] (str "Justification." >> proof_steps) in
+  define ids_types justification (hd props) ::
+  map (define ids_types []) (tl props)
 
 (* theorems *)
 

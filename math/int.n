@@ -369,6 +369,8 @@ Proof.
 Definition.  For all x : ℤ, |x| = { x if 0 ≤ x;
                                                −x if x < 0 }.
 
+Justification.  Let x : ℤ.  By [weak trichotomy] either 0 ≤ x or x < 0.  By [trichotomy on ℤ] it cannot be that 0 ≤ x and x < 0.
+
 Theorem.  Let x, y : ℤ.
 
     a. 0 ≤ |x|.
