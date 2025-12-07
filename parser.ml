@@ -367,7 +367,7 @@ and have s : reason pr = (
       "observe that"; "the only alternative is"; "this means that";
       "this shows that"; "trivially";
       "we conclude that"; "we deduce that";
-      "we know that"; "we must have"; "we see that"];
+      "we know that"; "we must have"; "we obtain"; "we see that"];
     str "it is" >> any_str ["clear"; "obvious"] >> str "that";
     any_str ["on the other hand"; "similarly"] << opt_str ",";
     str "we have" << opt_str "shown that"

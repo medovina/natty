@@ -147,7 +147,7 @@ have = 'clearly' |
     'on the other hand' [','] | 'similarly' [','] |
     'the only alternative is' | 'this means that' | 'this shows that' | 'trivially' |
     'we conclude that' | 'we deduce that' | 'we have' ['shown that'] |
-    'we know that' | 'we must have' | 'we see that';
+    'we know that' | 'we must have' | 'we obtain' | 'we see that';
 
 (* small propositions *)
 

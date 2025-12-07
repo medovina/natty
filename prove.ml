@@ -645,7 +645,8 @@ let super rule with_para lenient upward dp d' pairs cp c_lits c_lit : pformula l
           if dbg then printf "super: passed checks, produced %s\n" (show_formula e);
           [mk_pformula rule description [dp; cp] true e])
 
-let allow p = is_hyp p || p.goal || p.ac = Some Comm
+let allow p q =
+  is_hyp p || p.goal || p.ac = Some Comm || p.ac = Some Assoc && not q.derived
 
 let is_unit_equality f = is_eq (remove_for_all f)
 
@@ -667,15 +668,15 @@ let all_super1 dp cp : pformula list =
   let pairs = eq_pairs false upward t_t' in  (* iii: pre-check *)
   let+ (c_lits, _, exposed_lits) = c_steps in
   let+ c_lit = exposed_lits in
-  let with_para = dp.ac = Some Comm || by || def_expand || const_expand ||
-    allow cp && (not !step_strategy ||
+  let with_para = dp.ac = Some Comm || dp.ac = Some Assoc || by || def_expand || const_expand ||
+    allow cp dp && (not !step_strategy ||
                  is_unit_equality dp.formula || orig_goal_or_last_hyp dp) in
   super rule with_para lenient upward dp (remove1 t_t' d_lits) pairs cp c_lits c_lit
 
 let allow_super dp cp =
   let induct_ok d c = not (is_inductive c) ||
     ((orig_goal d || orig_hyp d) && not (inducted d)) in
-  dp.id <> cp.id && (allow dp || allow cp) &&
+  dp.id <> cp.id && (allow dp cp || allow cp dp) &&
     not (cp.ac <> None && dp.ac <> None) &&
     induct_ok dp cp && induct_ok cp dp
 
@@ -759,7 +760,7 @@ let update p rewriting f : pformula =
 
 let allow_rewrite dp cp =
   dp.id <> cp.id &&
-    (!destructive_rewrites || allow cp || is_safe_for_rewrite dp) &&
+    (!destructive_rewrites || allow cp dp || is_safe_for_rewrite dp) &&
     not (orig_hyp dp && (orig_hyp cp || orig_goal cp))
 
 (*     t = t'    C⟪tσ⟫
