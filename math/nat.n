@@ -12,6 +12,8 @@ Theorem.  Let x : ℕ.  Suppose that x ≠ 0.  Then there is some y : ℕ such t
 
 Theorem.  For all x : ℕ, s(x) ≠ x.  [all x ≠ s(x)]
 
+Corollary.  1 ≠ 0.
+
 # Addition
 
 Axiom.  There is a binary operation + : ℕ → ℕ → ℕ such that for all x, y : ℕ,

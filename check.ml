@@ -573,8 +573,8 @@ and infer_stmt env stmt : statement list =
         let justify =
           let& j = opt_to_list justify in
           incr theorem_count;
-          Theorem { id = sprintf "%d:justify_%s" !theorem_count id;
-                    name = None; formula = j;
+          Theorem { id = string_of_int !theorem_count;
+                    name = Some ("justify " ^ id); formula = j;
                     steps = []; by = []; is_step = false; range = empty_range } in
         justify @ [ConstDecl (id, typ); Definition (id, typ, f')]
     | HAxiomGroup haxioms ->
@@ -599,23 +599,25 @@ and infer_stmt env stmt : statement list =
           (stmt :: env, stmt) in
         snd (fold_left_map check env htheorems)
 
-and infer_stmts initial_env stmts : statement list =
+and check_stmts check_stmt initial_env stmts : statement list =
   let check env stmt =
-    let stmts = infer_stmt env stmt in
+    let stmts = check_stmt env stmt in
     (stmts @ env, stmts) in
   concat (snd (fold_left_map check initial_env stmts))
 
-let infer_module checked (md: hmodule) : (smodule list, string * frange) result =
+let check_module check_stmt checked md : (smodule list, string * frange) result =
   let env : statement list = module_env md checked in
   try 
-    let modd = { md with stmts = infer_stmts env md.stmts } in
+    let modd = { md with stmts = check_stmts check_stmt env md.stmts } in
     Ok (modd :: checked)
   with
     | Check_error (err, pos) ->
         Error (err, (md.filename, pos))
 
-let infer_modules modules : (smodule list, string * frange) result =
-  fold_left_res infer_module [] modules |> Result.map rev
+let check_modules check_stmt modules : (smodule list, string * frange) result =
+  fold_left_res (check_module check_stmt) [] modules |> Result.map rev
+
+let infer_modules = check_modules infer_stmt
 
 let type_as_id typ = str_replace " " "" (show_type typ)
 
@@ -728,35 +730,16 @@ let fix_by env by : string =
     | Some stmt -> stmt_ref stmt
     | _ -> error ("formula not found: " ^ by) empty_range
 
-let basic_check_stmt env stmt : statement =
+let basic_check_stmt env stmt : statement list =
   let bool_check f = match basic_check env f with
     | (Bool, f) -> f
     | _ -> failwith "boolean expected" in
   let stmt = map_statement (check_type env) bool_check stmt in
-  match stmt with
+  [match stmt with
     | Theorem ({ by; _ } as thm) -> Theorem { thm with by = map (fix_by env) by }
-    | _ -> stmt
+    | _ -> stmt]
 
-let basic_check_stmts stmts : statement list =
-  let rec check env = function
-    | [] -> rev env
-    | stmt :: stmts ->
-        let stmt = basic_check_stmt env stmt in
-        check (stmt :: env) stmts in
-  check [] stmts
-
-let check_module md : (smodule, string * frange) result =
-  try
-    Ok ({ md with stmts = basic_check_stmts md.stmts })
-  with
-    | Check_error (err, _item) ->
-        Error (err, (md.filename, empty_range))
-
-let check_modules modules : (smodule list, string * frange) result =
-    match modules with
-      | [md] ->
-          let** md = check_module md in Ok [md]
-      | _ -> failwith "single module expected"
+let basic_check_modules = check_modules basic_check_stmt
 
 let check modules : (smodule list, string * frange) result =
   axiom_count := 0;

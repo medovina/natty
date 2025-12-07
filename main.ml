@@ -28,7 +28,7 @@ let source = parse_args (tl (Array.to_list Sys.argv)) in
                 Ok (false, modules)
             | ".thf" ->
                 let** modules =
-                  Result.bind (Thf_parse.parse_thf source) Check.check_modules in
+                  Result.bind (Thf_parse.parse_thf source) Check.basic_check_modules in
                 Ok (true, modules)
             | _ -> failwith "unknown extension" in
           match res with
