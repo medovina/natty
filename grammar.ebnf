@@ -143,7 +143,8 @@ so = 'also' | 'but' ['then'] | 'consequently' | 'hence' | 'however' |
     
 have = 'clearly' |
     'it' ['then'] 'follows' ['from' reference | by_reason] 'that' |
-    'it is' ('clear' | 'obvious') 'that' | 'it must be that' | 'observe that' |
+    'it is' ('clear' | 'obvious') 'that' | 'it must be that' |
+    'notice that' | 'observe that' |
     'on the other hand' [','] | 'similarly' [','] |
     'the only alternative is' | 'this means that' | 'this shows that' | 'trivially' |
     'we conclude that' | 'we deduce that' | 'we have' ['shown that'] |

@@ -27,7 +27,6 @@ Theorem.  Let a, b, c : ℤ.
   b. a + (b + c) = (a + b) + c.
   c. a + 0 = a.
   d. a + (−a) = 0.
-  # e. a + (−a + b) = b.
 
 Proof.
 
@@ -375,14 +374,18 @@ Definition.  For all x : ℤ, |x| = { x if 0 ≤ x;
 
 Justification.  Let x : ℤ.  By [weak trichotomy] either 0 ≤ x or x < 0.  By [trichotomy on ℤ] it cannot be that 0 ≤ x and x < 0.
 
-Theorem.  Let x, y : ℤ.
+Theorem.  Let u, v, x, y, z : ℤ.
 
     a. 0 ≤ |x|.
     b. |x| = 0 if and only if x = 0.
     c. |−x| = |x|.  [abs of negative]
-    d. |x − y| = |y − x|.
+    d. |x − y| = |y − x|.  [abs difference]
     e. |x · y| = |x| · |y|.
     f. −|x| ≤ x ≤ |x|.  [abs range]
+    g. |z| < u if and only if −u < z < u.  [abs range <]
+    h. |z| ≤ u if and only if −u ≤ z ≤ u.  [abs range ≤]
+    i. If u ≥ v and u ≥ −v then u ≥ |v|.  [greater than pos and neg]
+    j. |x + y| ≤ |x| + |y|.   [triangle inequality]
 
 Proof.
 
@@ -409,3 +412,13 @@ Proof.
     Now suppose that 0 = x.  Then −|x| = x = |x|.
 
     Finally, suppose that x < 0.  |x| = −x.  Hence −|x| = x and 0 < |x|.  By [< is transitive on ℤ] x < |x|, hence −|x| = x < |x|.
+
+    g. Suppose that |z| < u.  By [abs range] z ≤ |z|.  Hence by [≤ with < are transitive on ℤ] z < u.  By [abs range] −|z| ≤ z.  But |z| < u, so −|z| > −u.  Hence by [< with ≤ are transitive on ℤ] −u < z, so −u < z < u.  Conversely, suppose that −u < z < u.  We know that either |z| = z or |z| = −z.  If |z| = z then |z| < u.  If |z| = −z then −u < −|z|, so |z| < u.  Hence |z| < u.
+
+    h. Suppose that |z| ≤ u.  By [abs range] z ≤ |z|.  Hence by [≤ is transitive on ℤ] z ≤ u.  By [abs range] −|z| ≤ z.  But |z| ≤ u, so −|z| ≥ −u. Hence by [≤ is transitive on ℤ] −u ≤ z, so −u ≤ z ≤ u.  Conversely, suppose that −u ≤ z ≤ u.  We know that either |z| = z or |z| = −z.  If |z| = z then |z| ≤ u.  If |z| = −z then −u ≤ −|z|, so |z| ≤ u.  Hence |z| ≤ u.
+
+    j. We know that −|x| ≤ x ≤ |x| and −|y| ≤ y ≤ |y|.  So
+
+        (−|x|) + (−|y|) ≤ x + y ≤ |x| + |y|.
+
+    Hence −(|x| + |y|) ≤ x + y ≤ |x| + |y|.  By [abs range ≤] we obtain |x + y| ≤ |x| + |y|.

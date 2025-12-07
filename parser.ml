@@ -363,7 +363,7 @@ and have s : reason pr = (
   (any_str ["it follows"; "it then follows"] >>
     opt [] ((str "from" >> reference) <|> by_reason) << str "that") <|>
   (choice [
-    any_str ["clearly"; "it must be that";
+    any_str ["clearly"; "it must be that"; "notice that";
       "observe that"; "the only alternative is"; "this means that";
       "this shows that"; "trivially";
       "we conclude that"; "we deduce that";
