@@ -672,7 +672,8 @@ let rsubst1 t u x : formula = b_reduce (subst1 t u x)
 let rsubst subst f : formula = b_reduce (subst_n subst f)
 
 let eta = function
-  | Lambda (id, typ, App (f, Var (id', typ'))) when id = id' && typ = typ' -> f  
+  | Lambda (id, typ, App (f, Var (id', typ')))
+      when id = id' && typ = typ' && not (is_free_in id f) -> f  
   | f -> f
 
 (* t and u unify if tσ = uσ for some type substitution σ.
