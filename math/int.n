@@ -386,6 +386,7 @@ Theorem.  Let u, v, x, y, z : ℤ.
     h. |z| ≤ u if and only if −u ≤ z ≤ u.  [abs range ≤]
     i. If u ≥ v and u ≥ −v then u ≥ |v|.  [greater than pos and neg]
     j. |x + y| ≤ |x| + |y|.   [triangle inequality]
+    k. |x − y| ≥ | |x| − |y| |.
 
 Proof.
 
@@ -422,3 +423,9 @@ Proof.
         (−|x|) + (−|y|) ≤ x + y ≤ |x| + |y|.
 
     Hence −(|x| + |y|) ≤ x + y ≤ |x| + |y|.  By [abs range ≤] we obtain |x + y| ≤ |x| + |y|.
+
+   k. |x| = |y + (x − y)| ≤ |y| + |x − y| by [triangle inequality].  Therefore |x − y| ≥ |x| − |y|.  Similarly, |y| = |x + (y − x)| ≤ |x| + |y − x| by [triangle inequality].  Therefore |y − x| ≥ |y| − |x|.  But |x − y| = |y − x| by [abs difference].  Hence
+
+        |x − y| ≥ |x| − |y|  and  |x − y| ≥ |y| − |x|.
+
+    Notice that |y| − |x| = −(|x| − |y|).  Hence by [greater than pos and neg] we obtain |x − y| ≥ | |x| − |y| |.
