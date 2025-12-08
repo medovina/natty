@@ -1166,7 +1166,7 @@ let refute pformulas cancel_check : proof_result = profile @@
                       dbg_print_formula false (sprintf "[%.3f s] given: " elapsed) given;
                       if p.formula = _false then ([], [p]) else
                         let splits = all_split p in
-                        if is_and p.formula then (
+                        if is_and (remove_for_all p.formula) then (
                           remove_from_map found p;
                           ([], splits)
                         ) else (
