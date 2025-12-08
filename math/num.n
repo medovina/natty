@@ -1,0 +1,14 @@
+using int;
+
+Definition.  For all a, b : ℤ, a | b iff there exists c : ℤ such that b = ac.
+
+Theorem.  Let a, b, c : ℤ.
+
+    a. a | 0.
+    b. 1 | a.
+    c. a | a.
+    d. If a | b and b | c then a | c.
+
+Proof.
+
+    d. Suppose that a | b and b | c.  Then there are some d, e : ℤ such that b = ad and c = be.  Then c = (ad)e = a(de).  Hence a | c.
