@@ -505,6 +505,10 @@ let negate f = match bool_kind f with
   | Not f -> f
   | _ -> _not f
 
+let is_and f = match bool_kind f with
+  | Binary ("(∧)", _, _, _) -> true
+  | _ -> false
+
 let gather_and = gather_associative "(∧)"
 let gather_or = gather_associative "(∨)"
 

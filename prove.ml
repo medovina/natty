@@ -1115,8 +1115,7 @@ let nondestruct_rewrite used p : pformula list = profile @@
   )
 
 let generate queue p used : pformula list = profile @@
-  nondestruct_rewrite !used p @
-  all_eres p @ all_split p @
+  nondestruct_rewrite !used p @ all_eres p @
   concat_map (all_super queue p) !used
 
 let rw_simplify_all queue used found ps = profile @@
@@ -1166,10 +1165,16 @@ let refute pformulas cancel_check : proof_result = profile @@
                       incr count;
                       dbg_print_formula false (sprintf "[%.3f s] given: " elapsed) given;
                       if p.formula = _false then ([], [p]) else
-                        let rewritten = back_simplify found p used in
-                        used := p :: !used;
-                        let generated = generate queue p used in
-                        (rewritten, generated)))
+                        let splits = all_split p in
+                        if is_and p.formula then (
+                          remove_from_map found p;
+                          ([], splits)
+                        ) else (
+                          let rewritten = back_simplify found p used in
+                          used := p :: !used;
+                          let generated = generate queue p used in
+                          (rewritten, splits @ generated)))
+                        )
             | Deferred (dp, cp) ->
                 if !debug > 1 then printf "deferred superposition: %d, %d\n" dp.id cp.id;
                 let generated =
