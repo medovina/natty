@@ -553,7 +553,7 @@ let rec expand_proof id name env steps proof_steps : formula * statement list li
     map rev stmtss in
   (top_infer env concl, stmtss)
 
-and translate_if_block f : formula option * formula =
+and translate_if_block f : formula option * formula * formula option =
   let vs, f' = gather_for_all f in
   match f' with
     | Eq (x, g) when head_of g = _eif_c ->
@@ -562,13 +562,13 @@ and translate_if_block f : formula option * formula =
         let justify = multi_and (multi_or conds ::
           let& (c, d) = all_pairs conds in
           _not (_and c d)) in
-        let eq_some = multi_or (let& v = vals in Eq (x, v)) in
-        let eqs = multi_and (eq_some ::
+        let eqs = multi_and (
           let& (c, d) = conds_vals in
           implies c (Eq (x, d))
         ) in
-        Some (for_all_vars_types vs justify), for_all_vars_types vs eqs
-    | _ -> None, f
+        let eq_some = for_all_vars_types vs (multi_or (let& v = vals in Eq (x, v))) in
+        Some (for_all_vars_types vs justify), for_all_vars_types vs eqs, Some eq_some
+    | _ -> None, f, None
 
 and infer_stmt env stmt : statement list =
   match stmt with
@@ -577,7 +577,7 @@ and infer_stmt env stmt : statement list =
     | HDefinition (f, justification) ->
         let (id, typ, f') = infer_definition env (generalize f) in
         check_dup_const env id typ "definition" (range_of f);
-        let justify, f' = translate_if_block f' in
+        let justify, f', eq_some = translate_if_block f' in
         let justify =
           let& j = opt_to_list justify in
           incr theorem_count;
@@ -587,7 +587,11 @@ and infer_stmt env stmt : statement list =
             snd (expand_proof thm_id name env [mk_assert j] justification) in
           Theorem { id = thm_id; name; formula = j; steps; by = [];
                     is_step = false; range = empty_range } in
-        justify @ [ConstDecl (id, typ); Definition (id, typ, f')]
+        let gs =
+          let& eq_some = opt_to_list eq_some in
+          incr axiom_count;
+          Axiom (string_of_int !axiom_count, eq_some, Some (id ^ "_eq_some")) in
+        justify @ [ConstDecl (id, typ); Definition (id, typ, f')] @ gs
     | HAxiomGroup haxioms ->
         incr axiom_count;
         let+ { sub_index; name; steps } = haxioms in
