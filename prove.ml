@@ -548,7 +548,7 @@ let at_limit parents kind limit =
   length e >= expand_limit || count_eq kind e >= limit
 
 let is_def_expansion parents =
-  if at_limit parents _expand_def def_expand_limit then false else
+  not (at_limit parents _expand_def def_expand_limit) &&
   let def = find_opt orig_def parents in
   let last = parents |> find_opt (fun p -> orig_goal p || orig_hyp p) in
   match def, last with
@@ -561,7 +561,7 @@ let is_def_expansion parents =
     | _ -> false
 
 let is_hyp_expansion parents =
-  if at_limit parents _expand_hyp hyp_expand_limit then false else
+  not (at_limit parents _expand_hyp hyp_expand_limit) &&
   match opt_or_opt (find_opt orig_goal parents)
                    (find_opt (fun p -> p.hypothesis = 1) parents) with
     | Some last ->
@@ -572,7 +572,8 @@ let is_hyp_expansion parents =
           | _ -> false)
     | _ -> false
 
-let is_by parents = exists orig_goal parents && exists orig_by parents
+let is_by parents = 
+  concat_map expansions parents = [] && exists orig_goal parents && exists orig_by parents
 
 let by_cost = 0.0
 let expand_cost = 0.0
