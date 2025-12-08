@@ -580,7 +580,7 @@ let is_hyp_to_goal parents =
   for_all orig_goal_or_last_hyp parents
 
 let by_cost = 0.0
-let expand_cost = 0.0
+let expand_cost = 0.01
 let step_cost = 0.01
 let induction_cost = 1.0
 let infinite_cost = 10.0
