@@ -293,11 +293,11 @@ let multi_or = function
   | [] -> _false
   | xs -> fold_left1 _or xs
 
-let quant q id typ f =
+let quant q id typ f : formula =
   let quant_type = Fun (Fun (typ, Bool), Bool) in
   App (Const (q, quant_type), Lambda (id, typ, f))
   
-let quant' q (id, typ) f = quant q id typ f
+let quant' q (id, typ) f : formula = quant q id typ f
 
 let _for_all = quant "(∀)"
 let _for_all' = quant' "(∀)"
