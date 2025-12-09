@@ -255,12 +255,14 @@ contradiction =
 which_is_contradiction =
     ',' (['which is'] ['again' | 'also' | 'similarly']) contradiction;
 
+have_contradiction = ('This is' | 'We have') contradiction;
+
 prop_reason = proposition [by_reason];
 
 proof_eq_props = prop_reason {eq_op prop_reason}+;
 
 proof_prop =
-    ([by_reason [',']] [have] proof_eq_props) [which_is_contradiction];
+    [by_reason [',']] [have] proof_eq_props [because_prop] [which_is_contradiction];
 
 proof_if_prop = 'if' small_prop [','] 'then' proof_prop {',' so proof_prop};
 
@@ -269,14 +271,12 @@ and_or_so = 'and' [so] | so;
 will_show = ('We' ('must' | 'need to' | 'will'))
             ['now'] ('deduce' | 'prove' | 'show') [by_reason] 'that';
 
-to_show = 'To show that' small_prop ',';
-
 assert_step =
     [have] proof_if_prop |
     because_prop [','] proof_prop |
-    [to_show] will_show proposition |
+    will_show proposition |
     'The result follows' by_reason |
-    [so] ('This is' | 'We have') contradiction |
+    [and_or_so] have_contradiction |
     [and_or_so] proof_prop;
 
 assert_steps = assert_step {',' and_or_so proof_prop};

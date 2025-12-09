@@ -40,7 +40,7 @@ let sub_digit = choice [
 
 let var = pipe2 (empty >>? letter1) (opt "" sub_digit) (^)
 
-let long_id = any_str ["π"; "σ"; "τ"; "∏"; "𝔹"; "ℕ"; "ℤ"; "𝒫"; "gcd"]
+let long_id = any_str ["π"; "σ"; "τ"; "∏"; "𝔹"; "ℕ"; "ℤ"; "𝒫"; "𝒮"; "gcd"]
 
 let base_id = long_id <|> (empty >>? letter1)
 
@@ -594,6 +594,9 @@ let contradiction : proof_step list p =
 let which_is_contradiction : proof_step list p = str "," >>?
   (opt_str "which is" >>? optional (any_str ["again"; "also"; "similarly"])) >>? contradiction
 
+let have_contradiction : proof_step list p =
+  any_str ["This is"; "We have"] >>? contradiction
+
 let prop_reason : (formula * reason) p =
   pair proposition (opt [] by_reason)
 
@@ -606,11 +609,12 @@ let proof_prop : proof_step list p =
   let> reason = opt [] (by_reason << opt_str ",") in
   let> reason2 = opt [] have in
   let> chain = proof_eq_props in
+  let> because = option because_prop in
   let$ c = opt [] which_is_contradiction in
   let chain = match chain with
     | (op, f, r) :: rest -> (op, f, reason @ reason2 @ r) :: rest
     | _ -> failwith "proof_prop" in
-  mk_step chain :: c
+  opt_to_list because @ (mk_step chain :: c)
 
 let proof_if_prop : proof_step list p =
   let> f = str "if" >> small_prop in
@@ -625,15 +629,13 @@ let will_show =
     opt_str "now" >>? any_str ["deduce"; "prove"; "show"] >>
     optional by_reason >> str "that"
 
-let to_show = str "To show that" >> small_prop << str ","
-
 let assert_step : proof_step list p =
   choice [
     optional have >>? proof_if_prop;
     pipe2 (single because_prop) (opt_str "," >> proof_prop) (@);
-    optional to_show >> will_show >> proposition >>$ [];
+    will_show >> proposition >>$ [];
     str "The result follows" >> by_reason >>$ [];
-    optional so >>? any_str ["This is"; "We have"] >>? contradiction;
+    optional and_or_so >>? have_contradiction;
     optional and_or_so >> proof_prop
     ]
 
