@@ -1267,7 +1267,8 @@ let consts_of const_map f : id list =
   subtract consts logical_ops
 
 let use_premise const_map proof_consts f =
-  subset (consts_of const_map f) proof_consts
+  gather_and f |> exists (fun g ->
+    subset (consts_of const_map g) proof_consts)
 
 let const_def f : (id * id) option =
   opt_or_opt (def_is_synonym f)
