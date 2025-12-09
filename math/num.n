@@ -8,7 +8,18 @@ Theorem.  Let a, b, c : ℤ.
     b. 1 | a.
     c. a | a.
     d. If a | b and b | c then a | c.
+    e. If c ≠ 0 and a | c then |a| ≤ |c|.  [divides implies ≤]
+    f. If 0 | c then c = 0.  [0 divides only 0]
 
 Proof.
 
     d. Suppose that a | b and b | c.  Then there are some d, e : ℤ such that b = ad and c = be.  Then c = (ad)e = a(de).  Hence a | c.
+
+    e. Suppose that a | c and c ≠ 0.  Then there exists some b : ℤ such that c = ab.  Hence |c| = |a| · |b|.  c ≠ 0, so b ≠ 0.  We know that |b| ≥ 0, so we have |b| > 0.  Therefore by [< iff successor ≤ on ℤ] |b| ≥ 0 + 1 = 1 : ℤ.  Hence
+    
+        |c| = |a| · |b|
+             ≥ |a| · 1  by [≤ mul right on ℤ]
+             = |a|.
+
+    f. Suppose that 0 | c.  Then c = 0 · d for some d : ℤ, so c = 0.
+

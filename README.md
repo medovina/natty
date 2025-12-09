@@ -54,13 +54,14 @@ $ ./natty
 
 Natty's math library is in the `math` subdirectory, and includes several files:
 
-* `nat.n` - a definition of the natural numbers plus many theorems about them
-* `int.n` - a definition of the integers based on the natural numbers, plus many theorems about them
 * `set.n` - definitions about sets
 * `fun.n` - definitions about functions
+* `nat.n` - a definition of the natural numbers plus many theorems about them
+* `int.n` - a definition of the integers based on the natural numbers, plus many theorems about them
 * `card.n` - cardinality of sets, including a proof of Cantor's theorem
+* `num.n` - a definition of divisibility and some theorems about it
 
-The theorems and proofs in `nat.n` and `int.n` largely follow those in the excellent textbook Number Systems and the Foundations of Analysis (Elliott Mendelson, 1973).  However in Mendelson the first natural number is 1 but in Natty's library it is 0, so I have adapted various proofs accordingly.
+The theorems and proofs in `nat.n`, `int.n` and `num.n` largely follow those in the excellent textbook Number Systems and the Foundations of Analysis (Elliott Mendelson, 1973).  However in Mendelson the first natural number is 1 but in Natty's library it is 0, so I have adapted various proofs accordingly.
 
 ### Documentation
 
