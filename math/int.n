@@ -1,4 +1,4 @@
-using nat;
+using nat, set;
 
 # Integers: definition
 
@@ -227,7 +227,14 @@ Definition.  For all i, j ∈ ℤ, i ≤ j iff i < j or i = j.
 
 Definition.  For all i, j ∈ ℤ, we write i > j iff j < i.  We write i ≥ j iff j ≤ i.
 
-Lemma.  For all n, j : ℕ, z(n, j) > 0 iff j < n.
+Lemma.  Let n, j : ℕ.
+
+  a. z(n, j) > 0 iff j < n.  [z positive]
+  b. z(n, j) ≥ 0 iff j ≤ n.
+
+Proof.
+
+  b. Suppose that z(n, j) ≥ 0.  If z(n, j) > 0 then by [z positive] j < n, so j ≤ n.  If z(n, j) = 0 then n = j, so j ≤ n.  So we must have j ≤ n.  Conversely, suppose that j ≤ n.  If j < n then by [z positive] z(n, j) > 0, so z(n, j) ≥ 0.  If j = n then z(n, j) = 0, so z(n, j) ≥ 0.  So we must have z(n, j) ≥ 0.
 
 Theorem.  Let a, b : ℤ.
 
@@ -429,3 +436,29 @@ Proof.
         |x − y| ≥ |x| − |y|  and  |x − y| ≥ |y| − |x|.
 
     Notice that |y| − |x| = −(|x| − |y|).  Hence by [greater than pos and neg] we obtain |x − y| ≥ | |x| − |y| |.
+
+Definition.  𝒢 = { x : ℤ | x ≥ 0 }.
+
+# Here we show that the non-negative integers form a Peano system.
+
+Theorem.
+
+    a. 0 ∈ 𝒢.
+    b. For all x ∈ 𝒢 , x + 1 ∈ 𝒢.
+    c. There is no x ∈ 𝒢 such that x + 1 = 0.
+    d. For all x, y ∈ 𝒢, if x + 1 = y + 1 then x = y.
+    e. Let A : Set(ℤ).  Suppose that A ⊆ 𝒢 .  Also suppose that 0 ∈ A, and k ∈ A implies k + 1 ∈ A for all k ∈ 𝒢.  Then A = 𝒢.
+
+Proof.
+
+    b. Suppose that x ∈ 𝒢.  Then 0 ≤ x.  0 : ℤ < 1, so x = x + 0 < x + 1 by [< add right on ℤ]. Then by [≤ with < are transitive on ℤ] we have 0 < x + 1, so x + 1 ≥ 0, so x + 1 ∈ 𝒢.
+
+    c. Let x ∈ 𝒢, and suppose that x + 1 = 0.  Then x = −1 < 0, which is a contradiction.
+
+    e. Let B = { n : ℕ | z(n, 0) ∈ A }.  First, 0 ∈ B since z(0, 0) = 0 and 0 ∈ A.  Next, let n ∈ B. Then z(n, 0) ∈ A, so z(n, 0) + 1 ∈ A.  But
+
+        z(n, 0) + 1 = z(n, 0) + z(1, 0) = z(n + 1, 0).
+    
+    Hence n + 1 ∈ B.  We have shown that for all n ∈ B, n + 1 ∈ B.  Hence by [induction] B = ℕ.  Thus for all n : ℕ z(n, 0) ∈ A.
+    
+    Now let a ∈ 𝒢.  Then there are some k, i : ℕ such that a = z(k, i).  Since a ∈ 𝒢, z(k, i) ≥ 0, so k ≥ i.  Hence k = i + j for some j : ℕ.  Thus z(k, i) = z(j, 0), so a = z(j, 0), so a ∈ A.  We have shown that a ∈ A for all a ∈ 𝒢, and so A = 𝒢.
