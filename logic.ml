@@ -589,6 +589,7 @@ let rec gather_lambdas = function
 let gather_for_all = gather_quant "(∀)"
 let remove_for_all f = snd (gather_for_all f)
 let gather_exists = gather_quant "(∃)"
+let remove_exists f = snd (gather_exists f)
 
 let remove_quants with_existential : formula -> formula * id list =
   let rec remove f = match kind f with

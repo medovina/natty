@@ -493,14 +493,12 @@ let eq_pairs with_iff upward f = match terms with_iff f with
 let by_induction p = exists is_inductive p.parents
 
 (* Find terms such as g in "g = ...". *)
-let eq_terms p : formula list =
-  let rec find f = match f with
-    | App (Const ("(¬)", _), f) -> find f
-    | Eq (g, h) -> [g; h]
-    | _ -> []
-  in find p.formula
+let rec eq_terms f : formula list = match f with
+  | App (Const ("(¬)", _), f) -> eq_terms f
+  | Eq (g, h) -> [g; h]
+  | _ -> []
 
-let eq_consts p = filter_map opt_const (eq_terms p)
+let eq_consts p : id list = filter_map opt_const (eq_terms p.formula)
 
 (* Find terms such as f in "f x y z = ...", optionally along with
  * f's arguments if they are constant. *)
@@ -568,14 +566,14 @@ let is_hyp_expansion parents =
         let i = if last.goal then 1 else 2 in (
         match (parents |> find_opt (fun p -> p.hypothesis >= i)) with
           | Some hyp ->
-              overlap (eq_terms hyp) (top_terms true last)
+              overlap (eq_terms (remove_exists hyp.formula)) (top_terms true last)
           | _ -> false)
     | _ -> false
 
 let is_by parents = 
   concat_map expansions parents = [] && exists orig_goal parents && exists orig_by parents
 
-let is_hyp_to_goal parents =
+let is_last_hyp_to_goal parents =
   concat_map expansions parents = [] &&
   for_all orig_goal_or_last_hyp parents
 
@@ -593,7 +591,7 @@ let cost p : float * bool =
   let c =
     if is_by p.parents then by_cost else
     if is_expand p then expand_cost else
-    if is_hyp_to_goal p.parents then step_cost else
+    if is_last_hyp_to_goal p.parents then step_cost else
     if weight p.formula <= max then step_cost else
     if not !step_strategy && by_induction p then induction_cost
     else infinite_cost in
@@ -674,7 +672,7 @@ let all_super1 dp cp : pformula list =
   let+ c_lit = exposed_lits in
   let with_para = dp.ac = Some Comm || dp.ac = Some Assoc || by || def_expand || const_expand ||
     allow cp dp && (not !step_strategy ||
-                    is_unit_equality dp.formula || is_hyp_to_goal [cp; dp]) in
+                    is_unit_equality dp.formula || is_last_hyp_to_goal [cp; dp]) in
   super rule with_para lenient upward dp (remove1 t_t' d_lits) pairs cp c_lits c_lit
 
 let allow_super dp cp =
