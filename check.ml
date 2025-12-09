@@ -30,9 +30,9 @@ let print_blocks blocks =
   print "" blocks;
   print_newline ()
 
-let rec chain_blocks steps : block list = match steps with
-  | [] -> []
-  | step :: steps -> [Block (step, chain_blocks steps)]
+let rec chain_blocks steps body : block list = match steps with
+  | [] -> body
+  | step :: steps -> [Block (step, chain_blocks steps body)]
 
 let rec all_vars steps : id list = match steps with
   | [] -> []
@@ -532,21 +532,23 @@ let rec expand_proof id name env steps proof_steps : formula * statement list li
   let steps = trim_lets steps in
   let type_vars = free_type_vars_in_steps steps in
   let steps = (type_vars |> map (fun id -> Let [(id, Type)])) @ steps in
-  let blocks0 = chain_blocks steps in
+  let blocks0 = chain_blocks steps [] in
   let (_, concl) = blocks_steps false env [] blocks0 in
   let stmtss = if proof_steps = [] then [] else
     let (init, last_step) = split_last steps in
     let include_init = not (duplicate_lets (collect_lets init) proof_steps) in
-    let proof_steps = (if include_init then init else []) @ proof_steps in
     if !(opts.show_structure) then (
       printf "%s:\n\n" (theorem_name id name);
       if !debug > 1 then (
-        proof_steps |> iter (fun s -> print_endline (show_proof_step s));
+        let show_steps = (if include_init then init else []) @ proof_steps in
+        show_steps |> iter (fun s -> print_endline (show_proof_step s));
         print_newline ()
       );
     );
     let blocks = infer_blocks env proof_steps in
-    let blocks = if include_init then insert_conclusion_step blocks init last_step
+    let blocks =
+      if include_init
+        then insert_conclusion_step (chain_blocks init blocks) init last_step
       else blocks @ [Block (Assert [("", concl, [])], [])] in
     if !(opts.show_structure) then print_blocks blocks;
     let (stmtss, _concl) = blocks_steps true env [] blocks in
