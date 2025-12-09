@@ -577,6 +577,7 @@ let is_last_hyp_to_goal parents =
   concat_map expansions parents = [] &&
   for_all orig_goal_or_last_hyp parents
 
+let commutative_cost = 0.0
 let by_cost = 0.0
 let step_cost = 0.01
 let induction_cost = 1.0
@@ -588,6 +589,7 @@ let cost p : float * bool =
   let qs = if qs = [] then p.parents else qs in
   let max = maximum (map (fun p -> weight p.formula) qs) in
   let c =
+    if exists (fun p -> p.ac = Some Comm) p.parents then commutative_cost else
     if is_by p.parents then by_cost else
     if !(opts.all_superpositions) || is_expand p ||
        is_last_hyp_to_goal p.parents ||

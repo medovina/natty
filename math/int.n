@@ -163,7 +163,7 @@ In any case n · k + j · i ≠ j · k + n · i, so
 
 # Theorems that hold in ℤ and any ring
 
-Theorem.  Let x, y : ℤ.
+Theorem (unique additive inverse).  Let x, y : ℤ.
 
     x + y = 0 if and only if y = −x.
 
@@ -173,7 +173,7 @@ Proof.  If y = −x, then x + y = 0.  Now suppose that x + y = 0.  Then
 
 Theorem.  Let x, y, z : ℤ.
 
-    a. If x + y = x + z then y = z.
+    a. If x + y = x + z then y = z.  [add cancel left on ℤ]
     b. −0 = 0.
     c. −(−x) = x.
     d. If −x = −y, then x = y.
@@ -190,6 +190,14 @@ Proof.
     c. (−x) + x = x + (−x) = 0.  It follows that −(−x) = x.
 
     d. Suppose that −x = −y.  Then −(−x) = −(−y), so x = y.
+
+    e. Observe that
+
+      (x + y) + ((−x) + (−y)) = (x + (−x)) + (y + (−y)) = 0 + 0 = 0 : ℤ.
+
+    Then by [unique additive inverse] −(x + y) = (−x) + (−y).
+
+    f. If x + y = x then x + y = x + 0, so by [add cancel left on ℤ] y = 0.
 
     g. x · 0 = x · (0 + 0) = x · 0 + x · 0, so x · 0 = 0 by [addend is 0].  Similarly, 0 · x = (0 + 0) · x = 0 · x + 0 · x, so 0 · x = 0 by [addend is 0].
 
@@ -244,7 +252,7 @@ Theorem.  For all a : ℤ, there is no b : ℤ such that a < b < a + 1.  [ℤ is
 
 Proof.  Let a, b : ℤ, and suppose that a < b < a + 1.  There are some n, j, k, i : ℕ such that a = z(n, j) and b = z(k, i).  Then a + 1 = z(n + 1, j), so z(n, j) < z(k, i) < z(n + 1, j).  Then n + i < j + k and k + j < i + (n + 1).  This is a contradiction to [ℕ is discrete].
 
-Theorem.  For all a, b : ℤ, a < b iff a + 1 ≤ b.
+Theorem.  For all a, b : ℤ, a < b iff a + 1 ≤ b.  [< iff successor ≤ on ℤ]
 
 Proof.  Let a, b : ℤ.  There are some n, j, k, i : ℕ such that a = z(n, j) and b = z(k, i).  We know that a + 1 = z(n + 1, j).  If a < b then z(n, j) < z(k, i), so n + i < j + k, so n + i + 1 ≤ j + k by [< iff successor ≤], so z(n + 1, j) ≤ z(k, i), so a + 1 ≤ b.  If a + 1 ≤ b then z(n + 1, j) ≤ z(k, i), so n + i + 1 ≤ j + k, so n + i < j + k by [< iff successor ≤], so z(n, j) < z(k, i), so a < b.
 
@@ -304,6 +312,14 @@ Proof.
   e. Suppose that x < y and 0 < z.  Then y − x > 0 and z − 0 > 0.  But z − 0 = z, so z > 0.  By [product of positives is positive] (y − x) · z > 0.  But (y − x) · z = y · z − x · z by [right distribute −].  Hence y · z − x · z > 0, so x · z < y · z.
 
   f. 0 : ℕ ≠ 1, so 0 : ℕ + 0 ≠ 0 + 1, so z(0, 0) ≠ z(1, 0), so 0 : ℤ ≠ 1.
+
+Corollary.  Let x, y, z : ℤ.
+
+  a. If x ≤ y and 0 ≤ z, then x · z ≤ y · z. [≤ mul right on ℤ]
+
+Proof.
+
+  a. If x = y then x · z = y · z, so x · z ≤ y · z.  If x < y and z = 0 then x · z = y · z = 0, so x · z ≤ y · z.  If x < y and z > 0 then by [< mul right on ℤ] x · z < y · z, so x · z ≤ y · z.
 
 # Theorems that hold in any ordered integral domain
 
