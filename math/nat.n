@@ -98,6 +98,12 @@ Definition.
 
     For all x, y : ℕ, x ≤ y if x < y or x = y.  We write x > y if y < x.  We write x ≥ y if y ≤ x.
 
+Theorem.  Let x, y: ℕ.  x ≤ y iff there is some z : ℕ such that x + z = y.
+
+Proof.  Suppose that x ≤ y.  If x < y then there is some w : ℕ such that x + s(w) = y.  If x = y then x + 0 = y.  So there must be some z : ℕ such that x + z = y.
+
+Now suppose that there is some z : ℕ such that x + z = y.  If z = 0 then x = y, so x ≤ y.  Suppose that z ≠ 0.  Then by [positive is successor] there is some w : ℕ such that z = s(w).  Then x + s(w) = y, so x < y, so x ≤ y.  In any case x ≤ y.
+
 Theorem.  Let x, y, z : ℕ.
 
     a. x ≤ x.

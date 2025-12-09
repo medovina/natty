@@ -160,7 +160,8 @@ for_all_ids = 'For all' decl_ids_types;
 
 for_all_prop = for_all_ids [with_exprs] [','] small_prop;
 
-there_exists = 'There' ('is' | 'are' | 'exists' | ['must'] 'exist');
+there_exists =
+    'There' ('is' | 'are' | 'exists' | 'must be' | ['must'] 'exist');
 
 exists_prop =
     there_exists ['some' | 'an operation' | 'no'] decl_ids_types [with_exprs]

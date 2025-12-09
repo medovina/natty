@@ -40,7 +40,11 @@ let sub_digit = choice [
 
 let var = pipe2 (empty >>? letter1) (opt "" sub_digit) (^)
 
-let long_id = any_str ["π"; "σ"; "τ"; "∏"; "𝔹"; "ℕ"; "ℤ"; "𝒫"; "𝒮"; "gcd"]
+let long_id = any_str [
+  "π"; "σ"; "τ"; "∏"; "𝔹"; "ℕ"; "ℤ";
+  "𝒢"; "𝒫"; "𝒮";  (* script characters G, P, S *)
+  "gcd"
+]
 
 let base_id = long_id <|> (empty >>? letter1)
 
@@ -416,7 +420,7 @@ and for_all_prop s : formula pr = (pipe3
         for_all_with ids_types prop with_exprs)) s
 
 and there_exists =
-  str "There" >> any_str ["is"; "are"; "exists"; "exist"; "must exist"]
+  str "There" >> any_str ["is"; "are"; "exists"; "exist"; "must be"; "must exist"]
 
 and with_exprs s = (str "with" >> exprs) s
 

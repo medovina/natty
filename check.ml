@@ -460,6 +460,7 @@ and block_steps in_proof env lenv (Block (step, children)) : statement list list
         let stmts = Hypothesis ("hyp", top_infer (decls @ env) g) :: decls in
         let (fs, concl) = child_steps stmts in
         (mk_thm (ex, []) :: fs,
+         if concl = _true then ex else
          if any_free_in ids concl then exists_vars_typ (ids, typ) concl else concl)
     | Escape | Group _ -> failwith "block_formulas"
 
