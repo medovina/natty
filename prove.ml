@@ -578,7 +578,6 @@ let is_last_hyp_to_goal parents =
   for_all orig_goal_or_last_hyp parents
 
 let by_cost = 0.0
-let expand_cost = 0.01
 let step_cost = 0.01
 let induction_cost = 1.0
 let infinite_cost = 10.0
@@ -590,9 +589,9 @@ let cost p : float * bool =
   let max = maximum (map (fun p -> weight p.formula) qs) in
   let c =
     if is_by p.parents then by_cost else
-    if is_expand p then expand_cost else
-    if is_last_hyp_to_goal p.parents then step_cost else
-    if weight p.formula <= max then step_cost else
+    if !(opts.all_superpositions) || is_expand p ||
+       is_last_hyp_to_goal p.parents ||
+       weight p.formula <= max then step_cost else
     if not !step_strategy && by_induction p then induction_cost
     else infinite_cost in
   (c, p.derived && not (is_expand p))
@@ -670,17 +669,19 @@ let all_super1 dp cp : pformula list =
   let pairs = eq_pairs false upward t_t' in  (* iii: pre-check *)
   let+ (c_lits, _, exposed_lits) = c_steps in
   let+ c_lit = exposed_lits in
-  let with_para = dp.ac = Some Comm || dp.ac = Some Assoc || by || def_expand || const_expand ||
+  let with_para = !(opts.all_superpositions) || (
+    dp.ac = Some Comm || dp.ac = Some Assoc || by || def_expand || const_expand ||
     allow cp dp && (not !step_strategy ||
-                    is_unit_equality dp.formula || is_last_hyp_to_goal [cp; dp]) in
+                    is_unit_equality dp.formula || is_last_hyp_to_goal [cp; dp])) in
   super rule with_para lenient upward dp (remove1 t_t' d_lits) pairs cp c_lits c_lit
 
 let allow_super dp cp =
   let induct_ok d c = not (is_inductive c) ||
     ((orig_goal d || orig_hyp d) && not (inducted d)) in
-  dp.id <> cp.id && (allow dp cp || allow cp dp) &&
+  !(opts.all_superpositions) || (
+    dp.id <> cp.id && (allow dp cp || allow cp dp) &&
     not (cp.ac <> None && dp.ac <> None) &&
-    induct_ok dp cp && induct_ok cp dp
+    induct_ok dp cp && induct_ok cp dp)
 
 let all_super queue dp cp : pformula list = profile @@
   let dbg = (dp.id, cp.id) = !debug_super in

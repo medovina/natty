@@ -2,6 +2,7 @@ open Util
 
 type options = {
   all_modules: bool ref;
+  all_superpositions: bool ref;
   deferred: bool ref;
   disprove: bool ref;
   e_proof: bool ref;
@@ -22,6 +23,7 @@ type options = {
 
 let opts = {
   all_modules = ref false;
+  all_superpositions = ref false;
   deferred = ref false;
   disprove = ref false;
   e_proof = ref false;
@@ -66,6 +68,7 @@ let usage () =
       -v                verbose output
       -x                export theorems to THF files
          -xf              also generate THF files for full theorems with proof steps
+      -y                allow all possible superposition inferences
       |};
     exit 1
 
@@ -101,6 +104,7 @@ let parse_args args =
             | 'v' -> opts.verbose := true
             | 'x' -> opts.export := true;
                      if arg = "-xf" then opts.export_full := true
+            | 'y' -> opts.all_superpositions := true;
             | '-' -> (match opt_remove_prefix "--pipe=" arg with
                         | Some name -> opts.pipe := name
                         | None -> failwith "unknown option")
