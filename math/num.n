@@ -12,6 +12,9 @@ Theorem.  Let a, b, c : ℤ.
     f. If 0 | c then c = 0.  [0 divides only 0]
     g. a | b and b | a if and only if a = b or a = −b.
     h. a | a · b.
+    i. If a | b and a | c then a | (b + c).
+    j. If a | b and a | c then a | (b − c).
+    k. If a | 1 then a = 1 or a = −1.
 
 Proof.
 
@@ -28,3 +31,7 @@ Proof.
     g. Suppose that a | b and b | a.  If a = 0 or b = 0 then by [0 divides only 0] a = 0 = b.  If a ≠ 0 and b ≠ 0 then by [divides implies ≤] |a| ≤ |b|, also by [divides implies ≤] |b| ≤ |a|, so by [trichotomy on ℤ] |a| = |b|, so a = b or a = −b.
 
     Now suppose that a = b.  Then clearly a | b and b | a.  Finally, suppose that a = −b.  Then a = −(1 · b) = −1 · b.  Also b = −a = −(1 · a) = −1 · a, so a | b and b | a.
+
+    i. Suppose that a | b and a | c.  Then there exist d, e : ℤ such that b = da and c = ea.  Then b + c = da + ea = (d + e) · a, so a | (b + c).
+
+    j. Suppose that a | b and a | c.  Then there exist d, e : ℤ such that b = da and c = ea.  Then b − c = da − ea = (d − e) · a, so a | (b − c).
