@@ -10,6 +10,8 @@ Theorem.  Let a, b, c : ℤ.
     d. If a | b and b | c then a | c.
     e. If c ≠ 0 and a | c then |a| ≤ |c|.  [divides implies ≤]
     f. If 0 | c then c = 0.  [0 divides only 0]
+    g. a | b and b | a if and only if a = b or a = −b.
+    h. a | a · b.
 
 Proof.
 
@@ -23,3 +25,6 @@ Proof.
 
     f. Suppose that 0 | c.  Then c = 0 · d for some d : ℤ, so c = 0.
 
+    g. Suppose that a | b and b | a.  If a = 0 or b = 0 then by [0 divides only 0] a = 0 = b.  If a ≠ 0 and b ≠ 0 then by [divides implies ≤] |a| ≤ |b|, also by [divides implies ≤] |b| ≤ |a|, so by [trichotomy on ℤ] |a| = |b|, so a = b or a = −b.
+
+    Now suppose that a = b.  Then clearly a | b and b | a.  Finally, suppose that a = −b.  Then a = −(1 · b) = −1 · b.  Also b = −a = −(1 · a) = −1 · a, so a | b and b | a.

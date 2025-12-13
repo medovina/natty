@@ -422,6 +422,7 @@ Theorem.  Let u, v, x, y, z : ℤ.
     i. If u ≥ v and u ≥ −v then u ≥ |v|.  [greater than pos and neg]
     j. |x + y| ≤ |x| + |y|.   [triangle inequality]
     k. |x − y| ≥ | |x| − |y| |.
+    l. If |x| = |y|, then x = y or x = −y.
 
 Proof.
 
@@ -464,6 +465,8 @@ Proof.
         |x − y| ≥ |x| − |y|  and  |x − y| ≥ |y| − |x|.
 
     Notice that |y| − |x| = −(|x| − |y|).  Hence by [greater than pos and neg] we obtain |x − y| ≥ | |x| − |y| |.
+
+    l. Suppose that |x| = |y|.  Either x ≥ 0 or x < 0.  Also either y ≥ 0 or y < 0.  If x ≥ 0 and y ≥ 0 then x = |x| = |y| = y.  If x ≥ 0 and y < 0 then x = |x| = |y| = −y.  If x < 0 and y ≥ 0 then −x = |x| = |y| = y, so x = −y.  Finally, if x < 0 and y < 0 then −x = |x| = |y| = −y, so x = y. 
 
 Definition.  𝒢 = { x : ℤ | x ≥ 0 }.
 
