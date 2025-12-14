@@ -202,7 +202,7 @@ let map_pair f (a, b) = (f a, f b)
 let (let+) = fun a f -> concat_map f a
 let (let&) = fun a f -> concat_map (fun x -> [f x]) a
 
-let head_opt xs = nth_opt xs 0
+let head_opt xs : 'a option = nth_opt xs 0
 
 let rec last = function
   | [] -> failwith "last"

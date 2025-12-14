@@ -11,12 +11,11 @@ let destructive_rewrites = ref false
 let formula_counter = ref 0
 
 let ac_ops = ref ([] : (id * typ) list)
-let distributive_ops = ref ([] : ((id * typ) * (id * typ)) list)
 let or_equal_ops = ref ([] : id list)
 
 let output = ref false
 
-type ac_type = Assoc | Comm | Dist | Extra
+type ac_type = Assoc | Comm | LDist | RDist | Extra
 
 let ac_other = function
   | Assoc -> Comm
@@ -149,18 +148,23 @@ let commutative_axiom f : (str * typ) option =
 
 let is_commutative_axiom p = opt_is_some (commutative_axiom p.formula)
 
-let distributive_templates : formula list =
-    let+ t = ["f(c)(g(a)(b)) = g(f(c)(a))(f(c)(b))";    (* c · (a + b) = c · a + c · b *)
-              "f(g(a)(b))(c) = g(f(a)(c))(f(b)(c))"] in (* (a + b) · c = a · c + b · c *)
-    [prefix_vars (Parser.parse_formula t)]
+let distributive_templates : (ac_type * formula) list =
+    let& (kind, t) =
+      [LDist, "f(c)(g(a)(b)) = g(f(c)(a))(f(c)(b))";    (* c · (a + b) = c · a + c · b *)
+       RDist, "f(g(a)(b))(c) = g(f(a)(c))(f(b)(c))"] in (* (a + b) · c = a · c + b · c *)
+    (kind, prefix_vars (Parser.parse_formula t))
 
-let distributive_axiom f : ((str * typ) * (str * typ)) option =
+let distributive_axiom f : (str * str * typ * ac_type) option =
     let f = remove_universal f in
-    let* (_, vsubst) = find_map (fun t -> _match t f) distributive_templates in
+    head_opt @@
+    let+ (kind, t) = distributive_templates in
+    let+ (_tsubst, vsubst) = opt_to_list (_match t f) in
     match (let& v = ["f"; "g"; "a"; "b"; "c"] in assoc ("$" ^ v) vsubst) with
-      | [Const (c, ftyp); Const (d, gtyp); Var _; Var _; Var _] ->
-          Some ((c, ftyp), (d, gtyp))
-      | _ -> None
+      | [Const (f_op, ftyp); Const (g_op, gtyp); Var (_, typ); Var _; Var _] ->
+          assert (ftyp = gtyp);
+          assert (ftyp = Fun (typ, Fun(typ, typ)));
+          [(f_op, g_op, typ, kind)]
+      | _ -> []
 
 let orig_hyp p = is_hyp p && not p.derived
 let orig_goal p = p.goal && not p.derived
@@ -530,8 +534,8 @@ let def_consts f : id list =
   let cs = find (remove_for_all f) in
   subtract cs logical_ops
 
-let expand_limit = 2
-let def_expand_limit = 2
+let expand_limit = 3
+let def_expand_limit = 3
 let hyp_expand_limit = 2
 
 let _expand_def, _expand_hyp = "expand def", "expand hyp"
@@ -590,10 +594,11 @@ let cost p : float * bool =
   let max = maximum (map (fun p -> weight p.formula) qs) in
   let c =
     if exists (fun p -> p.ac = Some Comm) p.parents then commutative_cost else
-    if is_by p.parents then by_cost else
+    let non_increasing = weight p.formula <= max in
+    if is_by p.parents then (if non_increasing then by_cost else step_cost) else
     if !(opts.all_superpositions) || is_expand p ||
        is_last_hyp_to_goal p.parents ||
-       weight p.formula <= max then step_cost else
+       non_increasing then step_cost else
     if not !step_strategy && by_induction p then induction_cost
     else infinite_cost in
   (c, p.derived && not (is_expand p))
@@ -1224,7 +1229,7 @@ let def_safe_for_rewrite f =
  *     x * (y * z) = y * (x * z)
  * which turns * into a ground convergent system.
  * See e.g. Baader/Nipkow, section 11.2 "Ordered rewriting". *)
-let ac_axiom op typ =
+let ac_completion_axiom op typ =
   let c_op = Const (op, Fun (typ, Fun (typ, typ))) in
   let var v = Var (v, typ) in
   let e1 = apply [c_op; var "x"; apply [c_op; var "y"; var "z"]] in
@@ -1238,25 +1243,37 @@ let ac_completion op typ : pformula =
   if !debug > 0 then printf "AC operator: %s\n\n" (strip_prefix op);
   ac_ops := (op, typ) :: !ac_ops;
   let name = "AC completion: " ^ basic_const op in
-  let axiom = { (to_pformula name (ac_axiom op typ)) with ac = Some Extra } in
+  let axiom = { (to_pformula name (ac_completion_axiom op typ)) with ac = Some Extra } in
   dbg_newline ();
   axiom
 
-let ac_kind f : (ac_type * str * typ) option =
+(* Given a left-distributive or right-distributive axiom over operators * and +
+ * where * is associative and commutative, add the complementary (right- or left-distributive)
+ * axiom to produce a ground convergent system.
+ * See e.g. Martin/Nipkow, Ordered Rewriting and Confluence, 4.7 Distributivity. *)
+let dist_completion kind op1 op2 typ : pformula =
+  let (kind2, t) = distributive_templates |> find (fun (k, _) -> k <> kind) in
+  let op_type = Fun (typ, Fun (typ, typ)) in
+  let vsubst = [("$f", Const (op1, op_type)); ("$g", Const (op2, op_type));
+               ("$a", Var ("x", typ)); ("$b", Var ("y", typ)); ("$c", Var ("z", typ))] in
+  let name = sprintf "distributive completion: %s, %s" (basic_const op1) (basic_const op2) in
+  let f = for_all_vars_typ (["x"; "y"; "z"], typ) (subst_vars vsubst t) in
+  let axiom = { (to_pformula name f) with ac = Some kind2 } in
+  axiom
+
+let ac_kind f : (ac_type * str * str * typ) option =
   match associative_axiom f with
-    | Some (op, typ) -> Some (Assoc, op, typ)
+    | Some (op, typ) -> Some (Assoc, op, "", typ)
     | None ->
         match commutative_axiom f with
-          | Some (op, typ) -> Some (Comm, op, typ)
+          | Some (op, typ) -> Some (Comm, op, "", typ)
           | None -> (
               match distributive_axiom f with
-                | Some ((f, _ftyp), (g, _gtyp) as f_g) ->
-                    if not (mem f_g !distributive_ops) then (
-                      if !debug > 0 then
-                        printf "distributive operators: %s over %s\n\n"
-                          (basic_const f) (basic_const g);
-                      distributive_ops := f_g :: !distributive_ops);
-                    Some (Dist, "", unknown_type)
+                | Some (f, g, typ, kind) ->
+                    if !debug > 0 then
+                      printf "distributive operators: %s over %s\n\n"
+                        (basic_const f) (basic_const g);
+                    Some (kind, f, g, typ)
                 | None -> None)
 
 let rec map_const const_map c : id =
@@ -1308,7 +1325,7 @@ let gen_pformulas thm all_known local_known : pformula list =
     let+ s = filter is_definition all_known in
     opt_to_list (const_def (get_stmt_formula s)) in
   let proof_consts = find_proof_consts thm all_known local_known by_thms hyps const_map in
-  let scan ops stmt =
+  let scan ops stmt : (ac_type * str * typ) list * pformula list =
     match stmt_formula stmt with
       | None -> (ops, [])
       | Some f ->
@@ -1316,7 +1333,7 @@ let gen_pformulas thm all_known local_known : pformula list =
           if not ( by || is_hypothesis stmt || use_premise const_map proof_consts f)
           then (ops, []) else
           let kind_op = ac_kind f in
-          let kind = Option.map (fun (kind, _, _) -> kind) kind_op in
+          let kind = Option.map (fun (kind, _, _, _) -> kind) kind_op in
           let hyp = match index_of_opt stmt hyps with
             | Some i ->
                 (* when proving ⊥, two last hypotheses have number 1 *)
@@ -1329,10 +1346,13 @@ let gen_pformulas thm all_known local_known : pformula list =
             safe_for_rewrite := p :: !safe_for_rewrite;
           dbg_newline ();
           match kind_op with
-            | Some (kind, op, typ) when op <> "" ->
+            | Some (kind, op, "", typ) when kind = Assoc || kind = Comm ->
                 if mem (ac_other kind, op, typ) ops then
                   (remove (kind, op, typ) ops, [p; ac_completion op typ])
                 else ((kind, op, typ) :: ops, [p])
+            | Some (kind, op1, op2, typ)
+                when kind = LDist || kind = RDist && mem (op1, typ) !ac_ops ->
+                (ops, [p; dist_completion kind op1 op2 typ])
             | _ -> (ops, [p]) in
   concat (snd (fold_left_map scan [] all_known))
 
@@ -1368,7 +1388,6 @@ let prove all_known local_known thm cancel_check : proof_result * float =
   destructive_rewrites := not !step_strategy;
   let all_known, local_known, thm = encode_consts all_known local_known thm in
   ac_ops := [];
-  distributive_ops := [];
   safe_for_rewrite := [];
   or_equal_ops := find_or_equal_ops all_known;
   formula_counter := 0;

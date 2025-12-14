@@ -76,8 +76,7 @@ Theorem.  Let a, b, c : ℤ.
   a. a · b = b · a.
   b. (a · b) · c = a · (b · c).
   c. a · (b + c) = a · b + a · c.  [ℤ left distributive]
-  d. (a + b) · c = a · c + b · c.  [ℤ right distributive]
-  e. a · 1 = a.
+  d. a · 1 = a.
 
 Proof.
 
@@ -118,9 +117,7 @@ Proof.
                       = z(n, j) · z(k, i) + z(n, j) · z(m, h) by [def of ·]
                       = a · b + a · c.
 
-  d. (a + b) · c = c · (a + b) = c · a + c · b = a · c + b · c.
-
-  e. There are some n, j : ℕ such that a = z(n, j).  Then
+  d. There are some n, j : ℕ such that a = z(n, j).  Then
 
         a · 1 = z(n, j) · 1
               = z(n, j) · z(1, 0)
@@ -478,7 +475,7 @@ Theorem.
     b. For all x ∈ 𝒢 , x + 1 ∈ 𝒢.
     c. There is no x ∈ 𝒢 such that x + 1 = 0.
     d. For all x, y ∈ 𝒢, if x + 1 = y + 1 then x = y.
-    e. Let A : Set(ℤ).  Suppose that A ⊆ 𝒢 .  Also suppose that 0 ∈ A, and k ∈ A implies k + 1 ∈ A for all k ∈ 𝒢.  Then A = 𝒢.
+    e. Let A : Set(ℤ).  Suppose that A ⊆ 𝒢 .  Also suppose that 0 ∈ A, and k ∈ A implies k + 1 ∈ A for all k ∈ 𝒢.  Then A = 𝒢.  [induction on ℤ]
 
 Proof.
 
