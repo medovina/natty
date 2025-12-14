@@ -171,6 +171,7 @@ let orig_goal p = p.goal && not p.derived
 let orig_def p = p.definition && not p.derived
 let orig_by p = p.by && not p.derived
 let orig_goal_or_last_hyp p = (p.hypothesis = 1 || p.goal) && not p.derived
+let not_goal_or_hyp p = not p.goal && not (is_hyp p)
 
 type queue_item =
   | Unprocessed of pformula
@@ -588,12 +589,14 @@ let induction_cost = 1.0
 let infinite_cost = 10.0
 
 let cost p : float * bool =
+  if p.rule = "eres" then (step_cost, p.derived) else
   if length p.parents < 2 || p.rule = "rw" then (0.0, p.derived) else
   let qs = p.parents |> filter (fun p -> p.goal || is_hyp p) in
   let qs = if qs = [] then p.parents else qs in
   let max = maximum (map (fun p -> weight p.formula) qs) in
   let c =
-    if exists (fun p -> p.ac = Some Comm) p.parents then commutative_cost else
+    if exists (fun p -> p.ac = Some Comm) p.parents &&
+      for_all not_goal_or_hyp p.parents then commutative_cost else
     let non_increasing = weight p.formula <= max in
     if is_by p.parents then (if non_increasing then by_cost else step_cost) else
     if !(opts.all_superpositions) || is_expand p ||
