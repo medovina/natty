@@ -174,7 +174,7 @@ let expand_modules1 modules all_modules :
   let stmts = match !(opts.from_thm) with
     | Some id -> stmts |> drop_while (fun (_, stmt, _, _) -> not (match_thm stmt id))
     | None -> stmts in
-  if (Option.is_some !(opts.only_thm) || Option.is_some !(opts.from_thm)) && stmts = [] then
+  if (opt_is_some !(opts.only_thm) || opt_is_some !(opts.from_thm)) && stmts = [] then
     failwith "theorem not found";
   stmts
 

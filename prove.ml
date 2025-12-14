@@ -137,7 +137,7 @@ let associative_axiom f : (str * typ) option =
     | Eq (f, g) -> find_map is_assoc [(f, g); (g, f)]
     | _ -> None
 
-let is_associative_axiom p = Option.is_some (associative_axiom p.formula)
+let is_associative_axiom p = opt_is_some (associative_axiom p.formula)
 
 let commutative_axiom f : (str * typ) option =
   remove_universal f |> function
@@ -147,7 +147,7 @@ let commutative_axiom f : (str * typ) option =
         | _ -> None)
     | _ -> None
 
-let is_commutative_axiom p = Option.is_some (commutative_axiom p.formula)
+let is_commutative_axiom p = opt_is_some (commutative_axiom p.formula)
 
 let distributive_templates : formula list =
     let+ t = ["f(c)(g(a)(b)) = g(f(c)(a))(f(c)(b))";    (* c · (a + b) = c · a + c · b *)
@@ -831,7 +831,7 @@ let any_subsumes cs dp : pformula option = profile @@
   let d_lits = prefix_lits dp in
   cs |> find_opt (fun cp -> subsumes cp d_lits)
 
-let subsumes1 cp dp : bool = Option.is_some (any_subsumes [cp] dp)
+let subsumes1 cp dp : bool = opt_is_some (any_subsumes [cp] dp)
 
 let rec expand f : formula list = match or_split f with
   | Some (s, t) -> expand s @ expand t
@@ -966,7 +966,7 @@ let canonical p : formula =
     sort Stdlib.compare (map canonical_lit f) in
   rename_vars (fold_left1 _or lits)
 
-let is_ac p = Option.is_some p.ac
+let is_ac p = opt_is_some p.ac
 
 module FormulaMap = Map.Make (struct
   type t = formula
@@ -1217,8 +1217,8 @@ let def_is_atomic f : (str * str) option = match remove_for_all f with
 
 let def_safe_for_rewrite f =
   let xs, _ = gather_for_all f in
-  Option.is_some (def_is_synonym f) ||
-    length xs <= 1 && Option.is_some (def_is_atomic f)
+  opt_is_some (def_is_synonym f) ||
+    length xs <= 1 && opt_is_some (def_is_atomic f)
 
 (* Given an associative/commutative operator *, construct the axiom
  *     x * (y * z) = y * (x * z)

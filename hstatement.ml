@@ -33,10 +33,8 @@ let rec range_of f : range = match f with
 
 type reason = (string * range) list
 
-type chain = (id * formula * reason) list  (* op, formula, reason(s) *)
-
 type proof_step =
-  | Assert of chain
+  | Assert of formula * reason
   | Let of (id * typ) list
   | LetDef of id * typ * formula
   | Assume of formula
@@ -44,10 +42,10 @@ type proof_step =
   | Escape
   | Group of proof_step list
 
-let mk_assert f = Assert [("", f, [])]
+let mk_assert f = Assert (f, [])
 
 let get_assert step = match step with
-  | Assert [("", f, [])] -> f
+  | Assert (f, _) -> f
   | _ -> failwith "get_assert"
 
 let is_assume = function
@@ -67,7 +65,7 @@ let rec step_decl_vars = function
   | _ -> []
 
 let rec step_formulas = function
-  | Assert fs -> let+ (_, f, _) = fs in [f]
+  | Assert (f, _) -> [f]
   | Let _ | Escape -> []
   | LetDef (_, _, f) -> [f]
   | Assume f -> [f]
@@ -93,7 +91,7 @@ let show_chain chain : string =
   unwords (map to_str chain)
 
 let rec show_proof_step step : string = match step with
-  | Assert chain -> sprintf "assert %s" (show_chain chain)
+  | Assert (f, _) -> sprintf "assert %s" (show_formula f)
   | Let ids_types ->
       let show (id, typ) = sprintf "%s : %s" id (show_type typ) in
       "let " ^ comma_join (map show ids_types)

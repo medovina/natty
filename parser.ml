@@ -106,17 +106,6 @@ let with_range (p : 'a p) : (('a * range) p) = empty >>?
   get_pos |>> fun (_index, line2, col2) ->
     (x, ((line1, col1), (line2, col2))))
 
-let apply_range (f, range) : formula =
-  match f with
-    | App (Const (c, _), g) when c.[0] = '@' -> g   (* avoid double record *)
-    | _ -> App (_const (encode_range range), f)
-
-let record_formula (p : formula p) : formula p =
-  with_range p |>> apply_range
-
-let record_type p = with_range p |>>
-  fun (t, range) -> TypeApp (encode_range range, [t])
-
 (* types *)
 
 let infix sym f assoc = Infix (str sym >>$ f, assoc)
@@ -141,7 +130,7 @@ let is_type_var s = "σ" <= s && s <= "ω"
 
 let rec typ_term s : typ pr = choice [
   str "Set" >> parens typ |>> (fun typ -> (Fun (typ, Bool)));
-  record_type (id |>> fun id ->
+  (id |>> fun id ->
     if is_type_var id then TypeVar id else mk_base_type id);
   parens typ
 ] s
@@ -228,7 +217,7 @@ and id_term s = (
   opt (mk_sub f f_sub) (range_term f f_sub)
   ) s
 
-and unit_term s : formula pr = (record_formula @@ choice [
+and unit_term s : formula pr = (choice [
   id_term;
   parens_exprs |>> mk_tuple
 ]) s  
@@ -246,7 +235,7 @@ and if_block s : formula pr = (
   let$ cs = str "{" >> sep_by1 if_clause (str ";") << str "}" in
   fold_right (fun (f, p) g -> _eif p f g) cs undefined) s
 
-and base_term s : formula pr = (unit_term <|> record_formula @@ choice [
+and base_term s : formula pr = (unit_term <|> choice [
   (sym |>> _const);
   str "⊤" >>$ _true;
   str "⊥" >>$ _false;
@@ -277,6 +266,10 @@ and eq_op s = choice ([
   str "≁" >>$ mk_not_binop "~" ] @
   map (fun op -> const_op (str op) op false) compare_ops) s
 
+and apply_reasons rs f : formula =
+  if rs = [] then f else
+  App (_const ("$by " ^ String.concat "," (map fst rs)), f)
+
 and operators with_bar = [
   [ Postfix (str ":" >> typ |>> ascribe) ];
   [ Prefix (minus >>$ unary_minus) ];
@@ -285,6 +278,7 @@ and operators with_bar = [
   [ infix_binop "·" Assoc_left ];
   [ infix_binop "+" Assoc_left;
     infix_binop1 minus "-" Assoc_left ];
+  [ Postfix (by_reason |>> fun r -> apply_reasons r) ];
   (if with_bar then [ infix_binop "|" Assoc_none ] else []) @
   [ infix_negop "∤" "|" Assoc_none;   (* does not divide *)
     infix "∈" elem Assoc_none ;
@@ -299,7 +293,7 @@ and operators with_bar = [
              (fun ids_type -> for_all_vars_typ ids_type)) ] 
 ]
 
-and expr1 with_bar s = record_formula (expression (operators with_bar) terms) s
+and expr1 with_bar s = (expression (operators with_bar) terms) s
 
 and expr s = expr1 true s
 
@@ -319,7 +313,7 @@ and predicate s : (formula -> formula) pr = choice [
     predicate_target w <|> (word >>= fun x -> predicate_target (w ^ "_" ^ x)));
   pipe2 (option (str "not")) adjective (fun neg word f ->
     let g = App (_const word, f) in
-    if Option.is_some neg then _not g else g)
+    if opt_is_some neg then _not g else g)
 ] s
 
 and atomic s = (
@@ -500,7 +494,7 @@ let let_or_assume : proof_step list p =
 let top_prop : proof_step list p =
   pipe2 (many_concat (let_or_assume << str "."))
   (opt_str "Then" >> proposition)
-  (fun lets p -> lets @ [Assert [("", p, [])]])
+  (fun lets p -> lets @ [mk_assert p])
 
 (* proposition lists *)
 
@@ -572,26 +566,22 @@ let axiom_group : hstatement list p =
 
 (* proofs *)
 
-let mk_step chain : proof_step =
-  match chain with
-    | (_op, f, _r) :: rest -> (
-        match kind f with
-          | Quant ("(∃)", _, typ, _) ->
-              assert (rest = []);
-              let (ids, f) = gather_quant_of_type "(∃)" typ f in
-              IsSome (ids, typ, f)
-          | _ -> Assert chain)
-    | _ -> failwith "mk_step"
+let mk_step f reasons : proof_step =
+  match kind f with
+    | Quant ("(∃)", _, typ, _) ->
+        let (ids, f) = gather_quant_of_type "(∃)" typ f in
+        IsSome (ids, typ, f)
+    | _ -> Assert (f, reasons)
 
 let because_prop : proof_step p =
   any_str ["because"; "since"] >> proposition |>>
-    (fun p -> Assert [("", p, [])])
+    (fun p -> Assert (p, []))
 
 let contradiction : proof_step list p =
   let> contra = choice [
       str "a contradiction" >> (optional (str "to" >> reference));
       str "contradicting" >> skip reference ]
-    >>$ [Assert [("", _false, [])]] in
+    >>$ [Assert (_false, [])] in
   let$ because = opt [] (single because_prop) in
   because @ contra
 
@@ -604,21 +594,14 @@ let have_contradiction : proof_step list p =
 let prop_reason : (formula * reason) p =
   pair proposition (opt [] by_reason)
 
-let proof_eq_props : chain p =
-  let> f, r = prop_reason in
-  let$ eqs = many (pair (any_str ("=" :: compare_ops)) prop_reason) in
-  ("", f, r) :: let+ (op, (f, r)) = eqs in [(op, f, r)]
-
 let proof_prop : proof_step list p =
   let> reason = opt [] (by_reason << opt_str ",") in
   let> reason2 = opt [] have in
-  let> chain = proof_eq_props in
+  let> (f, reason3) = prop_reason in
   let> because = option because_prop in
   let$ c = opt [] which_is_contradiction in
-  let chain = match chain with
-    | (op, f, r) :: rest -> (op, f, reason @ reason2 @ r) :: rest
-    | _ -> failwith "proof_prop" in
-  opt_to_list because @ (mk_step chain :: c)
+  let reasons = reason @ reason2 @ reason3 in
+  opt_to_list because @ (mk_step f reasons :: c)
 
 let proof_if_prop : proof_step list p =
   let> f = str "if" >> small_prop in
@@ -693,7 +676,7 @@ let define ids_types justification prop : hstatement =
 
 let def_prop : formula p = 
     not_before new_paragraph >> opt_str "we write" >>
-      record_formula small_prop << str "."
+      small_prop << str "."
 
 let definition_body : ((id * typ) list * formula list) p =
   let> let_ids_types = many (let_decl <<? str ".") in

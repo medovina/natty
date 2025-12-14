@@ -15,6 +15,7 @@ let (let*) = Option.bind
 
 let mk_some x = Some x
 
+let opt_is_some = Option.is_some
 let opt_to_list = Option.to_list
 
 let opt_default opt def = Option.value opt ~default:def
@@ -86,7 +87,7 @@ let string_from s i = string_range s i (String.length s)
 
 let last_char s = s.[strlen s - 1]
 
-let str_contains s c = Option.is_some (String.index_opt s c)
+let str_contains s c = opt_is_some (String.index_opt s c)
 
 let prepend p s = p ^ s
 
@@ -106,11 +107,11 @@ let ends_with p s = String.ends_with ~suffix:p s
 (* 'str_replace s t u' replaces s with t in u *)
 let str_replace s = Str.global_replace (Str.regexp_string s)
 
-let opt_remove_prefix p s =
+let opt_remove_prefix p s : string option =
   if starts_with p s then Some (string_from s (String.length p))
   else None
 
-let remove_prefix p s = opt_default (opt_remove_prefix p s) s
+let remove_prefix p s : string = opt_default (opt_remove_prefix p s) s
 
 let str_join = String.concat ""
 let comma_join = String.concat ", "

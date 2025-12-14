@@ -477,8 +477,6 @@ and show_formula_multi multi f =
         | App _ ->
             let (head, args) = collect_args f in (
             match head with
-              | Const (c, _) when c.[0] = '@' ->
-                  show1 outer right (hd args)
               | Const (c, _typ) when is_tuple_constructor c ->
                   parens_if (outer > -2) @@
                     comma_join (map (show1 (-1) false) args)

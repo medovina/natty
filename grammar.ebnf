@@ -96,11 +96,11 @@ binary_op = '·' | '+' | '-' | '^' | '∈' | '∉' | '|' | '∤' | '∧' | '∨'
 
 compare_op = '=' | '<' | '≤' | '>' | '≥' | '~' | '⊆';
 
-eq_op = compare_op | '≠' | '≮' | '≯';
+eq_op = compare_op | '≠' | '≮' | '≯' | '≁';
 
 expr = terms |
     expr binary_op expr |
-    expr eq_op expr |
+    expr eq_op expr [by_reason] |
     expr ':' typ |
     '-' expr |
     '¬' expr |
@@ -260,10 +260,8 @@ have_contradiction = ('This is' | 'We have') contradiction;
 
 prop_reason = proposition [by_reason];
 
-proof_eq_props = prop_reason {eq_op prop_reason}+;
-
 proof_prop =
-    [by_reason [',']] [have] proof_eq_props [because_prop] [which_is_contradiction];
+    [by_reason [',']] [have] prop_reason [because_prop] [which_is_contradiction];
 
 proof_if_prop = 'if' small_prop [','] 'then' proof_prop {',' so proof_prop};
 

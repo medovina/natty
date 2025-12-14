@@ -62,7 +62,7 @@ let trim_escape rest : proof_step list = match rest with
   | _ -> rest
 
 let is_assert_false step = match step with
-  | Assert [(_, f, _)] when strip_range f = _false -> true
+  | Assert (f, _) when strip_range f = _false -> true
   | _ -> false
 
 let infer_blocks env steps : block list =
@@ -81,12 +81,12 @@ let infer_blocks env steps : block list =
             then ([], steps, false)
           else match step with
             | Escape ->
-                if Option.is_some in_assume then ([], rest, true)
+                if opt_is_some in_assume then ([], rest, true)
                   else infer vars scope_vars None rest
-            | Assert [(_, f, _)] when opt_exists (has_premise f) in_assume ->
+            | Assert (f, _) when opt_exists (has_premise f) in_assume ->
                 ([], steps, true)  (* proof invoked last assumption as a premise, so exit scope *)
-            | Assert [(_, f, _)] when strip_range f = _false ->
-                if Option.is_some in_assume then
+            | Assert (f, _) when strip_range f = _false ->
+                if opt_is_some in_assume then
                   ([Block (step, [])], trim_escape rest, true)
                 else error "contradiction without assumption" (range_of f)
             | Group steps ->
@@ -146,13 +146,40 @@ let apply_comparison op f g : formula =
   else if op = "≠" then _not (Eq (f, g))
   else apply [_var op; f; g]
 
-let rec join_cmp fs ops : formula list =
+let rec extract_by f : formula * reason = match f with
+  | App (Const (c, _), h) -> (
+      match opt_remove_prefix "$by " c with
+        | Some reasons ->
+            let rs = String.split_on_char ',' reasons in
+            let by = map (fun r -> (r, empty_range)) rs in
+            (h, by)
+        | None -> (f, []))
+  | _ ->
+      (* In an assertion such as "x < 0 or 0 < x by [trichotomy]", we want
+         the reason to apply to the entire formula. *)
+    let (f, args) = collect_args f in
+    if args = [] then (f, []) else
+    let args, last = split_last args in
+    let (last, by) = extract_by last in
+    (apply (f :: args @ [last]), by)
+
+let rec join_comparisons fs ops : (formula * reason) list =
   match fs, ops with
-    | [f], [] -> [f]
-    | [f; g], [op] -> [apply_comparison op f g]
+    | [f], [] ->
+        let f, by = extract_by f in
+        [(f, by)]
+    | [f; g], [op] ->
+        let g, by = extract_by g in
+        [(apply_comparison op f g, by)]
     | f :: g :: fs, op :: ops ->
-        apply_comparison op f g :: join_cmp (g :: fs) ops
-    | _ -> failwith "join_cmp"
+        let g, by = extract_by g in
+        (apply_comparison op f g, by) :: join_comparisons (g :: fs) ops
+    | _ -> failwith "chain_comparisons"
+
+let join_cmp fs ops : formula list =
+  let fs, reasons = unzip (join_comparisons fs ops) in
+  assert (for_all ((=) []) reasons);
+  fs
 
 let rec expand_chains f : formula =
   let fs, ops = collect_cmp f in
@@ -363,20 +390,10 @@ let check_ref env (name, range) : id =
     | Some stmt -> stmt_ref stmt
     | None -> error ("theorem not found: " ^ name) range
 
-let chain_comparisons env groups : (formula * string list) list =
-  let chain prev (op, f, by) =
-    let by = map (check_ref env) by in
-    let fs, ops = collect_cmp f in
-    let fs, ops = match prev, op with
-      | Some g, op when op <> "" -> g :: fs, op :: ops
-      | None, "" -> fs, ops
-      | _ -> failwith "chain_comparisons" in
-    let eqs = if length fs <= 2 && op = "" then [f]  (* preserve original range *)
-      else join_cmp fs ops in
-    let eqs, last_eq = split_last eqs in
-    let ret = (let+ eq = eqs in [(eq, [])]) @ [(last_eq, by)] in
-    (Some (last fs), ret) in
-  concat (snd (fold_left_map chain None groups))
+let chain_comparisons env f : (formula * string list) list =
+  let fs, ops = collect_cmp f in
+  let& (f, reasons) = join_comparisons fs ops in
+  (f, map (check_ref env) reasons)
 
 (* Restore type variables for any type that has become a constant in the
  * local environment. *)
@@ -384,6 +401,28 @@ let rec with_type_vars env typ : typ = match typ with
   | Base id ->
       if is_type_defined id env then TypeVar id else typ
   | _ -> map_type (with_type_vars env) typ
+
+let mk_thm env lenv f by : statement list = Theorem {
+    id = ""; name = None; formula = top_infer env f;
+    steps = []; by; is_step = true; range = range_of f } :: lenv
+
+let assert_chain env lenv in_proof f by =
+  let eqs, reasons = unzip (chain_comparisons env f) in
+  let reasons : str list list =
+    let rs, last = split_last reasons in
+    rs @ [last @ by] in
+  let eqs' = map strip_range eqs in
+  let concl =
+    if in_proof && length eqs' >= 2 && count_false is_eq eqs' <= 1 then
+      let op = match find_opt (Fun.negate is_eq) eqs' with
+        | Some eq -> comparison_op eq
+        | None -> "=" in
+      match is_comparison (hd eqs'), is_comparison (last eqs') with
+        | Some (_, a, _), Some (_, _, b) ->
+            apply_comparison op a b
+        | _ -> failwith "block_steps"
+    else multi_and eqs in
+  (map2 (mk_thm env lenv) eqs reasons, concl)
 
 let rec blocks_steps in_proof env lenv blocks : statement list list * formula =
   match blocks with
@@ -403,25 +442,12 @@ and block_steps in_proof env lenv (Block (step, children)) : statement list list
   let const_decl (id, typ) =
     if typ = Type then infer_type_decl env id else infer_const_decl env id typ in
   let const_decls ids_typs = rev (map const_decl ids_typs) in
-  let mk_thm (f, by) : statement list = Theorem {
-    id = ""; name = None; formula = top_infer env f;
-    steps = []; by; is_step = true; range = range_of f } :: lenv in
   match step with
-    | Assert groups ->
-        let eqs_reasons : (formula * str list) list = chain_comparisons env groups in
-        let eqs : formula list = map fst eqs_reasons in
-        let eqs' = map strip_range eqs in
-        let concl =
-          if in_proof && length eqs' >= 2 && count_false is_eq eqs' <= 1 then
-            let op = match find_opt (Fun.negate is_eq) eqs' with
-              | Some eq -> comparison_op eq
-              | None -> "=" in
-            match is_comparison (hd eqs'), is_comparison (last eqs') with
-              | Some (_, a, _), Some (_, _, b) ->
-                  apply_comparison op a b
-              | _ -> failwith "block_steps"
-          else multi_and eqs in
-        (map mk_thm eqs_reasons, concl)
+    | Assert (f, reason) ->
+        let fs = gather_and f in
+        let reasons = map (Fun.const []) (tl fs) @ [map (check_ref env) reason] in
+        let steps, concls = unzip (map2 (assert_chain env lenv in_proof) fs reasons) in
+        (concat steps, multi_and concls)
     | Let ids_types ->
         let resolve_subtype (id, typ) = match typ, check_type env typ with
           | Sub f, (Sub f' as t) ->
@@ -459,7 +485,7 @@ and block_steps in_proof env lenv (Block (step, children)) : statement list list
         let decls = rev (map (fun id -> infer_const_decl env id typ) ids) in
         let stmts = Hypothesis ("hyp", top_infer (decls @ env) g) :: decls in
         let (fs, concl) = child_steps stmts in
-        (mk_thm (ex, []) :: fs,
+        (mk_thm env lenv ex [] :: fs,
          if concl = _true then ex else
          if any_free_in ids concl then exists_vars_typ (ids, typ) concl else concl)
     | Escape | Group _ -> failwith "block_formulas"
@@ -550,7 +576,7 @@ let rec expand_proof id name env steps proof_steps : formula * statement list li
     let blocks =
       if include_init
         then insert_conclusion_step (chain_blocks init blocks) init last_step
-      else blocks @ [Block (Assert [("", concl, [])], [])] in
+      else blocks @ [Block (mk_assert concl, [])] in
     if !(opts.show_structure) then print_blocks blocks;
     let (stmtss, _concl) = blocks_steps true env [] blocks in
     map rev stmtss in
@@ -609,8 +635,7 @@ and infer_stmt env stmt : statement list =
           let id = count_sub_index !theorem_count sub_index in
           let (f, stmts) = expand_proof id name env steps proof_steps in
           let range = match (last steps) with
-            | Assert [(_, f, _)] -> range_of f
-            | Assert _ -> failwith "infer_stmt"
+            | Assert (f, _) -> range_of f
             | _ -> failwith "assert expected" in
           let stmt = Theorem { id; name; formula = f; steps = stmts;
                                by = []; is_step = false; range } in
