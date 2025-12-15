@@ -423,6 +423,7 @@ Theorem.  Let u, v, x, y, z : ℤ.
     j. |x + y| ≤ |x| + |y|.   [triangle inequality]
     k. |x − y| ≥ | |x| − |y| |.
     l. If |x| = |y|, then x = y or x = −y.
+    m. If x ≠ 0 then |x| ≥ 1.
 
 Proof.
 
@@ -466,7 +467,9 @@ Proof.
 
     Notice that |y| − |x| = −(|x| − |y|).  Hence by [greater than pos and neg] we obtain |x − y| ≥ | |x| − |y| |.
 
-    l. Suppose that |x| = |y|.  Either x ≥ 0 or x < 0.  Also either y ≥ 0 or y < 0.  If x ≥ 0 and y ≥ 0 then x = |x| = |y| = y.  If x ≥ 0 and y < 0 then x = |x| = |y| = −y.  If x < 0 and y ≥ 0 then −x = |x| = |y| = y, so x = −y.  Finally, if x < 0 and y < 0 then −x = |x| = |y| = −y, so x = y. 
+    l. Suppose that |x| = |y|.  Either x ≥ 0 or x < 0.  Also either y ≥ 0 or y < 0.  If x ≥ 0 and y ≥ 0 then x = |x| = |y| = y.  If x ≥ 0 and y < 0 then x = |x| = |y| = −y.  If x < 0 and y ≥ 0 then −x = |x| = |y| = y, so x = −y.  Finally, if x < 0 and y < 0 then −x = |x| = |y| = −y, so x = y.
+
+    m. Suppose that x ≠ 0.  We know that |x| ≥ 0 and |x| ≠ 0.  So |x| > 0.  Then by [< iff successor ≤ on ℤ] |x| ≥ 0 + 1 = 1 : ℤ.
 
 Definition.  𝒢 = { x : ℤ | x ≥ 0 }.
 

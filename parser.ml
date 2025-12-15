@@ -369,7 +369,7 @@ and have s : reason pr = (
       "we conclude that"; "we deduce that";
       "we know that"; "we must have"; "we obtain"; "we see that"];
     str "it is" >> any_str ["clear"; "obvious"] >> str "that";
-    any_str ["on the other hand"; "similarly"] << opt_str ",";
+    any_str ["likewise"; "on the other hand"; "similarly"] << opt_str ",";
     str "we have" << opt_str "shown that"
   ] >>$ [])) s
 

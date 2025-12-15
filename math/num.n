@@ -57,3 +57,15 @@ Now suppose that b < 0.  Then −b > 0, so −b ∈ B, so there exist q, r : ℤ
 Either r = 0 or r > 0.  Suppose that r = 0.  Then −b = qa, so b = (−q) · a + 0, so there exist s, t : ℤ such that b = sa + t and 0 ≤ t < a.
 
 Now suppose that r > 0.  Then b = −(qa + r) = (−q) · a + (−r) = (−q) · a + (a − r) − a = (−q − 1) · a + (a − r).  Observe that a − r < a since r > 0.  Also 0 < a − r since r < a.  Therefore 0 ≤ a − r < a.  So there exist s, t : ℤ such that b = sa + t and 0 ≤ t < a.
+
+Theorem (Uniqueness of Division).  Let a, b : ℤ.  Suppose that a > 0.  Suppose that there exist q, r, q', r' : ℤ such that b = q · a + r = q' · a + r', and 0 ≤ r < a and 0 ≤ r' < a.  Then q = q' and r = r'.
+
+Proof.  Notice that r' = b − q' · a and r = b − q · a, so r' − r = q · a − q' · a = (q − q') · a.
+
+Suppose that r' = r.  Then r' − r = 0.  Hence (q − q') · a = 0.  But a ≠ 0.  Hence q − q' = 0.  Therefore q = q'.
+
+Now suppose that r ≠ r'.  Then r' − r ≠ 0, hence q − q' ≠ 0.  Therefore |q − q'| ≥ 1, so |(q - q') · a| = |q - q'| · |a| ≥ 1 · |a| = a.  Thus |r' − r| ≥ a.
+
+We know that r' < a and −r ≤ 0, so r' − r < a + 0 = a.  Likewise, r < a and −r' ≤ 0, so r − r' < a + 0 = a.
+
+However either |r' − r| = r − r' or |r' − r| = r' − r.  So |r' − r| < a.  This is a contradiction.  So r' = r and q' = q.
