@@ -1379,12 +1379,12 @@ let encode_consts all_known local_known thm : statement list * statement list * 
    map map_stmt (map strip_proof local_known),
    map_stmt thm)
 
-let functional_extend f = match f with
+let functional_extend f : formula list = match f with
   | Eq (g, h) -> (match type_of g with
       | Fun (t, Bool) ->  (* apply functional extensionality *)
-          _for_all "x" t (_iff (App (g, Var ("x", t))) (App (h, Var ("x", t))))
-      | _ -> f)
-  | _ -> f
+          [_for_all "x" t (_iff (App (g, Var ("x", t))) (App (h, Var ("x", t))))]
+      | _ -> [])
+  | _ -> []
 
 let prove all_known local_known thm cancel_check : proof_result * float =
   step_strategy := is_step thm;
@@ -1395,10 +1395,11 @@ let prove all_known local_known thm cancel_check : proof_result * float =
   or_equal_ops := find_or_equal_ops all_known;
   formula_counter := 0;
   let known = gen_pformulas thm all_known local_known in
-  let f = functional_extend (get_stmt_formula thm) in
-  let goal = to_pformula (stmt_id_name thm) f in
-  let goals = if !(opts.disprove) then [goal] else
-      [create_pformula "negate" [goal] (negate goal.formula)] in
+  let f = get_stmt_formula thm in
+  let fs = f :: functional_extend f in
+  let goals = fs |> map (fun f -> to_pformula (stmt_id_name thm) f) in
+  let goals = if !(opts.disprove) then goals else
+      goals |> map (fun goal -> create_pformula "negate" [goal] (negate goal.formula)) in
   let goals = goals |> map (fun g -> {g with goal = true}) in
   let all = known @ goals in
   dbg_newline ();
