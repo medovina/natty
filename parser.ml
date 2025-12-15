@@ -38,7 +38,9 @@ let sub_digit = choice [
   str "₀"; str "₁";	str "₂"; str "₃";	str "₄";
   str "₅"; str "₆"; str "₇"; str "₈"; str "₉" ]
 
-let var = pipe2 (empty >>? letter1) (opt "" sub_digit) (^)
+let var0 = pipe2 (empty >>? letter1) (opt "" (string "'")) (^)
+
+let var = pipe2 var0 (opt "" (sub_digit)) (^)
 
 let long_id = any_str [
   "π"; "σ"; "τ"; "∏"; "𝔹"; "ℕ"; "ℤ";
@@ -46,7 +48,7 @@ let long_id = any_str [
   "gcd"
 ]
 
-let base_id = long_id <|> (empty >>? letter1)
+let base_id = long_id <|> var0
 
 let id = long_id <|> var
 
