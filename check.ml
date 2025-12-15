@@ -543,6 +543,11 @@ let rec gather_eif f = match collect_args f with
 
 let rec insert_conclusion_step blocks init last_step : block list =
   match init, blocks with
+    | [], ([Block (LetDef (id, _, _) as let_def, blocks)] as b) ->
+        let f = get_assert last_step in
+        if not (is_free_in id f) then
+          [Block (let_def, insert_conclusion_step blocks [] last_step)]
+        else b @ [Block (last_step, [])]
     | [], ([Block (Let ids_typs, blocks)] as b) ->
         let f = get_assert last_step in
         let (xs, g) = gather_for_all f in
