@@ -468,9 +468,11 @@ and block_steps in_proof env lenv (Block (step, children)) : statement list list
         let mk_concl h = _for_all id (with_type_vars lenv typ) (implies h concl) in
         let concl = match g with
           | Eq (Const (id, typ), value) ->
-              if is_lambda_or_set_comp value
-                then mk_concl (Eq (Var (id, typ), value))
-                else rsubst1 concl value id
+              if is_free_in id concl then
+                if is_lambda_or_set_comp value
+                  then mk_concl (Eq (Var (id, typ), value))
+                  else rsubst1 concl value id
+              else concl
           | _ -> mk_concl g in
         (fs, concl)
     | Assume a ->
