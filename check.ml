@@ -109,7 +109,7 @@ let infer_blocks env steps : block list =
                   | _ -> match step_decl_vars step with
                     | [] -> ([], rest, false)
                     | step_vars ->
-                        let scope_vars = if is_let_def step
+                        let scope_vars = if is_let_def step || is_is_some step
                           then scope_vars else step_vars :: scope_vars in
                         infer (step_vars :: vars) scope_vars in_assume rest in
               let (blocks, rest2, bail) =

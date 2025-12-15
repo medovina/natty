@@ -369,9 +369,10 @@ Theorem.  Let x, y, z : ℤ.
   g. If x > 0 and y > 0 then x + y > 0 and x · y > 0. [sum and product positive]
   h. If x < 0 and y < 0 then x · y > 0.  [product of negatives is positive]
   i. If x > 0 and y < 0 then x · y < 0.  [product of positive and negative]
-  j. If x ≠ 0 then x² > 0.  [square is positive]
-  k. x² ≥ 0.
-  l. −1 < 0 : ℤ < 1.
+  j. x − y < x iff y is positive.
+  k. If x ≠ 0 then x² > 0.  [square is positive]
+  l. x² ≥ 0.
+  m. −1 < 0 : ℤ < 1.
 
 Proof.
 
@@ -395,9 +396,11 @@ Proof.
 
   i. Suppose that x > 0 and y < 0.  Then 0 < −y by [negative iff inverse positive].  Hence 0 < x · (−y) by [sum and product positive].  But x · (−y) = −(x · y) by [multiply by negative].  Hence 0 < −(x · y).  Then x · y < 0 by [negative iff inverse positive].
 
-  j. Suppose that x ≠ 0.  Then x < 0 or 0 < x by [weak trichotomy].  If 0 < x then x² > 0 by [sum and product positive].  If x < 0 then x² > 0 by [product of negatives is positive].
+  j.  Suppose that x − y < x.  Then x − y + (−x) < x + (−x), so −y < 0, so y > 0.  Now suppose that y > 0.  Then −y < 0, so −y + x < 0 + x, so x − y < x.
 
-  l. 1 ≠ 0 : ℤ, so by [square is positive] 0 < 1².  But 1² = 1.  Hence 0 : ℤ < 1.  By [positive iff inverse negative] −1 < 0.
+  k. Suppose that x ≠ 0.  Then x < 0 or 0 < x by [weak trichotomy].  If 0 < x then x² > 0 by [sum and product positive].  If x < 0 then x² > 0 by [product of negatives is positive].
+
+  m. 1 ≠ 0 : ℤ, so by [square is positive] 0 < 1².  But 1² = 1.  Hence 0 : ℤ < 1.  By [positive iff inverse negative] −1 < 0.
 
 # Absolute value
 

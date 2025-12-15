@@ -48,8 +48,16 @@ let get_assert step = match step with
   | Assert (f, _) -> f
   | _ -> failwith "get_assert"
 
+let is_let_def = function
+  | LetDef _ -> true
+  | _ -> false
+
 let is_assume = function
   | Assume _ -> true
+  | _ -> false
+
+let is_is_some = function
+  | IsSome _ -> true
   | _ -> false
 
 let step_types step : typ list = match step with
@@ -102,10 +110,6 @@ let rec show_proof_step step : string = match step with
   | Escape -> "escape"
   | Group steps ->
       sprintf "[%s]" (comma_join (map show_proof_step steps))
-
-let is_let_def = function
-  | LetDef _ -> true
-  | _ -> false
 
 type haxiom = {
   sub_index: string; name: string option;
