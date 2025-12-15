@@ -35,3 +35,25 @@ Proof.
     i. Suppose that a | b and a | c.  Then there exist d, e : ℤ such that b = da and c = ea.  Then b + c = da + ea = (d + e) · a, so a | (b + c).
 
     j. Suppose that a | b and a | c.  Then there exist d, e : ℤ such that b = da and c = ea.  Then b − c = da − ea = (d − e) · a, so a | (b − c).
+
+Theorem (Division).  Let a, b : ℤ.  Suppose that a > 0.  Then there exist q, r : ℤ such that b = qa + r and 0 ≤ r < a.
+
+Proof.  Let B = { b : ℤ | b ≥ 0 and there exist q, r : ℤ such that b = qa + r and 0 ≤ r < a }.  0 = 0 · a + 0 and 0 : ℤ ≤ 0 < a, so 0 ∈ B.  Now let c ∈ B.  Then c ≥ 0, so c + 1 ≥ 0.  Also there exist q, r : ℤ such that c = qa + r and 0 ≤ r < a.  Since r < a, it follows by [< iff successor ≤ on ℤ] that r + 1 ≤ a.
+
+Suppose that r + 1 = a.  Then
+
+    c + 1 = qa + (r + 1) = qa + a = (q + 1) · a + 0 and 0 : ℤ ≤ 0 < a, so c + 1 ∈ B.
+
+Now suppose that r + 1 < a.  Then
+
+    c + 1 = qa + (r + 1) and 0 ≤ r + 1 < a, so c + 1 ∈ B.
+
+In any case c + 1 ∈ B.  We know that B ⊆ 𝒢, and we have shown that for all c ∈ B, c + 1 ∈ B.  So by [induction on ℤ] B = 𝒢.
+
+Either b ≥ 0 or b < 0.  Suppose that b ≥ 0.  Then b ∈ B, so there exist q, r : ℤ such that b = qa + r and 0 ≤ r < a.
+
+Now suppose that b < 0.  Then −b > 0, so −b ∈ B, so there exist q, r : ℤ such that −b = qa + r and 0 ≤ r < a.
+
+Either r = 0 or r > 0.  Suppose that r = 0.  Then −b = qa, so b = (−q) · a + 0, so there exist s, t : ℤ such that b = sa + t and 0 ≤ t < a.
+
+Now suppose that r > 0.  Then b = −(qa + r) = (−q) · a + (−r) = (−q) · a + (a − r) − a = (−q − 1) · a + (a − r).  Observe that a − r < a since r > 0.  Also 0 < a − r since r < a.  Therefore 0 ≤ a − r < a.  So there exist s, t : ℤ such that b = sa + t and 0 ≤ t < a.
