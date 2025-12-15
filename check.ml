@@ -555,10 +555,12 @@ let rec insert_conclusion_step blocks init last_step : block list =
         [Block (step, insert_conclusion_step blocks steps last_step)]
     | _ -> failwith "insert_conclusion_step"
 
-let rec expand_proof id name env steps proof_steps : formula * statement list list =
-  let steps = trim_lets steps in
+let generalize_types steps =
   let type_vars = free_type_vars_in_steps steps in
-  let steps = (type_vars |> map (fun id -> Let [(id, Type)])) @ steps in
+  (type_vars |> map (fun id -> Let [(id, Type)])) @ steps
+
+let rec expand_proof id name env steps proof_steps : formula * statement list list =
+  let steps = generalize_types (trim_lets steps) in
   let blocks0 = chain_blocks steps [] in
   let (_, concl) = blocks_steps false env [] blocks0 in
   let stmtss = if proof_steps = [] then [] else
@@ -625,7 +627,7 @@ and infer_stmt env stmt : statement list =
         incr axiom_count;
         let+ { sub_index; name; steps } = haxioms in
         let id = count_sub_index !axiom_count sub_index in
-        let blocks = infer_blocks env steps in
+        let blocks = infer_blocks env (generalize_types steps) in
         let (_, f) = blocks_steps false env [] blocks in
         [Axiom (id, top_infer env f, name)]
     | HTheoremGroup htheorems ->
