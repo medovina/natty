@@ -111,14 +111,18 @@ expr = terms |
 exprs = expr { 'and' expr };
 
 predicate_target =
-    'as' atomic | 'of' atomic ['and' atomic] | 'from' atomic 'to' atomic;
+    'as' expr | 'of' expr ['and' expr] | 'from' expr 'to' expr;
+
+target_predicate = ('a' | 'an' | 'the') word [word] predicate_target;
 
 predicate =
-    ['not'] adjective |
-    ('a' | 'an' | 'the') word [word] predicate_target;
+    ['not'] adjective | target_predicate;
+
+predicate_is_expr = target_predicate 'is' expr;
 
 atomic =
-    expr ['is true' | 'always holds' | ('is' | 'must' ['also'] 'be') predicate];
+    expr ['is true' | 'always holds' | ('is' | 'must' ['also'] 'be') predicate] |
+    predicate_is_expr;
 
 (* reasons *)
 
@@ -178,7 +182,6 @@ prop_op = 'and' | 'or' | 'if' | 'implies' ['that'] | 'if and only if' | 'iff' |
 small_prop =
     atomic | if_then_prop | for_all_prop | exists_prop | precisely_prop |
     small_prop prop_op small_prop |
-    small_prop 'is' predicate |
     small_prop 'for' ('all' | 'some') decl_ids_type [with_exprs];
 
 (* propositions *)
@@ -288,7 +291,7 @@ any_case = 'in' ('all cases' | 'any case' | 'both cases' | 'either case') ;
 
 let_or_assumes = let_or_assume {', and' let_or_assume};
 
-clause_intro = 'First' | now | any_case;
+clause_intro = 'First' | now | [so] any_case;
 
 proof_clause = [clause_intro [',']] (let_or_assumes | assert_steps);
 
@@ -307,7 +310,7 @@ def_prop = ['we write'] small_prop '.';
 definition_body = {let_decl '.'} [for_all_ids ','] {['Let'] def_prop}+;
 
 definition =
-    'Definition.' definition_body ['Justification.' proof_steps];
+    'Definition' [stmt_name] '.' definition_body ['Justification.' proof_steps];
 
 (* theorems *)
 

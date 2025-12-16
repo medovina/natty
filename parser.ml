@@ -301,29 +301,43 @@ and expr s = expr1 true s
 
 and exprs s = (sep_by1 expr (str "and") |>> multi_and) s
 
-and predicate_target word =
+and predicate_target word : (formula -> formula) p =
   let app xs f = apply ([_const ("is_" ^ word); f] @ xs) in
   choice [
-    str "as" >> atomic |>> (fun x -> app [x]);
-    pipe2 (str "of" >> atomic) (opt [] (single (str "and" >> atomic)))
+    str "as" >> expr |>> (fun x -> app [x]);
+    pipe2 (str "of" >> expr) (opt [] (single (str "and" >> expr)))
         (fun x y -> (app ([x] @ y)));
-    pipe2 (str "from" >> atomic) (str "to" >> atomic) (fun y z -> app [y; z])
+    pipe2 (str "from" >> expr) (str "to" >> expr) (fun y z -> app [y; z])
   ]
 
+and target_predicate s : (formula -> formula) pr = (
+  let>? w = any_str ["a"; "an"; "the"] >>? word in
+  predicate_target w <|>
+    let> x = word in predicate_target (w ^ "_" ^ x)) s
+
 and predicate s : (formula -> formula) pr = choice [
-  any_str ["a"; "an"; "the"] >> word >>= (fun w ->
-    predicate_target w <|> (word >>= fun x -> predicate_target (w ^ "_" ^ x)));
+  target_predicate;
   pipe2 (option (str "not")) adjective (fun neg word f ->
     let g = App (_const word, f) in
     if opt_is_some neg then _not g else g)
 ] s
 
-and atomic s = (
-  pipe2 expr (choice [
+and predicate_is_expr s = (
+  let> p = target_predicate in
+  let$ f = str "is" >> expr in
+  p f
+) s
+
+and atomic s : formula pr = (choice [
+  predicate_is_expr;
+  let> e = expr in
+  let$ f = choice [
     any_str ["is true"; "always holds"] >>$ Fun.id;
-    any_str ["is"; "must be"; "must also be"] >> predicate;
+    any_str ["is"; "must be"; "must also be"] >>? predicate;
     return Fun.id
-   ]) (fun e f -> f e)) s
+   ] in
+  f e;
+  ]) s
 
 (* reasons *)
 
@@ -640,7 +654,11 @@ let any_case = str "in" >>?
 let let_or_assumes : proof_step list p =
   sep_by1 let_or_assume (str "," >> str "and") |>> concat
 
-let clause_intro = choice [ str "First" >>$ 0; now >>$ 1; any_case >>$ 2]
+let clause_intro = choice [
+  str "First" >>$ 0;
+  now >>$ 1;
+  optional so >>? any_case >>$ 2
+]
 
 let proof_clause : proof_step list p = pipe2
   (opt 0 (clause_intro << opt_str ","))
@@ -687,7 +705,8 @@ let definition_body : ((id * typ) list * formula list) p =
   let ids_types = concat let_ids_types @ ids_types in
   (ids_types, props)
 
-let definition : hstatement list p = str "Definition." >>
+let definition : hstatement list p =
+  str "Definition" >> optional stmt_name >> str "." >>
   let> (ids_types, props) = definition_body in
   let$ justification = opt [] (str "Justification." >> proof_steps) in
   define ids_types justification (hd props) ::

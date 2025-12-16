@@ -405,6 +405,11 @@ let trace msg s =
   s |>> (fun x ->
   printf "parsed %s\n" msg; x)
 
+let debug_line prefix = attempt (
+  let> line = many_chars_until any_char newline in
+  printf "%s: %s\n" prefix line;
+  fail "")
+
 let always_parse parser text =
   match MParser.parse_string parser text () with
     | Success x -> x
