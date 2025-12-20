@@ -182,15 +182,26 @@ We have shown that for all x ∈ B, s(x) ∈ B.  By [induction] B = ℕ.  So A i
 
 # Multiplication
 
-Axiom.  There is a binary operation · : ℕ → ℕ → ℕ such that for all n, m ∈ ℕ,
+Axiom.  There is a binary operation · : ℕ → ℕ → ℕ such that for all x, y ∈ ℕ,
 
-    a. n · 0 = 0.
-    b. n · s(m) = (n · m) + n.  [mul succ]
+    a. x · 0 = 0.
+    b. x · s(y) = (x · y) + x.  [mul succ]
 
 Theorem (distributive laws).  Let x, y, z : ℕ.
 
     a. x · (y + z) = (x · y) + (x · z).     [left distributive]
     b. (y + z) · x = (y · x) + (z · x).     [right distributive]
+
+Proof.
+
+    b. Let A = { x : ℕ | (y + z) · x = y · x + z · x }.  We must prove that A = ℕ.  First, (y + z) · 0 = 0 = y · 0 + z · 0, so 0 ∈ ℕ.  Now let w ∈ A.  Then (y + z) · w = y · w + z · w.  Hence
+
+        (y + z) · s(w) = ((y + z) · w + (y + z))     by [mul succ]
+                             = (y · w + z · w) + (y + z)  by the inductive hypothesis
+                             = (y · w + y) + (z · w + z)
+                             = y · s(w) + z · s(w)           by [mul succ].
+
+    Thus s(w) ∈ A.  We have shown that for all w ∈ A, s(w) ∈ A.  By [induction] A = ℕ.
 
 Lemma.  Let x, y : ℕ.
 

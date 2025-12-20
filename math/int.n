@@ -96,11 +96,11 @@ Proof.
                  (j · k + n · i) · m + (n · k + j · i) · h)
           = z(((n · k) · m + (j · i) · m) + ((j · k) · h + (n · i) · h),
                  ((j · k) · m + (n · i) · m) + ((n · k) · h + (j · i) · h)) by [right distributive]
-          = z(n · (k · m) + n · (i · h) + j · (i · m) + j · (k · h),
-                 j · (k · m) + j · (i · h) + n · (i · m) + n · (k · h))
+          = z((n · (k · m) + n · (i · h)) + (j · (i · m) + j · (k · h)),
+                 (j · (k · m) + j · (i · h)) + (n · (i · m) + n · (k · h)))
                   by [associativity of multiplication] and [commutativity of addition]
           = z(n · (k · m + i · h) + j · (i · m + k · h),
-                 j · (k · m + i · h) + n · (i · m + k · h))  by [right distributive]
+                 j · (k · m + i · h) + n · (i · m + k · h))  by [left distributive]
           = z(n, j) · z(k · m + i · h, i · m + k · h)
           = z(n, j) · (z(k, i) · z(m, h))
           = a · (b · c).
@@ -182,7 +182,7 @@ Theorem.  Let x, y, z : ℤ.
 
 Proof.
 
-    a. Assume that x + y = x + z.  Then (−x) + x + y = (−x) + x + z.  Hence 0 + y = 0 + z.  Therefore y = z.
+    a. Assume that x + y = x + z.  Then −x + (x + y) = −x + (x + z), so (−x + x) + y = (−x + x) + z, so 0 + y = 0 + z.  Therefore y = z.
     
     c. (−x) + x = x + (−x) = 0.  It follows that −(−x) = x.
 
@@ -215,6 +215,11 @@ Theorem.  Let x, y, z : ℤ.
     e. x − y = 0 if and only if x = y.  [subtract to 0 iff equal]
     f. x · (y − z) = x · y − x · z.  [left distribute −]
     g. (y − z) · x = y · x − z · x.  [right distribute −]
+
+Proof.
+
+  f. x · (y − z) = x · (y + (−z)) = x · y + x · (−z)
+                     = x · y + −(x · z) = x · y − x · z.
 
 Theorem (left cancel · in ℤ).  Let x, y, z : ℤ.
 
@@ -386,7 +391,7 @@ Proof.
 
       −y < −x iff 0 < (−x) − (−y).
 
-  But (−x) − (−y) = (−x) + (−(−y)) = (−x) + y = y − x.
+  But (−x) − (−y) = (−x) + (−(−y)) = (−x) + y = y − x, so −y < −x iff 0 < y − x.
 
   f. Suppose that x < y and z < 0.  By [negative iff inverse positive] 0 < −z.  Hence by [< mul right on ℤ] x · (−z) < y · (−z).  But by [multiply by negative] x · (−z) = −(x · z) and y · (−z) = −(y · z).  Hence −(x · z) < −(y · z).  Therefore by [less iff negative less] y · z < x · z.
 

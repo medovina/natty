@@ -74,7 +74,7 @@ let rec thf outer right f : string =
             quant (if q = "(∀)" then "!" else "?") ((id, typ) :: ids_typs) f
         | _ -> match f with
           | Const (id, typ) ->
-              if id = _type then thf_type1 (outer != "") typ else quote (prefix_upper id)
+              if id = _type then thf_type1 (outer <> "") typ else quote (prefix_upper id)
           | Var (id, _) -> to_var id
           | App (g, h) ->
               let s = sprintf "%s @ %s" (thf "@" false g) (thf "@" true h) in

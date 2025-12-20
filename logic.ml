@@ -734,58 +734,58 @@ and type_of f : typ = type_of1 [] f
 
 (* f and g unify if fσ = gσ for some substitution σ.
    f matches g if fσ = g for some substitution σ.   *)
-let unify_or_match is_unify subst t u : subst option =
-  let rec unify' ((tsubst, vsubst) as subst) t u : subst option =
-    let unify_pairs f g f' g' : subst option =
-      let* subst = unify' subst f f' in
+let unify_or_match is_unify comm_ops subst t u : subst list =
+  let rec unify' ((tsubst, vsubst) as subst) t u : subst list =
+    let unify_pairs f g f' g' : subst list =
+      let+ subst = unify' subst f f' in
       unify' subst g g' in
+    let unify_commutative f g f' g' : subst list =
+      unify_pairs f g f' g' @ unify_pairs f g g' f' in
     let unify_term_types t u =
-      if t = unknown_type || u = unknown_type then Some tsubst else
-      unify_or_match_types is_unify (Fun.const true) tsubst t u in
+      if t = unknown_type || u = unknown_type then [tsubst] else
+      opt_to_list (unify_or_match_types is_unify (Fun.const true) tsubst t u) in
     match eta t, eta u with
       | Const (c, t), Const (c', u) when c = c' ->
-          let* tsubst = unify_term_types t u in
-          Some (tsubst, vsubst)
-      | Var _, Const (c, _) when mem c logical_syms -> None
-      | Var _, App (Const ("(∨)", _), _) -> None
+          let+ tsubst = unify_term_types t u in
+          [(tsubst, vsubst)]
+      | Var _, Const (c, _) when mem c logical_syms -> []
+      | Var _, App (Const ("(∨)", _), _) -> []
       | Var (x, typ), f ->
-          if f = Var (x, typ) then Some subst
+          if f = Var (x, typ) then [subst]
           else
-            let* tsubst = unify_term_types typ (type_of1 tsubst f) in
+            let+ tsubst = unify_term_types typ (type_of1 tsubst f) in
             let subst = (tsubst, vsubst) in (
             match assoc_opt x vsubst with
               | Some g ->
                   if is_unify then unify' subst f g
-                  else if f = g then Some subst else None
+                  else if f = g then [subst] else []
               | None ->
                   let f = subst_n subst f in
-                  if mem x (free_vars f) then None else
+                  if mem x (free_vars f) then [] else
                     let vsubst = vsubst |> map (fun (y, g) -> (y, subst1 g f x)) in
-                    Some (tsubst, (x, f) :: vsubst))
+                    [(tsubst, (x, f) :: vsubst)])
       | _f, Var (_x, _typ) when is_unify -> unify' subst u t
-      | App (f, g), App (f', g') ->
-          unify_pairs f g f' g'
-      | Eq (f, g), Eq (f', g') -> (
-          match unify_pairs f g f' g' with
-            | Some subst -> Some subst
-            | None -> unify_pairs f g g' f')
+      | App (App (Const (op, _), f), g), App (App (Const (op', _), f'), g')
+          when op = op' && mem op comm_ops -> unify_commutative f g f' g'
+      | App (f, g), App (f', g') -> unify_pairs f g f' g'
+      | Eq (f, g), Eq (f', g') -> unify_commutative f g f' g'
       | Lambda (x, xtyp, f), Lambda (y, ytyp, g) ->
-          let* tsubst = unify_term_types xtyp ytyp in
-          let* (tsubst, vsubst) = unify' (tsubst, vsubst) f g in
+          let+ tsubst = unify_term_types xtyp ytyp in
+          let+ (tsubst, vsubst) = unify' (tsubst, vsubst) f g in
           let x', y' = assoc_opt x vsubst, assoc_opt y vsubst in
           if (x' = None || x' = Some (Var (y, ytyp))) &&
             (y' = None || y' = Some (Var (x, xtyp)))
           then let vsubst = remove_assoc x (remove_assoc y vsubst) in
               let fs = map snd vsubst in
-              if is_free_in_any x fs || is_free_in_any y fs then None
-              else Some (tsubst, vsubst)
-          else None
-      | _, _ -> None
+              if is_free_in_any x fs || is_free_in_any y fs then []
+              else [(tsubst, vsubst)]
+          else []
+      | _, _ -> []
   in unify' subst t u
 
-let unify = unify_or_match true ([], [])
-let _match = unify_or_match false ([], [])
-let try_match = unify_or_match false
+let unify comm_ops = unify_or_match true comm_ops ([], [])
+let _match comm_ops = unify_or_match false comm_ops ([], [])
+let try_match comm_ops = unify_or_match false comm_ops
 
 let erase_sub typ = match typ with
   | Sub f -> (match type_of f with

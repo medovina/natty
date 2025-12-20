@@ -10,6 +10,7 @@ let destructive_rewrites = ref false
 
 let formula_counter = ref 0
 
+let comm_ops = ref ([] : id list)
 let ac_ops = ref ([] : (id * typ) list)
 let or_equal_ops = ref ([] : id list)
 
@@ -158,7 +159,7 @@ let distributive_axiom f : (str * str * typ * ac_type) option =
     let f = remove_universal f in
     head_opt @@
     let+ (kind, t) = distributive_templates in
-    let+ (_tsubst, vsubst) = opt_to_list (_match t f) in
+    let+ (_tsubst, vsubst) = _match !comm_ops t f in
     match (let& v = ["f"; "g"; "a"; "b"; "c"] in assoc ("$" ^ v) vsubst) with
       | [Const (f_op, ftyp); Const (g_op, gtyp); Var (_, typ); Var _; Var _] ->
           assert (ftyp = gtyp);
@@ -171,7 +172,7 @@ let orig_goal p = p.goal && not p.derived
 let orig_def p = p.definition && not p.derived
 let orig_by p = p.by && not p.derived
 let orig_goal_or_last_hyp p = (p.hypothesis = 1 || p.goal) && not p.derived
-let not_goal_or_hyp p = not p.goal && not (is_hyp p)
+let goal_or_hyp p = p.goal || is_hyp p
 
 type queue_item =
   | Unprocessed of pformula
@@ -582,7 +583,6 @@ let is_last_hyp_to_goal parents =
   concat_map expansions parents = [] &&
   for_all orig_goal_or_last_hyp parents
 
-let commutative_cost = 0.0
 let by_cost = 0.0
 let step_cost = 0.01
 let induction_cost = 1.0
@@ -595,8 +595,6 @@ let cost p : float * bool =
   let qs = if qs = [] then p.parents else qs in
   let max = maximum (map (fun p -> weight p.formula) qs) in
   let c =
-    if exists (fun p -> p.ac = Some Comm) p.parents &&
-      for_all not_goal_or_hyp p.parents then commutative_cost else
     let non_increasing = weight p.formula <= max in
     if is_by p.parents then (if non_increasing then by_cost else step_cost) else
     if !(opts.all_superpositions) || is_expand p ||
@@ -628,37 +626,35 @@ let super rule with_para lenient upward dp d' pairs cp c_lits c_lit : pformula l
   let lenient = res && lenient in
   let+ (u, parent_eq) = green_subterms c_lit |>
     filter (fun (u, _) -> not (is_var u || is_fluid u)) in  (* i, ii *)
-  match unify t u with
-    | None -> []
-    | Some sub ->
-        if dbg then printf "super: unified %s with %s\n" (show_formula t) (show_formula u);
-        let d'_s = map (rsubst sub) d' in
-        let t_s, t'_s = rsubst sub t, rsubst sub t' in
-        let t_eq_t'_s = Eq (t_s, t'_s) in
-        let d_s = t_eq_t'_s :: d'_s in
-        let c_s = map (rsubst sub) c_lits in
-        let c1_s = rsubst sub c_lit in
-        let fail n = if dbg then printf "super: failed check %d\n" n; true in
-        if is_higher sub && not (orig_goal dp || orig_hyp dp && dp.hypothesis = 1) && fail 0 ||
-            is_bool_const t'_s && not (top_level (t'_s = _false) u c_lit) && fail 7 || (* vii *)
-            not lenient && not (is_maximal lit_gt (simp_eq t_eq_t'_s) d'_s) && fail 6 ||  (* vi *)
-            not upward && term_ge t'_s t_s && fail 3 ||  (* iii *)
-            not (lenient || upward) && not (is_maximal lit_gt c1_s c_s &&
-                                            is_eligible sub parent_eq) && fail 4 ||  (* iv *)
-            not (lenient || upward) && t'_s <> _false && clause_gt d_s c_s && fail 5  (* v *)
-        then [] else (
-          let c1_t' = replace_in_formula t' u c_lit in
-          let c_s = replace1 (rsubst sub c1_t') c1_s c_s in
-          let e = unprefix_vars (multi_or (d'_s @ c_s)) in
-          let tt'_show = str_replace "\\$" "" (show_formula (Eq (t, t'))) in
-          let u_show = show_formula u in
-          let rule = if rule = "" then (if res then "res" else "para") else rule in
-          let description = sprintf "%s / %s" tt'_show u_show in
-          if dbg then printf "super: passed checks, produced %s\n" (show_formula e);
-          [mk_pformula rule description [dp; cp] true e])
+  let+ sub = unify !comm_ops t u in
+  if dbg then printf "super: unified %s with %s\n" (show_formula t) (show_formula u);
+  let d'_s = map (rsubst sub) d' in
+  let t_s, t'_s = rsubst sub t, rsubst sub t' in
+  let t_eq_t'_s = Eq (t_s, t'_s) in
+  (* let d_s = t_eq_t'_s :: d'_s in *)
+  let c_s = map (rsubst sub) c_lits in
+  let c1_s = rsubst sub c_lit in
+  let fail n = if dbg then printf "super: failed check %d\n" n; true in
+  if is_higher sub && not (orig_goal dp || orig_hyp dp && dp.hypothesis = 1) && fail 0 ||
+      is_bool_const t'_s && not (top_level (t'_s = _false) u c_lit) && fail 7 || (* vii *)
+      not lenient && not (is_maximal lit_gt (simp_eq t_eq_t'_s) d'_s) && fail 6 ||  (* vi *)
+      not upward && term_ge t'_s t_s && fail 3 ||  (* iii *)
+      not (lenient || upward) && not (is_maximal lit_gt c1_s c_s &&
+                                      is_eligible sub parent_eq) && fail 4 (* *||  (* iv *)
+      not (lenient || upward) && t'_s <> _false && clause_gt d_s c_s && fail 5  (* v *) *)
+  then [] else (
+    let c1_t' = replace_in_formula t' u c_lit in
+    let c_s = replace1 (rsubst sub c1_t') c1_s c_s in
+    let e = unprefix_vars (multi_or (d'_s @ c_s)) in
+    let tt'_show = str_replace "\\$" "" (show_formula (Eq (t, t'))) in
+    let u_show = show_formula u in
+    let rule = if rule = "" then (if res then "res" else "para") else rule in
+    let description = sprintf "%s / %s" tt'_show u_show in
+    if dbg then printf "super: passed checks, produced %s\n" (show_formula e);
+    [mk_pformula rule description [dp; cp] true e])
 
 let allow p q =
-  is_hyp p || p.goal || p.ac = Some Comm || p.ac = Some Assoc && not q.derived
+  is_hyp p || p.goal || p.ac = Some Assoc && not q.derived
 
 let is_unit_equality f = is_eq (remove_for_all f)
 
@@ -686,15 +682,19 @@ let all_super1 dp cp : pformula list =
                     is_unit_equality dp.formula || is_last_hyp_to_goal [cp; dp])) in
   super rule with_para lenient upward dp (remove1 t_t' d_lits) pairs cp c_lits c_lit
 
+let is_ac p = opt_is_some p.ac
+
 let allow_super dp cp =
   let induct_ok d c = not (is_inductive c) ||
     ((orig_goal d || orig_hyp d) && not (inducted d)) in
   !(opts.all_superpositions) || (
     dp.id <> cp.id && (allow dp cp || allow cp dp) &&
-    not (cp.ac <> None && dp.ac <> None) &&
+    not (is_ac dp && is_ac cp) &&
+    not (is_ac dp && goal_or_hyp cp) &&
     induct_ok dp cp && induct_ok cp dp)
 
 let all_super queue dp cp : pformula list = profile @@
+  assert (dp.id <> 0 && cp.id <> 0);
   let dbg = (dp.id, cp.id) = !debug_super in
   if dbg then printf "all_super\n";
   if not (allow_super dp cp) then [] else
@@ -717,11 +717,9 @@ let eres cp c' c_lit : pformula list =
   match terms false c_lit with
     | (true, _, _) -> []
     | (false, u, u') ->
-        match unify u u' with
-          | None -> []
-          | Some sub ->
-              let c1 = map (rsubst sub) c' in
-              [mk_pformula "eres" "" [cp] true (multi_or c1)]
+        let+ sub = unify !comm_ops u u' in
+        let c1 = map (rsubst sub) c' in
+        [mk_pformula "eres" "" [cp] true (multi_or c1)]
 
 let all_eres cp = run_clausify cp eres
 
@@ -773,7 +771,7 @@ let update p rewriting f : pformula =
   )
 
 let allow_rewrite dp cp =
-  dp.id <> cp.id &&
+  dp.id <> cp.id && not (exists (fun p -> p.id = dp.id) cp.parents) &&
     (!destructive_rewrites || allow cp dp || is_safe_for_rewrite dp) &&
     not (orig_hyp dp && (orig_hyp cp || orig_goal cp))
 
@@ -783,28 +781,26 @@ let allow_rewrite dp cp =
  *
  *   (i) tσ > t'σ
  *)
-let rewrite dp cp c_subterms : pformula list =
-  if not (allow_rewrite dp cp) then [] else
+let rewrite dp cp c_subterms : pformula option =
+  if not (allow_rewrite dp cp) then None else
   let d = remove_universal dp.formula in
   let safe = is_safe_for_rewrite dp in
-  if not (num_literals d <= 1 || safe && is_iff d) then [] else
+  if not (num_literals d <= 1 || safe && is_iff d) then None else
     let c = cp.formula in
-    let rewrite_with (t, t', u) =
-      match try_match ([], []) t u with
-        | Some sub ->
-            let t_s, t'_s = u, rsubst sub t' in
-            if term_gt t_s t'_s  (* (i) *) then
-              let e = b_reduce (replace_in_formula t'_s t_s c) in
-              Some (update cp (Some dp) e)
-            else None
-        | _ -> None in
+    let rewrite_with (t, t', u) : pformula option = head_opt @@
+      let+ sub = try_match !comm_ops ([], []) t u in
+      let t_s, t'_s = u, rsubst sub t' in
+      if term_gt t_s t'_s  (* (i) *) then
+        let e = b_reduce (replace_in_formula t'_s t_s c) in
+        [update cp (Some dp) e]
+      else [] in
     let all =
       let+ (t, t') =
         eq_pairs safe false d in  (* i: pre-check *)
       let t, t' = prefix_vars t, prefix_vars t' in
       let& u = c_subterms in
       (t, t', u) in
-    opt_to_list (find_map rewrite_with all)
+    find_map rewrite_with all
 
 (*     C    Cσ ∨ R
  *   ═══════════════   subsume
@@ -812,20 +808,20 @@ let rewrite dp cp c_subterms : pformula list =
 
 let subsumes cp (d_lits, d_exist) : bool =
   let subsume subst c d =
-    if d_exist = [] then try_match subst c d
+    if d_exist = [] then try_match !comm_ops subst c d
     else
       (* Existential subsumption, e.g. x + 0 = x subsumes ∃z:ℕ.x + z = x *)
-      let* (_, vsubst) = unify_or_match true subst c d in
+      let+ (_, vsubst) = unify_or_match true !comm_ops subst c d in
       if vsubst |> for_all (fun (id, f) ->
         not (is_prefixed id) || mem id d_exist || 
           match f with
             | Var (id, _typ) -> not (is_prefixed id)
-            | _ -> false) then Some subst else None in
+            | _ -> false) then [subst] else [] in
   let rec subsume_lits c_lits d_lits subst : bool = match c_lits with
     | [] -> true
     | c :: c_lits ->
         d_lits |> exists (fun d ->
-          subsume subst c d |> opt_exists (fun subst ->
+          subsume subst c d |> exists (fun subst ->
             subsume_lits c_lits (remove1q d d_lits) subst)) in
   let c_lits = mini_clausify (remove_universal cp.formula) in
   subsume_lits c_lits d_lits ([], [])
@@ -835,7 +831,7 @@ let prefix_lits dp : formula list * id list =
   (mini_clausify (prefix_vars f), map prefix_var exist)
 
 let any_subsumes cs dp : pformula option = profile @@
-  if orig_goal dp || orig_hyp dp then None else
+  if orig_goal dp || orig_hyp dp || is_ac dp then None else
   let d_lits = prefix_lits dp in
   cs |> find_opt (fun cp -> subsumes cp d_lits)
 
@@ -893,11 +889,16 @@ let simplify pformula =
   if f = pformula.formula then pformula
   else update pformula None f
 
-let rec canonical_lit : formula -> formula = function
-  | Eq (f, g) ->
-      let f, g = canonical_lit f, canonical_lit g in
-      if f < g then Eq (f, g) else Eq (g, f)
-  | f -> map_formula canonical_lit f
+let rec canonical_lit f : formula =
+  let commutative_pair op f g =
+    let f, g = canonical_lit f, canonical_lit g in
+    if f < g then op f g else op g f in
+  match f with
+    | App (App (Const (op, typ), f), g)
+        when mem op !comm_ops -> commutative_pair (binop op typ) f g
+    | Eq (f, g) ->
+        commutative_pair mk_eq f g
+    | f -> map_formula canonical_lit f
 
 let taut_lit f = match bool_kind f with
   | True -> true
@@ -974,8 +975,6 @@ let canonical p : formula =
     sort Stdlib.compare (map canonical_lit f) in
   rename_vars (fold_left1 _or lits)
 
-let is_ac p = opt_is_some p.ac
-
 module FormulaMap = Map.Make (struct
   type t = formula
   let compare = Stdlib.compare
@@ -1007,7 +1006,7 @@ let queue_add queue pformulas =
 let dbg_newline () =
   if !debug > 0 && !output then (print_newline (); output := false)
 
-let rewrite_opt dp cp c_subterms = head_opt (rewrite dp cp c_subterms)
+let rewrite_opt dp cp c_subterms = rewrite dp cp c_subterms
 
 let rewrite_from ps q : pformula option =
   if !(q.rewritten) then None else
@@ -1032,13 +1031,14 @@ let remove_from_map found p =
   assert (FormulaMap.mem f_canonical !found);
   found := FormulaMap.remove f_canonical !found
 
-let rw_simplify cheap src queue used found p : pformula option =
+let rw_simplify cheap src queue used found p0 : pformula option =
+  if is_ac p0 then (assert (p0.id <> 0); Some p0) else
   let rewrite_with =
-    if p.destruct || !destructive_rewrites then !used else !safe_for_rewrite in
-  let p1 = repeat_rewrite rewrite_with p in
+    if p0.destruct || !destructive_rewrites then !used else !safe_for_rewrite in
+  let p1 = repeat_rewrite rewrite_with p0 in
   let p = simplify p1 in
   let taut = is_tautology p.formula in
-  if taut || not (is_ac p) && is_ac_tautology p.formula then (
+  if taut || is_ac_tautology p.formula then (
     if !debug > 1 || !debug = 1 && src <> "generated" then (
       printf "%s %stautology: " src (if taut then "" else "ac ");
       if p1.formula <> p.formula then printf "%s ==> " (show_formula p1.formula);
@@ -1066,6 +1066,9 @@ let rw_simplify cheap src queue used found p : pformula option =
               let f_canonical = canonical p in
               let final () = finish p f_canonical found delta cost in
               match FormulaMap.find_opt f_canonical !found with
+                | Some pf when pf.id = p0.id ->
+                    (* rewritten clause is duplicate of original, e.g. due to C-unification *)
+                    Some p0
                 | Some pf ->
                     if orig_goal p && not (orig_goal pf) || cost < pf.cost then (
                       let p = final () in
@@ -1105,6 +1108,7 @@ let forward_simplify queue used found p : pformula option = profile @@
   
 let back_simplify found from used : pformula list = profile @@
   let back_simp p : pformula list * pformula list =
+    if is_ac p then ([p], []) else
     let keep, rewritten = if subsumes1 from p then (
       if !debug > 0 then
         printf "%d. %s was back subsumed by %d. %s\n"
@@ -1144,9 +1148,10 @@ let rec build_map pformulas : pformula FormulaMap.t * pformula list =
     | p :: ps ->
         let map, ps = build_map ps in
         let c = canonical p in
-        if FormulaMap.mem c map then (
-          dbg_print_formula false "dropping redundant formula: " p;
-          (map, ps))
+        if FormulaMap.mem c map then
+          if is_ac p then (map, p :: ps) else (
+            dbg_print_formula false "dropping redundant formula: " p;
+            (map, ps))
         else (FormulaMap.add c p map, p :: ps)
 
 let refute pformulas cancel_check : proof_result = profile @@
@@ -1202,12 +1207,12 @@ let refute pformulas cancel_check : proof_result = profile @@
             | None -> loop () in
   loop ()
 
-let def_match template f : (id * id) option =
+let def_match template f : (id * id) option = head_opt @@
   let g = prefix_vars (Parser.parse_formula template) in
-  let* (_, vsubst) = _match g (remove_for_all f) in
+  let+ (_, vsubst) = _match !comm_ops g (remove_for_all f) in
   match (let& x = ["f"; "g"; "x"; "y"] in assoc ("$" ^ x) vsubst) with
-    | [Const (c, _ctyp); Const (d, _dtyp); Var _; Var _] -> Some (c, d)
-    | _ -> None
+    | [Const (c, _ctyp); Const (d, _dtyp); Var _; Var _] -> [(c, d)]
+    | _ -> []
 
 let def_is_or_equal f : (str * str) option =
   def_match "f(x)(y) ↔ g(x)(y) ∨ x = y" f
@@ -1350,9 +1355,11 @@ let gen_pformulas thm all_known local_known : pformula list =
           dbg_newline ();
           match kind_op with
             | Some (kind, op, "", typ) when kind = Assoc || kind = Comm ->
+                let ps =
+                  if kind = Comm then (comm_ops := op :: !comm_ops; []) else [p] in
                 if mem (ac_other kind, op, typ) ops then
-                  (remove (kind, op, typ) ops, [p; ac_completion op typ])
-                else ((kind, op, typ) :: ops, [p])
+                  (remove (kind, op, typ) ops, ps @ [ac_completion op typ])
+                else ((kind, op, typ) :: ops, ps)
             | Some (kind, op1, op2, typ)
                 when (kind = LDist || kind = RDist) && mem (op1, typ) !ac_ops ->
                 (ops, [p; dist_completion kind op1 op2 typ])
@@ -1390,6 +1397,7 @@ let prove all_known local_known thm cancel_check : proof_result * float =
   step_strategy := is_step thm;
   destructive_rewrites := not !step_strategy;
   let all_known, local_known, thm = encode_consts all_known local_known thm in
+  comm_ops := [];
   ac_ops := [];
   safe_for_rewrite := [];
   or_equal_ops := find_or_equal_ops all_known;
