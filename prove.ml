@@ -1354,7 +1354,7 @@ let gen_pformulas thm all_known local_known : pformula list =
                   (remove (kind, op, typ) ops, [p; ac_completion op typ])
                 else ((kind, op, typ) :: ops, [p])
             | Some (kind, op1, op2, typ)
-                when kind = LDist || kind = RDist && mem (op1, typ) !ac_ops ->
+                when (kind = LDist || kind = RDist) && mem (op1, typ) !ac_ops ->
                 (ops, [p; dist_completion kind op1 op2 typ])
             | _ -> (ops, [p]) in
   concat (snd (fold_left_map scan [] all_known))
