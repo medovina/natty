@@ -83,9 +83,12 @@ Theorem.  Let a, b, d : ℤ.
     c. If a < 0 then the gcd of 0 and a is −a.  [gcd of 0 and negative]
     d. If a ≠ 0 then the gcd of 0 and a is |a|.
     e. The gcd of 1 and a is 1.
+    f.  Suppose that a ≠ 0 or b ≠ 0, and d is the gcd of a and b.   Then d > 0.
 
 Proof.
 
     c. Suppose that a < 0.  Then −a > 0, so −a ≥ 0.  Also −a | 0 and −a | a.  Now let c : ℤ, and suppose that c | 0 and c | a.  Then by [divides difference] c | (0 − a), so c | −a.  So −a is the gcd of 0 and a.
 
     d. Suppose that a ≠ 0.  Then by [trichotomy on ℤ] either a > 0 or a < 0.  If a > 0 then by [gcd of 0 and positive] the gcd of 0 and a is |a|.  If a < 0 then by [gcd of 0 and negative] the gcd of 0 and a is |a|.
+
+    f. We know that d ≥ 0.  Suppose that d = 0.  If a ≠ 0 then 0 | a, which is a contradiction.  If b ≠ 0 then 0 | b, which is a contradiction.  In any case we have a contradiction, so d ≠ 0.  Then d > 0.
