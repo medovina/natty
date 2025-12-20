@@ -10,10 +10,10 @@ Theorem.  Let a, b, c : ℤ.
     d. If a | b and b | c then a | c.
     e. If c ≠ 0 and a | c then |a| ≤ |c|.  [divides implies ≤]
     f. If 0 | c then c = 0.  [0 divides only 0]
-    g. a | b and b | a if and only if a = b or a = −b.
+    g. a | b and b | a if and only if a = b or a = −b. [mutual divisibility]
     h. a | a · b.
     i. If a | b and a | c then a | (b + c).
-    j. If a | b and a | c then a | (b − c).
+    j. If a | b and a | c then a | (b − c).  [divides difference]
     k. If a | 1 then a = 1 or a = −1.
 
 Proof.
@@ -69,3 +69,23 @@ Now suppose that r ≠ r'.  Then r' − r ≠ 0, hence q − q' ≠ 0.  Therefor
 We know that r' < a and −r ≤ 0, so r' − r < a + 0 = a.  Likewise, r < a and −r' ≤ 0, so r − r' < a + 0 = a.
 
 However either |r' − r| = r − r' or |r' − r| = r' − r.  So |r' − r| < a.  This is a contradiction.  So r' = r and q' = q.
+
+Definition (greatest common divisor).  Let a, b, d : ℤ.  d is a gcd of a and b if and only if d ≥ 0 and d | a and d | b and for all c : ℤ, if c | a and c | b then c | d.
+
+Theorem.  Let a, b, d, d' : ℤ.  Suppose that d is a gcd of a and b, and d' is a gcd of a and b.  Then d = d'.
+
+Proof.  We know that d | d' and d' | d.  Hence by [mutual divisibility] d' = d or d' = −d.  Suppose that d' = −d.  We know that 0 ≤ d, so d' = −d ≤ 0.  But 0 ≤ d', so d' = 0, so d' = d.  Hence in all cases d' = d.
+
+Theorem.  Let a, b, d : ℤ.
+
+    a. 0 is the gcd of 0 and 0.
+    b. If a > 0 then the gcd of 0 and a is a.   [gcd of 0 and positive]
+    c. If a < 0 then the gcd of 0 and a is −a.  [gcd of 0 and negative]
+    d. If a ≠ 0 then the gcd of 0 and a is |a|.
+    e. The gcd of 1 and a is 1.
+
+Proof.
+
+    c. Suppose that a < 0.  Then −a > 0, so −a ≥ 0.  Also −a | 0 and −a | a.  Now let c : ℤ, and suppose that c | 0 and c | a.  Then by [divides difference] c | (0 − a), so c | −a.  So −a is the gcd of 0 and a.
+
+    d. Suppose that a ≠ 0.  Then by [trichotomy on ℤ] either a > 0 or a < 0.  If a > 0 then by [gcd of 0 and positive] the gcd of 0 and a is |a|.  If a < 0 then by [gcd of 0 and negative] the gcd of 0 and a is |a|.
