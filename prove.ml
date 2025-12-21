@@ -689,7 +689,6 @@ let allow_super dp cp =
     ((orig_goal d || orig_hyp d) && not (inducted d)) in
   !(opts.all_superpositions) || (
     dp.id <> cp.id && (allow dp || allow cp) &&
-    not (is_ac dp) &&
     induct_ok dp cp && induct_ok cp dp)
 
 let all_super queue dp cp : pformula list = profile @@
