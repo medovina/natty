@@ -763,7 +763,8 @@ let update p rewriting f : pformula =
   if p.id = 0 then
     { p with rewrites = r @ p.rewrites; simp = p.simp || simp; formula = f }
   else (
-    { p with id = 0; rule = if simp then "simp" else "rw"; rewrites = r; simp; parents = [p];
+    { p with id = 0; rule = if simp then "simp" else "rw"; description = "";
+        rewrites = r; simp; parents = [p];
         delta = 0.0; formula = f }
   )
 
@@ -932,13 +933,13 @@ let print_formula with_origin prefix pf =
   let origin =
     if with_origin then
       let parents = pf.parents |> map (fun p -> string_of_int (p.id)) in
-      let rule = if mem pf.rule [""; "rw"; "simp"] then [] else
+      let rule = if mem pf.rule [""; "nrw"; "rw"; "simp"] then [] else
         let full_rule = if pf.description = "" then pf.rule
           else sprintf "%s: %s" pf.rule pf.description in
         [full_rule] in
       let rewrites = rev pf.rewrites |> map (fun r -> r.id) in
       let rw = if rewrites = [] then []
-        else [sprintf "rw(%s)" (comma_join (map string_of_int rewrites))] in
+        else [sprintf "%s(%s)" pf.rule (comma_join (map string_of_int rewrites))] in
       let simp = if pf.simp then ["simp"] else [] in
       let all = parents @ rule @ rw @ simp in
       sprintf " [%s]" (comma_join all)
@@ -1127,6 +1128,7 @@ let nondestruct_rewrite used p : pformula list = profile @@
     (* perform just a single rewrite here; remaining will occur in rw_simplify_all *)
     let& q = opt_to_list (rewrite_from used p) in
     p.rewritten := true;
+    assert (q.rule = "rw");
     {q with rule = "nrw"; destruct = true; rewritten = ref false}
   )
 
