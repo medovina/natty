@@ -57,12 +57,13 @@ let rec num_literals f = match bool_kind f with
 
 let weight f : int =
   let rec weigh f = match f with
-    | Const (c, _typ) -> if c = "(¬)" || f = _false then 0 else 1
+    | Const (c, _typ) ->
+        if mem c ["%⊥"; "(¬)"; "(∀)"; "(∃)"] then 0 else 1
     | Var _ -> 1
     | App (f, g) -> weigh f + weigh g
     | Eq (f, g) -> weigh f + weigh g
     | Lambda (_, _, f) -> weigh f in
-  weigh (remove_quantifiers f)
+  weigh f
 
 let prefix_var var = "$" ^ var
 
