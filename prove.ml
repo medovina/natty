@@ -172,7 +172,7 @@ let goal_or_hyp p = p.goal || is_hyp p
 let goal_or_last_hyp p = p.goal || p.hypothesis = 1
 let orig_goal_or_last_hyp p = goal_or_last_hyp p && not p.derived
 
-let can_rewrite p = p.destruct
+let can_rewrite p = p.destruct || not (goal_or_last_hyp p)
 
 type queue_item =
   | Unprocessed of pformula
@@ -1034,6 +1034,7 @@ let rw_simplify cheap src queue used found p0 : pformula option =
       else filter (fun p -> p.safe_for_rewrite) !used in
   let p1 = repeat_rewrite rewrite_with p0 in
   let p = simplify p1 in
+  if p0.id > 0 && p.id = 0 then remove_from_map found p0;
   let taut = is_tautology p.formula in
   if taut || is_ac_tautology p.formula then (
     if !debug > 1 || !debug = 1 && src <> "generated" then (
@@ -1041,6 +1042,7 @@ let rw_simplify cheap src queue used found p0 : pformula option =
       if p1.formula <> p.formula then printf "%s ==> " (show_formula p1.formula);
       print_formula true "" p
     );
+    if p.id > 0 then remove_from_map found p;
     None)
   else
     match (if cheap then None else any_subsumes !used p) with
