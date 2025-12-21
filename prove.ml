@@ -442,10 +442,17 @@ let clausify1 id lits in_use : formula list =
 
 let clausify p = clausify1 p.id [p.formula] None
 
+let is_fluid t = match t with
+  | App _ ->
+      let (head, _args) = collect_args t in
+      is_var head
+  | Lambda _ -> not (is_ground t) (* approximate *)
+  | _ -> false
+
 (* Gather green or blue subterms.  *)
 let subterms is_blue t : (formula * ((formula * formula) list)) list =
   let rec gather parent_eq acc t =
-    (if is_var t then [] else [(t, parent_eq)]) @
+    (if is_var t || not is_blue && is_fluid t then [] else [(t, parent_eq)]) @
     match t with
       | App (f, g) ->
           if is_quantifier f then
@@ -464,13 +471,6 @@ let subterms is_blue t : (formula * ((formula * formula) list)) list =
 
 let green_subterms = subterms false
 let blue_subterms t = map fst (subterms true t)
-
-let is_fluid t = match t with
-  | App _ ->
-      let (head, _args) = collect_args t in
-      is_var head
-  | Lambda _ -> not (is_ground t) (* approximate *)
-  | _ -> false
 
 let is_eligible sub parent_eq =
   parent_eq |> for_all (fun (s, t) ->
@@ -624,8 +624,7 @@ let super rule with_para lenient upward dp d' pairs cp c_lits c_lit : pformula l
   let res = is_bool_const t' in
   if not res && not with_para then [] else
   let lenient = res && lenient in
-  let+ (u, parent_eq) = green_subterms c_lit |>
-    filter (fun (u, _) -> not (is_var u || is_fluid u)) in  (* i, ii *)
+  let+ (u, parent_eq) = green_subterms c_lit in  (* i, ii *)
   let+ sub = unify !comm_ops t u in
   if dbg then printf "super: unified %s with %s\n" (show_formula t) (show_formula u);
   let d'_s = map (rsubst sub) d' in
@@ -939,7 +938,9 @@ let print_formula with_origin prefix pf =
         [full_rule] in
       let rewrites = rev pf.rewrites |> map (fun r -> r.id) in
       let rw = if rewrites = [] then []
-        else [sprintf "%s(%s)" pf.rule (comma_join (map string_of_int rewrites))] in
+        else
+          let rw = if pf.rule = "nrw" then "nrw" else "rw" in
+          [sprintf "%s(%s)" rw (comma_join (map string_of_int rewrites))] in
       let simp = if pf.simp then ["simp"] else [] in
       let all = parents @ rule @ rw @ simp in
       sprintf " [%s]" (comma_join all)
