@@ -653,8 +653,7 @@ let super rule with_para lenient upward dp d' pairs cp c_lits c_lit : pformula l
     if dbg then printf "super: passed checks, produced %s\n" (show_formula e);
     [mk_pformula rule description [dp; cp] true e])
 
-let allow p q =
-  is_hyp p || p.goal || p.ac = Some Assoc && not q.derived
+let allow p _q = is_hyp p || p.goal
 
 let is_unit_equality f = is_eq (remove_for_all f)
 
