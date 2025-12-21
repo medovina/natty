@@ -288,6 +288,13 @@ let sort_by f = sort (fun x y -> Stdlib.compare (f x) (f y))
 
 let unique l = sort_uniq Stdlib.compare l
 
+(* like 'unique', but preserve order of unique elements *)
+let rec unique1 l = match l with
+  | [] -> []
+  | x :: xs ->
+      let xs = unique1 xs in
+      if mem x xs then xs else x :: xs
+
 let has_duplicate l = l <> unique l
 
 let all_same = function

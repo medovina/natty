@@ -894,6 +894,7 @@ let rec simp f = match bool_kind f with
 
 let simplify pformula =
   let f = simp pformula.formula in
+  let f = multi_or (unique1 (gather_or f)) in
   if f = pformula.formula then pformula
   else update pformula None f
 
