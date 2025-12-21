@@ -1292,12 +1292,14 @@ let rec map_const const_map c : id =
     | None -> c
 
 let consts_of const_map f : id list =
-  let consts = map (map_const const_map) (all_consts f) in
-  subtract consts logical_ops
+  map (map_const const_map) (all_consts f)
 
-let use_premise const_map proof_consts f =
-  gather_and f |> exists (fun g ->
-    subset (consts_of const_map g) proof_consts)
+let use_premise const_map proof_consts f is_def is_ac _name =
+  let fs = gather_and (remove_for_all f) in
+  (not !step_strategy || is_ac || is_def ||
+    fs |> for_all (fun g -> num_literals g <= 3 || length (all_consts g) <= 1)) && (
+  fs |> exists (fun g ->
+    subset (consts_of const_map g) proof_consts))
 
 let const_def f : (id * id) option =
   opt_or_opt (def_is_synonym f)
@@ -1340,16 +1342,18 @@ let gen_pformulas thm all_known local_known : pformula list =
       | None -> (ops, [])
       | Some f ->
           let by = memq stmt by_thms in
-          if not ( by || is_hypothesis stmt || use_premise const_map proof_consts f)
-          then (ops, []) else
+          let is_def = is_definition stmt in
           let kind_op = ac_kind f in
+          if not ( by || is_hypothesis stmt ||
+                   use_premise const_map proof_consts f
+                               is_def (opt_is_some kind_op) (stmt_name stmt))
+          then (ops, []) else
           let kind = Option.map (fun (kind, _, _, _) -> kind) kind_op in
           let hyp = match index_of_opt stmt hyps with
             | Some i ->
                 (* when proving ⊥, two last hypotheses have number 1 *)
                 max 1 (i + 1 - (if by_contradiction then 1 else 0))
             | _ -> 0 in
-          let is_def = is_definition stmt in
           let p = { (to_pformula (stmt_id_name stmt) f)
             with hypothesis = hyp; definition = is_def;
                  by; ac = kind;

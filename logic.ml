@@ -527,7 +527,7 @@ let all_consts f : id list =
     | Var _ -> []
     | App (t, u) | Eq (t, u) -> find t @ find u
     | Lambda (id, _typ, t) -> remove id (find t)
-  in unique (find f)
+  in unique (subtract (find f) logical_ops)
 
 let is_var_in v =
   let rec find_var = function

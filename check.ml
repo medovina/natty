@@ -482,12 +482,13 @@ and block_steps in_proof env lenv (Block (step, children)) : statement list list
         let (fs, concl) = child_steps decls in
         (fs, if concl = _true then _true
              else for_all_vars_types ids_typs (implies f concl))
-    | IsSome (ids, typ, g) ->
+    | IsSome (ids, typ, g, reason) ->
+        let by = map (check_ref env) reason in
         let ex = exists_vars_typ (ids, typ) g in
         let decls = rev (map (fun id -> infer_const_decl env id typ) ids) in
         let stmts = Hypothesis ("hyp", top_infer (decls @ env) g) :: decls in
         let (fs, concl) = child_steps stmts in
-        (mk_thm env lenv ex [] :: fs,
+        (mk_thm env lenv ex by :: fs,
          if concl = _true then ex else
          if any_free_in ids concl then exists_vars_typ (ids, typ) concl else concl)
     | Escape | Group _ -> failwith "block_formulas"

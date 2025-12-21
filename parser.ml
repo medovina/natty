@@ -348,7 +348,8 @@ and theorem_ref s : string pr = brackets (
 
 and reference s : reason pr = choice [
   single (with_range theorem_ref);
-  any_str ["our"; "the"] >>? str "assumption that" >> atomic >>$ [];
+  any_str ["our"; "the"] >>?
+    str "assumption" >> optional (str "that" >> atomic) >>$ [];
   str "part" >> parens number >> opt_str "of this theorem" >>$ []
   ] s
 
@@ -586,7 +587,7 @@ let mk_step f reasons : proof_step =
   match kind f with
     | Quant ("(∃)", _, typ, _) ->
         let (ids, f) = gather_quant_of_type "(∃)" typ f in
-        IsSome (ids, typ, f)
+        IsSome (ids, typ, f, reasons)
     | _ -> Assert (f, reasons)
 
 let because_prop : proof_step p =
@@ -595,11 +596,11 @@ let because_prop : proof_step p =
 
 let contradiction : proof_step list p =
   let> contra = choice [
-      str "a contradiction" >> (optional (str "to" >> reference));
-      str "contradicting" >> skip reference ]
-    >>$ [Assert (_false, [])] in
+      str "a contradiction" >> (opt [] (str "to" >> reference));
+      str "contradicting" >> reference ] in
+  let step = [Assert (_false, contra)] in
   let$ because = opt [] (single because_prop) in
-  because @ contra
+  because @ step
 
 let which_is_contradiction : proof_step list p = str "," >>?
   (opt_str "which is" >>? optional (any_str ["again"; "also"; "similarly"])) >>? contradiction
