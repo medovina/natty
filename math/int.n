@@ -501,3 +501,11 @@ Proof.
     Hence n + 1 ∈ B.  We have shown that for all n ∈ B, n + 1 ∈ B.  Hence by [induction] B = ℕ.  Thus for all n : ℕ z(n, 0) ∈ A.
     
     Now let a ∈ 𝒢.  Then there are some k, i : ℕ such that a = z(k, i).  Since a ∈ 𝒢, z(k, i) ≥ 0, so k ≥ i.  Hence k = i + j for some j : ℕ.  Thus z(k, i) = z(j, 0), so a = z(j, 0), so a ∈ A.  We have shown that a ∈ A for all a ∈ 𝒢, and so A = 𝒢.
+
+# We have shown that the non-negative integers 𝒢 form a Peano system, so the theorems we have proved about ℕ should now be applicable to 𝒢 as well.  Unfortunately Natty is not yet able to recognize this correspondence.  For now, we reassert some of our theorems about ℕ as axioms on 𝒢.
+
+Definition.  For all S : Set(ℤ), S is empty iff there is no x : ℤ such that x ∈ S.  S is nonempty iff S is not empty.
+
+Definition.  For all A : Set(ℤ) and z : ℤ, z is a least element of A if z ∈ A and for all u : ℤ, if u ∈ A then z ≤ u.
+
+Axiom (least number principle on ℤ).  Let A : Set(ℤ).  Suppose that A ⊆ 𝒢 and A is nonempty.  Then there exists some x : ℤ such that x is a least element of A.

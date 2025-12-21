@@ -160,7 +160,7 @@ Definition.  For all S : Set(ℕ), S is empty iff there is no n : ℕ such that 
 
 Definition.  For all A : Set(ℕ) and z : ℕ, z is a least element of A if z ∈ A and for all u : ℕ, if u ∈ A then z ≤ u.
 
-Theorem (well-ordering principle). Let A : Set(ℕ).  Suppose that A is nonempty.  Then there exists some x : ℕ such that x is a least element of A.
+Theorem (least number principle). Let A : Set(ℕ).  Suppose that A is nonempty.  Then there exists some x : ℕ such that x is a least element of A.
 
 Proof.  Assume there is no x : ℕ such that x is a least element of A.  Let
 

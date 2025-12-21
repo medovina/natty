@@ -171,8 +171,9 @@ let orig_hyp p = is_hyp p && not p.derived
 let orig_goal p = p.goal && not p.derived
 let orig_def p = p.definition && not p.derived
 let orig_by p = p.by && not p.derived
-let orig_goal_or_last_hyp p = (p.hypothesis = 1 || p.goal) && not p.derived
 let goal_or_hyp p = p.goal || is_hyp p
+let goal_or_last_hyp p = p.goal || p.hypothesis = 1
+let orig_goal_or_last_hyp p = goal_or_last_hyp p && not p.derived
 
 type queue_item =
   | Unprocessed of pformula
@@ -653,7 +654,7 @@ let super rule with_para lenient upward dp d' pairs cp c_lits c_lit : pformula l
     if dbg then printf "super: passed checks, produced %s\n" (show_formula e);
     [mk_pformula rule description [dp; cp] true e])
 
-let allow p _q = is_hyp p || p.goal
+let allow p = goal_or_hyp p
 
 let is_unit_equality f = is_eq (remove_for_all f)
 
@@ -677,8 +678,8 @@ let all_super1 dp cp : pformula list =
   let+ c_lit = exposed_lits in
   let with_para = !(opts.all_superpositions) || (
     dp.ac = Some Comm || dp.ac = Some Assoc || by || def_expand || const_expand ||
-    allow cp dp && (not !step_strategy ||
-                    is_unit_equality dp.formula || is_last_hyp_to_goal [cp; dp])) in
+    allow cp && (not !step_strategy ||
+                 is_unit_equality dp.formula || is_last_hyp_to_goal [cp; dp])) in
   super rule with_para lenient upward dp (remove1 t_t' d_lits) pairs cp c_lits c_lit
 
 let is_ac p = opt_is_some p.ac
@@ -687,9 +688,8 @@ let allow_super dp cp =
   let induct_ok d c = not (is_inductive c) ||
     ((orig_goal d || orig_hyp d) && not (inducted d)) in
   !(opts.all_superpositions) || (
-    dp.id <> cp.id && (allow dp cp || allow cp dp) &&
-    not (is_ac dp && is_ac cp) &&
-    not (is_ac dp && goal_or_hyp cp) &&
+    dp.id <> cp.id && (allow dp || allow cp) &&
+    not (is_ac dp) &&
     induct_ok dp cp && induct_ok cp dp)
 
 let all_super queue dp cp : pformula list = profile @@
@@ -771,7 +771,7 @@ let update p rewriting f : pformula =
 
 let allow_rewrite dp cp =
   dp.id <> cp.id && not (exists (fun p -> p.id = dp.id) cp.parents) &&
-    (!destructive_rewrites || allow cp dp || is_safe_for_rewrite dp) &&
+    (!destructive_rewrites || allow cp || is_safe_for_rewrite dp) &&
     not (orig_hyp dp && (orig_hyp cp || orig_goal cp))
 
 (*     t = t'    C⟪tσ⟫
