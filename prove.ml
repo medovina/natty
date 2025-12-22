@@ -34,7 +34,7 @@ type pformula = {
   ac: ac_type option;
   delta: float;
   cost: float;
-  definition: bool;
+  definition: string;
   hypothesis: int;
   goal: bool;
   by: bool;
@@ -135,7 +135,7 @@ let associative_axiom f : (str * typ) option =
     | Eq (f, g) -> find_map is_assoc [(f, g); (g, f)]
     | _ -> None
 
-let is_associative_axiom p = opt_is_some (associative_axiom p.formula)
+let is_associative_axiom p = is_some (associative_axiom p.formula)
 
 let commutative_axiom f : (str * typ) option =
   remove_universal f |> function
@@ -145,7 +145,7 @@ let commutative_axiom f : (str * typ) option =
         | _ -> None)
     | _ -> None
 
-let is_commutative_axiom p = opt_is_some (commutative_axiom p.formula)
+let is_commutative_axiom p = is_some (commutative_axiom p.formula)
 
 let distributive_templates : (ac_type * formula) list =
     let& (kind, t) =
@@ -165,12 +165,14 @@ let distributive_axiom f : (str * str * typ * ac_type) option =
           [(f_op, g_op, typ, kind)]
       | _ -> []
 
-let orig_hyp p = is_hyp p && not p.derived
-let orig_goal p = p.goal && not p.derived
-let orig_def p = p.definition && not p.derived
-let orig_by p = p.by && not p.derived
+let is_def p = p.definition <> ""
 let goal_or_hyp p = p.goal || is_hyp p
 let goal_or_last_hyp p = p.goal || p.hypothesis = 1
+
+let orig_hyp p = is_hyp p && not p.derived
+let orig_goal p = p.goal && not p.derived
+let orig_def p = is_def p && not p.derived
+let orig_by p = p.by && not p.derived
 let orig_goal_or_last_hyp p = goal_or_last_hyp p && not p.derived
 
 let can_rewrite p = p.destruct || not (goal_or_last_hyp p)
@@ -207,7 +209,10 @@ let mk_pformula rule description parents step formula =
     hypothesis =
       if goal || parents = [] then 0
       else maximum (map (fun p -> p.hypothesis) parents);
-    definition = not step && parents <> [] && for_all (fun p -> p.definition) parents;
+    definition = (if step then "" else
+      match find_opt is_def parents with
+        | Some d -> d.definition
+        | None -> "");
     by = parents <> [] && for_all (fun p -> p.by) parents;
     derived = step || exists (fun p -> p.derived) parents;
     rewritten = ref false; destruct = false; safe_for_rewrite = false
@@ -681,7 +686,7 @@ let all_super1 dp cp : pformula list =
                  is_unit_equality dp.formula || is_last_hyp_to_goal [cp; dp])) in
   super rule with_para lenient upward dp (remove1 t_t' d_lits) pairs cp c_lits c_lit
 
-let is_ac p = opt_is_some p.ac
+let is_ac p = is_some p.ac
 
 let allow_super dp cp =
   let induct_ok d c = not (is_inductive c) ||
@@ -731,7 +736,7 @@ let all_eres cp = run_clausify cp eres
  *)
 
 let all_split p : pformula list =
-  if p.definition && p.safe_for_rewrite then [] else
+  if is_def p && p.safe_for_rewrite then [] else
   let skolem_names = ref [] in
   let rec run lits : formula list list =
     let lits1 : formula list = clausify1 p.id lits (Some skolem_names) in
@@ -844,7 +849,7 @@ let any_subsumes cs dp : pformula option = profile @@
   let d_lits = prefix_lits dp in
   cs |> find_opt (fun cp -> subsumes cp d_lits)
 
-let subsumes1 cp dp : bool = opt_is_some (any_subsumes [cp] dp)
+let subsumes1 cp dp : bool = is_some (any_subsumes [cp] dp)
 
 let rec expand f : formula list = match or_split f with
   | Some (s, t) -> expand s @ expand t
@@ -949,7 +954,7 @@ let print_formula with_origin prefix pf =
     else "" in
   let mark b c = if b then " " ^ (if pf.derived then c else to_upper c) else "" in
   let annotate =
-    mark pf.by "b" ^ mark pf.definition "d" ^
+    mark pf.by "b" ^ mark (is_def pf) "d" ^
     mark pf.goal "g" ^ mark (is_hyp pf) "h" ^ mark pf.destruct "u" in
   printf "%s%s {%d/%d: %.2f%s}\n"
     (indent_with_prefix prefix (show_multi pf.formula))
@@ -1234,8 +1239,8 @@ let def_is_atomic f : (str * str) option = match remove_for_all f with
 
 let def_safe_for_rewrite f =
   let xs, _ = gather_for_all f in
-  opt_is_some (def_is_synonym f) ||
-    length xs <= 1 && opt_is_some (def_is_atomic f)
+  is_some (def_is_synonym f) ||
+    length xs <= 1 && is_some (def_is_atomic f)
 
 (* Given an associative/commutative operator *, construct the axiom
  *     x * (y * z) = y * (x * z)
@@ -1296,9 +1301,9 @@ let rec map_const const_map c : id =
 let consts_of const_map f : id list =
   map (map_const const_map) (all_consts f)
 
-let use_premise const_map proof_consts f is_def is_ac _name =
+let use_premise const_map proof_consts f def is_ac _name =
   let fs = gather_and (remove_for_all f) in
-  (not !step_strategy || is_ac || is_def ||
+  (not !step_strategy || is_ac || def ||
     fs |> for_all (fun g -> num_literals g <= 3 || length (all_consts g) <= 1)) && (
   fs |> exists (fun g ->
     subset (consts_of const_map g) proof_consts))
@@ -1344,11 +1349,11 @@ let gen_pformulas thm all_known local_known : pformula list =
       | None -> (ops, [])
       | Some f ->
           let by = memq stmt by_thms in
-          let is_def = is_definition stmt in
+          let def = defined_symbol stmt in
           let kind_op = ac_kind f in
           if not ( by || is_hypothesis stmt ||
                    use_premise const_map proof_consts f
-                               is_def (opt_is_some kind_op) (stmt_name stmt))
+                               (is_some def) (is_some kind_op) (stmt_name stmt))
           then (ops, []) else
           let kind = Option.map (fun (kind, _, _, _) -> kind) kind_op in
           let hyp = match index_of_opt stmt hyps with
@@ -1357,9 +1362,10 @@ let gen_pformulas thm all_known local_known : pformula list =
                 max 1 (i + 1 - (if by_contradiction then 1 else 0))
             | _ -> 0 in
           let p = { (to_pformula (stmt_id_name stmt) f)
-            with hypothesis = hyp; definition = is_def;
+            with hypothesis = hyp;
+                 definition = opt_default def "";
                  by; ac = kind;
-                 safe_for_rewrite = is_def && def_safe_for_rewrite f } in
+                 safe_for_rewrite = is_some def && def_safe_for_rewrite f } in
           dbg_newline ();
           match kind_op with
             | Some (kind, op, "", typ) when kind = Assoc || kind = Comm ->

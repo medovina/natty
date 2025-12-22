@@ -15,7 +15,8 @@ let (let*) = Option.bind
 
 let mk_some x = Some x
 
-let opt_is_some = Option.is_some
+let opt_get = Option.get
+let is_some = Option.is_some
 let opt_to_list = Option.to_list
 
 let opt_default opt def = Option.value opt ~default:def
@@ -87,7 +88,7 @@ let string_from s i = string_range s i (String.length s)
 
 let last_char s = s.[strlen s - 1]
 
-let str_contains s c = opt_is_some (String.index_opt s c)
+let str_contains s c = is_some (String.index_opt s c)
 
 let prepend p s = p ^ s
 

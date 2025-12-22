@@ -22,6 +22,10 @@ let is_hypothesis = function
 let is_definition = function
   | Definition _ -> true | _ -> false
 
+let defined_symbol = function
+  | Definition (c, _, _) -> Some c
+  | _ -> None
+
 let is_theorem = function
   | Theorem _ -> true | _ -> false
 
@@ -174,7 +178,7 @@ let expand_modules1 modules all_modules :
   let stmts = match !(opts.from_thm) with
     | Some id -> stmts |> drop_while (fun (_, stmt, _, _) -> not (match_thm stmt id))
     | None -> stmts in
-  if (opt_is_some !(opts.only_thm) || opt_is_some !(opts.from_thm)) && stmts = [] then
+  if (is_some !(opts.only_thm) || is_some !(opts.from_thm)) && stmts = [] then
     failwith "theorem not found";
   stmts
 

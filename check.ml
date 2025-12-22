@@ -81,12 +81,12 @@ let infer_blocks env steps : block list =
             then ([], steps, false)
           else match step with
             | Escape ->
-                if opt_is_some in_assume then ([], rest, true)
+                if is_some in_assume then ([], rest, true)
                   else infer vars scope_vars None rest
             | Assert (f, _) when opt_exists (has_premise f) in_assume ->
                 ([], steps, true)  (* proof invoked last assumption as a premise, so exit scope *)
             | Assert (f, _) when strip_range f = _false ->
-                if opt_is_some in_assume then
+                if is_some in_assume then
                   ([Block (step, [])], trim_escape rest, true)
                 else error "contradiction without assumption" (range_of f)
             | Group steps ->

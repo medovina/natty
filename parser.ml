@@ -319,7 +319,7 @@ and predicate s : (formula -> formula) pr = choice [
   target_predicate;
   pipe2 (option (str "not")) adjective (fun neg word f ->
     let g = App (_const word, f) in
-    if opt_is_some neg then _not g else g)
+    if is_some neg then _not g else g)
 ] s
 
 and predicate_is_expr s = (
