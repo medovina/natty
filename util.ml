@@ -304,6 +304,7 @@ let all_same = function
   | (x :: xs) -> for_all ((=) x) xs
 
 let maximum (xs: 'a list) : 'a = fold_left1 max xs
+let minimum (xs: 'a list) : 'a = fold_left1 min xs
 
 let is_maximal gt x ys =
   not (exists (fun y -> y <> x && gt y x) ys)

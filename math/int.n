@@ -350,7 +350,8 @@ Theorem.  Let x, y, z, u, v : ℤ.
   d. If x ≤ y and u < v then x + u < y + v.
   e. If x ≤ y and u ≤ v then x + u ≤ y + v. [≤ add left right on ℤ]
   f. If 0 < z and x · z < y · z then x < y.
-  g. If x ≤ y + z then x − y ≤ z.
+  g. It cannot be that x < y and y ≤ x.
+  h. If x ≤ y + z then x − y ≤ z.
 
 Proof.
 
@@ -362,7 +363,7 @@ Proof.
 
   f. Suppose that 0 < z and x · z < y · z.  Also suppose that x ≮ y.  Then y < x or y = x.  If y < x then y · z < x · z, a contradiction.  If y = x then y · z = x · z, a contradiction.
 
-  g. Suppose that x ≤ y + z.  Then by [≤ add left right on ℤ] x + (−y) ≤ y + z + (−y) = z + (y − y) = z + 0, so x − y ≤ z.
+  h. Suppose that x ≤ y + z.  Then by [≤ add left right on ℤ] x + (−y) ≤ y + z + (−y) = z + (y − y) = z + 0, so x − y ≤ z.
 
 Definition.  For all x : ℤ, x is positive iff 0 < x.  x is negative iff x < 0.
 

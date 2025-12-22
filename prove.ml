@@ -46,8 +46,6 @@ type pformula = {
 
 let id_of pf = pf.id
 
-let is_hyp p = p.hypothesis > 0
-
 let rec num_literals f = match bool_kind f with
   | True | False -> 0
   | Not f -> num_literals f
@@ -165,6 +163,7 @@ let distributive_axiom f : (str * str * typ * ac_type) option =
           [(f_op, g_op, typ, kind)]
       | _ -> []
 
+let is_hyp p = p.hypothesis > 0
 let is_def p = p.definition <> ""
 let goal_or_hyp p = p.goal || is_hyp p
 let goal_or_last_hyp p = p.goal || p.hypothesis = 1
@@ -206,9 +205,10 @@ let mk_pformula rule description parents step formula =
   { id = 0; rule; description; rewrites = []; simp = false; parents;
     formula; ac = None;
     goal; delta = 0.0; cost = 0.0;
-    hypothesis =
-      if goal || parents = [] then 0
-      else maximum (map (fun p -> p.hypothesis) parents);
+    hypothesis = (
+      if goal then 0
+      else let hs = filter_map (fun p -> if is_hyp p then Some p.hypothesis else None) parents in
+      if hs = [] then 0 else minimum hs);
     definition = (if step then "" else
       match find_opt is_def parents with
         | Some d -> d.definition
@@ -936,7 +936,9 @@ let print_formula with_origin prefix pf =
   let mark b c = if b then " " ^ (if pf.derived then c else to_upper c) else "" in
   let annotate =
     mark pf.by "b" ^ mark (is_def pf) "d" ^
-    mark pf.goal "g" ^ mark (is_hyp pf) "h" ^ mark pf.destruct "u" in
+    mark pf.goal "g" ^
+    mark (is_hyp pf) (if pf.hypothesis = 1 then "lh" else "h") ^
+    mark pf.destruct "u" in
   printf "%s%s {%d/%d: %.2f%s}\n"
     (indent_with_prefix prefix (show_multi pf.formula))
     origin (num_literals pf.formula) (weight pf.formula) pf.cost annotate
@@ -1055,8 +1057,9 @@ let rw_simplify cheap src queue used found p0 : pformula option =
               let f_canonical = canonical p in
               let final () = finish p f_canonical found delta cost in
               match FormulaMap.find_opt f_canonical !found with
-                | Some pf when pf.id = p0.id ->
-                    (* rewritten clause is duplicate of original, e.g. due to C-unification *)
+                | Some pf when pf.id = p0.id -> (* e.g. due to C-unification *)
+                    if !debug > 0 then
+                      printf "#%d: rewritten clause is duplicate of original\n" p0.id;
                     Some p0
                 | Some pf ->
                     if p.by || orig_goal p && not (orig_goal pf) || cost < pf.cost then (
