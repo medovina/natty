@@ -44,7 +44,7 @@ let var = pipe2 var0 (opt "" (sub_digit)) (^)
 
 let long_id = any_str [
   "π"; "σ"; "τ"; "∏"; "𝔹"; "ℕ"; "ℤ";
-  "𝒢"; "𝒫"; "𝒮";  (* script characters G, P, S *)
+  "𝒢"; "𝒫"; "𝒮"; "𝒲"; (* script characters G, P, S, W *)
   "gcd"
 ]
 
