@@ -541,20 +541,27 @@ let rec gather_eif f = match collect_args f with
 
 let rec insert_conclusion_step blocks init last_step : block list =
   match init, blocks with
-    | [], ([Block (LetDef (id, _, _) as let_def, blocks)] as b) ->
-        let f = get_assert last_step in
-        if not (is_free_in id f) then
-          [Block (let_def, insert_conclusion_step blocks [] last_step)]
-        else b @ [Block (last_step, [])]
-    | [], ([Block (Let ids_typs, blocks)] as b) ->
-        let f = get_assert last_step in
-        let (xs, g) = gather_for_all f in
-        let strip (id, typ) = (id, strip_type_range typ) in
-        if list_starts_with (map strip ids_typs) (map strip xs) then (
-          let f = for_all_vars_types (drop (length ids_typs) xs) g in
-          [Block (Let ids_typs, insert_conclusion_step blocks [] (mk_assert f))])
-        else b @ [Block (last_step, [])]
-    | [], blocks -> blocks @ [Block (last_step, [])]
+    | [], [] -> failwith "insert_conclusion_step"
+    | [], blocks ->
+        let first_blocks, last_block = split_last blocks in
+        let append = blocks @ [Block (last_step, [])] in (
+        match last_block with
+          | Block (LetDef _ as parent, blocks)
+          | Block (IsSome _ as parent, blocks) ->
+              let f = get_assert last_step in
+              if not (any_free_in (step_decl_vars parent) f) then
+                first_blocks @ [Block (parent, insert_conclusion_step blocks [] last_step)]
+              else append
+          | Block (Let ids_typs, blocks) ->
+              let f = get_assert last_step in
+              let (xs, g) = gather_for_all f in
+              let strip (id, typ) = (id, strip_type_range typ) in
+              if list_starts_with (map strip ids_typs) (map strip xs) then (
+                let h = for_all_vars_types (drop (length ids_typs) xs) g in
+                first_blocks @
+                  [Block (Let ids_typs, insert_conclusion_step blocks [] (mk_assert h))])
+              else append
+          | _ -> append)
     | step :: steps, [Block (step', blocks)] ->
         assert (step = step');
         [Block (step, insert_conclusion_step blocks steps last_step)]

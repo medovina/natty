@@ -786,7 +786,7 @@ let rewrite dp cp c_subterms : pformula option =
       (t, t', u) in
     find_map rewrite_with all
 
-let rewrite_from ps q : pformula option =
+let rewrite_from ps q : pformula option = profile @@
   if !(q.rewritten) then None else
   let q_subterms = blue_subterms q.formula in
   find_map (fun p -> rewrite p q q_subterms) ps
