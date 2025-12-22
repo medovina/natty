@@ -510,8 +510,6 @@ let rec eq_terms f : formula list = match f with
   | Eq (g, h) -> [g; h]
   | _ -> []
 
-let eq_consts p : id list = filter_map opt_const (eq_terms p.formula)
-
 (* Find terms such as f in "f x y z = ...", optionally along with
  * f's arguments if they are constant. *)
 let top_terms with_args p : formula list =
@@ -549,10 +547,8 @@ let is_def_expansion parents =
   match def, last with
     | Some def, Some last ->
         let goal_consts =
-          if orig_goal last then all_consts last.formula
-                            else top_consts last in
-        overlap (eq_consts def) goal_consts ||
-        mem def.definition (top_consts last)
+          if orig_goal last then all_consts last.formula else top_consts last in
+        mem def.definition goal_consts
     | _ -> false
 
 let is_hyp_expansion parents =
