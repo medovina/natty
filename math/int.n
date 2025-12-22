@@ -450,11 +450,11 @@ Proof.
 
     Finally, suppose that 0 < x and y < 0.  Then x · y < 0 by [product of positive and negative].  Hence |x · y|  = −(x · y) and |x| = x and |y| = −y.  But x · (−y) = −(x · y), so |x · y| = |x| · |y|.
 
-    f. By [trichotomy on ℤ] either 0 < x or 0 = x or x < 0.  Suppose that 0 < x.  Then |x| = x.  Hence −|x| < 0.  By [< is transitive on ℤ] −|x| < x, thus −|x| < x = |x|.
+    f. By [trichotomy on ℤ] either 0 < x or 0 = x or x < 0.  Suppose that 0 < x.  Then |x| = x.  Hence −|x| < 0.  By [< is transitive on ℤ] −|x| < x, thus −|x| < x and x = |x|.
 
-    Now suppose that 0 = x.  Then −|x| = x = |x|.
+    Now suppose that 0 = x.  Then −|x| = x and x = |x|.
 
-    Finally, suppose that x < 0.  |x| = −x.  Hence −|x| = x and 0 < |x|.  By [< is transitive on ℤ] x < |x|, hence −|x| = x < |x|.
+    Finally, suppose that x < 0.  |x| = −x.  Hence −|x| = x and 0 < |x|.  By [< is transitive on ℤ] x < |x|, hence −|x| = x and x < |x|.
 
     g. Suppose that |z| < u.  By [abs range] z ≤ |z|.  Hence by [≤ with < are transitive on ℤ] z < u.  By [abs range] −|z| ≤ z.  But |z| < u, so −|z| > −u.  Hence by [< with ≤ are transitive on ℤ] −u < z, so −u < z < u.  Conversely, suppose that −u < z < u.  We know that either |z| = z or |z| = −z.  If |z| = z then |z| < u.  If |z| = −z then −u < −|z|, so |z| < u.  Hence |z| < u.
 

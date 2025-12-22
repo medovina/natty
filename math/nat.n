@@ -109,7 +109,8 @@ Theorem.  Let x, y, z : ℕ.
     c. If x ≤ y and y < z, then x < z.  [≤ with < are transitive]
     d. If x ≤ y and y ≤ z, then x ≤ z.  [≤ is transitive]
     e. x ≤ y or y ≤ x.
-    f. If x ≤ y and y ≤ x, then x = y.
+    f. x ≤ y or y < x.
+    g. If x ≤ y and y ≤ x, then x = y.
 
 Proof.
 

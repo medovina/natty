@@ -527,21 +527,6 @@ let top_terms with_args p : formula list =
 let top_consts p : id list =
   subtract (filter_map opt_const (top_terms false p)) logical_ops
 
-(* Find constants such as f in "f x y → ...". *)
-let def_consts f : id list =
-  let rec find f = match f with
-    | Eq (f, g) -> find f @ find g
-    | App (Const _ as c, Lambda (_, _, g)) when is_quantifier c ->
-        find g
-    | _ -> match collect_args f with
-      | Const (c, _), args ->
-          if mem c logical_binary then concat_map find args
-          else if mem c !or_equal_ops then c :: concat_map find args
-          else [c]
-      | _ -> [] in
-  let cs = find (remove_for_all f) in
-  subtract cs logical_ops
-
 let expand_limit = 3
 let def_expand_limit = 3
 let hyp_expand_limit = 2
@@ -567,7 +552,7 @@ let is_def_expansion parents =
           if orig_goal last then all_consts last.formula
                             else top_consts last in
         overlap (eq_consts def) goal_consts ||
-        overlap (def_consts def.formula) (top_consts last)
+        mem def.definition (top_consts last)
     | _ -> false
 
 let is_hyp_expansion parents =
@@ -1078,11 +1063,12 @@ let rw_simplify cheap src queue used found p0 : pformula option =
                     (* rewritten clause is duplicate of original, e.g. due to C-unification *)
                     Some p0
                 | Some pf ->
-                    if orig_goal p && not (orig_goal pf) || cost < pf.cost then (
+                    if p.by || orig_goal p && not (orig_goal pf) || cost < pf.cost then (
                       let p = final () in
                       if !debug > 0 then
-                        if orig_goal p then
-                          printf "%s (goal) is a duplicate of #%d; replacing it\n" src pf.id
+                        if p.by || orig_goal p then
+                          printf "%s (%s) is a duplicate of #%d; replacing it\n"
+                            src (if p.by then "by" else "goal") pf.id
                         else printf "(%d is a duplicate of %d; replacing with lower cost of %.2f)\n"
                           p.id pf.id p.cost;
                       if PFQueue.mem (Unprocessed pf) !queue then
