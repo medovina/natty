@@ -879,12 +879,6 @@ let rec simp f = match bool_kind f with
       if f = g then _true else Eq (f, g)
   | _ -> map_formula simp f
 
-let simplify pformula =
-  let f = simp pformula.formula in
-  let f = multi_or (unique1 (gather_or f)) in
-  if f = pformula.formula then pformula
-  else update pformula None f
-
 let rec canonical_lit f : formula =
   let commutative_pair op f g =
     let f, g = canonical_lit f, canonical_lit g in
@@ -895,6 +889,12 @@ let rec canonical_lit f : formula =
     | Eq (f, g) ->
         commutative_pair mk_eq f g
     | f -> map_formula canonical_lit f
+
+let simplify pformula =
+  let f = simp pformula.formula in
+  let f = multi_or (unique1 canonical_lit (gather_or f)) in
+  if f = pformula.formula then pformula
+  else update pformula None f
 
 let taut_lit f = match bool_kind f with
   | True -> true
