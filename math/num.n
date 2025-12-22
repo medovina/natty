@@ -2,7 +2,7 @@ using int;
 
 Definition.  For all a, b : ℤ, a | b iff there exists c : ℤ such that b = ac.
 
-Theorem.  Let a, b, c : ℤ.
+Theorem.  Let a, b, c, x, y : ℤ.
 
     a. a | 0.
     b. 1 | a.
@@ -12,9 +12,11 @@ Theorem.  Let a, b, c : ℤ.
     f. If 0 | c then c = 0.  [0 divides only 0]
     g. a | b and b | a if and only if a = b or a = −b. [mutual divisibility]
     h. a | a · b.
-    i. If a | b and a | c then a | (b + c).
+    i. If a | b and a | c then a | (b + c).  [divides sum]
     j. If a | b and a | c then a | (b − c).  [divides difference]
     k. If a | 1 then a = 1 or a = −1.
+    l. If a | b then a | b · c.
+    m. If a | b and a | c then a | (x · b + y · c).
 
 Proof.
 
@@ -35,6 +37,10 @@ Proof.
     i. Suppose that a | b and a | c.  Then there exist d, e : ℤ such that b = da and c = ea.  Then b + c = da + ea = (d + e) · a, so a | (b + c).
 
     j. Suppose that a | b and a | c.  Then there exist d, e : ℤ such that b = da and c = ea.  Then b − c = da − ea = (d − e) · a, so a | (b − c).
+
+    l. Suppose that a | b.  Then there exists x : ℤ such that ax = b.  Then a(xc) = bc, so a | bc.
+
+    m. Suppose that a | b and a | c.  Then a | xb and a | yc, so by [divides sum] a | (xb + yc).
 
 Theorem (Division).  Let a, b : ℤ.  Suppose that a > 0.  Then there exist q, r : ℤ such that b = qa + r and 0 ≤ r < a.
 

@@ -215,11 +215,14 @@ Theorem.  Let x, y, z : ℤ.
     e. x − y = 0 if and only if x = y.  [subtract to 0 iff equal]
     f. x · (y − z) = x · y − x · z.  [left distribute −]
     g. (y − z) · x = y · x − z · x.  [right distribute −]
+    h. x = y + z if and only if x − y = z.
 
 Proof.
 
   f. x · (y − z) = x · (y + (−z)) = x · y + x · (−z)
                      = x · y + −(x · z) = x · y − x · z.
+
+  h. Suppose that x = y + z.  Then x − y = y + z − y = y + z + (−y) = z + 0 = z.  Conversely, suppose that x − y = z.  Then x − y + y = z + y, so x + 0 = y + z, so x = y + z.
 
 Theorem (left cancel · in ℤ).  Let x, y, z : ℤ.
 
