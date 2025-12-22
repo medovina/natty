@@ -98,3 +98,17 @@ Proof.
     d. Suppose that a ≠ 0.  Then by [trichotomy on ℤ] either a > 0 or a < 0.  If a > 0 then by [gcd of 0 and positive] the gcd of 0 and a is |a|.  If a < 0 then by [gcd of 0 and negative] the gcd of 0 and a is |a|.
 
     f. We know that d ≥ 0.  Suppose that d = 0.  If a ≠ 0 then 0 | a, which is a contradiction.  If b ≠ 0 then 0 | b, which is a contradiction.  In any case we have a contradiction, so d ≠ 0.  Then d > 0.
+
+# Bézout's theorem, Wiedijk #60
+
+Theorem.  Let a, b : ℤ.  Suppose that a ≠ 0 or b ≠ 0.  Then there exist d, x, y : ℤ such that d is the gcd of a and b and d is positive and d = xa + yb.
+
+Proof.  Let A = { z : ℤ | z = xa + yb for some x, y : ℤ }.  We know that a > 0 or a < 0 or b > 0 or b < 0.  If a > 0 then 1 · a + 0 · b = a > 0.  If a < 0 then −1 · a + 0 · b = −a > 0. If b > 0 then 0 · a + 1 · b = b > 0.  If b < 0 then 0 · a + (−1) · b = −b > 0.  So in any case there is some z : ℤ such that z ∈ A and z > 0.
+
+Let B = { x ∈ A | x > 0 }.  Then B ⊆ 𝒲 and B is nonempty.  So by [least number principle on ℤ] there exists some d : ℤ such that d is a least element of B.  Clearly d is positive.  d ∈ A, so there exist x, y : ℤ such that d = xa + yb.  Let c : ℤ.  If c | a and c | b then c | (xa + yb), so c | d.
+
+By [Division] there exist q, r : ℤ such that a = qd + r and 0 ≤ r < d.  Hence a = q(xa + yb) + r.  Then r = a − q(xa + yb), so r = (1 − qx) · a + (−yq) · b.  Thus r ∈ A.  Suppose that r > 0.  Then r ∈ B.  But r < d, which is a contradiction since d is a least element of B.  Therefore r = 0. Thus a = qd, so d | a.
+
+By [Division] there exist q, r : ℤ such that b = qd + r and 0 ≤ r < d.  Hence b = q(xa + yb) + r.  Then r = b − q(xa + yb), so r = (1 − qy) · b + (−xq) · a.  Thus r ∈ A.  Suppose that r > 0.  Then r ∈ B.  But r < d, which is a contradiction since d is a least element of B.  Therefore r = 0. Thus b = qd, so d | b.
+
+We have shown that d ≥ 0 and d | a and d | b and for all c : ℤ, if c | a and c | b then c | d.  This shows that d is the gcd of a and b.

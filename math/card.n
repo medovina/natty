@@ -4,7 +4,7 @@ using fun, nat, set;
 
 Definition.  For all S : Set(σ) and T : Set(τ), S ~ T if there exists some f : σ → τ such that f is a bijection from S to T.
 
-# Cantor's Theorem, Wiedijk #63
+# Cantor's theorem, Wiedijk #63
 
 Theorem.  Let A : Set(σ).  Then A ≁ 𝒫(A).
 
