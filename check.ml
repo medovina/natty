@@ -114,10 +114,7 @@ let infer_blocks env steps : block list =
                         infer (step_vars :: vars) scope_vars in_assume rest in
               let (blocks, rest2, bail) =
                 if bail then ([], rest1, true) else infer vars scope_vars in_assume rest1 in
-              let out_blocks = match step with
-                | IsSome _ ->
-                    [Block (step, children @ blocks)]  (* pull siblings into block *)
-                | _ -> Block (step, children) :: blocks in
+              let out_blocks = Block (step, children) :: blocks in
               (out_blocks, rest2, bail) in
   let (blocks, rest, _bail) = infer [] [] None steps in
   assert (rest = []);
