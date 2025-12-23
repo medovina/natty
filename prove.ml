@@ -764,11 +764,11 @@ let allow_rewrite dp cp =
  *
  *   (i) tσ > t'σ
  *)
-let rewrite dp cp c_subterms : pformula option =
-  if not (allow_rewrite dp cp) then None else
+let rewrite dp cp c_subterms only_safe : pformula option =
+  if not (allow_rewrite dp cp) || only_safe && not dp.safe_for_rewrite then None else
   let d = remove_universal dp.formula in
-  let safe = dp.safe_for_rewrite in
-  if not (num_literals d <= 1 || safe && is_iff d) then None else
+  let with_iff = dp.safe_for_rewrite in
+  if not (num_literals d <= 1 || with_iff && is_iff d) then None else
     let c = cp.formula in
     let rewrite_with (t, t', u) : pformula option = head_opt @@
       let+ sub = try_match !comm_ops ([], []) t u in
@@ -779,19 +779,19 @@ let rewrite dp cp c_subterms : pformula option =
       else [] in
     let all =
       let+ (t, t') =
-        eq_pairs safe false d in  (* i: pre-check *)
+        eq_pairs with_iff false d in  (* i: pre-check *)
       let t, t' = prefix_vars t, prefix_vars t' in
       let& u = c_subterms in
       (t, t', u) in
     find_map rewrite_with all
 
-let rewrite_from ps q : pformula option = profile @@
+let rewrite_from ps q only_safe : pformula option = profile @@
   if !(q.rewritten) then None else
   let q_subterms = blue_subterms q.formula in
-  find_map (fun p -> rewrite p q q_subterms) ps
+  find_map (fun p -> rewrite p q q_subterms only_safe) ps
 
-let repeat_rewrite used p : pformula = profile @@
-  let rec loop p = match rewrite_from used p with
+let repeat_rewrite used p only_safe : pformula = profile @@
+  let rec loop p = match rewrite_from used p only_safe with
     | None -> p
     | Some p -> loop p in
   loop p
@@ -1020,10 +1020,8 @@ let remove_from_map found p =
 
 let rw_simplify cheap src queue used found p0 : pformula option =
   if is_ac p0 then (assert (p0.id <> 0); Some p0) else
-  let rewrite_with =
-    if can_rewrite p0 || !destructive_rewrites then !used
-      else filter (fun p -> p.safe_for_rewrite) !used in
-  let p1 = repeat_rewrite rewrite_with p0 in
+  let only_safe = not (can_rewrite p0) && not !destructive_rewrites in
+  let p1 = repeat_rewrite !used p0 only_safe in
   let p = simplify p1 in
   if p0.id > 0 && p.id = 0 then remove_from_map found p0;
   let taut = is_tautology p.formula in
@@ -1106,7 +1104,7 @@ let back_simplify found from used : pformula list = profile @@
         printf "%d. %s was back subsumed by %d. %s\n"
           p.id (show_formula p.formula) from.id (show_formula from.formula);
       (false, []))
-    else match rewrite_from [from] p with
+    else match rewrite_from [from] p false with
       | Some p' -> (not (!destructive_rewrites || can_rewrite p), [p'])
       | None -> (true, []) in
     if not keep then remove_from_map found p;
@@ -1118,7 +1116,7 @@ let back_simplify found from used : pformula list = profile @@
 let nondestruct_rewrite used p : pformula list = profile @@
   if !destructive_rewrites || !(p.rewritten) || can_rewrite p then [] else (
     (* perform just a single rewrite here; remaining will occur in rw_simplify_all *)
-    let& q = opt_to_list (rewrite_from used p) in
+    let& q = opt_to_list (rewrite_from used p false) in
     p.rewritten := true;
     assert (q.rule = "rw");
     {q with rule = "nrw"; destruct = true; rewritten = ref false}
@@ -1221,7 +1219,7 @@ let def_is_atomic f : (str * str) option = match remove_for_all f with
         | _ -> None)
   | _ -> None
 
-let def_safe_for_rewrite f =
+let is_safe_for_rewrite f =
   let xs, _ = gather_for_all f in
   is_some (def_is_synonym f) ||
     length xs <= 1 && is_some (def_is_atomic f)
@@ -1349,7 +1347,7 @@ let gen_pformulas thm all_known local_known : pformula list =
             with hypothesis = hyp;
                  definition = opt_default def "";
                  by; ac = kind;
-                 safe_for_rewrite = is_some def && def_safe_for_rewrite f } in
+                 safe_for_rewrite = is_some def && is_safe_for_rewrite f } in
           dbg_newline ();
           match kind_op with
             | Some (kind, op, "", typ) when kind = Assoc || kind = Comm ->
