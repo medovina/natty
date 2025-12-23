@@ -1,0 +1,15 @@
+using int;
+
+# Rational numbers: definition
+
+Axiom.  There exists a type ℚ (the rational numbers) with a function q : ℤ ⨯ ℤ → ℚ such that
+
+    a. Let a, b, c, d : ℤ.  Suppose that b ≠ 0 and d ≠ 0.  q(a, b) = q(c, d) if and only if ad = bc.
+    b. For all r : ℚ there exist some a, b : ℤ such that r = q(a, b) and b ≠ 0.
+
+Definition.  Let 0 : ℚ = q(0, 1).  Let 1 : ℚ = q(1, 1).
+
+Lemma.  Let a, b: ℤ with b ≠ 0.
+
+    a. q(a, b) = 0 if and only if a = 0.
+    b. q(a, b) = 1 if and only if a = b.

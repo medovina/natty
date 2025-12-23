@@ -4,7 +4,7 @@ Natty is a natural-language proof assistant with an embedded automatic prover fo
 
 Natty's automatic prover is based on a subset of the higher-order superposition calculus[^1].
 
-Natty is in an early stage of development, and is currently only able to prove some basic theorems about the natural numbers and integers.  As such, in its present form it will probably be of interest only to theorem proving researchers and enthusiasts.
+Natty is in an early stage of development, and is currently only able to prove some basic theorems about the natural numbers, integers and rationals.  As such, in its present form it will probably be of interest only to theorem proving researchers and enthusiasts.
 
 ### Prerequsities
 
@@ -52,16 +52,17 @@ $ ./natty
 
 ### Math library
 
-Natty's math library is in the `math` subdirectory, and includes several files:
+Natty's math library is in the `math` subdirectory, and includes these files:
 
 * `set.n` - definitions about sets
 * `fun.n` - definitions about functions
-* `nat.n` - a definition of the natural numbers plus many theorems about them
-* `int.n` - a definition of the integers based on the natural numbers, plus many theorems about them
-* `card.n` - cardinality of sets, including a proof of Cantor's theorem
-* `num.n` - a definition of divisibility and some theorems about it
+* `nat.n` - the natural numbers, plus many theorems about them
+* `int.n` - the integers, plus many theorems about them
+* `card.n` - cardinality of sets, including Cantor's theorem
+* `div.n` - divisibility and some related theorems, including Bézout's theorem
+* `rat.n` - rational numbers
 
-The theorems and proofs in `nat.n`, `int.n` and `num.n` largely follow those in the excellent textbook Number Systems and the Foundations of Analysis (Elliott Mendelson, 1973).  However in Mendelson the first natural number is 1 but in Natty's library it is 0, so I have adapted various proofs accordingly.
+The theorems and proofs in `nat.n`, `int.n`, `div.n` and `rat.n` largely follow those in the excellent textbook Number Systems and the Foundations of Analysis (Elliott Mendelson, 1973).  However in Mendelson the first natural number is 1 but in Natty's library it is 0, so I have adapted various proofs accordingly.
 
 ### Documentation
 
