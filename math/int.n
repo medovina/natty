@@ -63,7 +63,7 @@ Proof.
                 = z(0, 0)     by [equality on ℤ]
                 = 0.
 
-# Integers: multiplication
+# Multiplication
 
 Axiom.  There is a binary operation · : ℤ → ℤ → ℤ such that for all n, j, k, i : ℕ,
 
