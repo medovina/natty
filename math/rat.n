@@ -13,3 +13,9 @@ Lemma.  Let a, b: ℤ with b ≠ 0.
 
     a. q(a, b) = 0 if and only if a = 0.
     b. q(a, b) = 1 if and only if a = b.
+
+# Addition
+
+Axiom.  There is a binary operation + : ℚ → ℚ → ℚ such that for all a, b, c, d : ℤ with b ≠ 0 and d ≠ 0,
+
+    q(a, b) + q(c, d) = q(ad + bc, bd).

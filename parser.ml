@@ -187,10 +187,10 @@ let sub_expr = choice [
 
 let super_term = super_digit |>> _const
 
-let for_all_with ids_types prop opt_with : formula =
+let for_all_vars_with ids_types prop opt_with : formula =
     for_all_vars_types ids_types (opt_fold implies opt_with prop)
 
-let exists_with ids_types prop opt_with : formula =
+let exists_vars_with ids_types prop opt_with : formula =
     exists_vars_types ids_types (opt_fold _and opt_with prop)
 
 let id_sub : (formula * formula option) p =
@@ -401,8 +401,8 @@ and for_with text q s : (formula -> formula) pr =
       let ids_types = (let+ id = ids in [(id, typ)]) in
       q ids_types f opt_with) s
 
-and post_for_all_with s = for_with "for all" for_all_with s
-and post_for_some_with s = for_with "for some" exists_with s
+and post_for_all_with s = for_with "for all" for_all_vars_with s
+and post_for_some_with s = for_with "for some" exists_vars_with s
 
 and _if_op = str "if" <<? not_before (str "and only")
 
@@ -425,10 +425,13 @@ and if_then_prop s : formula pr =
 and for_all_ids s : (id * typ) list pr =
     (str "For all" >> decl_ids_types) s
 
-and for_all_prop s : formula pr = (pipe3
-  for_all_ids (option with_exprs) (opt_str "," >> small_prop)
-    (fun ids_types with_exprs prop -> 
-        for_all_with ids_types prop with_exprs)) s
+and for_all_with s : ((id * typ) list * formula option) pr = s |>
+  pair for_all_ids (option with_exprs << opt_str ",")
+
+and for_all_prop s : formula pr = s |>
+  let> (ids_types, with_exprs) = for_all_with in
+  let$ prop = small_prop in
+  for_all_vars_with ids_types prop with_exprs
 
 and there_exists =
   str "There" >> any_str ["is"; "are"; "exists"; "exist"; "must be"; "must exist"]
@@ -440,7 +443,7 @@ and exists_prop s : formula pr = pipe4
     opt true ((any_str ["some"; "an operation"] >>$ true) <|> (str "no" >>$ false)))
   decl_ids_types (option with_exprs) (str "such that" >> small_prop)
   (fun some ids_types with_exprs p ->
-    (if some then Fun.id else _not) (exists_with ids_types p with_exprs)) s
+    (if some then Fun.id else _not) (exists_vars_with ids_types p with_exprs)) s
 
 and precisely_prop s : formula pr = (
   any_str ["Exactly"; "Precisely"] >> str "one of" >> opt_str "the conditions" >>
@@ -541,9 +544,11 @@ let top_prop_or_items (name: id option):
     ] |>> map (fun (sub_index, (steps, name)) -> (sub_index, steps, name))
 
 let propositions name : (id * proof_step list * id option) list p =
-  pipe2 (opt [] (for_all_ids << str ",")) (top_prop_or_items name)
-  (fun vars props ->
-    props |> map (fun (id, steps, name) -> (id, Let vars :: steps, name)))
+  let> (vars, with_expr) = opt ([], None) for_all_with in
+  let$ props = top_prop_or_items name in
+  let assume_steps = map mk_assume (opt_to_list with_expr) in
+  let& (id, steps, name) = props in
+  (id, Let vars :: assume_steps @ steps, name)
 
 (* axioms *)
 

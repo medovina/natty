@@ -164,7 +164,9 @@ with_exprs = 'with' exprs;
 
 for_all_ids = 'For all' decl_ids_types;
 
-for_all_prop = for_all_ids [with_exprs] [','] small_prop;
+for_all_with = for_all_ids [with_exprs] [','];
+
+for_all_prop = for_all_with small_prop;
 
 there_exists =
     'There' ('is' | 'are' | 'exists' | 'must be' | ['must'] 'exist');
@@ -234,7 +236,7 @@ prop_items = proposition_item+;
 
 top_prop_or_items = prop_items | top_sentence;
 
-propositions = [for_all_ids ','] top_prop_or_items;
+propositions = [for_all_with] top_prop_or_items;
 
 (* axioms *)
 

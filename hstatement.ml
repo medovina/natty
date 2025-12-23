@@ -43,6 +43,7 @@ type proof_step =
   | Group of proof_step list
 
 let mk_assert f = Assert (f, [])
+let mk_assume f = Assume f
 
 let get_assert step = match step with
   | Assert (f, _) -> f
