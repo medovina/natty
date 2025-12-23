@@ -765,7 +765,7 @@ let allow_rewrite dp cp =
  *   (i) tσ > t'σ
  *)
 let rewrite dp cp c_subterms only_safe : pformula option =
-  if not (allow_rewrite dp cp) || only_safe && not dp.safe_for_rewrite then None else
+  if not (allow_rewrite dp cp) then None else
   let d = remove_universal dp.formula in
   let with_iff = dp.safe_for_rewrite in
   if not (num_literals d <= 1 || with_iff && is_iff d) then None else
@@ -780,6 +780,7 @@ let rewrite dp cp c_subterms only_safe : pformula option =
     let all =
       let+ (t, t') =
         eq_pairs with_iff false d in  (* i: pre-check *)
+      if only_safe && not dp.safe_for_rewrite && not (is_bool_const t') then [] else
       let t, t' = prefix_vars t, prefix_vars t' in
       let& u = c_subterms in
       (t, t', u) in
