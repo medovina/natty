@@ -1019,47 +1019,9 @@ let remove_from_map found p =
   assert (FormulaMap.mem f_canonical !found);
   found := FormulaMap.remove f_canonical !found
 
-let finalize src queue used found p0 p : pformula option =
-  if p.id > 0 then Some p else
-    let delta, step = cost p in
-    let p = { p with derived = step } in
-    let cost = merge_cost p.parents +. delta in
-    if p.formula <> _false && cost > cost_limit then (
-      if !debug > 1 then
-        print_formula true "dropping (over cost limit): " {p with cost};
-      None)
-    else
-      let f_canonical = canonical p in
-      let final () = finish p f_canonical found delta cost in
-      match FormulaMap.find_opt f_canonical !found with
-        | Some pf when pf.id = p0.id -> (* e.g. due to C-unification *)
-            if !debug > 0 then
-              printf "#%d: rewritten clause is duplicate of original\n" p0.id;
-            Some p0
-        | Some pf ->
-            if p.by || orig_goal p && not (orig_goal pf) || cost < pf.cost then (
-              let p = final () in
-              if !debug > 0 then
-                if p.by || orig_goal p then
-                  printf "%s (%s) is a duplicate of #%d; replacing it\n"
-                    src (if p.by then "by" else "goal") pf.id
-                else printf "(%d is a duplicate of %d; replacing with lower cost of %.2f)\n"
-                  p.id pf.id p.cost;
-              if PFQueue.mem (Unprocessed pf) !queue then
-                queue := PFQueue.remove (Unprocessed pf) !queue
-              else
-                used := remove1q pf !used;
-              (* Ideally we would also update descendents of pf
-                to have p as an ancestor instead. *)
-              Some p
-            ) else (
-                let prefix = sprintf "%s duplicate of #%d: " src pf.id in
-                dbg_print_formula true prefix p;
-              None)
-        | None ->
-            Some (final ())
-
-let rw_simp only_safe cheap src used found p0 =
+let rw_simplify cheap src queue used found p0 : pformula option =
+  if is_ac p0 then (assert (p0.id <> 0); Some p0) else
+  let only_safe = not (can_rewrite p0) && not !destructive_rewrites in
   let p1 = repeat_rewrite !used p0 only_safe in
   let p = simplify p1 in
   if p0.id > 0 && p.id = 0 then remove_from_map found p0;
@@ -1080,13 +1042,45 @@ let rw_simp only_safe cheap src used found p0 =
             print_line (prefix_show prefix p.formula));
           if p.id > 0 then remove_from_map found p;
           None
-      | None -> Some p
-
-let rw_simplify cheap src queue used found p0 : pformula option =
-  if is_ac p0 then (assert (p0.id <> 0); Some p0) else
-  let only_safe = not (can_rewrite p0) && not !destructive_rewrites in
-  let* p = rw_simp only_safe cheap src used found p0 in
-  finalize src queue used found p0 p
+      | None ->
+          if p.id > 0 then Some p else
+            let delta, step = cost p in
+            let p = { p with derived = step } in
+            let cost = merge_cost p.parents +. delta in
+            if p.formula <> _false && cost > cost_limit then (
+              if !debug > 1 then
+                print_formula true "dropping (over cost limit): " {p with cost};
+              None)
+            else
+              let f_canonical = canonical p in
+              let final () = finish p f_canonical found delta cost in
+              match FormulaMap.find_opt f_canonical !found with
+                | Some pf when pf.id = p0.id -> (* e.g. due to C-unification *)
+                    if !debug > 0 then
+                      printf "#%d: rewritten clause is duplicate of original\n" p0.id;
+                    Some p0
+                | Some pf ->
+                    if p.by || orig_goal p && not (orig_goal pf) || cost < pf.cost then (
+                      let p = final () in
+                      if !debug > 0 then
+                        if p.by || orig_goal p then
+                          printf "%s (%s) is a duplicate of #%d; replacing it\n"
+                            src (if p.by then "by" else "goal") pf.id
+                        else printf "(%d is a duplicate of %d; replacing with lower cost of %.2f)\n"
+                          p.id pf.id p.cost;
+                      if PFQueue.mem (Unprocessed pf) !queue then
+                        queue := PFQueue.remove (Unprocessed pf) !queue
+                      else
+                        used := remove1q pf !used;
+                      (* Ideally we would also update descendents of pf
+                        to have p as an ancestor instead. *)
+                      Some p
+                    ) else (
+                        let prefix = sprintf "%s duplicate of #%d: " src pf.id in
+                        dbg_print_formula true prefix p;
+                      None)
+                | None ->
+                    Some (final ())
 
 type proof_stats = {
   initial: int; given: int; generated: int; max_cost: float
@@ -1133,7 +1127,7 @@ let generate queue p used : pformula list = profile @@
   nondestruct_rewrite !used p @ all_eres p @
   concat_map (all_super queue p) !used
 
-let rw_simplify_all queue used found ps : pformula list = profile @@
+let rw_simplify_all queue used found ps = profile @@
   let simplify (p: pformula) : pformula option =
     let p = rw_simplify true "generated" queue used found p in
     p |> Option.iter (fun p -> queue := PFQueue.add (Unprocessed p) (queue_cost p) !queue);
