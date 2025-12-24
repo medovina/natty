@@ -20,6 +20,10 @@ Axiom.  There is a binary operation + : ℚ → ℚ → ℚ such that for all a,
 
     q(a, b) + q(c, d) = q(ad + bc, bd).
 
+Axiom.  There is a unary operation − : ℚ → ℚ such that for all a, b : ℤ with b ≠ 0,
+
+    −q(a, b) = q(−a, b).
+
 # Multiplication
 
 Axiom.  There is a binary operation · : ℚ → ℚ → ℚ such that for all a, b, c, d : ℤ with b ≠ 0 and d ≠ 0,
@@ -31,6 +35,9 @@ Axiom.  There is a binary operation · : ℚ → ℚ → ℚ such that for all a
 Theorem.  Let r, s, t : ℚ.
 
     a. r + (s + t) = (r + s) + t.
+    b. r + s = s + r.
+    c. r + 0 = r.
+    d. r + −r = 0.
 
 Proof.
 
@@ -47,3 +54,19 @@ Proof.
     But (ad + bc)f + bde = adf + b(cf + de).  Hence,
 
         (r + s) + t = r + (s + t).
+
+    b. There are some a, b, c, d : ℤ such that r = q(a, b) and s = q(c, d) and b ≠ 0 and d ≠ 0.
+
+        r + s = q(ad + bc, bd).
+        s + r = q(cb + da, db).
+
+    Hence, r + s = s + r.
+
+    c. There are some a, b : ℤ such that r = q(a, b) and b ≠ 0.  Then r + 0 = q(a, b) + q(0, 1) = q(a · 1 + b · 0, b · 1) = q(a, b) = r.
+
+    d. There are some a, b : ℤ such that r = q(a, b) and b ≠ 0. Then
+    
+        r + −r = q(a, b) + q(−a, b)
+                   = q(ab + b(−a), b²)
+                   = q(ab − ab, b²) = q(0, b²) = 0.
+    
