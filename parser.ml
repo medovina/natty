@@ -185,7 +185,10 @@ let sub_expr = choice [
   str "_" >> small_term
 ]
 
-let super_term = super_digit |>> _const
+let super_expr : formula p =
+  let> opt_minus = opt Fun.id (str "⁻" >>$ unary_minus) in
+  let$ d = super_digit in
+  opt_minus (_const d)
 
 let for_all_vars_with ids_types prop opt_with : formula =
     for_all_vars_types ids_types (opt_fold implies opt_with prop)
@@ -249,10 +252,10 @@ and base_term s : formula pr = (unit_term <|> choice [
 and apply_super f super : formula =
   opt_fold (fun c f -> apply [_var "^"; f; c]) super f
 
-and term s = (pipe2 base_term (option super_term) apply_super) s
+and term s = (pipe2 base_term (option super_expr) apply_super) s
 
 and next_term s = (not_before space >>?
-  pipe2 unit_term (option super_term) apply_super ) s
+  pipe2 unit_term (option super_expr) apply_super ) s
 
 and terms s = (term >>= fun t -> many_fold_left mk_app t next_term) s
 

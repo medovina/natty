@@ -109,6 +109,22 @@ Proof.
 
         q(acf + ade, b(df)) = q(b(acf + ade), b²df) by [equality on ℚ].
 
+# Because we have shown that ℚ is a commutative ring, all the theorems we proved about ℤ using only ring axioms should now be applicable to ℚ.  Unfortunately Natty cannot yet recognize this correspondence, so for now we reprove some of those theorems here.
+
+Theorem.  Let x, y, z : ℚ.
+
+    a. If x + y = x + z then y = z.  [add cancel left on ℚ]
+    b. If x + y = x, then y = 0.    [addend is 0 on ℚ]
+    c. x · 0 = 0 = 0 · x.  [multiply by 0 on ℚ]
+
+Proof.
+
+    a. Assume that x + y = x + z.  Then −x + (x + y) = −x + (x + z), so (−x + x) + y = (−x + x) + z, so 0 + y = 0 + z.  Therefore y = z.
+
+    b. If x + y = x then x + y = x + 0, so by [add cancel left on ℤ] y = 0.
+
+    c. x · 0 = x · (0 + 0) = x · 0 + x · 0, so x · 0 = 0 by [addend is 0 on ℚ].  Similarly, 0 · x = (0 + 0) · x = 0 · x + 0 · x, so 0 · x = 0 by [addend is 0 on ℚ].
+
 # Now we show that ℚ is an integral domain.
 
 Theorem.  Let r, s : ℚ.  Suppose that r ≠ 0 and s ≠ 0.  Then r · s ≠ 0.
@@ -128,3 +144,30 @@ Theorem.  Let r : ℚ.  Suppose that r ≠ 0.  Then there exists s : ℚ such th
 Proof.  There are some a, b : ℤ such that r = q(a, b) and b ≠ 0.  By [0 if numerator is 0] a ≠ 0.  Therefore
 
     r · q(b, a) = q(a, b) · q(b, a) = q(ab, ba) = 1 by [1 if numerator = denominator].
+
+# Inverses are unique
+
+Theorem (unique inverses).  Let x, y, z : ℚ.  Suppose that x · y = 1 and x · z = 1.  Then y = z.
+
+Proof.
+
+    y = 1 · y = (x · z) · y = (z · x) · y
+       = z · (x · y) = z · 1 = z.
+
+Axiom.  There exists a binary operation ^ : ℚ → ℤ → ℚ such that for all x : ℚ, if x ≠ 0 then
+
+    x · x⁻¹ = 1.
+
+Lemma.  Let x, y : ℚ.  Suppose that x · y = 1.  Then x = y⁻¹.
+
+Proof.  If y = 0 then x · y = 0, which is a contradiction.  So y ≠ 0.  Then y · y⁻¹ = 1.  By [unique inverses] x = y⁻¹. 
+
+# Properties of fields
+
+Theorem.
+
+    a. (1 : ℚ)⁻¹ = 1.
+
+Proof.
+
+    a. (1 : ℚ) · 1 = 1.  Hence 1 = (1 : ℚ)⁻¹.
