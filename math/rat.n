@@ -30,7 +30,7 @@ Axiom.  There is a binary operation · : ℚ → ℚ → ℚ such that for all a
 
     q(a, b) · q(c, d) = q(ac, bd).
 
-# ℚ satisfies the axioms for an integral domain
+# Here we show that ℚ satisfies the axioms for an integral domain.
 
 Theorem.  Let r, s, t : ℚ.
 
@@ -38,6 +38,9 @@ Theorem.  Let r, s, t : ℚ.
     b. r + s = s + r.
     c. r + 0 = r.
     d. r + −r = 0.
+    e. r · (s · t) = (r · s) · t.
+    f. r · 1 = r.
+    g. r · s = s · r.
 
 Proof.
 
@@ -70,3 +73,21 @@ Proof.
                    = q(ab + b(−a), b²)
                    = q(ab − ab, b²) = q(0, b²) = 0.
     
+    e. There are some a, b, c, d, e, f : ℤ such that r = q(a, b) and s = q(c, d) and t = q(e, f) and b ≠ 0 and d ≠ 0 and f ≠ 0.
+
+        r · (s · t) = q(a, b) · q(ce, df)
+                      = q(a(ce), b(df)).
+
+        (r · s) · t = q(ac, bd) · q(e, f) = q((ac)e, (bd)f).
+
+    Hence r · (s · t) = (r · s) · t.
+
+    f. There are some a, b : ℤ such that r = q(a, b) and b ≠ 0. Then
+
+        r · 1 = q(a, b) · q(1, 1) = q(a · 1, b · 1)
+                = q(a, b) = r.
+
+    g. There are some a, b, c, d : ℤ such that r = q(a, b) and s = q(c, d) and b ≠ 0 and d ≠ 0.
+
+        r · s = q(ac, bd).
+        s · r = q(ca, db) = q(ac, bd).
