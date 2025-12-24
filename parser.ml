@@ -53,7 +53,7 @@ let base_id = long_id <|> var0
 let id = long_id <|> var
 
 let sym = choice [
-  empty >>? (digit <|> any_of "+-<>~^") |>> char_to_string;
+  empty >>? (digit <|> any_of "+-/<>~^") |>> char_to_string;
   any_str ["·"; "≤"; "≥"; "≮"; "≯"; "≁"; "⊆"];
   str "−" >>$ "-"]
 
@@ -280,7 +280,8 @@ and operators with_bar = [
   [ Prefix (minus >>$ unary_minus) ];
   [ Prefix (str "¬" >>$ _not) ];
   [ infix_binop "^" Assoc_right ];
-  [ infix_binop "·" Assoc_left ];
+  [ infix_binop "·" Assoc_left;
+    infix_binop "/" Assoc_left ];
   [ infix_binop "+" Assoc_left;
     infix_binop1 minus "-" Assoc_left ];
   [ Postfix (by_reason |>> fun r -> apply_reasons r) ];

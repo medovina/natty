@@ -320,7 +320,7 @@ let mk_eq' eq f g = (if eq then mk_eq else mk_neq) f g
 
 let binary_ops = [
   ("^", 9);
-  ("·", 8);
+  ("·", 8); ("/", 8);
   ("+", 7); ("-", 7);
   ("∈", 6); ("|", 6); 
   ("<", 5); ("≤", 5); (">", 5); ("≥", 5); ("~", 5); ("⊆", 5);
@@ -446,7 +446,8 @@ and show_formula_multi multi f =
           let op = basic_const binop in
           let prec = assoc op binary_ops in
           let p = prec < outer ||
-            prec = outer && (op = "·" || op = "+" || op = "→" && not right) in
+            prec = outer &&
+              (op = "·" || op = "/" || op = "+" || op = "→" && not right) in
           let layout multi =
             match single_letter t, single_letter u with
               | Some t, Some u when op = "·" && strlen t = 1 && strlen u = 1
