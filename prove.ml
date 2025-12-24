@@ -658,7 +658,7 @@ let all_super1 dp cp : pformula list =
   let+ (c_lits, _, exposed_lits) = c_steps in
   let+ c_lit = exposed_lits in
   let with_para = !(opts.all_superpositions) || (
-    dp.ac = Some Comm || dp.ac = Some Assoc || by || def_expand || hyp_expand ||
+    dp.ac = Some Comm || dp.ac = Some Assoc || def_expand || hyp_expand ||
     allow cp && (not !step_strategy ||
                  is_unit_equality dp.formula ||
                  is_conditioned_equality dp.formula && cp.goal ||
