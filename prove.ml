@@ -34,7 +34,8 @@ type pformula = {
   ac: ac_type option;
   delta: float;
   cost: float;
-  definition: string;
+  definition: bool;
+  defined: string option;
   hypothesis: int;
   goal: bool;
   by: bool;
@@ -164,13 +165,12 @@ let distributive_axiom f : (str * str * typ * ac_type) option =
       | _ -> []
 
 let is_hyp p = p.hypothesis > 0
-let is_def p = p.definition <> ""
+let is_def p = p.definition
 let goal_or_hyp p = p.goal || is_hyp p
 let goal_or_last_hyp p = p.goal || p.hypothesis = 1
 
 let orig_hyp p = is_hyp p && not p.derived
 let orig_goal p = p.goal && not p.derived
-let orig_def p = is_def p && not p.derived
 let orig_by p = p.by && not p.derived
 let orig_goal_or_last_hyp p = goal_or_last_hyp p && not p.derived
 
@@ -209,10 +209,8 @@ let mk_pformula rule description parents step formula =
       if goal then 0
       else let hs = filter_map (fun p -> if is_hyp p then Some p.hypothesis else None) parents in
       if hs = [] then 0 else minimum hs);
-    definition = (if step then "" else
-      match find_opt is_def parents with
-        | Some d -> d.definition
-        | None -> "");
+    definition = not step && parents <> [] && for_all (fun p -> p.definition) parents;
+    defined = if step then None else find_map (fun p -> p.defined) parents;
     by = parents <> [] && for_all (fun p -> p.by) parents;
     derived = step || exists (fun p -> p.derived) parents;
     rewritten = ref false; destruct = false; safe_for_rewrite = false
@@ -536,13 +534,13 @@ let at_limit parents kind limit =
 
 let is_def_expansion parents =
   not (at_limit parents _expand_def def_expand_limit) &&
-  let def = find_opt orig_def parents in
+  let defined = find_map (fun p -> p.defined) parents in
   let last = parents |> find_opt (fun p -> orig_goal p || orig_hyp p) in
-  match def, last with
+  match defined, last with
     | Some def, Some last ->
         let goal_consts =
           if orig_goal last then all_consts last.formula else top_consts last in
-        mem def.definition goal_consts
+        mem def goal_consts
     | _ -> false
 
 let is_hyp_expansion parents =
@@ -1332,11 +1330,11 @@ let gen_pformulas thm all_known local_known : pformula list =
       | None -> (ops, [])
       | Some f ->
           let by = memq stmt by_thms in
-          let def = defined_symbol stmt in
+          let definition = is_definition stmt in
           let kind_op = ac_kind f in
           if not ( by || is_hypothesis stmt ||
                    use_premise const_map proof_consts f
-                               (is_some def) (is_some kind_op) (stmt_name stmt))
+                               definition (is_some kind_op) (stmt_name stmt))
           then (ops, []) else
           let kind = Option.map (fun (kind, _, _, _) -> kind) kind_op in
           let hyp = match index_of_opt stmt hyps with
@@ -1346,9 +1344,10 @@ let gen_pformulas thm all_known local_known : pformula list =
             | _ -> 0 in
           let p = { (to_pformula (stmt_id_name stmt) f)
             with hypothesis = hyp;
-                 definition = opt_default def "";
+                 definition;
+                 defined = defined_symbol stmt;
                  by; ac = kind;
-                 safe_for_rewrite = is_some def && is_safe_for_rewrite f } in
+                 safe_for_rewrite = definition && is_safe_for_rewrite f } in
           dbg_newline ();
           match kind_op with
             | Some (kind, op, "", typ) when kind = Assoc || kind = Comm ->
