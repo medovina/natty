@@ -756,7 +756,7 @@ let update p rewriting f : pformula =
 let allow_rewrite dp cp =
   dp.id <> cp.id && not (exists (fun p -> p.id = dp.id) cp.parents) &&
     (!destructive_rewrites || allow cp || dp.safe_for_rewrite) &&
-    not (orig_hyp dp && (orig_hyp cp || orig_goal cp))
+    not (orig_hyp dp && orig_hyp cp)
 
 (*     t = t'    C⟪tσ⟫
  *   ═══════════════════   rw
