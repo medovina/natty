@@ -19,3 +19,31 @@ Lemma.  Let a, b: ℤ with b ≠ 0.
 Axiom.  There is a binary operation + : ℚ → ℚ → ℚ such that for all a, b, c, d : ℤ with b ≠ 0 and d ≠ 0,
 
     q(a, b) + q(c, d) = q(ad + bc, bd).
+
+# Multiplication
+
+Axiom.  There is a binary operation · : ℚ → ℚ → ℚ such that for all a, b, c, d : ℤ with b ≠ 0 and d ≠ 0,
+
+    q(a, b) · q(c, d) = q(ac, bd).
+
+# ℚ satisfies the axioms for an integral domain
+
+Theorem.  Let r, s, t : ℚ.
+
+    a. r + (s + t) = (r + s) + t.
+
+Proof.
+
+    a. There are some a, b, c, d, e, f : ℤ such that r = q(a, b) and s = q(c, d) and t = q(e, f) and b ≠ 0 and d ≠ 0 and f ≠ 0.
+
+        (r + s) + t = q(ad + bc, bd) + q(e, f)
+                         = q((ad + bc)f + bde, bdf).
+
+    On the other hand,
+
+        r + (s + t) = q(a, b) + q(cf + de, df)
+                         = q(a(df) + b(cf + de), b(df)).
+
+    But (ad + bc)f + bde = adf + b(cf + de).  Hence,
+
+        (r + s) + t = r + (s + t).

@@ -631,7 +631,8 @@ let proof_if_prop : proof_step list p =
   let$ hs = many_concat (str "," >> so >> proof_prop) in
   [Group (Assume f :: gs @ hs)]
 
-let and_or_so = (str "and" << optional so) <|> so
+let and_or_so =
+  ((str "and" << optional so) <|> so) << opt_str ","
 
 let will_show =
   (str "We" >>? any_str ["must"; "need to"; "will"]) >>?
