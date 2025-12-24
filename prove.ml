@@ -650,6 +650,7 @@ let all_super1 dp cp : pformula list =
   let d_steps, c_steps = clausify_steps dp, clausify_steps cp in
   let+ (dp, d_steps, cp, c_steps) =
     [(dp, d_steps, cp, c_steps); (cp, c_steps, dp, d_steps)] in
+  if (dp.ac = Some Assoc || dp.ac = Some Extra) && not cp.destruct then [] else
   let+ (d_lits, new_lits, _) = d_steps in
   let d_lits, new_lits = map prefix_vars d_lits, map prefix_vars new_lits in
   let+ t_t' = new_lits in
