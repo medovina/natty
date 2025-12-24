@@ -560,31 +560,34 @@ let words2 : string p =
         unwords (w :: opt_to_list x)) 
 
 let type_decl : hstatement p =
-    pipe2 (str "a type" >> id) (option (parens (str "the" >> words2)))
-        (fun id opt_name -> HTypeDecl (id, Option.map singular opt_name))
+  let> id = str "a type" >> id in
+  let$ opt_name = option (parens (str "the" >> words2)) in
+  HTypeDecl (id, Option.map singular opt_name)
 
 let const_decl : hstatement p =
-    pipe2 ((any_str ["a constant"; "an element"; "a function"] <|> operation) >> id_or_sym)
-        of_type
-        (fun c typ -> HConstDecl (unary_prefix c typ, typ))
+  let> c = (any_str ["a constant"; "an element"; "a function"] <|> operation) >> id_or_sym in
+  let$ typ = of_type in
+  HConstDecl (unary_prefix c typ, typ)
 
 let axiom_decl : hstatement p = type_decl <|> const_decl
 
-let axiom_propositions name : hstatement list p =
+let axiom_propositions id_typ name : hstatement list p =
   let$ props = propositions name in
-  [HAxiomGroup (
+  [HAxiomGroup (id_typ, 
     let& (sub_index, steps, name) = props in
     { sub_index; name; steps })]
 
 let axiom_exists name : hstatement list p =
-  there_exists >>? pipe2
-  (sep_by1 axiom_decl (any_str ["and"; "with"]))
-  ((str "such that" >> axiom_propositions name) <|> (str "." >>$ []))
-  (@)
+  there_exists >>?
+  let> consts = sep_by1 axiom_decl (any_str ["and"; "with"]) in
+  let id_typ = defined_id_type (last consts) in
+  let$ props = (str "such that" >> axiom_propositions (Some id_typ) name) <|>
+               (str "." >>$ []) in
+  consts @ props
 
 let axiom_group : hstatement list p =
   let> name = str "Axiom" >> option stmt_name << str "." in
-  axiom_exists name <|> axiom_propositions name
+  axiom_exists name <|> axiom_propositions None name
 
 (* proofs *)
 

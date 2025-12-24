@@ -10,7 +10,8 @@ type str = string
 type statement =
   | ConstDecl of id * typ
   | Axiom of
-      { id: string; formula: formula; name: string option }
+      { id: string; formula: formula; name: string option;
+        defined: (id * typ) option }
   | Hypothesis of string * formula
   | Definition of id * typ * formula
   | Theorem of
@@ -106,7 +107,9 @@ let show_statement multi s : string =
 let rec map_statement1 id_fn typ_fn fn stmt =
   match stmt with
   | ConstDecl (id, typ) -> ConstDecl (id_fn typ id, typ_fn typ)
-  | Axiom { id; formula; name } -> Axiom { id; formula = fn formula; name }
+  | Axiom { id; formula; name; defined } ->
+      Axiom { id; formula = fn formula; name;
+              defined = let* (id, typ) = defined in Some (id_fn typ id, typ_fn typ) }
   | Hypothesis (id, f) -> Hypothesis (id, fn f)
   | Definition (id, typ, f) -> Definition (id_fn typ id, typ_fn typ, fn f)
   | Theorem ({ formula = f; steps = esteps; _ } as thm) ->

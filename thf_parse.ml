@@ -108,17 +108,22 @@ let extra_item : (thm_info -> thm_info) p = choice [
   let$ ids = str "by" >> parens (brackets (comma_sep1 id)) in
   fun (_, is_step) -> (ids, is_step)]
 
-let thf_formula last_const : (id * statement) p = empty >>?
+let thf_formula last_const : (id option * statement) p = empty >>?
   str "thf" >> parens (
     let> id, role = pair (id << str ",") (id << str ",") in
     match role with
-      | "type" -> thf_type
+      | "type" ->
+          let$ (id, stmt) = thf_type in (Some id, stmt)
       | _ ->
         let p = match role with
           | "axiom" | "theorem"  ->
-              formula |>> fun f -> Axiom { id; formula = f; name = None }
+              formula |>> fun f ->
+                Axiom {
+                  id; formula = f; name = None;
+                  defined = if role = "axiom"
+                            then let* c = last_const in Some (c, unknown_type) else None }
           | "definition" ->
-              formula |>> fun f -> Definition (last_const, unknown_type, f)
+              formula |>> fun f -> Definition (opt_get last_const, unknown_type, f)
           | "hypothesis" ->
               formula |>> fun f -> Hypothesis (id, f)
           | "conjecture" ->
@@ -129,7 +134,7 @@ let thf_formula last_const : (id * statement) p = empty >>?
               Theorem { id; name = None; formula = f; steps = [];
                         by; is_step; range = empty_range }
           | _ -> failwith "unknown role" in
-        p |>> fun x -> (last_const, x))
+        p |>> fun x -> ((if role = "axiom" then last_const else None), x))
   << str "."
 
 let _include = str "include" >> parens quoted_id << str "."
@@ -141,7 +146,7 @@ let rec formulas last_const : statement list p =
     stmt :: rest)
 
 let thf_file : statement list p =
-  many _include >> formulas "_" << empty << eof
+  many _include >> formulas None << empty << eof
 
 let parse_thf source : (smodule list, string * frange) Stdlib.result =
   parse_modules (many _include) thf_file [source] []

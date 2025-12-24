@@ -125,9 +125,14 @@ type htheorem = {
 type hstatement =
   | HTypeDecl of id * string option  (* e.g. "ℤ", "integer" *)
   | HConstDecl of id * typ
-  | HAxiomGroup of haxiom list
+  | HAxiomGroup of (id * typ) option * haxiom list
   | HDefinition of formula * proof_step list
   | HTheoremGroup of htheorem list
+
+let defined_id_type hstmt : id * typ = match hstmt with
+  | HTypeDecl (id, _) -> (id, Type)
+  | HConstDecl (id, typ) -> (id, typ)
+  | _ -> failwith "defined_id_type"
 
 let theorem_name id name : string =
   "theorem " ^ id ^ (match name with

@@ -634,15 +634,15 @@ and infer_stmt env stmt : statement list =
           let& eq_some = opt_to_list eq_some in
           incr axiom_count;
           Axiom { id = string_of_int !axiom_count; formula = eq_some;
-                  name = Some (id ^ "_eq_some") } in
+                  name = Some (id ^ "_eq_some"); defined = None } in
         justify @ [ConstDecl (id, typ); Definition (id, typ, f')] @ gs
-    | HAxiomGroup haxioms ->
+    | HAxiomGroup (id_typ, haxioms) ->
         incr axiom_count;
         let+ { sub_index; name; steps } = haxioms in
         let id = count_sub_index !axiom_count sub_index in
         let blocks = infer_blocks env (generalize_types steps) in
         let (_, f) = blocks_steps false env [] blocks in
-        [Axiom { id; formula = top_infer env f; name }]
+        [Axiom { id; formula = top_infer env f; name; defined = id_typ }]
     | HTheoremGroup htheorems ->
         incr theorem_count;
         let check env htheorem : statement list * statement =
