@@ -279,7 +279,7 @@ will_show = ('We' ('must' | 'need to' | 'will'))
 
 assert_step =
     [have] proof_if_prop |
-    because_prop [','] proof_prop |
+    [have] because_prop [','] proof_prop |
     will_show proposition |
     'The result follows' by_reason |
     [and_or_so] have_contradiction |

@@ -11,7 +11,7 @@ Definition.  Let 0 : ℚ = q(0, 1).  Let 1 : ℚ = q(1, 1).
 
 Lemma.  Let a, b: ℤ with b ≠ 0.
 
-    a. q(a, b) = 0 if and only if a = 0.
+    a. q(a, b) = 0 if and only if a = 0.  [0 if numerator is 0]
     b. q(a, b) = 1 if and only if a = b.
 
 # Addition
@@ -30,7 +30,7 @@ Axiom.  There is a binary operation · : ℚ → ℚ → ℚ such that for all a
 
     q(a, b) · q(c, d) = q(ac, bd).
 
-# Here we show that ℚ satisfies the axioms for an integral domain.
+# Here we show that ℚ is a commutative ring.
 
 Theorem.  Let r, s, t : ℚ.
 
@@ -42,6 +42,7 @@ Theorem.  Let r, s, t : ℚ.
     f. r · 1 = r.
     g. r · s = s · r.
     h. r · (s + t) = r · s + r · t.
+    i. (r + s) · t = r · t + s · t.
 
 Proof.
 
@@ -107,3 +108,15 @@ Proof.
     But
 
         q(acf + ade, b(df)) = q(b(acf + ade), b²df) by [equality on ℚ].
+
+# Now we show that ℚ is an integral domain.
+
+Theorem.  Let r, s : ℚ.  Suppose that r ≠ 0 and s ≠ 0.  Then r · s ≠ 0.
+
+Proof.  There are some a, b, c, d : ℤ such that r = q(a, b) and s = q(c, d) and b ≠ 0 and d ≠ 0.  Now
+
+    r · s = q(a, b) · q(c, d) = q(ac, bd).
+
+Since r ≠ 0 and r = q(a, b), it follows by [0 if numerator is 0] that a ≠ 0.  Likewise, since s ≠ 0 and s = q(c, d) we know that c ≠ 0.  Since a ≠ 0 and c ≠ 0 by [zero product on ℤ] we conclude that ac ≠ 0.  Hence q(ac, bd) ≠ 0, so r · s = q(ac, bd) ≠ 0.
+
+Theorem.  0: ℚ ≠ 1.

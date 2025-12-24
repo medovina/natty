@@ -124,7 +124,7 @@ Proof.
               = z(n, j) by [def of ·]
               = a.
     
-Theorem.  Let a, b : ℤ.  If a ≠ 0 and b ≠ 0, then a · b ≠ 0.  [zero product]
+Theorem.  Let a, b : ℤ.  If a ≠ 0 and b ≠ 0, then a · b ≠ 0.  [zero product on ℤ]
 
 Proof.  Assume that a ≠ 0 and b ≠ 0.  There are some n, j, k, i : ℕ such that a = z(n, j) and b = z(k, i).  It follows that n ≠ j and k ≠ i.  Since k ≠ i, by [trichotomy] k < i or i < k.
 
@@ -228,7 +228,7 @@ Theorem (left cancel · in ℤ).  Let x, y, z : ℤ.
 
     If x · y = x · z and x ≠ 0, then y = z.
 
-Proof.  Assume that x · y = x · z and x ≠ 0.  Then x · y − x · z = 0 by [subtract to 0 iff equal].  Hence x · (y − z) = 0 by [left distribute −].  Since x ≠ 0, by [zero product] we have y − z = 0.  Then y = z by [subtract to 0 iff equal].
+Proof.  Assume that x · y = x · z and x ≠ 0.  Then x · y − x · z = 0 by [subtract to 0 iff equal].  Hence x · (y − z) = 0 by [left distribute −].  Since x ≠ 0, by [zero product on ℤ] we have y − z = 0.  Then y = z by [subtract to 0 iff equal].
 
 # Ordering
 

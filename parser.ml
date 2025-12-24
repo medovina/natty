@@ -645,7 +645,7 @@ let will_show =
 let assert_step : proof_step list p =
   choice [
     optional have >>? proof_if_prop;
-    pipe2 (single because_prop) (opt_str "," >> proof_prop) (@);
+    optional have >>? pipe2 (single because_prop) (opt_str "," >> proof_prop) (@);
     will_show >> proposition >>$ [];
     str "The result follows" >> by_reason >>$ [];
     optional and_or_so >>? have_contradiction;
