@@ -4,7 +4,7 @@ using int;
 
 Axiom.  There exists a type ℚ (the rational numbers) with a function q : ℤ ⨯ ℤ → ℚ such that
 
-    a. Let a, b, c, d : ℤ.  Suppose that b ≠ 0 and d ≠ 0.  q(a, b) = q(c, d) if and only if ad = bc.
+    a. Let a, b, c, d : ℤ.  Suppose that b ≠ 0 and d ≠ 0.  q(a, b) = q(c, d) if and only if ad = bc.  [equality on ℚ]
     b. For all r : ℚ there exist some a, b : ℤ such that r = q(a, b) and b ≠ 0.
 
 Definition.  Let 0 : ℚ = q(0, 1).  Let 1 : ℚ = q(1, 1).
@@ -18,7 +18,7 @@ Lemma.  Let a, b: ℤ with b ≠ 0.
 
 Axiom.  There is a binary operation + : ℚ → ℚ → ℚ such that for all a, b, c, d : ℤ with b ≠ 0 and d ≠ 0,
 
-    q(a, b) + q(c, d) = q(ad + bc, bd).
+    q(a, b) + q(c, d) = q(ad + bc, bd).   [addition on ℚ]
 
 Axiom.  There is a unary operation − : ℚ → ℚ such that for all a, b : ℤ with b ≠ 0,
 
@@ -41,6 +41,7 @@ Theorem.  Let r, s, t : ℚ.
     e. r · (s · t) = (r · s) · t.
     f. r · 1 = r.
     g. r · s = s · r.
+    h. r · (s + t) = r · s + r · t.
 
 Proof.
 
@@ -91,3 +92,18 @@ Proof.
 
         r · s = q(ac, bd).
         s · r = q(ca, db) = q(ac, bd).
+
+    h. There are some a, b, c, d, e, f : ℤ such that r = q(a, b) and s = q(c, d) and t = q(e, f) and b ≠ 0 and d ≠ 0 and f ≠ 0.
+
+        r · (s + t) = q(a, b) · q(cf + de, df)
+                       = q(a(cf + de), b(df))
+                       = q(acf + ade, b(df)).
+
+        r · s + r · t = q(a, b) · q(c, d) + q(a, b) · q(e, f)
+                         = q(ac, bd) + q(ae, bf)
+                         = q(acbf + aebd, b²df) by [addition on ℚ]
+                         = q(b(acf + ade), b²df).
+
+    But
+
+        q(acf + ade, b(df)) = q(b(acf + ade), b²df) by [equality on ℚ].
