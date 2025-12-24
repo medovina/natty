@@ -108,7 +108,7 @@ let thf_statement is_conjecture stmt : string =
       (quote (stmt_prefix_id "_" stmt)) kind (thf_formula f) suffix in
   let conv stmt = match stmt with
     | ConstDecl (id, typ) -> const id typ
-    | Axiom (_, f, _) -> axiom (stmt_prefix_id "_" stmt) "axiom" f
+    | Axiom { formula = f; _ } -> axiom (stmt_prefix_id "_" stmt) "axiom" f
     | Hypothesis (_, f) -> thm_or_hyp stmt "hypothesis" [] f
     | Definition (id, _typ, f) -> axiom (id ^ "_def") "definition" f
     | Theorem { formula = f; by; _ } ->

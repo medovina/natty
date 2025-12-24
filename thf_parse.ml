@@ -116,7 +116,7 @@ let thf_formula last_const : (id * statement) p = empty >>?
       | _ ->
         let p = match role with
           | "axiom" | "theorem"  ->
-              formula |>> fun f -> Axiom (id, f, None)
+              formula |>> fun f -> Axiom { id; formula = f; name = None }
           | "definition" ->
               formula |>> fun f -> Definition (last_const, unknown_type, f)
           | "hypothesis" ->

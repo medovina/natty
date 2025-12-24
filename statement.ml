@@ -9,8 +9,9 @@ type str = string
 
 type statement =
   | ConstDecl of id * typ
-  | Axiom of id * formula * string option (* id, formula, name *)
-  | Hypothesis of id * formula
+  | Axiom of
+      { id: string; formula: formula; name: string option }
+  | Hypothesis of string * formula
   | Definition of id * typ * formula
   | Theorem of
       { id: string; name: string option; formula: formula;
@@ -34,7 +35,7 @@ let is_step = function
   | _ -> false
 
 let stmt_id = function
-  | ConstDecl (id, _) | Axiom (id, _, _)
+  | ConstDecl (id, _) | Axiom { id; _ }
   | Hypothesis (id, _) | Definition (id, _, _)
   | Theorem { id; _ } -> id
 
@@ -53,7 +54,7 @@ let stmt_prefix_id sep stmt = stmt_prefix stmt ^ sep ^ stmt_id stmt
 let stmt_ref = stmt_prefix_id ":"
 
 let stmt_name = function
-  | Axiom (_, _, name) -> name
+  | Axiom { name; _ } -> name
   | Theorem { name; _ } -> name
   | _ -> None
 
@@ -67,7 +68,7 @@ let stmt_kind = function
 let stmt_id_name stmt : string =
   let base = stmt_kind stmt ^ " " ^ strip_prefix (stmt_id stmt) in
   match stmt with
-  | Axiom (_, _, name)
+  | Axiom { name; _ }
   | Theorem { name; _ } -> 
       base ^ (match name with
         | Some name -> sprintf " (%s)" name
@@ -75,7 +76,7 @@ let stmt_id_name stmt : string =
   | _ -> base
 
 let stmt_formula stmt : formula option = match stmt with
-  | Axiom (_, f, _) | Hypothesis (_, f) | Theorem { formula = f; _ } -> Some f
+  | Axiom { formula = f; _ } | Hypothesis (_, f) | Theorem { formula = f; _ } -> Some f
   | Definition (_id, _typ, f) -> Some f
   | _ -> None
 
@@ -95,7 +96,7 @@ let show_statement multi s : string =
     | ConstDecl (id, Type) -> "type " ^ id
     | ConstDecl (id, typ) ->
         sprintf "const %s : %s" (without_type_suffix id) (show_type typ)
-    | Axiom (_, f, _) | Hypothesis (_, f) -> show (name ^ ": ") f
+    | Axiom { formula = f; _ } | Hypothesis (_, f) -> show (name ^ ": ") f
     | Definition (id, typ, f) ->
         let prefix =
           sprintf "definition (%s: %s): " (without_type_suffix id) (show_type typ) in
@@ -105,7 +106,7 @@ let show_statement multi s : string =
 let rec map_statement1 id_fn typ_fn fn stmt =
   match stmt with
   | ConstDecl (id, typ) -> ConstDecl (id_fn typ id, typ_fn typ)
-  | Axiom (id, f, name) -> Axiom (id, fn f, name)
+  | Axiom { id; formula; name } -> Axiom { id; formula = fn formula; name }
   | Hypothesis (id, f) -> Hypothesis (id, fn f)
   | Definition (id, typ, f) -> Definition (id_fn typ id, typ_fn typ, fn f)
   | Theorem ({ formula = f; steps = esteps; _ } as thm) ->
