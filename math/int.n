@@ -291,7 +291,7 @@ Theorem.  Let a, b : ℤ.  a < b if and only if b − a > 0.
 
 Proof.  There are some n, j, k, i : ℕ such that a = z(n, j) and b = z(k, i).  So −a = z(j, n).  Then b − a = b + (−a) = z(k, i) + z(j, n) = z(k + j, i + n).
 
-If a < b then z(n, j) < z(k, i), so n + i < j + k, so b − a > 0.  If b − a > 0 then n + i < j + k, so z(n, j) < z(k, i), so a < b.
+If a < b then z(n, j) < z(k, i), so n + i < j + k, so b − a > 0.  If b − a > 0 then z(k, i) − z(n, j) > 0, so n + i < j + k, so z(n, j) < z(k, i), so a < b.
 
 # Axioms of an ordered integral domain
 

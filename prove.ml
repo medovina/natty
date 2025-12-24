@@ -545,8 +545,9 @@ let is_def_expansion parents =
 
 let is_hyp_expansion parents =
   not (at_limit parents _expand_hyp hyp_expand_limit) &&
-  match opt_or_opt (find_opt orig_goal parents)
-                   (find_opt (fun p -> orig_hyp p && p.hypothesis = 1) parents) with
+  (* match opt_or_opt (find_opt orig_goal parents)
+                   (find_opt (fun p -> orig_hyp p && p.hypothesis = 1) parents) with *)
+  match find_opt orig_goal parents with
     | Some last ->
         let i = if last.goal then 1 else 2 in (
         match (parents |> find_opt (fun p -> p.hypothesis >= i)) with
