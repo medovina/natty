@@ -650,7 +650,7 @@ let all_super1 dp cp : pformula list =
   let d_steps, c_steps = clausify_steps dp, clausify_steps cp in
   let+ (dp, d_steps, cp, c_steps) =
     [(dp, d_steps, cp, c_steps); (cp, c_steps, dp, d_steps)] in
-  if (dp.ac = Some Assoc || dp.ac = Some Extra) && not cp.destruct then [] else
+  if dp.ac = Some Assoc || dp.ac = Some Extra then [] else
   let+ (d_lits, new_lits, _) = d_steps in
   let d_lits, new_lits = map prefix_vars d_lits, map prefix_vars new_lits in
   let+ t_t' = new_lits in
@@ -658,7 +658,7 @@ let all_super1 dp cp : pformula list =
   let+ (c_lits, _, exposed_lits) = c_steps in
   let+ c_lit = exposed_lits in
   let with_para = !(opts.all_superpositions) || (
-    dp.ac = Some Comm || dp.ac = Some Assoc || def_expand || hyp_expand ||
+    def_expand || hyp_expand ||
     allow cp && (not !step_strategy ||
                  is_unit_equality dp.formula ||
                  is_conditioned_equality dp.formula && cp.goal ||
