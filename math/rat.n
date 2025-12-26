@@ -173,15 +173,18 @@ Theorem.  Let u, v, x, y, z: ℚ.
     a. (1 : ℚ)⁻¹ = 1.
     b. If x ≠ 0 then x⁻¹ ≠ 0.
     c. If x ≠ 0 then (x⁻¹)⁻¹ = x.
-    d. If x ≠ 0 then x⁻¹ = 1 / x.
+    d. If x ≠ 0 then x⁻¹ = 1 / x.  [x⁻¹ is reciprocal]
     e. If x ≠ 0 and y ≠ 0 then (x · y)⁻¹ = x⁻¹ · y⁻¹.
     f. x / 1 = x.
     g. If x ≠ 0 then 0 / x = 0.
-    h. If x ≠ 0 then x / x = 1.
+    h. If x ≠ 0 then x / x = 1.  [ratio of x and x is 1]
     i. Suppose that y ≠ 0.  Then z · y = x if and only if z = x / y.
-    j. If y ≠ 0 and v ≠ 0 then (x / y) · (u / v) = (x · u) / (y · v).
+    j. If y ≠ 0 and v ≠ 0 then (x / y) · (u / v) = (x · u) / (y · v).  [quotient multiply]
     k. If y ≠ 0 and v ≠ 0 then x / y = (x · v) / (y · v).
     l. If y ≠ 0 and v ≠ 0 then x / y + u / v = (x · v + y · u) / (y · v).
+    m. Suppose that y ≠ 0 and v ≠ 0.  Then x / y = u / v if and only if x · v = y · u.
+    n. If x ≠ 0 and y ≠ 0 then 1 / (x / y) = y / x.  [reciprocal of fraction]
+    o. If y ≠ 0 and u ≠ 0 and v ≠ 0 then (x / y) / (u / v) = (x · v) / (y · u).
 
 Proof.
 
@@ -212,3 +215,30 @@ Proof.
                                           = x · y⁻¹ · (v · v⁻¹) + u · v⁻¹ · (y · y⁻¹)
                                           = x · y⁻¹ · 1 + u · v⁻¹ · 1
                                           = x · y⁻¹ + u · v⁻¹ = x / y + u / v.
+
+    m. Suppose that x / y = u / v. Then x · y⁻¹ = u · v⁻¹.  Hence
+
+        x · y⁻¹ · y · v = u · v⁻¹ · y · v.
+                x · 1 · v = u · v⁻¹ · v · y.
+                     x · v = u · 1 · y = y · u.
+
+    Now suppose that x · v = y · u.  Then
+
+                x · 1 · v = u · (v⁻¹ · v) · y.
+        x · y⁻¹ · y · v = u · v⁻¹ · y · v.
+                  x · y⁻¹ = u · v⁻¹.
+
+    And so x / y = u / v.
+
+    n.  Suppose that x ≠ 0 and y ≠ 0.  Notice that
+
+        (x / y) · (y / x) = (x · y) / (y · x)  by [quotient multiply]
+                               = 1  by [ratio of x and x is 1].
+
+    Hence y / x = (x / y)⁻¹.  We know that x / y ≠ 0, so by [x⁻¹ is reciprocal] (x / y)⁻¹ = 1 / (x / y), so y / x = 1 / (x / y).
+
+    o. Suppose that y ≠ 0 and u ≠ 0 and v ≠ 0.  Then
+    
+        (x / y) / (u / v) = (x / y) · (u / v)⁻¹
+                               = (x / y) · (v / u)  by [reciprocal of fraction]
+                               = (x · v) / (y · u).
