@@ -24,8 +24,9 @@ let is_hypothesis = function
 let is_definition = function
   | Definition _ -> true | _ -> false
 
-let defined_symbol = function
+let stmt_defined = function
   | Definition (c, _, _) -> Some c
+  | Axiom { defined = Some (c, _); _ } -> Some c
   | _ -> None
 
 let is_theorem = function

@@ -536,6 +536,7 @@ let is_def_expansion parents =
   not (at_limit parents _expand_def def_expand_limit) &&
   let defined = find_map (fun p -> p.defined) parents in
   let last = parents |> find_opt (fun p -> orig_goal p || orig_hyp p) in
+(*  let last = parents |> find_opt orig_goal_or_last_hyp in *)
   match defined, last with
     | Some def, Some last ->
         let goal_consts =
@@ -545,16 +546,10 @@ let is_def_expansion parents =
 
 let is_hyp_expansion parents =
   not (at_limit parents _expand_hyp hyp_expand_limit) &&
-  (* match opt_or_opt (find_opt orig_goal parents)
-                   (find_opt (fun p -> orig_hyp p && p.hypothesis = 1) parents) with *)
-  match find_opt orig_goal parents with
-    | Some last ->
-        let i = if last.goal then 1 else 2 in (
-        match (parents |> find_opt (fun p -> p.hypothesis >= i)) with
-          | Some hyp ->
-              overlap (eq_terms (remove_exists hyp.formula))
-                      (map fst (green_subterms last.formula))
-          | _ -> false)
+  match find_opt orig_goal parents, find_opt is_hyp parents with
+    | Some last, Some hyp ->
+        overlap (eq_terms (remove_exists hyp.formula))
+                (map fst (green_subterms last.formula))
     | _ -> false
 
 let is_by parents = 
@@ -1319,6 +1314,18 @@ let find_or_equal_ops stmts : id list =
   let& (c, _) = opt_to_list (def_is_or_equal f) in
   c
 
+let defined_symbol defined_symbols stmt : id option = match stmt with
+  | Definition (c, _, _) -> Some c
+  | Axiom { formula = f; defined = Some (c, _); _ }
+      when count_eq c defined_symbols = 1 -> (
+      match last (gather_implies (remove_for_all f)) with
+        | Eq (g, h) when weight h > weight g -> (
+            match collect_args g with
+              | Const (c', _), _ when c = c' -> Some c
+              | _ -> None)
+        | _ -> None)
+  | _ -> None
+
 let gen_pformulas thm all_known local_known : pformula list =
   let by_thms = all_known |> filter (fun s -> mem (stmt_ref s) (thm_by thm)) in
   let by_contradiction = (stmt_formula thm = Some _false) in
@@ -1327,6 +1334,7 @@ let gen_pformulas thm all_known local_known : pformula list =
     let+ s = filter is_definition all_known in
     opt_to_list (const_def (get_stmt_formula s)) in
   let proof_consts = find_proof_consts thm all_known local_known by_thms hyps const_map in
+  let defined_symbols = filter_map stmt_defined all_known in
   let scan ops stmt : (ac_type * str * typ) list * pformula list =
     match stmt_formula stmt with
       | None -> (ops, [])
@@ -1347,7 +1355,7 @@ let gen_pformulas thm all_known local_known : pformula list =
           let p = { (to_pformula (stmt_id_name stmt) f)
             with hypothesis = hyp;
                  definition;
-                 defined = defined_symbol stmt;
+                 defined = defined_symbol defined_symbols stmt;
                  by; ac = kind;
                  safe_for_rewrite = definition && is_safe_for_rewrite f } in
           dbg_newline ();
