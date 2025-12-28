@@ -170,6 +170,7 @@ let goal_or_hyp p = p.goal || is_hyp p
 let goal_or_last_hyp p = p.goal || p.hypothesis = 1
 
 let orig_hyp p = is_hyp p && not p.derived
+let orig_last_hyp p = p.hypothesis = 1 && not p.derived
 let orig_goal p = p.goal && not p.derived
 let orig_by p = p.by && not p.derived
 let orig_goal_or_last_hyp p = goal_or_last_hyp p && not p.derived
@@ -536,7 +537,6 @@ let is_def_expansion parents =
   not (at_limit parents _expand_def def_expand_limit) &&
   let defined = find_map (fun p -> p.defined) parents in
   let last = parents |> find_opt (fun p -> orig_goal p || orig_hyp p) in
-(*  let last = parents |> find_opt orig_goal_or_last_hyp in *)
   match defined, last with
     | Some def, Some last ->
         let goal_consts =
@@ -1023,7 +1023,7 @@ let rw_simplify cheap src queue used found p0 : pformula option =
   let taut = is_tautology p.formula in
   if taut || is_ac_tautology p.formula then (
     if !debug > 1 || !debug = 1 && src <> "generated" then (
-      printf "%s %stautology: " src (if taut then "" else "ac ");
+      printf "%s is %stautology: " src (if taut then "" else "ac ");
       if p1.formula <> p.formula then printf "%s ==> " (show_formula p1.formula);
       print_formula true "" p
     );
@@ -1033,7 +1033,7 @@ let rw_simplify cheap src queue used found p0 : pformula option =
     match (if cheap then None else any_subsumes !used p) with
       | Some pf ->
           if !debug > 0 then (
-            let prefix = sprintf "%s subsumed by #%d: " src pf.id in
+            let prefix = sprintf "%s was subsumed by #%d: " src pf.id in
             print_line (prefix_show prefix p.formula));
           if p.id > 0 then remove_from_map found p;
           None
@@ -1055,12 +1055,14 @@ let rw_simplify cheap src queue used found p0 : pformula option =
                       printf "#%d: rewritten clause is duplicate of original\n" p0.id;
                     Some p0
                 | Some pf ->
-                    if p.by || orig_goal p && not (orig_goal pf) || cost < pf.cost then (
+                    let keep = p.by ||
+                      orig_goal_or_last_hyp p && not (orig_goal_or_last_hyp pf) in
+                    if keep || cost < pf.cost then (
                       let p = final () in
                       if !debug > 0 then
-                        if p.by || orig_goal p then
-                          printf "%s (%s) is a duplicate of #%d; replacing it\n"
-                            src (if p.by then "by" else "goal") pf.id
+                        if keep then
+                          let explain = if p.by then "by" else if p.goal then "goal" else "last hyp" in
+                          printf "%s (%s) is a duplicate of #%d; replacing it\n" src explain pf.id
                         else printf "(%d is a duplicate of %d; replacing with lower cost of %.2f)\n"
                           p.id pf.id p.cost;
                       if PFQueue.mem (Unprocessed pf) !queue then
@@ -1090,7 +1092,7 @@ let szs = function
   | Stopped -> "Stopped"
                   
 let forward_simplify queue used found p : pformula option = profile @@
-  rw_simplify false (sprintf "given (#%d) is" p.id) queue used found p
+  rw_simplify false (sprintf "given (#%d)" p.id) queue used found p
   
 let back_simplify found from used : pformula list = profile @@
   let back_simp p : pformula list * pformula list =
