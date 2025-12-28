@@ -1290,15 +1290,16 @@ let const_def f : (id * id) option =
   opt_or_opt (def_is_synonym f)
     (opt_or_opt (def_is_or_equal f) (def_is_atomic f))
 
-let find_proof_consts thm all_known local_known by_thms hyps const_map =
+let find_proof_consts thm all_known local_known by_thms hyps const_map : id list =
   let main_premises = map get_stmt_formula (thm :: by_thms @ hyps) in
   let proof_consts = unique (concat_map (consts_of const_map) main_premises) in
   let proof_types = unique (concat_map formula_base_types main_premises) in
   let extra =
     if !step_strategy then
       all_known |> concat_map (function
-        | Definition (c, _, f) when mem c proof_consts ->
-            if subset (formula_base_types f) proof_types
+        | Axiom { formula = f ; defined = Some (c, _); _ } 
+        | Definition (c, _, f) ->
+            if mem c proof_consts && subset (formula_base_types f) proof_types
               then consts_of const_map f else []
         | _ -> [])
     else
@@ -1344,7 +1345,7 @@ let gen_pformulas thm all_known local_known : pformula list =
           let kind_op = ac_kind f in
           if not ( by || is_hypothesis stmt ||
                    use_premise const_map proof_consts f
-                               definition (is_some kind_op) (stmt_name stmt))
+                               (is_definitional stmt) (is_some kind_op) (stmt_name stmt))
           then (ops, []) else
           let kind = Option.map (fun (kind, _, _, _) -> kind) kind_op in
           let hyp = match index_of_opt stmt hyps with

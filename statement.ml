@@ -29,6 +29,8 @@ let stmt_defined = function
   | Axiom { defined = Some (c, _); _ } -> Some c
   | _ -> None
 
+let is_definitional stmt = is_some (stmt_defined stmt)
+
 let is_theorem = function
   | Theorem _ -> true | _ -> false
 
