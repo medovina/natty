@@ -172,6 +172,7 @@ let goal_or_last_hyp p = p.goal || p.hypothesis = 1
 let orig_hyp p = is_hyp p && not p.derived
 let orig_last_hyp p = p.hypothesis = 1 && not p.derived
 let orig_goal p = p.goal && not p.derived
+let orig_goal_or_hyp p = goal_or_hyp p && not p.derived
 let orig_by p = p.by && not p.derived
 let orig_goal_or_last_hyp p = goal_or_last_hyp p && not p.derived
 
@@ -533,27 +534,26 @@ let at_limit parents kind limit =
   let e = concat_map expansions parents in
   length e >= expand_limit || count_eq kind e >= limit
 
-let is_def_expansion parents =
+let is_def_expansion dp cp =
+  let parents = [dp; cp] in
   not (at_limit parents _expand_def def_expand_limit) &&
-  let defined = find_map (fun p -> p.defined) parents in
-  let last = parents |> find_opt (fun p -> orig_goal p || orig_hyp p) in
-  match defined, last with
-    | Some def, Some last ->
-        let goal_consts =
-          if orig_goal last then all_consts last.formula else top_consts last in
-        mem def goal_consts
-    | _ -> false
+  dp.defined |> opt_exists (fun def ->
+    orig_goal_or_hyp cp &&
+    let goal_consts =
+      if orig_goal cp then all_consts cp.formula else top_consts cp in
+    mem def goal_consts)
 
-let is_hyp_expansion parents =
+let is_hyp_expansion dp cp =
+  let parents = [dp; cp] in
   not (at_limit parents _expand_hyp hyp_expand_limit) &&
-  match find_opt orig_goal parents, find_opt is_hyp parents with
-    | Some last, Some hyp ->
-        overlap (eq_terms (remove_exists hyp.formula))
-                (map fst (green_subterms last.formula))
-    | _ -> false
+  orig_goal_or_last_hyp cp &&
+  dp.hypothesis >= (if cp.goal then 1 else 2) &&
+  overlap (eq_terms (remove_exists dp.formula))
+          (map fst (green_subterms cp.formula))
 
 let is_by parents = 
-  concat_map expansions parents = [] && exists orig_goal parents && exists orig_by parents
+  concat_map expansions parents = [] &&
+  exists orig_goal_or_last_hyp parents && exists orig_by parents
 
 let is_last_hyp_to_goal parents =
   concat_map expansions parents = [] &&
@@ -635,17 +635,17 @@ let is_unit_equality f = is_eq (remove_for_all f)
 let is_conditioned_equality f = is_eq (last (gather_implies (remove_for_all f)))
 
 let all_super1 dp cp : pformula list =
+  let d_steps, c_steps = clausify_steps dp, clausify_steps cp in
+  let+ (dp, d_steps, cp, c_steps) =
+    [(dp, d_steps, cp, c_steps); (cp, c_steps, dp, d_steps)] in
   let by = is_by [dp; cp] in
-  let def_expand = is_def_expansion [dp; cp] in
-  let hyp_expand = is_hyp_expansion [dp; cp] in
+  let def_expand = is_def_expansion dp cp in
+  let hyp_expand = is_hyp_expansion dp cp in
   let upward = hyp_expand in
   let lenient = by || def_expand || orig_goal cp in
   let rule =
     if def_expand then _expand_def
     else if hyp_expand then _expand_hyp else "" in
-  let d_steps, c_steps = clausify_steps dp, clausify_steps cp in
-  let+ (dp, d_steps, cp, c_steps) =
-    [(dp, d_steps, cp, c_steps); (cp, c_steps, dp, d_steps)] in
   if dp.ac = Some Assoc || dp.ac = Some Extra then [] else
   let+ (d_lits, new_lits, _) = d_steps in
   let d_lits, new_lits = map prefix_vars d_lits, map prefix_vars new_lits in
@@ -657,7 +657,7 @@ let all_super1 dp cp : pformula list =
     def_expand || hyp_expand ||
     allow cp && (not !step_strategy ||
                  is_unit_equality dp.formula ||
-                 is_conditioned_equality dp.formula && cp.goal ||
+                 is_conditioned_equality dp.formula && goal_or_last_hyp cp ||
                  is_last_hyp_to_goal [cp; dp])) in
   super rule with_para lenient upward dp (remove1 t_t' d_lits) pairs cp c_lits c_lit
 
