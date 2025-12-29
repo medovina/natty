@@ -278,11 +278,14 @@ Proof.  By [trichotomy on ℤ] we know that y < 0 or y > 0.
                    > q(0, 1) by [definition of < on ℚ]
                    = 0. 
 
+# Here we prove that (ℚ, +, ·, <) is an integral domain, so ℚ is an ordered field.
+
 Theorem.  Let r, s : ℚ.
 
     a. 0 : ℚ ≯ 0.
     b. r > 0 or r = 0 or −r > 0.
     c. If r > 0 and s > 0 then r + s > 0.
+    d. If r > 0 and s > 0 then r · s > 0.
 
 Proof.
 
@@ -293,3 +296,5 @@ Proof.
         r + s = q(x · v + y · u, y · v).
 
     But (x · v + y · u) · (y · v) = (x · y) · v² + y² · (u · v).  Since v ≠ 0 and y ≠ 0, it follows that v² > 0 and y² > 0.  Hence (x · y) · v² > 0 and y² · (u · v) > 0.  Therefore (x · y) · v² + y² · (u · v) > 0.  So (x · v + y · u) · (y · v) > 0, so by [rational positive] r + s > 0.
+
+    d. Assume that r > 0 and s > 0.  There are some x, y, u, v : ℤ such that r = q(x, y) and s = q(u, v) and y ≠ 0 and v ≠ 0.  Then r · s = q(x · u, y · v).  Now, (x · u) · (y · v) = (x · y) · (u · v).  By [rational positive] x · y > 0 and u · v > 0, so (x · y) · (u · v) > 0.  So (x · u) · (y · v) > 0, hence by [rational positive] r · s > 0.
