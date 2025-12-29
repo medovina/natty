@@ -24,6 +24,10 @@ Axiom.  There is a unary operation − : ℚ → ℚ such that for all a, b : �
 
     −q(a, b) = q(−a, b).
 
+Lemma.  Let r : ℚ.  There exist a, b : ℤ such that r = q(a, b) and b > 0.   [denominator positive]
+
+Proof.  We know that there exist c, d : ℤ such that r = q(c, d) and d ≠ 0.  By [trichotomy on ℤ] either d > 0 or d < 0.  If d < 0 then −d > 0, so r = q(−c, −d) by [equality on ℚ].
+
 # Multiplication
 
 Axiom.  There is a binary operation · : ℚ → ℚ → ℚ such that for all a, b, c, d : ℤ with b ≠ 0 and d ≠ 0,
@@ -156,11 +160,15 @@ Proof.
 
 Axiom.  There exists a binary operation ^ : ℚ → ℤ → ℚ such that for all x : ℚ, if x ≠ 0 then
 
-    x · x⁻¹ = 1.
+    x · x⁻¹ = 1.  [inverse product]
 
 Lemma.  Let x, y : ℚ.  Suppose that x · y = 1.  Then x = y⁻¹.
 
 Proof.  If y = 0 then x · y = 0, which is a contradiction.  So y ≠ 0.  Then y · y⁻¹ = 1.  By [unique inverses] x = y⁻¹. 
+
+Lemma.  Let x, y, z : ℚ.  Suppose that x · y = x · z and x ≠ 0.  Then y = z.
+
+Proof.  x⁻¹ · (x · y) = x⁻¹ · (x · z), so (x⁻¹ · x) · y = (x⁻¹ · x) · z, so 1 · y = 1 · z by [inverse product], so y = z.
 
 Axiom.  There exists a binary operation / :  ℚ → ℚ → ℚ such that for all x, y : ℚ, if y ≠ 0 then
 
@@ -242,3 +250,46 @@ Proof.
         (x / y) / (u / v) = (x / y) · (u / v)⁻¹
                                = (x / y) · (v / u)  by [reciprocal of fraction]
                                = (x · v) / (y · u).
+
+# Ordering
+
+Axiom.  There is a relation < : ℚ → ℚ → 𝔹 such that for all x, y, u, v : ℤ with y > 0 and v > 0,
+
+    q(x, y) < q(u, v) if and only if x · v < u · y.  [definition of < on ℚ]
+
+Definition.  For all r, s : ℚ, r ≤ s iff r < s or r = s.
+
+Definition.  For all r, s : ℚ, we write r > s iff s < r.  We write r ≥ s iff s ≤ r.
+
+Theorem (rational positive).  Let x, y : ℤ.  Suppose that y ≠ 0.  Then q(x, y) > 0 if and only if x · y > 0.
+
+Proof.  By [trichotomy on ℤ] we know that y < 0 or y > 0.
+
+    Suppose that q(x, y) > 0.  If y > 0 then q(x, y) > q(0, 1), so x > 0, so x · y > 0.  If y < 0 then
+    
+        q(−x, −y) = q(x, y)  by [equality on ℚ]
+                        > q(0, 1),
+                        
+    so by [definition of < on ℚ] −x > 0, so x < 0, so x · y > 0.
+
+    Now suppose that x · y > 0.  If y > 0 then x > 0, so q(x, y) > q(0, 1) = 0.  If y < 0 then x < 0, so −x > 0, so
+    
+        q(x, y) = q(−x, −y)
+                   > q(0, 1) by [definition of < on ℚ]
+                   = 0. 
+
+Theorem.  Let r, s : ℚ.
+
+    a. 0 : ℚ ≯ 0.
+    b. r > 0 or r = 0 or −r > 0.
+    c. If r > 0 and s > 0 then r + s > 0.
+
+Proof.
+
+    b. By [denominator positive] there are some x, y : ℤ such that r = q(x, y) and y > 0.  By [trichotomy on ℤ] either x = 0 or x > 0 or x < 0.  If x = 0 then r = 0.  If x > 0 then q(x, y) > q(0, 1), so r > 0.  If x < 0 then −x > 0, so (−x) · y > 0, so q(−x, y) > 0, so −r > 0.
+
+    c. Assume that r > 0 and s > 0.  By [denominator positive] there are some x, y, u, v : ℤ such that r = q(x, y) and s = q(u, v) and y > 0 and v > 0.  Since r > 0 we have x > 0, so x · y > 0.  Similarly, since s > 0 we know that u > 0, so u · v > 0.  So x · y + u · v > 0.  Now
+
+        r + s = q(x · v + y · u, y · v).
+
+    But (x · v + y · u) · (y · v) = (x · y) · v² + y² · (u · v).  Since v ≠ 0 and y ≠ 0, it follows that v² > 0 and y² > 0.  Hence (x · y) · v² > 0 and y² · (u · v) > 0.  Therefore (x · y) · v² + y² · (u · v) > 0.  So (x · v + y · u) · (y · v) > 0, so by [rational positive] r + s > 0.
