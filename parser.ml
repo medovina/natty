@@ -337,7 +337,7 @@ and atomic s : formula pr = (choice [
   let> e = expr in
   let$ f = choice [
     any_str ["is true"; "always holds"] >>$ Fun.id;
-    any_str ["is"; "must be"; "must also be"] >>? predicate;
+    any_str ["is also"; "is"; "must be"; "must also be"] >>? predicate;
     return Fun.id
    ] in
   f e;

@@ -282,9 +282,12 @@ and infer_formula env vars formula : typ * formula =
           check range vars tsubst (quant1 q x typ g)
       | App (Const ("{}", _), f) -> check range vars tsubst f
       | App (f, g) ->
-          let all =
+          let possible = 
             let+ (tsubst, t, f) = check range vars tsubst f in
-            let+ (tsubst, u, g) = check range vars tsubst g in (
+            let& (tsubst, u, g) = check range vars tsubst g in
+            (tsubst, t, u, f, g) in
+          let all =
+            let+ (tsubst, t, u, f, g) = possible in
             match t with
               | Fun (v, w) -> (
                   match unify_types_or_pi is_var tsubst v u with
@@ -292,9 +295,13 @@ and infer_formula env vars formula : typ * formula =
                     | None -> [])
               | _ ->
                   let h = apply [Var ("·", unknown_type); f; g] in
-                  check range vars tsubst h) in (
+                  check range vars tsubst h in (
           match all with
-            | [] -> errorf "can't apply" formula range
+            | [] ->
+                possible |> iter (fun (_, t, u, f, g) ->
+                  printf "f = %s : %s, g = %s : %s\n"
+                    (show_formula f) (show_type t) (show_formula g) (show_type u));
+                errorf "can't apply" formula range
             | [sol] -> [sol]
             | _ ->
                 let types = all |> map (fun (tsubst, typ, _) -> subst_types tsubst typ) in
