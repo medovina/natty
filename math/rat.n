@@ -2,37 +2,37 @@ using int;
 
 # Rational numbers: definition
 
-Axiom.  There exists a type ℚ (the rational numbers) with a function q : ℤ ⨯ ℤ → ℚ such that
+Axiom.  There exists a type ℚ (the rational numbers) with a function / : ℤ → ℤ → ℚ such that
 
-    a. Let a, b, c, d : ℤ.  Suppose that b ≠ 0 and d ≠ 0.  q(a, b) = q(c, d) if and only if ad = bc.  [equality on ℚ]
-    b. For all r : ℚ there exist some a, b : ℤ such that r = q(a, b) and b ≠ 0.
+    a. Let a, b, c, d : ℤ.  Suppose that b ≠ 0 and d ≠ 0.  a / b = c / d if and only if ad = bc.  [equality on ℚ]
+    b. For all r : ℚ there exist some a, b : ℤ such that r = a / b and b ≠ 0.
 
-Definition.  Let 0 : ℚ = q(0, 1).  Let 1 : ℚ = q(1, 1).
+Definition.  Let 0 : ℚ = 0 / 1.  Let 1 : ℚ = 1 / 1.  Let 2 : ℚ = 2 / 1.
 
 Lemma.  Let a, b: ℤ with b ≠ 0.
 
-    a. q(a, b) = 0 if and only if a = 0.  [0 if numerator is 0]
-    b. q(a, b) = 1 if and only if a = b.  [1 if numerator = denominator]
+    a. a / b = 0 if and only if a = 0.  [0 if numerator is 0]
+    b. a / b = 1 if and only if a = b.  [1 if numerator = denominator]
 
 # Addition
 
 Axiom.  There is a binary operation + : ℚ → ℚ → ℚ such that for all a, b, c, d : ℤ with b ≠ 0 and d ≠ 0,
 
-    q(a, b) + q(c, d) = q(ad + bc, bd).   [addition on ℚ]
+    a / b + c / d = (ad + bc) / bd.   [addition on ℚ]
 
 Axiom.  There is a unary operation − : ℚ → ℚ such that for all a, b : ℤ with b ≠ 0,
 
-    −q(a, b) = q(−a, b).
+    −(a / b) = −a / b.
 
-Lemma.  Let r : ℚ.  There exist a, b : ℤ such that r = q(a, b) and b > 0.   [denominator positive]
+Lemma.  Let r : ℚ.  There exist a, b : ℤ such that r = a / b and b > 0.   [denominator positive]
 
-Proof.  We know that there exist c, d : ℤ such that r = q(c, d) and d ≠ 0.  By [trichotomy on ℤ] either d > 0 or d < 0.  If d < 0 then −d > 0, so r = q(−c, −d) by [equality on ℚ].
+Proof.  We know that there exist c, d : ℤ such that r = c / d and d ≠ 0.  By [trichotomy on ℤ] either d > 0 or d < 0.  If d < 0 then −d > 0, so r = −c / −d by [equality on ℚ].
 
 # Multiplication
 
 Axiom.  There is a binary operation · : ℚ → ℚ → ℚ such that for all a, b, c, d : ℤ with b ≠ 0 and d ≠ 0,
 
-    q(a, b) · q(c, d) = q(ac, bd).
+    (a / b) · (c / d) = ac / bd.
 
 # Here we show that ℚ is a commutative ring.
 
@@ -50,68 +50,68 @@ Theorem.  Let r, s, t : ℚ.
 
 Proof.
 
-    a. There are some a, b, c, d, e, f : ℤ such that r = q(a, b) and s = q(c, d) and t = q(e, f) and b ≠ 0 and d ≠ 0 and f ≠ 0.
+    a. There are some a, b, c, d, e, f : ℤ such that r = a / b and s = c / d and t = e / f and b ≠ 0 and d ≠ 0 and f ≠ 0.
 
-        (r + s) + t = q(ad + bc, bd) + q(e, f)
-                         = q((ad + bc)f + bde, bdf).
+        (r + s) + t = (ad + bc) / bd + e / f
+                         = ((ad + bc)f + bde) / bdf.
 
     On the other hand,
 
-        r + (s + t) = q(a, b) + q(cf + de, df)
-                         = q(a(df) + b(cf + de), b(df)).
+        r + (s + t) = a / b + (cf + de) / (df)
+                         = (a(df) + b(cf + de)) / b(df).
 
     But (ad + bc)f + bde = adf + b(cf + de).  Hence,
 
         (r + s) + t = r + (s + t).
 
-    b. There are some a, b, c, d : ℤ such that r = q(a, b) and s = q(c, d) and b ≠ 0 and d ≠ 0.
+    b. There are some a, b, c, d : ℤ such that r = a / b and s = c / d and b ≠ 0 and d ≠ 0.
 
-        r + s = q(ad + bc, bd).
-        s + r = q(cb + da, db).
+        r + s = (ad + bc) / bd.
+        s + r = (cb + da) / db.
 
     Hence, r + s = s + r.
 
-    c. There are some a, b : ℤ such that r = q(a, b) and b ≠ 0.  Then r + 0 = q(a, b) + q(0, 1) = q(a · 1 + b · 0, b · 1) = q(a, b) = r.
+    c. There are some a, b : ℤ such that r = a / b and b ≠ 0.  Then r + 0 = a / b + 0 / 1 = (a · 1 + b · 0) / (b · 1) = a / b = r.
 
-    d. There are some a, b : ℤ such that r = q(a, b) and b ≠ 0. Then
+    d. There are some a, b : ℤ such that r = a / b and b ≠ 0. Then
     
-        r + −r = q(a, b) + q(−a, b)
-                   = q(ab + b(−a), b²)
-                   = q(ab − ab, b²) = q(0, b²) = 0.
+        r + −r = a / b + −a / b
+                   = (ab + b(−a)) / b²
+                   = (ab − ab) / b² = 0 / b² = 0.
     
-    e. There are some a, b, c, d, e, f : ℤ such that r = q(a, b) and s = q(c, d) and t = q(e, f) and b ≠ 0 and d ≠ 0 and f ≠ 0.
+    e. There are some a, b, c, d, e, f : ℤ such that r = a / b and s = c / d and t = e / f and b ≠ 0 and d ≠ 0 and f ≠ 0.
 
-        r · (s · t) = q(a, b) · q(ce, df)
-                      = q(a(ce), b(df)).
+        r · (s · t) = (a / b) · (ce / df)
+                      = a(ce) / b(df).
 
-        (r · s) · t = q(ac, bd) · q(e, f) = q((ac)e, (bd)f).
+        (r · s) · t = (ac / bd) · (e / f) = (ac)e / (bd)f.
 
     Hence r · (s · t) = (r · s) · t.
 
-    f. There are some a, b : ℤ such that r = q(a, b) and b ≠ 0. Then
+    f. There are some a, b : ℤ such that r = a / b and b ≠ 0. Then
 
-        r · 1 = q(a, b) · q(1, 1) = q(a · 1, b · 1)
-                = q(a, b) = r.
+        r · 1 = (a / b) · (1 / 1) = (a · 1) / (b · 1)
+                = a / b = r.
 
-    g. There are some a, b, c, d : ℤ such that r = q(a, b) and s = q(c, d) and b ≠ 0 and d ≠ 0.
+    g. There are some a, b, c, d : ℤ such that r = a / b and s = c / d and b ≠ 0 and d ≠ 0.
 
-        r · s = q(ac, bd).
-        s · r = q(ca, db) = q(ac, bd).
+        r · s = ac / bd.
+        s · r = ca / db = ac / bd.
 
-    h. There are some a, b, c, d, e, f : ℤ such that r = q(a, b) and s = q(c, d) and t = q(e, f) and b ≠ 0 and d ≠ 0 and f ≠ 0.
+    h. There are some a, b, c, d, e, f : ℤ such that r = a / b and s = c / d and t = e / f and b ≠ 0 and d ≠ 0 and f ≠ 0.
 
-        r · (s + t) = q(a, b) · q(cf + de, df)
-                       = q(a(cf + de), b(df))
-                       = q(acf + ade, b(df)).
+        r · (s + t) = (a / b) · ((cf + de) / df)
+                       = a(cf + de) / b(df)
+                       = (acf + ade) / b(df).
 
-        r · s + r · t = q(a, b) · q(c, d) + q(a, b) · q(e, f)
-                         = q(ac, bd) + q(ae, bf)
-                         = q(acbf + aebd, b²df) by [addition on ℚ]
-                         = q(b(acf + ade), b²df).
+        r · s + r · t = (a / b) · (c / d) + (a / b) · (e / f)
+                         = ac / bd + ae / bf
+                         = (acbf + aebd) / b²df by [addition on ℚ]
+                         = b(acf + ade) / b²df.
 
     But
 
-        q(acf + ade, b(df)) = q(b(acf + ade), b²df) by [equality on ℚ].
+        (acf + ade) / b(df) = b(acf + ade) / b²df by [equality on ℚ].
 
 # Because we have shown that ℚ is a commutative ring, all the theorems we proved about ℤ using only ring axioms should now be applicable to ℚ.  Unfortunately Natty cannot yet recognize this correspondence, so for now we reprove some of those theorems here.
 
@@ -133,11 +133,11 @@ Proof.
 
 Theorem.  Let r, s : ℚ.  Suppose that r ≠ 0 and s ≠ 0.  Then r · s ≠ 0.
 
-Proof.  There are some a, b, c, d : ℤ such that r = q(a, b) and s = q(c, d) and b ≠ 0 and d ≠ 0.  Now
+Proof.  There are some a, b, c, d : ℤ such that r = a / b and s = c / d and b ≠ 0 and d ≠ 0.  Now
 
-    r · s = q(a, b) · q(c, d) = q(ac, bd).
+    r · s = (a / b) · (c / d) = ac / bd.
 
-Since r ≠ 0 and r = q(a, b), it follows by [0 if numerator is 0] that a ≠ 0.  Likewise, since s ≠ 0 and s = q(c, d) we know that c ≠ 0.  Since a ≠ 0 and c ≠ 0 by [zero product on ℤ] we conclude that ac ≠ 0.  Hence q(ac, bd) ≠ 0, so r · s = q(ac, bd) ≠ 0.
+Since r ≠ 0 and r = a / b, it follows by [0 if numerator is 0] that a ≠ 0.  Likewise, since s ≠ 0 and s = c / d we know that c ≠ 0.  Since a ≠ 0 and c ≠ 0 by [zero product on ℤ] we conclude that ac ≠ 0.  Hence ac / bd ≠ 0, so r · s = ac / bd ≠ 0.
 
 # We now show that ℚ is a field.
 
@@ -145,9 +145,9 @@ Theorem.  0: ℚ ≠ 1.
 
 Theorem.  Let r : ℚ.  Suppose that r ≠ 0.  Then there exists s : ℚ such that r · s = 1.
 
-Proof.  There are some a, b : ℤ such that r = q(a, b) and b ≠ 0.  By [0 if numerator is 0] a ≠ 0.  Therefore
+Proof.  There are some a, b : ℤ such that r = a / b and b ≠ 0.  By [0 if numerator is 0] a ≠ 0.  Therefore
 
-    r · q(b, a) = q(a, b) · q(b, a) = q(ab, ba) = 1 by [1 if numerator = denominator].
+    r · (b / a) = (a / b) · (b / a) = ab / ba = 1 by [1 if numerator = denominator].
 
 # Inverses are unique
 
@@ -255,27 +255,27 @@ Proof.
 
 Axiom.  There is a relation < : ℚ → ℚ → 𝔹 such that for all x, y, u, v : ℤ with y > 0 and v > 0,
 
-    q(x, y) < q(u, v) if and only if x · v < u · y.  [definition of < on ℚ]
+    x / y < u / v if and only if x · v < u · y.  [definition of < on ℚ]
 
 Definition.  For all r, s : ℚ, r ≤ s iff r < s or r = s.
 
 Definition.  For all r, s : ℚ, we write r > s iff s < r.  We write r ≥ s iff s ≤ r.
 
-Theorem (rational positive).  Let x, y : ℤ.  Suppose that y ≠ 0.  Then q(x, y) > 0 if and only if x · y > 0.
+Theorem (rational positive).  Let x, y : ℤ.  Suppose that y ≠ 0.  Then x / y > 0 if and only if x · y > 0.
 
 Proof.  By [trichotomy on ℤ] we know that y < 0 or y > 0.
 
-    Suppose that q(x, y) > 0.  If y > 0 then q(x, y) > q(0, 1), so x > 0, so x · y > 0.  If y < 0 then
+    Suppose that x / y > 0.  If y > 0 then x / y > 0 : ℤ / 1, so x > 0, so x · y > 0.  If y < 0 then
     
-        q(−x, −y) = q(x, y)  by [equality on ℚ]
-                        > q(0, 1),
+        −x / −y = x / y  by [equality on ℚ]
+                        > 0 : ℤ / 1,
                         
     so by [definition of < on ℚ] −x > 0, so x < 0, so x · y > 0.
 
-    Now suppose that x · y > 0.  If y > 0 then x > 0, so q(x, y) > q(0, 1) = 0.  If y < 0 then x < 0, so −x > 0, so
+    Now suppose that x · y > 0.  If y > 0 then x > 0, so x / y > 0 : ℤ / 1 = 0.  If y < 0 then x < 0, so −x > 0, so
     
-        q(x, y) = q(−x, −y)
-                   > q(0, 1) by [definition of < on ℚ]
+        x / y = −x / −y
+                   > 0 : ℤ / 1 by [definition of < on ℚ]
                    = 0. 
 
 # Here we prove that (ℚ, +, ·, <) is an integral domain, so ℚ is an ordered field.
@@ -289,12 +289,12 @@ Theorem.  Let r, s : ℚ.
 
 Proof.
 
-    b. By [denominator positive] there are some x, y : ℤ such that r = q(x, y) and y > 0.  By [trichotomy on ℤ] either x = 0 or x > 0 or x < 0.  If x = 0 then r = 0.  If x > 0 then q(x, y) > q(0, 1), so r > 0.  If x < 0 then −x > 0, so (−x) · y > 0, so q(−x, y) > 0, so −r > 0.
+    b. By [denominator positive] there are some x, y : ℤ such that r = x / y and y > 0.  By [trichotomy on ℤ] either x = 0 or x > 0 or x < 0.  If x = 0 then r = 0.  If x > 0 then x / y > 0 : ℤ / 1, so r > 0.  If x < 0 then −x > 0, so (−x) · y > 0, so −x / y > 0, so −r > 0.
 
-    c. Assume that r > 0 and s > 0.  By [denominator positive] there are some x, y, u, v : ℤ such that r = q(x, y) and s = q(u, v) and y > 0 and v > 0.  Since r > 0 we have x > 0, so x · y > 0.  Similarly, since s > 0 we know that u > 0, so u · v > 0.  So x · y + u · v > 0.  Now
+    c. Assume that r > 0 and s > 0.  By [denominator positive] there are some x, y, u, v : ℤ such that r = x / y and s = u / v and y > 0 and v > 0.  Since r > 0 we have x > 0, so x · y > 0.  Similarly, since s > 0 we know that u > 0, so u · v > 0.  So x · y + u · v > 0.  Now
 
-        r + s = q(x · v + y · u, y · v).
+        r + s = (x · v + y · u) / (y · v).
 
     But (x · v + y · u) · (y · v) = (x · y) · v² + y² · (u · v).  Since v ≠ 0 and y ≠ 0, it follows that v² > 0 and y² > 0.  Hence (x · y) · v² > 0 and y² · (u · v) > 0.  Therefore (x · y) · v² + y² · (u · v) > 0.  So (x · v + y · u) · (y · v) > 0, so by [rational positive] r + s > 0.
 
-    d. Assume that r > 0 and s > 0.  There are some x, y, u, v : ℤ such that r = q(x, y) and s = q(u, v) and y ≠ 0 and v ≠ 0.  Then r · s = q(x · u, y · v).  Now, (x · u) · (y · v) = (x · y) · (u · v).  By [rational positive] x · y > 0 and u · v > 0, so (x · y) · (u · v) > 0.  So (x · u) · (y · v) > 0, hence by [rational positive] r · s > 0.
+    d. Assume that r > 0 and s > 0.  There are some x, y, u, v : ℤ such that r = x / y and s = u / v and y ≠ 0 and v ≠ 0.  Then r · s = (x · u) / (y · v).  Now, (x · u) · (y · v) = (x · y) · (u · v).  By [rational positive] x · y > 0 and u · v > 0, so (x · y) · (u · v) > 0.  So (x · u) · (y · v) > 0, hence by [rational positive] r · s > 0.
