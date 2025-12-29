@@ -509,6 +509,10 @@ Proof.
 
 # We have shown that the non-negative integers 𝒲 form a Peano system, so the theorems we have proved about ℕ should now be applicable to 𝒲 as well.  Unfortunately Natty is not yet able to recognize this correspondence.  For now, we reassert some of our theorems about ℕ as axioms on 𝒲.
 
+Axiom.  1 : ℤ > 0 and 2 : ℤ > 1 and 2 : ℤ > 0.
+
+Axiom (small integers).  For all x : ℤ, if x ≥ 0 then x = 0 or x = 1 or x = 2 or x > 2.
+
 Definition.  For all S : Set(ℤ), S is empty iff there is no x : ℤ such that x ∈ S.  S is nonempty iff S is not empty.
 
 Definition.  For all A : Set(ℤ) and z : ℤ, z is a least element of A if z ∈ A and for all u : ℤ, if u ∈ A then z ≤ u.

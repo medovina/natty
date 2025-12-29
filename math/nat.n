@@ -144,6 +144,8 @@ Proof.
 
      h. Suppose that x ≤ y and u < v.  Then either x = y or x < y.  If x = y then u + x < v + y by [< add right], so x + u < y + v.  If x < y then by [< add left right] x + u < y + v.
 
+Lemma.  1 > 0 and 2 > 1 and 2 > 0.
+
 Theorem.  Let x, y : ℕ.
 
     a. x < s(y) if and only if x ≤ y.  [< successor iff ≤]
@@ -154,6 +156,8 @@ Proof.
     a. Let x, y : ℕ.  First suppose that x < s(y).  Suppose further that x > y.  It follows that y < x < s(y), which is a contradiction to [ℕ is discrete].  So by [trichotomy] we have x ≤ y.  Second, suppose that x ≤ y.  Suppose further that x ≥ s(y).  Then by [≤ is transitive] we deduce that s(y) ≤ y, which is a contradiction to [less than successor].  So it must be that x < s(y).  
 
     b. Let x, y : ℕ.  First suppose that x < y.  Suppose further that s(x) > y.  It follows that x < y < s(x), which is a contradiction to [ℕ is discrete].  So it must be that s(x) ≤ y. Second, suppose that s(x) ≤ y.  Suppose further that x ≥ y.  Then by [≤ is transitive] we deduce that s(x) ≤ x, which is a contradiction to [less than successor].  So it must be that x < y.
+
+Theorem.  For all x : ℕ, x = 0 or x = 1 or x = 2 or x > 2.
 
 # Well-ordering principle
 

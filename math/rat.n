@@ -158,9 +158,12 @@ Proof.
     y = 1 · y = (x · z) · y = (z · x) · y
        = z · (x · y) = z · 1 = z.
 
-Axiom.  There exists a binary operation ^ : ℚ → ℤ → ℚ such that for all x : ℚ, if x ≠ 0 then
+Axiom.  There exists a binary operation ^ : ℚ → ℤ → ℚ such that for all x : ℚ,
 
-    x · x⁻¹ = 1.  [inverse product]
+    a. x² = x · x.
+    b. if x ≠ 0 then x · x⁻¹ = 1.  [inverse product]
+
+Lemma.  Let a, b : ℤ with b ≠ 0.  (a / b)² = a² / b².
 
 Lemma.  Let x, y : ℚ.  Suppose that x · y = 1.  Then x = y⁻¹.
 

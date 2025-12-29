@@ -1,0 +1,19 @@
+using div;
+
+Definition.  Let a : ℤ.  a is prime if and only if a > 1 and for all c : ℤ, if c > 0 and c | a then c = a or c = 1.  a is composite if and only if a is not prime.
+
+Theorem.  2 is prime.
+
+Proof.  Let c : ℤ, and suppose that c > 0 and c | 2.  Then by [divides implies ≤] c ≤ 2.  By [small integers] c = 0 or c = 1 or c = 2 or c > 2, however c ≠ 0 and c ≯ 2, so c = 1 or c = 2.
+
+Theorem.  Let a : ℤ with a > 1.  Then there is some p : ℤ such that p is prime and p | a.
+
+Proof.  Let A = { a : ℤ | a > 1 and there is no p : ℤ such that p is prime and p | a }.  Assume that A is not empty.  Suppose that x ∈ A.  Then x > 1 : ℤ > 0, so by [< is transitive on ℤ] x > 0.  So A ⊆ 𝒲.
+
+By [least number principle on ℤ] there is some b : ℤ such that b is a least element of A.  Then b > 1 and there is no p : ℤ such that p is prime and p | b.
+
+Suppose that b is prime.  But b | b, which is a contradiction.
+
+Now suppose that b is not prime.  Then there is some c : ℤ such that c > 0 and c | b and c ≠ b and c ≠ 1.  If c < 1 then 0 < c < 0 + 1, which is a contradiction to [ℤ is discrete], so we must have c > 1.  Since c | b, it follows by [divides implies ≤] that c < b.  Hence c ∉ A, so there exists some d : ℤ such that d | c and d is prime.  Then d | b, so b ∉ A, which is a contradiction.
+
+In any case we have a contradiction.  So A is empty.
