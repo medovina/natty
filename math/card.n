@@ -1,4 +1,4 @@
-using fun, nat, set;
+using fun, int, set;
 
 # Cardinality
 
@@ -12,4 +12,4 @@ Proof.  Suppose that A ~ 𝒫(A).  Then there is some f : σ → Set(σ) such th
 
 # Finite and infinite sets
 
-Definition.  For all S : Set(σ), S is finite if there exists n : ℕ such that S ~ { k ∈ ℕ | k < n }.   S is infinite iff S is not finite.
+Definition.  For all S : Set(σ), S is finite if there exists n : ℤ such that { k ∈ ℤ | 1 ≤ k ≤ n } ~ S.   S is infinite iff S is not finite.

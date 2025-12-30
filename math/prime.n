@@ -1,4 +1,20 @@
-using div;
+using div, card;
+
+Definition.  Let a, b : ℤ.  a and b are relatively prime if for all c : ℤ with c > 0, if c | a and c | b then c = 1.
+
+Lemma.  Let a, b : ℤ.  a and b are relatively prime if and only if the gcd of a and b is 1.
+
+Proof.  Suppose that a and b are relatively prime.  1 | a and 1 | b.  Let c : ℤ.  Suppose that c | a and c | b.  By [trichotomy on ℤ] either c > 0 or c = 0 or c < 0.  If c > 0 then c = 1, so c | 1.  If c = 0 then a = 0 since c | a, but then 1 | 0, which is a contradiction.  If c < 0 then −c > 0 and −c | a and −c | b, so −c = 1, so c = −1, so c | 1.  Therefore c | 1.  So the gcd of a and b is 1.
+
+Now suppose that the gcd of a and b is 1.  Let c : ℤ.  Suppose that c > 0 and c | a and c | b.  Then c | 1, so by [divisor of 1] c = 1.  So a and b are relatively prime.
+
+Lemma.  Let a, b : ℤ.  Suppose that a and b are relatively prime.  Then a ≠ 0 or b ≠ 0.
+
+Lemma.  Let a, b : ℤ.  a and b are relatively prime if and only if 1 = xa + yb for some x, y : ℤ.
+
+Proof.  Suppose that a and b are relatively prime.  Then the gcd of a and b is 1. Also a ≠ 0 or b ≠ 0.  Hence by [Bézout] 1 = xa + yb for some x, y : ℤ.
+
+Now suppose that 1 = xa + yb for some x, y : ℤ.  Let c : ℤ, and suppose that c > 0 and c | a and c | b.  By [divides linear combination] c | xa + yb, so c | 1.  Then by [divisor of 1] c = 1.  So a and b are relatively prime.
 
 Definition.  Let a : ℤ.  a is prime if and only if a > 1 and for all c : ℤ, if c > 0 and c | a then c = a or c = 1.  a is composite if and only if a is not prime.
 

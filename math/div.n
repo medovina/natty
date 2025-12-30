@@ -14,9 +14,9 @@ Theorem.  Let a, b, c, x, y : ℤ.
     h. a | a · b.
     i. If a | b and a | c then a | (b + c).  [divides sum]
     j. If a | b and a | c then a | (b − c).  [divides difference]
-    k. If a | 1 then a = 1 or a = −1.
+    k. If a | 1 then a = 1 or a = −1.  [divisor of 1]
     l. If a | b then a | b · c.
-    m. If a | b and a | c then a | (x · b + y · c).
+    m. If a | b and a | c then a | (x · b + y · c).  [divides linear combination]
     n. If a > 0 and c > 0 and a | c then a ≤ c.  [divides implies ≤]
 
 Proof.
@@ -106,7 +106,7 @@ Proof.
 
 # Bézout's theorem, Wiedijk #60
 
-Theorem.  Let a, b : ℤ.  Suppose that a ≠ 0 or b ≠ 0.  Then there exist d, x, y : ℤ such that d is the gcd of a and b and d is positive and d = xa + yb.
+Theorem (Bézout).  Let a, b : ℤ.  Suppose that a ≠ 0 or b ≠ 0.  Then there exist d, x, y : ℤ such that d is the gcd of a and b and d is positive and d = xa + yb.
 
 Proof.  Let A = { z : ℤ | z = xa + yb for some x, y : ℤ }.  We know that a > 0 or a < 0 or b > 0 or b < 0.  If a > 0 then 1 · a + 0 · b = a > 0.  If a < 0 then −1 · a + 0 · b = −a > 0. If b > 0 then 0 · a + 1 · b = b > 0.  If b < 0 then 0 · a + (−1) · b = −b > 0.  So in any case there is some z : ℤ such that z ∈ A and z > 0.
 
