@@ -43,7 +43,7 @@ let var0 = pipe2 (empty >>? letter1) (opt "" (string "'")) (^)
 let var = pipe2 var0 (opt "" (sub_digit)) (^)
 
 let long_id = any_str [
-  "π"; "σ"; "τ"; "∏"; "𝔹"; "ℕ"; "ℚ"; "ℤ";
+  "π"; "σ"; "τ"; "Π"; "𝔹"; "ℕ"; "ℚ"; "ℤ";
   "𝒢"; "𝒫"; "𝒮"; "𝒲"; (* script characters G, P, S, W *)
   "gcd"
 ]
@@ -65,7 +65,14 @@ let id_or_sym = id <|> sym
 
 let word = empty >>? many1_chars letter
 
-let adjective = word
+let adverb = attempt @@
+  let> w = word in
+  if ends_with "ly" w then return w else fail "adverb"
+
+let adjective_phrase =
+  let> m = option adverb in
+  let$ w = word in
+  String.concat "_" (opt_to_list m @ [w])
 
 let is_name_char c =
   c = ' ' || not (Char.Ascii.is_white c) && not (str_contains "[]:" c)
@@ -214,7 +221,7 @@ and range_term f f_sub =
     match f_sub, g_sub with
       | Some f_sub, Some g_sub ->
           assert (f = g);
-          App (_const "∏", mk_tuple [f; f_sub; g_sub])
+          App (_const "Π", mk_tuple [f; f_sub; g_sub])
       | _ -> failwith "subscript expected");
 
 and id_term s = (
@@ -321,7 +328,7 @@ and target_predicate s : (formula -> formula) pr = (
 
 and predicate s : (formula -> formula) pr = choice [
   target_predicate;
-  pipe2 (option (str "not")) adjective (fun neg word f ->
+  pipe2 (option (str "not")) adjective_phrase (fun neg word f ->
     let g = App (_const word, f) in
     if is_some neg then _not g else g)
 ] s
@@ -332,12 +339,16 @@ and predicate_is_expr s = (
   p f
 ) s
 
+and compound_are e2 word e1 : formula =
+  apply [_const word; e1; e2]
+
 and atomic s : formula pr = (choice [
   predicate_is_expr;
   let> e = expr in
   let$ f = choice [
     any_str ["is true"; "always holds"] >>$ Fun.id;
     any_str ["is also"; "is"; "must be"; "must also be"] >>? predicate;
+    pipe2 (str "and" >>? expr <<? str "are") adjective_phrase compound_are;
     return Fun.id
    ] in
   f e;

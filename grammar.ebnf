@@ -12,7 +12,7 @@ var0 = letter ["'"];
 
 var = var0 [sub_digit];
 
-long_id = 'π' | 'σ' | 'τ' | '∏' | '𝔹' | 'ℕ' | 'ℤ' | '𝒫' | 'gcd';
+long_id = 'π' | 'σ' | 'τ' | 'Π' | '𝔹' | 'ℕ' | 'ℤ' | '𝒫' | 'gcd';
 
 base_id = var0 | long_id;
 
@@ -26,7 +26,9 @@ id_or_sym = id | sym;
 
 word = letter {letter};
 
-adjective = word;
+adverb = word 'ly';
+
+adjective_phrase = [adverb] word;
 
 name_char = name_char;  (* ' ' or any printable char except '[', ']', ':' *)
 
@@ -116,12 +118,13 @@ predicate_target =
 target_predicate = ('a' | 'an' | 'the') word [word] predicate_target;
 
 predicate =
-    ['not'] adjective | target_predicate;
+    ['not'] adjective_phrase | target_predicate;
 
 predicate_is_expr = target_predicate 'is' expr;
 
 atomic =
     expr ['is true' | 'always holds' | ('is' | 'must' ['also'] 'be') predicate] |
+    expr 'and' expr 'are' adjective_phrase |
     predicate_is_expr;
 
 (* reasons *)

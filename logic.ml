@@ -706,7 +706,7 @@ let unify_types is_var tsubst t u = unify_or_match_types true is_var tsubst t u
 
 (* Allow * → τ to match Πσ.τ.
  * For example, in ∀(λσ:* ∀x:σ x = x) we have
- * ∀ : [* → 𝔹] → 𝔹 applied to (∏σ.𝔹). *)
+ * ∀ : [* → 𝔹] → 𝔹 applied to (Πσ.𝔹). *)
 let unify_types_or_pi is_var tsubst t u = match t, u with
   | Fun (Type, t), Pi (_, u) -> unify_types is_var tsubst t u
   | _ -> unify_types is_var tsubst t u
