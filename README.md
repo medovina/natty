@@ -60,10 +60,11 @@ Natty's math library is in the `math` subdirectory, and includes these files:
 * `int.n` - the integers, plus many theorems about them
 * `card.n` - cardinality of sets, including Cantor's theorem
 * `div.n` - divisibility and some related theorems, including Bézout's theorem
-* `prime.n` - prime numbers, including a proof that every n > 1 is divisible by some prime
 * `rat.n` - rational numbers
+* `prime.n` - relative primes; prime numbers
+* `real.n` - a proof that the square root of 2 is irrational
 
-The theorems and proofs in `nat.n`, `int.n`, `div.n`, `prime.n` and `rat.n` largely follow those in the excellent textbook Number Systems and the Foundations of Analysis (Elliott Mendelson, 1973).  However in Mendelson the first natural number is 1 but in Natty's library it is 0, so I have adapted various proofs accordingly.
+The theorems and proofs in `nat.n`, `int.n`, `div.n`, `rat.n` and `prime.n` largely follow those in the excellent textbook Number Systems and the Foundations of Analysis (Elliott Mendelson, 1973).  However in Mendelson the first natural number is 1 but in Natty's library it is 0, so I have adapted various proofs accordingly.
 
 ### Documentation
 
