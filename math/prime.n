@@ -10,7 +10,7 @@ Now suppose that the gcd of a and b is 1.  Let c : ℤ.  Suppose that c > 0 and 
 
 Lemma.  Let a, b : ℤ.  Suppose that a and b are relatively prime.  Then a ≠ 0 or b ≠ 0.
 
-Lemma.  Let a, b : ℤ.  a and b are relatively prime if and only if 1 = xa + yb for some x, y : ℤ.
+Lemma.  Let a, b : ℤ.  a and b are relatively prime if and only if 1 = xa + yb for some x, y : ℤ.  [relatively prime iff linear combination is 1]
 
 Proof.  Suppose that a and b are relatively prime.  Then the gcd of a and b is 1. Also a ≠ 0 or b ≠ 0.  Hence by [Bézout] 1 = xa + yb for some x, y : ℤ.
 
@@ -33,3 +33,7 @@ Suppose that b is prime.  But b | b, which is a contradiction.
 Now suppose that b is not prime.  Then there is some c : ℤ such that c > 0 and c | b and c ≠ b and c ≠ 1.  If c < 1 then 0 < c < 0 + 1, which is a contradiction to [ℤ is discrete], so we must have c > 1.  Since c | b, it follows by [divides implies ≤] that c < b.  Hence c ∉ A, so there exists some d : ℤ such that d | c and d is prime.  Then d | b, so b ∉ A, which is a contradiction.
 
 In any case we have a contradiction.  So A is empty.
+
+Theorem.  Let p, a, b : ℤ.  Suppose that p is prime and p | ab.  Then p | a or p | b.
+
+Proof.  Suppose that p ∤ a.  We must show that p | b.  Let c : ℤ with c > 0, and suppose that c | p and c | a.  Since p is prime, c = p or c = 1.  If c = p then p | a, which is a contradiction.  So c = 1.  Consequently p and a are relatively prime. Hence by [relatively prime iff linear combination is 1] 1 = xp + ya for some x, y : ℤ. Therefore 1 · b = (xp + ya) · b, so b = xbp + yab.  We know that p | ab, so p | (xb)p + y(ab), so p | b.
