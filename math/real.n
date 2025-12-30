@@ -1,0 +1,7 @@
+using prime, rat;
+
+# The irrationality of the square root of 2, Wiedijk #1
+
+Theorem.  Let c : ℚ.  Suppose that c > 0.  It cannot be that c² = 2.
+
+Proof.  Assume that c² = 2.  By [lowest terms] there exist a, b : ℤ such that c = a / b and b ≠ 0 and a and b are relatively prime.  It follows that 2 = (a / b)² = a² / b², so 2 · b² = 1 · a² = a².  Because 2 | a · a, it follows by [prime divides factor] that 2 | a.  Then there exists c : ℤ such that a = 2 · c, so 2 · b² = (2 · c)², so b² = 2 · c².  Then by [prime divides factor] 2 | b.  So 2 | a and 2 | b, which is a contradiction since a and b are relatively prime.

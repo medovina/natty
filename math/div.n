@@ -18,6 +18,7 @@ Theorem.  Let a, b, c, x, y : ℤ.
     l. If a | b then a | b · c.
     m. If a | b and a | c then a | (x · b + y · c).  [divides linear combination]
     n. If a > 0 and c > 0 and a | c then a ≤ c.  [divides implies ≤]
+    o. If a ≠ 0 and ab | ac then b | c.
 
 Proof.
 
