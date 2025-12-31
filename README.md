@@ -4,7 +4,9 @@ Natty is a natural-language proof assistant with an embedded automatic prover fo
 
 Here is a simple proof in Natty as it appears using the [Natty extension](https://github.com/medovina/natty-vscode) in Visual Studio Code:
 
-![square root of 2 is irrational](doc/square_root_irrational.png)
+<p align="center">
+  <img src="doc/square_root_irrational.png">
+</p>
 
 Natty's automatic prover is based on a subset of the higher-order superposition calculus[^1].
 
