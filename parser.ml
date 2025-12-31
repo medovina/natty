@@ -45,7 +45,7 @@ let var = pipe2 var0 (opt "" (sub_digit)) (^)
 let long_id = any_str [
   "π"; "σ"; "τ"; "Π"; "𝔹"; "ℕ"; "ℚ"; "ℤ";
   "𝒢"; "𝒫"; "𝒮"; "𝒲"; (* script characters G, P, S, W *)
-  "gcd"
+  "div"; "egcd"; "gcd"; "mod"
 ]
 
 let base_id = long_id <|> var0
@@ -287,8 +287,7 @@ and operators with_bar = [
   [ Prefix (minus >>$ unary_minus) ];
   [ Prefix (str "¬" >>$ _not) ];
   [ infix_binop "^" Assoc_right ];
-  [ infix_binop "·" Assoc_left;
-    infix_binop "/" Assoc_left ];
+  (let& op = ["·"; "/"; "div"; "mod"] in infix_binop op Assoc_left);
   [ infix_binop "+" Assoc_left;
     infix_binop1 minus "-" Assoc_left ];
   [ Postfix (by_reason |>> fun r -> apply_reasons r) ];
@@ -491,8 +490,8 @@ and proposition s : formula pr = choice [
 (* top propositions *)
 
 let operation =
-  any_str ["a"; "an"] >>? optional (any_str ["binary"; "unary"]) >>
-    any_str ["operation"; "relation"]
+  optional (any_str ["a"; "an"]) >>? optional (any_str ["binary"; "unary"]) >>
+    any_str ["operation"; "operations"; "relation"; "relations"]
 
 let let_decl : (id * typ) list p =
   str "Consider any" >> decl_ids_types <|> (
@@ -579,12 +578,13 @@ let type_decl : hstatement p =
   let$ opt_name = option (parens (str "the" >> words2)) in
   HTypeDecl (id, Option.map singular opt_name)
 
-let const_decl : hstatement p =
-  let> c = (any_str ["a constant"; "an element"; "a function"] <|> operation) >> id_or_sym in
-  let$ typ = of_type in
+let const_decl : hstatement list p =
+  let$ (cs, typ) = (any_str ["a constant"; "an element"; "a function"] <|> operation) >>
+    decl_ids_type in
+  let& c = cs in
   HConstDecl (unary_prefix c typ, typ)
 
-let axiom_decl : hstatement p = type_decl <|> const_decl
+let axiom_decl : hstatement list p = single type_decl <|> const_decl
 
 let axiom_propositions id_typ name : hstatement list p =
   let$ props = propositions name in
@@ -595,6 +595,7 @@ let axiom_propositions id_typ name : hstatement list p =
 let axiom_exists name : hstatement list p =
   there_exists >>?
   let> consts = sep_by1 axiom_decl (any_str ["and"; "with"]) in
+  let consts = concat consts in
   let id_typ = defined_id_type (last consts) in
   let$ props = (str "such that" >> axiom_propositions (Some id_typ) name) <|>
                (str "." >>$ []) in

@@ -82,6 +82,10 @@ We know that r' < a and −r ≤ 0, so r' − r < a + 0 = a.  Likewise, r < a an
 
 However either |r' − r| = r − r' or |r' − r| = r' − r.  So |r' − r| < a.  This is a contradiction.  So r' = r and q' = q.
 
+Axiom.  There exist binary operations div, mod : ℤ → ℤ → ℤ such that for all a, b : ℤ,
+
+    a = (a div b) · b + (a mod b)    and    0 ≤ a mod b < b.
+
 Definition (greatest common divisor).  Let a, b, d : ℤ.  d is a gcd of a and b if and only if d ≥ 0 and d | a and d | b and for all c : ℤ, if c | a and c | b then c | d.
 
 Theorem.  Let a, b, d, d' : ℤ.  Suppose that d is a gcd of a and b, and d' is a gcd of a and b.  Then d = d'.

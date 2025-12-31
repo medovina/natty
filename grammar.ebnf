@@ -12,7 +12,8 @@ var0 = letter ["'"];
 
 var = var0 [sub_digit];
 
-long_id = 'π' | 'σ' | 'τ' | 'Π' | '𝔹' | 'ℕ' | 'ℤ' | '𝒫' | 'gcd';
+long_id = 'π' | 'σ' | 'τ' | 'Π' | '𝔹' | 'ℕ' | 'ℤ' | '𝒫' |
+    'div' | 'egcd' | 'gcd' | 'mod';
 
 base_id = var0 | long_id;
 
@@ -201,7 +202,8 @@ proposition =
 
 (* top propositions, which may include steps *)
 
-operation = ('a' | 'an') ['binary' | 'unary'] ('operation' | 'relation');
+operation = ['a' | 'an'] ['binary' | 'unary']
+    ('operation' | 'relation') ['s'];
 
 let_decl = 'Consider any' decl_ids_types |
     'Let' (decl_ids_types ['be' operation] | id 'be a type');
@@ -245,7 +247,7 @@ propositions = [for_all_with] top_prop_or_items;
 
 type_decl = 'a type' id ['(' 'the' word [word] ')'];
 
-const_decl = ('a constant' | 'an element' | 'a function' | operation) id_or_sym of_type;
+const_decl = ('a constant' | 'an element' | 'a function' | operation) decl_ids_type;
 
 axiom_decl = type_decl | const_decl;
 
