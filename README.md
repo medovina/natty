@@ -1,6 +1,10 @@
 ## Natty
 
-Natty is a natural-language proof assistant with an embedded automatic prover for higher-order logic.  It can read input containing axioms, definitions, and theorems written in natural language with a restricted vocabulary and grammer.  Any theorem in the input may optionally include a proof, also written in natural language.  Natty translates the input into a series of statements of higher-order logic, and attempts to prove the input theorems automatically.
+Natty is a natural-language proof assistant with an embedded automatic prover for higher-order logic.  It can read input containing axioms, definitions, and theorems written in mathematical English with a restricted vocabulary and grammer.  Any theorem in the input may optionally include a proof, also written in natural language.  Natty translates the input into a series of statements of higher-order logic, and attempts to prove the input theorems automatically.
+
+Here is a simple proof in Natty as it appears using the [Natty extension](https://github.com/medovina/natty-vscode) in Visual Studio Code:
+
+![square root of 2 is irrational](doc/square_root_irrational.png)
 
 Natty's automatic prover is based on a subset of the higher-order superposition calculus[^1].
 
