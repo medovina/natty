@@ -535,17 +535,15 @@ let at_limit parents kind limit =
   length e >= expand_limit || count_eq kind e >= limit
 
 let def_expansion dp cp : id option =
-  let parents = [dp; cp] in
-  if at_limit parents _expand_def def_expand_limit ||
-    not (orig_goal_or_hyp cp) then None else
   let* def = dp.defined in
+  if not (orig_goal_or_hyp cp) || at_limit [dp; cp] _expand_def def_expand_limit
+    then None else
   let goal_consts =
     if orig_goal cp then all_consts cp.formula else top_consts cp in
   if mem def goal_consts then Some def else None
 
 let is_hyp_expansion dp cp =
-  let parents = [dp; cp] in
-  not (at_limit parents _expand_hyp hyp_expand_limit) &&
+  not (at_limit [dp; cp] _expand_hyp hyp_expand_limit) &&
   orig_goal_or_last_hyp cp &&
   dp.hypothesis >= (if cp.goal then 1 else 2) &&
   overlap (eq_terms (remove_exists dp.formula))
@@ -639,9 +637,9 @@ let all_super1 dp cp : pformula list =
   let+ (dp, d_steps, cp, c_steps) =
     [(dp, d_steps, cp, c_steps); (cp, c_steps, dp, d_steps)] in
   let by = is_by [dp; cp] in
-  let def_expand = def_expansion dp cp in
+  let def_expand = opt_or_opt (def_expansion dp cp) (def_expansion cp dp) in
   let hyp_expand = is_hyp_expansion dp cp in
-  let upward = hyp_expand in
+  let upward = is_some def_expand || hyp_expand in
   let lenient = by || is_some def_expand || orig_goal cp in
   let rule =
     if is_some def_expand then _expand_def
@@ -1283,10 +1281,11 @@ let rec map_const const_map c : id =
 let consts_of const_map f : id list =
   map (map_const const_map) (all_consts f)
 
-let use_premise const_map proof_consts f def is_ac _name =
+let use_premise const_map proof_consts f defined is_ac _name =
   let fs = gather_and (remove_for_all f) in
-  (not !step_strategy || is_ac || def ||
+  (not !step_strategy || is_ac || is_some defined ||
     fs |> for_all (fun g -> num_literals g <= 3 || length (all_consts g) <= 1)) && (
+  opt_exists (fun c -> mem c proof_consts) defined && is_iff (remove_for_all f) ||
   fs |> exists (fun g ->
     subset (consts_of const_map g) proof_consts))
 
@@ -1321,14 +1320,8 @@ let find_or_equal_ops stmts : id list =
 
 let defined_symbol defined_symbols stmt : id option = match stmt with
   | Definition (c, _, _) -> Some c
-  | Axiom { formula = f; defined = Some (c, _); _ }
-      when count_eq c defined_symbols = 1 -> (
-      match last (gather_implies (remove_for_all f)) with
-        | Eq (g, h) when weight h > weight g -> (
-            match collect_args g with
-              | Const (c', _), _ when c = c' -> Some c
-              | _ -> None)
-        | _ -> None)
+  | Axiom { defined = Some (c, _); _ }
+      when count_eq c defined_symbols = 1 -> Some c
   | _ -> None
 
 let gen_pformulas thm all_known local_known : pformula list =
@@ -1349,7 +1342,7 @@ let gen_pformulas thm all_known local_known : pformula list =
           let kind_op = ac_kind f in
           if not ( by || is_hypothesis stmt ||
                    use_premise const_map proof_consts f
-                               (is_definitional stmt) (is_some kind_op) (stmt_name stmt))
+                               (stmt_defined stmt) (is_some kind_op) (stmt_name stmt))
           then (ops, []) else
           let kind = Option.map (fun (kind, _, _, _) -> kind) kind_op in
           let hyp = match index_of_opt stmt hyps with

@@ -122,3 +122,5 @@ By [Division] there exist q, r : ℤ such that a = qd + r and 0 ≤ r < d.  Henc
 By [Division] there exist q, r : ℤ such that b = qd + r and 0 ≤ r < d.  Hence b = q(xa + yb) + r.  Then r = b − q(xa + yb), so r = (1 − qy) · b + (−xq) · a.  Thus r ∈ A.  Suppose that r > 0.  Then r ∈ B.  But r < d, which is a contradiction since d is a least element of B.  Therefore r = 0. Thus b = qd, so d | b.
 
 We have shown that d ≥ 0 and d | a and d | b and for all c : ℤ, if c | a and c | b then c | d.  This shows that d is the gcd of a and b.
+
+Axiom.  There is a function gcd : ℤ ⨯ ℤ → ℤ such that for all a, b : ℤ, gcd(a, b) is the gcd of a and b.
