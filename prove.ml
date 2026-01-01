@@ -637,7 +637,8 @@ let all_super1 dp cp : pformula list =
   let+ (dp, d_steps, cp, c_steps) =
     [(dp, d_steps, cp, c_steps); (cp, c_steps, dp, d_steps)] in
   let by = is_by [dp; cp] in
-  let def_expand = opt_or_opt (def_expansion dp cp) (def_expansion cp dp) in
+  let can_def_expand = opt_or_opt (def_expansion dp cp) (def_expansion cp dp) in
+  let+ def_expand = if is_some can_def_expand then [can_def_expand; None] else [None] in
   let hyp_expand = is_hyp_expansion dp cp in
   let upward = is_some def_expand || hyp_expand in
   let lenient = by || is_some def_expand || orig_goal cp in
@@ -1318,10 +1319,18 @@ let find_or_equal_ops stmts : id list =
   let& (c, _) = opt_to_list (def_is_or_equal f) in
   c
 
-let defined_symbol defined_symbols stmt : id option = match stmt with
+let find_axiom_symbols all_known : id list =
+  let sym_axioms = gather_pairs (all_known |> filter_map (function
+    | Axiom { formula = f; defined = Some (c, _); _ } -> Some (c, f)
+    | _ -> None)) in
+  sym_axioms |> filter_map (fun (c, fs) ->
+    if (fs |> for_all (fun f -> count_eq c (all_consts0 f) = 1))
+      then Some c else None)
+
+let defined_symbol axiom_symbols stmt : id option = match stmt with
   | Definition (c, _, _) -> Some c
   | Axiom { defined = Some (c, _); _ }
-      when count_eq c defined_symbols = 1 -> Some c
+      when mem c axiom_symbols -> Some c
   | _ -> None
 
 let gen_pformulas thm all_known local_known : pformula list =
@@ -1332,7 +1341,7 @@ let gen_pformulas thm all_known local_known : pformula list =
     let+ s = filter is_definition all_known in
     opt_to_list (const_def (get_stmt_formula s)) in
   let proof_consts = find_proof_consts thm all_known local_known by_thms hyps const_map in
-  let defined_symbols = filter_map stmt_defined all_known in
+  let axiom_symbols = find_axiom_symbols all_known in
   let scan ops stmt : (ac_type * str * typ) list * pformula list =
     match stmt_formula stmt with
       | None -> (ops, [])
@@ -1353,7 +1362,7 @@ let gen_pformulas thm all_known local_known : pformula list =
           let p = { (to_pformula (stmt_id_name stmt) f)
             with hypothesis = hyp;
                  definition;
-                 defined = defined_symbol defined_symbols stmt;
+                 defined = defined_symbol axiom_symbols stmt;
                  by; ac = kind;
                  safe_for_rewrite = definition && is_safe_for_rewrite f } in
           dbg_newline ();

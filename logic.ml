@@ -526,13 +526,16 @@ let is_ground f =
         has_free outer t || has_free outer u in
   not (has_free [] f)
 
-let all_consts f : id list =
+let all_consts0 f : id list =
   let rec find = function
     | Const (id, _typ) -> [id]
     | Var _ -> []
     | App (t, u) | Eq (t, u) -> find t @ find u
     | Lambda (id, _typ, t) -> remove id (find t)
-  in unique (subtract (find f) logical_ops)
+  in find f
+
+let all_consts f : id list =
+  unique (subtract (all_consts0 f) logical_ops)
 
 let is_var_in v =
   let rec find_var = function
