@@ -493,10 +493,10 @@ let simp_eq = function
 
 let is_higher (_, vsubst) = vsubst |> exists (fun (_, f) -> is_lambda f)
 
-let oriented upward t t' = [(t, t'); (t', t)] |>
+let oriented upward t t' : (formula * formula) list = [(t, t'); (t', t)] |>
   filter (fun (t, t') -> upward || not (term_ge t' t))
 
-let eq_pairs with_iff upward f = match terms with_iff f with
+let eq_pairs with_iff upward f : (formula * formula) list = match terms with_iff f with
   | (true, t, t') ->
       if is_bool_const t' then [(t, t')]
       else (Eq (t, t'), _true) :: oriented upward t t'   (* iii: pre-check *)
@@ -534,14 +534,14 @@ let at_limit parents kind limit =
   let e = concat_map expansions parents in
   length e >= expand_limit || count_eq kind e >= limit
 
-let is_def_expansion dp cp =
+let def_expansion dp cp : id option =
   let parents = [dp; cp] in
-  not (at_limit parents _expand_def def_expand_limit) &&
-  dp.defined |> opt_exists (fun def ->
-    orig_goal_or_hyp cp &&
-    let goal_consts =
-      if orig_goal cp then all_consts cp.formula else top_consts cp in
-    mem def goal_consts)
+  if at_limit parents _expand_def def_expand_limit ||
+    not (orig_goal_or_hyp cp) then None else
+  let* def = dp.defined in
+  let goal_consts =
+    if orig_goal cp then all_consts cp.formula else top_consts cp in
+  if mem def goal_consts then Some def else None
 
 let is_hyp_expansion dp cp =
   let parents = [dp; cp] in
@@ -639,22 +639,24 @@ let all_super1 dp cp : pformula list =
   let+ (dp, d_steps, cp, c_steps) =
     [(dp, d_steps, cp, c_steps); (cp, c_steps, dp, d_steps)] in
   let by = is_by [dp; cp] in
-  let def_expand = is_def_expansion dp cp in
+  let def_expand = def_expansion dp cp in
   let hyp_expand = is_hyp_expansion dp cp in
   let upward = hyp_expand in
-  let lenient = by || def_expand || orig_goal cp in
+  let lenient = by || is_some def_expand || orig_goal cp in
   let rule =
-    if def_expand then _expand_def
+    if is_some def_expand then _expand_def
     else if hyp_expand then _expand_hyp else "" in
   if dp.ac = Some Assoc || dp.ac = Some Extra then [] else
   let+ (d_lits, new_lits, _) = d_steps in
   let d_lits, new_lits = map prefix_vars d_lits, map prefix_vars new_lits in
   let+ t_t' = new_lits in
   let pairs = eq_pairs false upward t_t' in  (* iii: pre-check *)
+  let pairs = pairs |> filter (fun (t, _) ->
+    def_expand |> opt_for_all (fun c -> is_const_id c (head_of t))) in
   let+ (c_lits, _, exposed_lits) = c_steps in
   let+ c_lit = exposed_lits in
   let with_para = !(opts.all_superpositions) || (
-    def_expand || hyp_expand ||
+    is_some def_expand || hyp_expand ||
     allow cp && (not !step_strategy ||
                  is_unit_equality dp.formula ||
                  is_conditioned_equality dp.formula && goal_or_last_hyp cp ||

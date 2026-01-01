@@ -92,6 +92,10 @@ let is_const = function
   | Const _ -> true
   | _ -> false
 
+let is_const_id c = function
+  | Const (c', _) when c = c' -> true
+  | _ -> false
+
 let is_var = function
   | Var _ -> true
   | _ -> false
