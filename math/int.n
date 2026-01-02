@@ -351,8 +351,9 @@ Theorem.  Let x, y, z, u, v : ℤ.
   d. If x ≤ y and u < v then x + u < y + v.
   e. If x ≤ y and u ≤ v then x + u ≤ y + v. [≤ add left right on ℤ]
   f. If 0 < z and x · z < y · z then x < y.
-  g. It cannot be that x < y and y ≤ x.
-  h. If x ≤ y + z then x − y ≤ z.
+  g. If 0 < z and x · z ≤ y · z then x ≤ y.  [≤ cancel on ℤ]
+  h. It cannot be that x < y and y ≤ x.
+  i. If x ≤ y + z then x − y ≤ z.
 
 Proof.
 
@@ -364,7 +365,7 @@ Proof.
 
   f. Suppose that 0 < z and x · z < y · z.  Also suppose that x ≮ y.  Then y < x or y = x.  If y < x then y · z < x · z, a contradiction.  If y = x then y · z = x · z, a contradiction.
 
-  h. Suppose that x ≤ y + z.  Then by [≤ add left right on ℤ] x + (−y) ≤ y + z + (−y) = z + (y − y) = z + 0, so x − y ≤ z.
+  i. Suppose that x ≤ y + z.  Then by [≤ add left right on ℤ] x + (−y) ≤ y + z + (−y) = z + (y − y) = z + 0, so x − y ≤ z.
 
 Definition.  For all x : ℤ, x is positive iff 0 < x.  x is negative iff x < 0.
 
@@ -507,14 +508,16 @@ Proof.
     
     Now let a ∈ 𝒲.  Then there are some k, i : ℕ such that a = z(k, i).  Since a ∈ 𝒲, z(k, i) ≥ 0, so k ≥ i.  Hence k = i + j for some j : ℕ.  Thus z(k, i) = z(j, 0), so a = z(j, 0), so a ∈ A.  We have shown that a ∈ A for all a ∈ 𝒲, and so A = 𝒲.
 
+Definition.  For all S : Set(ℤ), S is empty iff there is no x : ℤ such that x ∈ S.  S is nonempty iff S is not empty.
+
+Definition.  For all A : Set(ℤ) and z : ℤ, z is a least element of A if z ∈ A and for all x : ℤ, if x ∈ A then z ≤ x.
+
+Definition.  For all A : Set(ℤ) and z : ℤ, z is a greatest element of A if z ∈ A and for all x : ℤ, if x ∈ A then x ≤ z.
+
 # We have shown that the non-negative integers 𝒲 form a Peano system, so the theorems we have proved about ℕ should now be applicable to 𝒲 as well.  Unfortunately Natty is not yet able to recognize this correspondence.  For now, we reassert some of our theorems about ℕ as axioms on 𝒲.
 
 Axiom.  1 : ℤ > 0 and 2 : ℤ > 1 and 2 : ℤ > 0.
 
 Axiom (small integers).  For all x : ℤ, if x ≥ 0 then x = 0 or x = 1 or x = 2 or x > 2.
-
-Definition.  For all S : Set(ℤ), S is empty iff there is no x : ℤ such that x ∈ S.  S is nonempty iff S is not empty.
-
-Definition.  For all A : Set(ℤ) and z : ℤ, z is a least element of A if z ∈ A and for all u : ℤ, if u ∈ A then z ≤ u.
 
 Axiom (least number principle on ℤ).  Let A : Set(ℤ).  Suppose that A ⊆ 𝒲 and A is nonempty.  Then there exists some x : ℤ such that x is a least element of A.
