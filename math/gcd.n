@@ -1,0 +1,67 @@
+using div;
+
+Definition (greatest common divisor).  Let a, b, d : ℤ.  d is a gcd of a and b if and only if d ≥ 0 and d | a and d | b and for all c : ℤ, if c | a and c | b then c | d.
+
+Theorem (gcd is unique).  Let a, b, d, d' : ℤ.  Suppose that d is a gcd of a and b, and d' is a gcd of a and b.  Then d = d'.
+
+Proof.  We know that d | d' and d' | d.  Hence by [mutual divisibility] d' = d or d' = −d.  Suppose that d' = −d.  We know that 0 ≤ d, so d' = −d ≤ 0.  But 0 ≤ d', so d' = 0, so d' = d.  Hence in all cases d' = d.
+
+Theorem.  Let a, b, d : ℤ.
+
+    a. 0 is the gcd of 0 and 0.
+    b. If a > 0 then the gcd of 0 and a is a.   [gcd of 0 and positive]
+    c. If a < 0 then the gcd of 0 and a is −a.  [gcd of 0 and negative]
+    d. If a ≠ 0 then the gcd of 0 and a is |a|.
+    e. The gcd of 1 and a is 1.
+    f.  Suppose that a ≠ 0 or b ≠ 0, and d is the gcd of a and b.   Then d > 0.
+
+Proof.
+
+    c. Suppose that a < 0.  Then −a > 0, so −a ≥ 0.  Also −a | 0 and −a | a.  Now let c : ℤ, and suppose that c | 0 and c | a.  Then by [divides difference] c | (0 − a), so c | −a.  So −a is the gcd of 0 and a.
+
+    d. Suppose that a ≠ 0.  Then by [trichotomy on ℤ] either a > 0 or a < 0.  If a > 0 then by [gcd of 0 and positive] the gcd of 0 and a is |a|.  If a < 0 then by [gcd of 0 and negative] the gcd of 0 and a is |a|.
+
+    f. We know that d ≥ 0.  Suppose that d = 0.  If a ≠ 0 then 0 | a, which is a contradiction.  If b ≠ 0 then 0 | b, which is a contradiction.  In any case we have a contradiction, so d ≠ 0.  Then d > 0.
+
+# Bézout's theorem, Wiedijk #60
+
+Theorem (Bézout).  Let a, b : ℤ.  Suppose that a ≠ 0 or b ≠ 0.  Then there exist d, x, y : ℤ such that d is the gcd of a and b and d is positive and d = xa + yb.
+
+Proof.  Let A = { z : ℤ | z = xa + yb for some x, y : ℤ }.  We know that a > 0 or a < 0 or b > 0 or b < 0.  If a > 0 then 1 · a + 0 · b = a > 0.  If a < 0 then −1 · a + 0 · b = −a > 0. If b > 0 then 0 · a + 1 · b = b > 0.  If b < 0 then 0 · a + (−1) · b = −b > 0.  So in any case there is some z : ℤ such that z ∈ A and z > 0.
+
+Let B = { x ∈ A | x > 0 }.  Then B ⊆ 𝒲 and B is nonempty.  So by [least number principle on ℤ] there exists some d : ℤ such that d is a least element of B.  Clearly d is positive.  d ∈ A, so there exist x, y : ℤ such that d = xa + yb.  Let c : ℤ.  If c | a and c | b then c | (xa + yb), so c | d.
+
+By [division] there exist q, r : ℤ such that a = qd + r and 0 ≤ r < d.  Hence a = q(xa + yb) + r.  Then r = a − q(xa + yb), so r = (1 − qx) · a + (−yq) · b.  Thus r ∈ A.  Suppose that r > 0.  Then r ∈ B.  But r < d, which is a contradiction since d is a least element of B.  Therefore r = 0. Thus a = qd, so d | a.
+
+By [division] there exist q, r : ℤ such that b = qd + r and 0 ≤ r < d.  Hence b = q(xa + yb) + r.  Then r = b − q(xa + yb), so r = (1 − qy) · b + (−xq) · a.  Thus r ∈ A.  Suppose that r > 0.  Then r ∈ B.  But r < d, which is a contradiction since d is a least element of B.  Therefore r = 0. Thus b = qd, so d | b.
+
+We have shown that d ≥ 0 and d | a and d | b and for all c : ℤ, if c | a and c | b then c | d.  This shows that d is the gcd of a and b.
+
+Axiom.  There is a function gcd : ℤ ⨯ ℤ → ℤ such that for all a, b, d : ℤ, d = gcd(a, b) if and only if d is the gcd of a and b.
+
+Theorem (gcd equal if same divisors).  Let a, b, c, d : ℤ.  Suppose that for all e : ℤ, e | a and e | b if and only if e | c and e | d.  Then gcd(a, b) = gcd(c, d).
+
+Proof.  Let g = gcd(a, b).  Then g ≥ 0 and g | a and g | b and for all e : ℤ, if e | a and e | b then e | g.  Clearly g | c and g | d.  Let e : ℤ, and suppose that e | c and e | d.  Then e | a and e | b, so e | g.  Therefore g = gcd(c, d).
+
+Lemma (Euclidean step).  Let a, b : ℤ with b > 0.  Then gcd(a, b) = gcd(b, a mod b).
+
+Proof.  Let e : ℤ.  We will show that e | a and e | b if and only if e | b and e | a mod b.  Suppose that e | a and e | b.  We know that a = (a div b) · b + (a mod b), so a mod b = 1 · a − (a div b) · b, so by [divides linear combination] e | a mod b, so e | b and e | a mod b.  Now suppose that e | b and e | a mod b.  We know that a = (a div b) · b + 1 · (a mod b), so by [divides linear combination] e | a, so e | a and e | b.  Hence by [gcd equal if same divisors] gcd(a, b) = gcd(b, a mod b).
+
+Axiom.  There exists a function egcd : ℤ ⨯ ℤ → ℤ such that for all a, b : ℤ with a > 0,
+
+  a. egcd(a, 0) = a.
+  b. If b > 0 then egcd(a, b) = egcd(b, a mod b).
+
+# Greatest common divisor algorithm, Wiedijk #69
+
+Theorem.  For all a, b : ℤ with a > 0 and b ≥ 0, egcd(a, b) = gcd(a, b).
+
+Proof.  Let S = { b ∈ 𝒲 | for all a : ℤ with a > 0, egcd(a, b) = gcd(a, b) }.  Clearly S ⊆ 𝒲.  Let b ∈ 𝒲, and suppose that x ∈ S for all x ∈ 𝒲 with x < b.  Either b = 0 or b > 0.  Suppose that b = 0.  Let a : ℤ, and suppose that a > 0.  Then egcd(a, b) = a = gcd(a, b) by [gcd of 0 and positive]. So b ∈ S.
+
+Now suppose that b > 0.  Let a : ℤ.  Suppose that a > 0.  We know that 0 ≤ a mod b < b.  Then
+
+  egcd(a, b) = egcd(b, a mod b)
+                   = gcd(b, a mod b) by the inductive hypothesis
+                   = gcd(a, b) by [Euclidean step].
+  
+So b ∈ S.  Then by [strong induction on ℤ] S = 𝒲.

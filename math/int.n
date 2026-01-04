@@ -258,6 +258,10 @@ Theorem.  For all a : ℤ, there is no b : ℤ such that a < b < a + 1.  [ℤ is
 
 Proof.  Let a, b : ℤ, and suppose that a < b < a + 1.  There are some n, j, k, i : ℕ such that a = z(n, j) and b = z(k, i).  Then a + 1 = z(n + 1, j), so z(n, j) < z(k, i) < z(n + 1, j).  Then n + i < j + k and k + j < i + (n + 1).  This is a contradiction to [ℕ is discrete].
 
+Theorem.  For all a, b : ℤ, a < b + 1 if and only if a ≤ b.  [< successor iff ≤ on ℤ]
+
+Proof.  Let a, b : ℤ.  There are some n, j, k, i : ℕ such that a = z(n, j) and b = z(k, i).  We know that b + 1 = z(k + 1, i).  If a < b + 1 then z(n, j) < z(k + 1, i), so n + i < j + k + 1, so n + i ≤ j + k by [< successor iff ≤], so z(n, j) ≤ z(k, i), so a ≤ b.  If a ≤ b then z(n, j) ≤ z(k, i), so n + i ≤ j + k by [< successor iff ≤], so n + i < j + k + 1, so z(n, j) < z(k + 1, i), so a < b + 1.
+
 Theorem.  For all a, b : ℤ, a < b iff a + 1 ≤ b.  [< iff successor ≤ on ℤ]
 
 Proof.  Let a, b : ℤ.  There are some n, j, k, i : ℕ such that a = z(n, j) and b = z(k, i).  We know that a + 1 = z(n + 1, j).  If a < b then z(n, j) < z(k, i), so n + i < j + k, so n + i + 1 ≤ j + k by [< iff successor ≤], so z(n + 1, j) ≤ z(k, i), so a + 1 ≤ b.  If a + 1 ≤ b then z(n + 1, j) ≤ z(k, i), so n + i + 1 ≤ j + k, so n + i < j + k by [< iff successor ≤], so z(n, j) < z(k, i), so a < b.
@@ -482,9 +486,11 @@ Proof.
 
     m. Suppose that x ≠ 0.  We know that |x| ≥ 0 and |x| ≠ 0.  So |x| > 0.  Then by [< iff successor ≤ on ℤ] |x| ≥ 0 + 1 = 1 : ℤ.
 
+# We use 𝒲 to represent the whole numbers, i.e. non-negative integers.
+
 Definition.  𝒲 = { x : ℤ | x ≥ 0 }.
 
-# Here we show that the non-negative integers form a Peano system.
+# Here we show that 𝒲 forms a Peano system.
 
 Theorem.
 
@@ -508,6 +514,10 @@ Proof.
     
     Now let a ∈ 𝒲.  Then there are some k, i : ℕ such that a = z(k, i).  Since a ∈ 𝒲, z(k, i) ≥ 0, so k ≥ i.  Hence k = i + j for some j : ℕ.  Thus z(k, i) = z(j, 0), so a = z(j, 0), so a ∈ A.  We have shown that a ∈ A for all a ∈ 𝒲, and so A = 𝒲.
 
+Theorem (strong induction on ℤ).  Let A : Set(ℤ).  Suppose that A ⊆ 𝒲 .  Also suppose that for all k ∈ 𝒲, if x ∈ A for all x ∈ 𝒲 with x < k then k ∈ A.  Then A = 𝒲.
+
+Proof.  Let B = { k ∈ 𝒲  | x ∈ A for all x ∈ 𝒲 with x < k }.  We will show that B = 𝒲.  Clearly B ⊆ 𝒲 and 0 ∈ B.  Suppose that k ∈ B.  Then x ∈ A for all x ∈ 𝒲 with x < k, so k ∈ A.  Let j ∈ 𝒲, and suppose that j < k + 1.  Then by [< successor iff ≤ on ℤ] j ≤ k, so j ∈ A.  So k + 1 ∈ B.  Therefore by [induction on ℤ] B = 𝒲.  Now let x ∈ 𝒲.  Then x + 1 ∈ B, so x ∈ A.  Therefore A = 𝒲.
+
 Definition.  For all S : Set(ℤ), S is empty iff there is no x : ℤ such that x ∈ S.  S is nonempty iff S is not empty.
 
 Definition.  For all A : Set(ℤ) and z : ℤ, z is a least element of A if z ∈ A and for all x : ℤ, if x ∈ A then z ≤ x.
@@ -521,3 +531,4 @@ Axiom.  1 : ℤ > 0 and 2 : ℤ > 1 and 2 : ℤ > 0.
 Axiom (small integers).  For all x : ℤ, if x ≥ 0 then x = 0 or x = 1 or x = 2 or x > 2.
 
 Axiom (least number principle on ℤ).  Let A : Set(ℤ).  Suppose that A ⊆ 𝒲 and A is nonempty.  Then there exists some x : ℤ such that x is a least element of A.
+

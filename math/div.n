@@ -48,7 +48,7 @@ Proof.
 
 Definition.  For all a : ℤ, a is even if 2 | a.
 
-Theorem (Division).  Let a, b : ℤ.  Suppose that a > 0.  Then there exist q, r : ℤ such that b = qa + r and 0 ≤ r < a.
+Theorem (division).  Let a, b : ℤ.  Suppose that a > 0.  Then there exist q, r : ℤ such that b = qa + r and 0 ≤ r < a.
 
 Proof.  Let B = { b : ℤ | b ≥ 0 and there exist q, r : ℤ such that b = qa + r and 0 ≤ r < a }.  0 = 0 · a + 0 and 0 : ℤ ≤ 0 < a, so 0 ∈ B.  Now let c ∈ B.  Then c ≥ 0, so c + 1 ≥ 0.  Also there exist q, r : ℤ such that c = qa + r and 0 ≤ r < a.  Since r < a, it follows by [< iff successor ≤ on ℤ] that r + 1 ≤ a.
 
@@ -82,45 +82,6 @@ We know that r' < a and −r ≤ 0, so r' − r < a + 0 = a.  Likewise, r < a an
 
 However either |r' − r| = r − r' or |r' − r| = r' − r.  So |r' − r| < a.  This is a contradiction.  So r' = r and q' = q.
 
-Axiom.  There exist binary operations div, mod : ℤ → ℤ → ℤ such that for all a, b : ℤ,
+Axiom.  There exist binary operations div, mod : ℤ → ℤ → ℤ such that for all a, b : ℤ with b > 0,
 
     a = (a div b) · b + (a mod b)    and    0 ≤ a mod b < b.
-
-Definition (greatest common divisor).  Let a, b, d : ℤ.  d is a gcd of a and b if and only if d ≥ 0 and d | a and d | b and for all c : ℤ, if c | a and c | b then c | d.
-
-Theorem.  Let a, b, d, d' : ℤ.  Suppose that d is a gcd of a and b, and d' is a gcd of a and b.  Then d = d'.
-
-Proof.  We know that d | d' and d' | d.  Hence by [mutual divisibility] d' = d or d' = −d.  Suppose that d' = −d.  We know that 0 ≤ d, so d' = −d ≤ 0.  But 0 ≤ d', so d' = 0, so d' = d.  Hence in all cases d' = d.
-
-Theorem.  Let a, b, d : ℤ.
-
-    a. 0 is the gcd of 0 and 0.
-    b. If a > 0 then the gcd of 0 and a is a.   [gcd of 0 and positive]
-    c. If a < 0 then the gcd of 0 and a is −a.  [gcd of 0 and negative]
-    d. If a ≠ 0 then the gcd of 0 and a is |a|.
-    e. The gcd of 1 and a is 1.
-    f.  Suppose that a ≠ 0 or b ≠ 0, and d is the gcd of a and b.   Then d > 0.
-
-Proof.
-
-    c. Suppose that a < 0.  Then −a > 0, so −a ≥ 0.  Also −a | 0 and −a | a.  Now let c : ℤ, and suppose that c | 0 and c | a.  Then by [divides difference] c | (0 − a), so c | −a.  So −a is the gcd of 0 and a.
-
-    d. Suppose that a ≠ 0.  Then by [trichotomy on ℤ] either a > 0 or a < 0.  If a > 0 then by [gcd of 0 and positive] the gcd of 0 and a is |a|.  If a < 0 then by [gcd of 0 and negative] the gcd of 0 and a is |a|.
-
-    f. We know that d ≥ 0.  Suppose that d = 0.  If a ≠ 0 then 0 | a, which is a contradiction.  If b ≠ 0 then 0 | b, which is a contradiction.  In any case we have a contradiction, so d ≠ 0.  Then d > 0.
-
-# Bézout's theorem, Wiedijk #60
-
-Theorem (Bézout).  Let a, b : ℤ.  Suppose that a ≠ 0 or b ≠ 0.  Then there exist d, x, y : ℤ such that d is the gcd of a and b and d is positive and d = xa + yb.
-
-Proof.  Let A = { z : ℤ | z = xa + yb for some x, y : ℤ }.  We know that a > 0 or a < 0 or b > 0 or b < 0.  If a > 0 then 1 · a + 0 · b = a > 0.  If a < 0 then −1 · a + 0 · b = −a > 0. If b > 0 then 0 · a + 1 · b = b > 0.  If b < 0 then 0 · a + (−1) · b = −b > 0.  So in any case there is some z : ℤ such that z ∈ A and z > 0.
-
-Let B = { x ∈ A | x > 0 }.  Then B ⊆ 𝒲 and B is nonempty.  So by [least number principle on ℤ] there exists some d : ℤ such that d is a least element of B.  Clearly d is positive.  d ∈ A, so there exist x, y : ℤ such that d = xa + yb.  Let c : ℤ.  If c | a and c | b then c | (xa + yb), so c | d.
-
-By [Division] there exist q, r : ℤ such that a = qd + r and 0 ≤ r < d.  Hence a = q(xa + yb) + r.  Then r = a − q(xa + yb), so r = (1 − qx) · a + (−yq) · b.  Thus r ∈ A.  Suppose that r > 0.  Then r ∈ B.  But r < d, which is a contradiction since d is a least element of B.  Therefore r = 0. Thus a = qd, so d | a.
-
-By [Division] there exist q, r : ℤ such that b = qd + r and 0 ≤ r < d.  Hence b = q(xa + yb) + r.  Then r = b − q(xa + yb), so r = (1 − qy) · b + (−xq) · a.  Thus r ∈ A.  Suppose that r > 0.  Then r ∈ B.  But r < d, which is a contradiction since d is a least element of B.  Therefore r = 0. Thus b = qd, so d | b.
-
-We have shown that d ≥ 0 and d | a and d | b and for all c : ℤ, if c | a and c | b then c | d.  This shows that d is the gcd of a and b.
-
-Axiom.  There is a function gcd : ℤ ⨯ ℤ → ℤ such that for all a, b : ℤ, gcd(a, b) is the gcd of a and b.
