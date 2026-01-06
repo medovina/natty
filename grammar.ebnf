@@ -12,7 +12,7 @@ var0 = letter ["'"];
 
 var = var0 [sub_digit];
 
-long_id = 'π' | 'σ' | 'τ' | 'Π' | '𝔹' | 'ℕ' | 'ℤ' | '𝒫' |
+long_id = 'π' | 'σ' | 'τ' | 'Π' | 'Σ' | '𝔹' | 'ℕ' | 'ℤ' | '𝒫' |
     'div' | 'egcd' | 'gcd' | 'mod';
 
 base_id = var0 | long_id;

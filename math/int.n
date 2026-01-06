@@ -514,6 +514,14 @@ Proof.
     
     Now let a ∈ 𝒲.  Then there are some k, i : ℕ such that a = z(k, i).  Since a ∈ 𝒲, z(k, i) ≥ 0, so k ≥ i.  Hence k = i + j for some j : ℕ.  Thus z(k, i) = z(j, 0), so a = z(j, 0), so a ∈ A.  We have shown that a ∈ A for all a ∈ 𝒲, and so A = 𝒲.
 
+Theorem (induction on an initial segment of 𝒲).  Let A : Set(ℤ).  Suppose that A ⊆ 𝒲.  Let n : ℤ.  Suppose that 0 ∈ A, and i ∈ A implies i + 1 ∈ A for all i : ℤ with 0 ≤ i < n.  Then i ∈ A for all i : ℤ with 0 ≤ i ≤ n.
+
+Proof.  Let B = { i : ℤ | i ≥ 0 and if i ≤ n then i ∈ A }.  Clearly B ⊆ 𝒲 and 0 ∈ B.  Now let i ∈ B.  Then i ≥ 0, so i + 1 ≥ 0.  Suppose that i + 1 ≤ n.  Then i ≤ n, so i ∈ A.  Also 0 ≤ i < n, so i + 1 ∈ A.  Therefore i + 1 ∈ B.  So by [induction on ℤ] B = 𝒲.  Now let i : ℤ, and suppose that 0 ≤ i ≤ n.  Then i ∈ B, so i ∈ A.
+
+Theorem (induction on a range of ℤ).  Let A : Set(ℤ).  Let j, k : ℤ.  Suppose that j ∈ A, and i ∈ A implies i + 1 ∈ A for all i : ℤ with j ≤ i < k.  Then i ∈ A for all i : ℤ with j ≤ i ≤ k.
+
+Proof.  Let B = { i : ℤ | i ≥ 0 and j + i ∈ A }.  Clearly B ⊆ 𝒲 and 0 ∈ B.  Let i ∈ B, and suppose that 0 ≤ i < k − j.  We know that j + i ∈ A.  Since i < k − j, we have i + j < k.  0 ≤ i, so 0 + j ≤ i + j, so j ≤ i + j < k, so by hypothesis (i + j) + 1 ∈ A.  So j + (i + 1) ∈ A, so i + 1 ∈ B.  Then by [induction on an initial segment of 𝒲] i ∈ B for all i : ℤ with 0 ≤ i ≤ k − j.  Now let i : ℤ, and suppose that j ≤ i ≤ k.  Then 0 ≤ i − j ≤ k − j, so i − j ∈ B, so j + (i − j) ∈ A, so i ∈ A.
+
 Theorem (strong induction on ℤ).  Let A : Set(ℤ).  Suppose that A ⊆ 𝒲 .  Also suppose that for all k ∈ 𝒲, if x ∈ A for all x ∈ 𝒲 with x < k then k ∈ A.  Then A = 𝒲.
 
 Proof.  Let B = { k ∈ 𝒲  | x ∈ A for all x ∈ 𝒲 with x < k }.  We will show that B = 𝒲.  Clearly B ⊆ 𝒲 and 0 ∈ B.  Suppose that k ∈ B.  Then x ∈ A for all x ∈ 𝒲 with x < k, so k ∈ A.  Let j ∈ 𝒲, and suppose that j < k + 1.  Then by [< successor iff ≤ on ℤ] j ≤ k, so j ∈ A.  So k + 1 ∈ B.  Therefore by [induction on ℤ] B = 𝒲.  Now let x ∈ 𝒲.  Then x + 1 ∈ B, so x ∈ A.  Therefore A = 𝒲.

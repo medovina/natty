@@ -43,7 +43,7 @@ let var0 = pipe2 (empty >>? letter1) (opt "" (string "'")) (^)
 let var = pipe2 var0 (opt "" (sub_digit)) (^)
 
 let long_id = any_str [
-  "π"; "σ"; "τ"; "Π"; "𝔹"; "ℕ"; "ℚ"; "ℤ";
+  "π"; "σ"; "τ"; "Π"; "Σ"; "𝔹"; "ℕ"; "ℚ"; "ℤ";
   "𝒢"; "𝒫"; "𝒮"; "𝒲"; (* script characters G, P, S, W *)
   "div"; "egcd"; "gcd"; "mod"
 ]

@@ -196,6 +196,7 @@ Theorem.  Let u, v, x, y, z: ℚ.
     m. Suppose that y ≠ 0 and v ≠ 0.  Then x / y = u / v if and only if x · v = y · u.
     n. If x ≠ 0 and y ≠ 0 then 1 / (x / y) = y / x.  [reciprocal of fraction]
     o. If y ≠ 0 and u ≠ 0 and v ≠ 0 then (x / y) / (u / v) = (x · v) / (y · u).
+    p. If x ≠ 0 then x · y / x = y.
 
 Proof.
 
