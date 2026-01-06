@@ -609,9 +609,9 @@ let axiom_group : hstatement list p =
 
 let mk_step f reasons : proof_step =
   match kind f with
-    | Quant ("(∃)", _, typ, _) ->
-        let (ids, f) = gather_quant_of_type "(∃)" typ f in
-        IsSome (ids, typ, f, reasons)
+    | Quant ("(∃)", _, _, _) ->
+        let (ids_types, f) = gather_quant "(∃)" f in
+        IsSome (ids_types, f, reasons)
     | _ -> Assert (f, reasons)
 
 let because_prop : proof_step p =

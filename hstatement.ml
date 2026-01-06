@@ -38,7 +38,7 @@ type proof_step =
   | Let of (id * typ) list
   | LetDef of id * typ * formula
   | Assume of formula
-  | IsSome of id list * typ * formula * reason
+  | IsSome of (id * typ) list * formula * reason
   | Escape
   | Group of proof_step list
 
@@ -62,14 +62,13 @@ let is_is_some = function
   | _ -> false
 
 let step_types step : typ list = match step with
-  | Let ids_types -> unique (map snd ids_types)
-  | LetDef (_, typ, _) | IsSome (_, typ, _, _) -> [typ]
+  | Let ids_types | IsSome (ids_types, _, _) -> unique (map snd ids_types)
+  | LetDef (_, typ, _) -> [typ]
   | _ -> []
   
 let rec step_decl_vars = function
-  | Let ids_types -> map fst ids_types
+  | Let ids_types | IsSome (ids_types, _, _) -> map fst ids_types
   | LetDef (id, _, _) -> [id]
-  | IsSome (ids, _, _, _) -> ids
   | Group steps -> unique (concat_map step_decl_vars steps)
   | _ -> []
 
@@ -78,7 +77,7 @@ let rec step_formulas = function
   | Let _ | Escape -> []
   | LetDef (_, _, f) -> [f]
   | Assume f -> [f]
-  | IsSome (_, _, f, _) -> [f]
+  | IsSome (_, f, _) -> [f]
   | Group steps -> concat_map step_formulas steps
 
 let step_free_vars step = unique @@
@@ -86,7 +85,7 @@ let step_free_vars step = unique @@
     concat_map free_vars_in_type (step_types step) @
     concat_map free_vars (step_formulas step) in
   match step with
-    | IsSome (ids, _, _, _) -> subtract vars ids
+    | IsSome (ids_types, _, _) -> subtract vars (map fst ids_types)
     | _ -> vars
 
 let step_free_type_vars step = unique @@
@@ -99,15 +98,17 @@ let show_chain chain : string =
     if op = "" then s else op ^ " " ^ s in
   unwords (map to_str chain)
 
+let show_ids_types ids_types : string =
+  let show (id, typ) = sprintf "%s : %s" id (show_type typ) in
+  comma_join (map show ids_types)
+
 let rec show_proof_step step : string = match step with
   | Assert (f, _) -> sprintf "assert %s" (show_formula f)
-  | Let ids_types ->
-      let show (id, typ) = sprintf "%s : %s" id (show_type typ) in
-      "let " ^ comma_join (map show ids_types)
+  | Let ids_types -> "let " ^ show_ids_types ids_types
   | LetDef (_id, _typ, f) -> sprintf "let_def : %s" (show_formula f)
   | Assume f -> sprintf "assume %s" (show_formula f)
-  | IsSome (ids, typ, f, _) -> sprintf "is_some %s : %s : %s"
-      (comma_join ids) (show_type typ) (show_formula f)
+  | IsSome (ids_types, f, _) -> sprintf "is_some %s : %s"
+      (show_ids_types ids_types) (show_formula f)
   | Escape -> "escape"
   | Group steps ->
       sprintf "[%s]" (comma_join (map show_proof_step steps))

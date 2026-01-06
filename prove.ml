@@ -608,7 +608,7 @@ let super rule with_para lenient upward dp d' pairs cp c_lits c_lit : pformula l
   let c_s = map (rsubst sub) c_lits in
   let c1_s = rsubst sub c_lit in
   let fail n = if dbg then printf "super: failed check %d\n" n; true in
-  if is_higher sub && not (orig_goal dp || orig_hyp dp && dp.hypothesis = 1) && fail 0 ||
+  if is_higher sub && not (orig_goal_or_hyp dp) && fail 0 ||
       is_bool_const t'_s && not (top_level (t'_s = _false) u c_lit) && fail 7 || (* vii *)
       not lenient && not (is_maximal lit_gt (simp_eq t_eq_t'_s) d'_s) && fail 6 ||  (* vi *)
       not upward && term_ge t'_s t_s && fail 3 ||  (* iii *)
