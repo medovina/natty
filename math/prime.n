@@ -28,7 +28,7 @@ Theorem.  2 is prime.
 
 Proof.  Let c : ℤ, and suppose that c > 0 and c | 2.  Then by [divides implies ≤] c ≤ 2.  By [small integers] c = 0 or c = 1 or c = 2 or c > 2, however c ≠ 0 and c ≯ 2, so c = 1 or c = 2.
 
-Theorem.  Let a : ℤ with a > 1.  Then there is some p : ℤ such that p is prime and p | a.
+Theorem (divisible by prime).  Let a : ℤ with a > 1.  Then there is some p : ℤ such that p is prime and p | a.
 
 Proof.  Let A = { a : ℤ | a > 1 and there is no p : ℤ such that p is prime and p | a }.  Assume that A is not empty.  Suppose that x ∈ A.  Then x > 1 : ℤ > 0, so by [< is transitive on ℤ] x > 0.  So A ⊆ 𝒲.
 
@@ -43,3 +43,62 @@ In any case we have a contradiction.  So A is empty.
 Theorem (prime divides factor).  Let p, a, b : ℤ.  Suppose that p is prime and p | ab.  Then p | a or p | b.
 
 Proof.  Suppose that p ∤ a.  We must show that p | b.  Let c : ℤ with c > 0, and suppose that c | p and c | a.  Since p is prime, c = p or c = 1.  If c = p then p | a, which is a contradiction.  So c = 1.  Consequently p and a are relatively prime. Hence by [relatively prime iff linear combination is 1] 1 = xp + ya for some x, y : ℤ. Therefore 1 · b = (xp + ya) · b, so b = xbp + yab.  We know that p | ab, so p | (xb)p + y(ab), so p | b.
+
+Axiom.  There is a function Π : (ℤ → ℤ) ⨯ ℤ ⨯ ℤ → ℤ such that for all a : ℤ → ℤ and i, j : ℤ,
+
+    a. If j < i then Π(a, i, j) = 1.
+    b. If i ≤ j then Π(a, i, j) = Π(a, i, j − 1) · a(j).
+
+Lemma (product of positive sequence).  Let a : ℤ → ℤ.  Let i, j : ℤ.  Suppose that a(k) > 0 for all k: ℤ with i ≤ k ≤ j.  Then Π(a, i, j) > 0.
+
+Proof.  Either j < i or i ≤ j.  If j < i then Π(a, i, j) = 1 : ℤ > 0.
+
+Now assume that i ≤ j.  Let S = { k : ℤ | Π(a, i, k) > 0 }.  We know that Π(a, i, i) = Π(a, i, i − 1) · a(i) = 1 · a(i) = a(i) > 0.  So i ∈ S.  Now let k ∈ S, and suppose that i ≤ k < j.  Then i < k + 1 ≤ j, so
+
+    Π(a, i, k + 1) = Π(a, i, (k + 1) − 1) · a(k + 1)
+                         = Π(a, i, k) · a(k + 1)
+                          > 0 by [product of positives is positive].
+
+So k + 1 ∈ S.  So by [induction on a range of ℤ] k ∈ S for all k : ℤ with i ≤ k ≤ j.  Then j ∈ S, so Π(a, i, j) > 0. 
+
+Lemma (product of sequences).  Let a : ℤ → ℤ.  Let i, j, k : ℤ with i ≤ j ≤ k.  Then Π(a, i, j) · Π(a, j + 1, k) = Π(a, i, k).
+
+Proof.  Let B = { x : ℤ | Π(a, i, j) · Π(a, j + 1, x) = Π(a, i, x) }. We know that Π(a, j + 1, j) = 1, so Π(a, i, j) · Π(a, j + 1, j) = Π(a, i, j).  So j ∈ B.
+
+Now let x ∈ B, and suppose that j ≤ x < k.  We know that i ≤ j ≤ x < x + 1, so by [≤ with < are transitive on ℤ] i < x + 1.  Then
+
+    Π(a, i, j) · Π(a, j + 1, x + 1)
+        = Π(a, i, j) · (Π(a, j + 1, (x + 1) − 1) · a(x + 1))
+        = Π(a, i, j) · (Π(a, j + 1, x) · a(x + 1))
+        = (Π(a, i, j) · Π(a, j + 1, x)) · a(x + 1)
+        = Π(a, i, x) · a(x + 1)  by the inductive hypothesis
+        = Π(a, i, (x + 1) − 1) · a(x + 1)
+        = Π(a, i, x + 1).
+
+So x + 1 ∈ B.  Then by [induction on a range of ℤ] x ∈ B for all x : ℤ with j ≤ x ≤ k.  So k ∈ B, so Π(a, i, j) · Π(a, j + 1, k) = Π(a, i, k).
+
+Lemma (sequence divisor).  Let a : ℤ → ℤ.  Let i, j, k : ℤ.  Suppose that i ≤ j ≤ k.  Then a(j) | Π(a, i, k).
+
+Proof.
+
+    a(j) · (Π(a, i, j − 1) · Π(a, j + 1, k))
+        = (Π(a, i, j − 1) · a(j)) · Π(a, j + 1, k)
+        = Π(a, i, j) · Π(a, j + 1, k)
+        = Π(a, i, k) by [product of sequences].
+
+# The infinitude of primes, Wiedijk #11
+
+Theorem.  { x : ℤ | x is prime } is infinite.
+
+Proof.  Let P = { x : ℤ | x is prime }.  Assume that P is finite.  Then by [finite set] there is some k : ℤ and q : ℤ → ℤ such that P = { x : ℤ | x = q(i) for some i : ℤ with 1 ≤ i ≤ k }.  Let i : ℤ, and assume that 1 ≤ i ≤ k.  Then q(i) is prime, so q(i) > 1, so q(i) > 0 by [< is transitive on ℤ].  So q(i) > 0 for all i : ℤ with 1 ≤ i ≤ k.
+
+Let
+
+    u = Π(q, 1, k) + 1.
+
+By [product of positive sequence] Π(q, 1, k) > 0, so u > 1.  By [divisible by prime] there is some p : ℤ such that p is prime and p | u.  Hence there is some j : ℤ with 1 ≤ j ≤ k such that p = q(j).  Hence by [sequence divisor] p | Π(q, 1, k).  But
+
+    1 = u − Π(q, 1, k)
+       = 1 · u + (−1) · Π(q, 1, k),
+       
+so by [divides linear combination] p | 1.  Since p is prime, p > 1, which is a contradiction.

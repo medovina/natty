@@ -13,3 +13,13 @@ Proof.  Suppose that A ~ 𝒫(A).  Then there is some f : σ → Set(σ) such th
 # Finite and infinite sets
 
 Definition.  For all S : Set(σ), S is finite if there exists n : ℤ such that { k ∈ ℤ | 1 ≤ k ≤ n } ~ S.   S is infinite iff S is not finite.
+
+Corollary (finite set).  For all S : Set(σ), if S is finite then there exists n : ℤ and f : ℤ → σ such that S = { x : σ | x = f(i) for some i : ℤ with 1 ≤ i ≤ n }.
+
+Proof.  Let S : Set(σ), and suppose that S is finite.  Then there is some n : ℤ such that { i ∈ ℤ | 1 ≤ i ≤ n } ~ S.  And there is some f : ℤ → σ such that f is a bijection from { i ∈ ℤ | 1 ≤ i ≤ n } to S. 
+
+Let x ∈ S.  Because f is a surjection from { i ∈ ℤ | 1 ≤ i ≤ n } to S, there exists some i : ℤ with 1 ≤ i ≤ n such that x = f(i).
+
+Let x : σ, and suppose there is some i : ℤ with 1 ≤ i ≤ n such that x = f(i).  Because f is a mapping from { i ∈ ℤ | 1 ≤ i ≤ n } to S, f(i) ∈ S, so x ∈ S.
+
+Therefore S = { x : σ | x = f(i) for some i : ℤ with 1 ≤ i ≤ n }.
