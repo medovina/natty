@@ -817,14 +817,13 @@ let extract_definition f : (formula * (id * typ) list * formula) option =
 
 (* Transform ∀x₁...xₙ C x₁...xₙ = λy₁...yₙ.φ to
               ∀x₁...xₙ y₁...yₙ (C x₁...xₙ y₁...yₙ = φ) .*)
-let lower_definition f : formula =
-  match extract_definition f with
-    | Some (c, xs, g) ->
-        let (ys, g) = gather_lambdas g in
-        let eq = if type_of g = Bool then _iff else mk_eq in
-        for_all_vars_types (xs @ ys) (
-          eq (apply (c :: map mk_var' xs @ map mk_var_or_type_const ys)) g)
-    | None -> f
+let lower_definition f : formula option =
+  let* (c, xs, g) = extract_definition f in
+  let (ys, g) = gather_lambdas g in
+  let eq = if type_of g = Bool then _iff else mk_eq in
+  let h = for_all_vars_types (xs @ ys) (
+    eq (apply (c :: map mk_var' xs @ map mk_var_or_type_const ys)) g) in
+  if f = h then None else Some h
 
 let first_var start_var = function
   | Fun (_, Bool) -> "P"

@@ -181,7 +181,7 @@ let expand_modules1 modules all_modules :
     let+ (stmt, known) =
       expand_proofs apply_types_in_stmt (map apply_types_in_stmt m.stmts) false in
     let known = rev known in
-    [(m.filename, stmt, env @ known, known)] in
+    [(m.filename, stmt, env, known)] in
   let stmts = match !(opts.from_thm) with
     | Some id -> stmts |> drop_while (fun (_, stmt, _, _) -> not (match_thm stmt id))
     | None -> stmts in

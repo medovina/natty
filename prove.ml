@@ -596,7 +596,7 @@ let super rule with_para lenient upward dp d' pairs cp c_lits c_lit : pformula l
   if dbg then printf "super\n";
   let+ (t, t') = pairs in
   let res = is_bool_const t' in
-  if not res && not with_para then [] else
+  if is_lambda t' || not res && not with_para then [] else
   let lenient = res && lenient in
   let+ (u, parent_eq) = green_subterms c_lit in  (* i, ii *)
   let+ sub = unify !comm_ops t u in
@@ -776,7 +776,8 @@ let rewrite dp cp c_subterms only_safe : pformula option =
     let all =
       let+ (t, t') =
         eq_pairs with_iff false d in  (* i: pre-check *)
-      if only_safe && not dp.safe_for_rewrite && not (is_bool_const t') then [] else
+      if is_lambda t' ||
+         only_safe && not dp.safe_for_rewrite && not (is_bool_const t') then [] else
       let t, t' = prefix_vars t, prefix_vars t' in
       let& u = c_subterms in
       (t, t', u) in
@@ -1235,7 +1236,7 @@ let ac_completion_axiom op typ =
   for_all_vars_typ (["x"; "y"; "z"], typ) (Eq (e1, e2))
 
 let to_pformula name f =
-  create_pformula name [] (rename_vars (lower_definition f))
+  create_pformula name [] (rename_vars f)
 
 let ac_completion op typ : pformula =
   if !debug > 0 then printf "AC operator: %s\n\n" (strip_prefix op);
@@ -1399,6 +1400,17 @@ let encode_consts all_known local_known thm : statement list * statement list * 
    map map_stmt (map strip_proof local_known),
    map_stmt thm)
 
+let lower_stmts stmts =
+  let lower stmt = stmt :: match stmt with
+    | Hypothesis (name, f) ->
+        let& g = opt_to_list (lower_definition f) in
+        Hypothesis (name ^ "_lower", g)
+    | Definition (id, typ, f) ->
+        let& g = opt_to_list (lower_definition f) in
+        Definition (id, typ, g)        
+    | _ -> [] in
+  concat_map lower stmts
+
 let functional_extend f : formula list = match f with
   | Eq (g, h) -> (match type_of g with
       | Fun (t, Bool) ->  (* apply functional extensionality *)
@@ -1406,9 +1418,11 @@ let functional_extend f : formula list = match f with
       | _ -> [])
   | _ -> []
 
-let prove all_known local_known thm cancel_check : proof_result * float =
+let prove env_known local_known thm cancel_check : proof_result * float =
   step_strategy := is_step thm;
   destructive_rewrites := not !step_strategy;
+  let env_known, local_known = lower_stmts env_known, lower_stmts local_known in
+  let all_known = env_known @ local_known in
   let all_known, local_known, thm = encode_consts all_known local_known thm in
   comm_ops := [];
   ac_ops := [];

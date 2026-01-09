@@ -385,7 +385,7 @@ let infer_definition env f : id * typ * formula =
               let eq = if g_type = Bool then _iff else mk_eq in
               let body = for_all_vars_types vs @@
                 eq (apply (Const (id, c_type) :: type_args @ args)) g in
-              (id, c_type, lower_definition body)
+              (id, c_type, body)
           | _ -> failwith "definition expected (1)")
     | _ -> failwith "definition expected (2)")
 
