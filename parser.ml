@@ -302,7 +302,7 @@ and operators with_bar = [
   [ infix "→" implies Assoc_right ];
   [ infix "↔" _iff Assoc_right ];
   [ Prefix (str "∀" >> decl_ids_type << str "." |>>
-             (fun ids_type -> for_all_vars_typ ids_type)) ] 
+             (fun (ids, typ) -> for_all_vars_typ ids typ)) ] 
 ]
 
 and expr1 with_bar s = (expression (operators with_bar) terms) s
@@ -573,10 +573,14 @@ let words2 : string p =
     pipe2 word (option word) (fun w x ->
         unwords (w :: opt_to_list x)) 
 
-let type_decl : hstatement p =
-  let> id = str "a type" >> id in
+let type_name : (id * string option) p =
+  let> id = str "type" >> id in
   let$ opt_name = option (parens (str "the" >> words2)) in
-  HTypeDecl (id, Option.map singular opt_name)
+  (id, Option.map singular opt_name)
+
+let type_decl : hstatement p =
+  let$ (id, opt_name) = str "a" >>? type_name in
+  HTypeDef (id, [], opt_name)
 
 let const_decl : hstatement list p =
   let$ (cs, typ) = (any_str ["a constant"; "an element"; "a function"] <|> operation) >>
@@ -584,7 +588,8 @@ let const_decl : hstatement list p =
   let& c = cs in
   HConstDecl (unary_prefix c typ, typ)
 
-let axiom_decl : hstatement list p = single type_decl <|> const_decl
+let axiom_decl : hstatement list p =
+  single type_decl <|> const_decl
 
 let axiom_propositions id_typ name : hstatement list p =
   let$ props = propositions name in
@@ -716,6 +721,12 @@ let proofs : (id * proof_step list) list p = str "Proof." >> choice [
 
 (* definitions *)
 
+let type_definition : hstatement p =
+  let> (id, opt_name) = str "The" >> type_name in
+  let$ constructors =
+    str "is defined inductively with constructors" >> decl_ids_types << str "." in
+  HTypeDef (id, constructors, opt_name)
+
 let define ids_types justification prop : hstatement =
   let prop = for_all_vars_types ids_types prop in
   HDefinition (prop, justification)
@@ -731,12 +742,15 @@ let definition_body : ((id * typ) list * formula list) p =
   let ids_types = concat let_ids_types @ ids_types in
   (ids_types, props)
 
-let definition : hstatement list p =
-  str "Definition" >> optional stmt_name >> str "." >>
+let const_or_fun_definition : hstatement list p =
   let> (ids_types, props) = definition_body in
   let$ justification = opt [] (str "Justification." >> proof_steps) in
   define ids_types justification (hd props) ::
   map (define ids_types []) (tl props)
+
+let definition : hstatement list p =
+  str "Definition" >> optional stmt_name >> str "." >>
+  (single type_definition <|> const_or_fun_definition)
 
 (* theorems *)
 

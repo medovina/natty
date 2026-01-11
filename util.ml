@@ -244,7 +244,7 @@ let rec list_starts_with xs ys = match xs, ys with
   | _, [] -> false
   | x :: xs, y :: ys -> x = y && list_starts_with xs ys
 
-let rec all_pairs = function
+let rec all_pairs xs = match xs with
   | [] -> []
   | x :: xs -> map (fun y -> (x, y)) xs @ all_pairs xs
 

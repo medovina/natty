@@ -245,7 +245,9 @@ propositions = [for_all_with] top_prop_or_items;
 
 (* axioms *)
 
-type_decl = 'a type' id ['(' 'the' word [word] ')'];
+type_name = 'type' id ['(' 'the' word [word] ')'];
+
+type_decl = 'a' type_name;
 
 const_decl = ('a constant' | 'an element' | 'a function' | operation) decl_ids_type;
 
@@ -312,12 +314,17 @@ proofs = 'Proof.' (proof_item+ | proof_steps);
 
 (* definitions *)
 
+type_definition =
+    'The' type_name 'is defined inductively with constructors' decl_ids_types '.';
+
 def_prop = ['we write'] small_prop '.';
 
 definition_body = {let_decl '.'} [for_all_ids ','] {['Let'] def_prop}+;
 
+const_or_fun_definition = definition_body ['Justification.' proof_steps];
+
 definition =
-    'Definition' [stmt_name] '.' definition_body ['Justification.' proof_steps];
+    'Definition' [stmt_name] '.' (type_definition | const_or_fun_definition);
 
 (* theorems *)
 

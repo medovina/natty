@@ -116,6 +116,10 @@ let get_const_or_var = function
   | Const (id, _) | Var (id, _) -> id
   | _ -> failwith "const or var expected"
 
+let is_fun = function
+  | Fun _ -> true
+  | _ -> false
+
 let is_lambda = function
   | Lambda _ -> true
   | _ -> false
@@ -261,6 +265,7 @@ let undefined = Const ("undef", Pi ("σ", TypeVar "σ"))
 let is_bool_const x = x = _true || x = _false
 
 let _not f = App (Const ("(¬)", Fun (Bool, Bool)), f)
+let _neq f g = _not (Eq (f, g))
 
 let logical_binary = ["(∧)"; "(∨)"; "(→)"; "(↔)"]
 
@@ -550,13 +555,10 @@ let any_free_in xs f = overlap xs (free_vars f)
 
 let is_free_in_any x fs = exists (fun f -> is_free_in x f) fs
 
-let quant_vars_typ quant (ids, typ) f =
+let quant_vars_typ quant ids typ f =
   fold_right (fun id f -> quant id typ f) ids f
 
-let for_all_vars_typ : (id list * typ) -> formula -> formula =
-  quant_vars_typ _for_all
-let exists_vars_typ : (id list * typ) -> formula -> formula =
-  quant_vars_typ _exists
+let for_all_vars_typ = quant_vars_typ _for_all
 
 let for_all_vars_types : (id * typ) list -> formula -> formula =
   fold_right _for_all'

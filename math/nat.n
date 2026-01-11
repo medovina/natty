@@ -1,10 +1,6 @@
 # Natural numbers: definition
 
-Axiom.  There exists a type ℕ (the natural numbers) with an element 0 : ℕ and a function s : ℕ → ℕ such that
-
-  a. There is no n : ℕ such that s(n) = 0.  [0 is not successor]
-  b. For all n, m : ℕ, if s(n) = s(m) then n = m.  [succ is injective]
-  c. Let P : Set(ℕ).  If 0 ∈ P, and k ∈ P implies s(k) ∈ P for all k : ℕ, then P = ℕ.  [induction]
+Definition.  The type ℕ (the natural numbers) is defined inductively with constructors 0 : ℕ and s : ℕ → ℕ.
 
 Definition.  Let 1 : ℕ = s(0).  Let 2 : ℕ = s(1).
 
@@ -79,7 +75,7 @@ Now suppose that v = y.  Then s(v) = s(y) = y + s(0).  So y < s(v).
 
 Finally, suppose that y < v.  Then v = y + s(u) for some u : ℕ.  Hence s(v) = s(y + s(u)) = y + s(s(u)).  Thus y < s(v).
 
-In all cases s(v) < y or s(v) = y or y < s(v).  Hence s(v) ∈ A.  We have shown that for all v ∈ A, s(v) ∈ A.  By [induction], A = ℕ.
+In all cases s(v) < y or s(v) = y or y < s(v).  Hence s(v) ∈ A.  We have shown that for all v ∈ A, s(v) ∈ A.  By [induction on ℕ], A = ℕ.
 
 Theorem.  Let x, y : ℕ.
 
@@ -171,7 +167,7 @@ Proof.  Assume there is no x : ℕ such that x is a least element of A.  Let
 
     B = { x : ℕ | for all u : ℕ, if u ≤ x then u ∉ A }.
 
-Observe that for all x ∈ B, x ∉ A.  We will show by [induction] that B = ℕ.
+Observe that for all x ∈ B, x ∉ A.  We will show by [induction on ℕ] that B = ℕ.
 
 First assume that 0 ∉ B.  Then there is some u : ℕ such that u ≤ 0 and u ∈ A.  If u < 0 then u > 0 by [nonzero is positive], which is a contradiction to [trichotomy].  So u = 0.  Thus 0 ∈ A.  But then 0 is a least element of A, contradicting our assumption.  Hence 0 ∈ B.
 
@@ -183,7 +179,7 @@ Assume that s(x) ∈ A.  Let v ∈ A.  If v < s(x) then by [< successor iff ≤]
 
 Hence by [< successor iff ≤] for all u : ℕ, if u ≤ s(x) then u ∉ A. Then s(x) ∈ B.
 
-We have shown that for all x ∈ B, s(x) ∈ B.  By [induction] B = ℕ.  So A is empty, which is a contradiction.
+We have shown that for all x ∈ B, s(x) ∈ B.  By [induction on ℕ] B = ℕ.  So A is empty, which is a contradiction.
 
 # Multiplication
 
@@ -206,7 +202,7 @@ Proof.
                              = (y · w + y) + (z · w + z)
                              = y · s(w) + z · s(w)           by [mul succ].
 
-    Thus s(w) ∈ A.  We have shown that for all w ∈ A, s(w) ∈ A.  By [induction] A = ℕ.
+    Thus s(w) ∈ A.  We have shown that for all w ∈ A, s(w) ∈ A.  By [induction on ℕ] A = ℕ.
 
 Lemma.  Let x, y : ℕ.
 
@@ -225,7 +221,7 @@ Proof.  Let x : ℕ.  Let A = { y : ℕ | x · y = y · x }.  We must prove that
                 = (y + 1) · x            by [right distributive]
                 = s(y) · x.
 
-Thus s(y) ∈ A.  We have shown that for all y ∈ A, s(y) ∈ A.  By [induction], A = ℕ.
+Thus s(y) ∈ A.  We have shown that for all y ∈ A, s(y) ∈ A.  By [induction on ℕ], A = ℕ.
 
 Theorem (associativity of multiplication).  For all x, y, z : ℕ,
 

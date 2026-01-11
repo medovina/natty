@@ -140,7 +140,7 @@ let rec collect_cmp f : formula list * id list =
 
 let apply_comparison op f g : formula =
   if op = "=" then Eq (f, g)
-  else if op = "≠" then _not (Eq (f, g))
+  else if op = "≠" then _neq f g
   else apply [_var op; f; g]
 
 let rec extract_by f : formula * reason = match f with
@@ -336,21 +336,68 @@ let top_infer_with_type env f =
 
 let top_infer env f = snd (top_infer_with_type env f)
 
-let infer_type_decl env id =
-  if is_type_defined id env then (
-    let e = sprintf "duplicate type definition: %s\n" id in
-    error e empty_range);
-  ConstDecl (id, Type)
-
 let check_dup_const env id typ kind range =
   if mem typ (id_types env id) then (
     let e = sprintf "duplicate %s: %s : %s\n" kind id (show_type typ) in
     error e range)
 
-let infer_const_decl env id typ =
+let check_const env (id, typ) : id * typ =
   let typ = check_type env typ in
   check_dup_const env id typ "constant declaration" empty_range;
+  (id, typ)
+
+let infer_const_decl env id typ : statement =
+  let (id, typ) = check_const env (id, typ) in
   ConstDecl (id, typ)
+
+(* Generate inductive axioms.  If the constructors are 0 : ℕ and s : ℕ → ℕ we produce
+ *  1. ∀x:ℕ. 0 ≠ s(x)
+ *  2. ∀x:ℕ.∀y.ℕ. s(x) ≠ s(y)
+ *  3. ∀P:ℕ → 𝔹. P(0) → (∀x:ℕ.P(x) → P(s(x))) → (∀x:ℕ.P(x)) *)
+let inductive_axioms id constructors : statement list =
+  if constructors = [] then [] else (
+  incr axiom_count;
+  let t = Base id in
+  let var v = Var (v, t) in
+  let var_for typ v = if typ = t then [] else [v] in
+  let fs1 =
+    let& ((c, ctyp), (d, dtyp)) = all_pairs constructors in
+    let cvar, dvar = var_for ctyp "x", var_for dtyp "y" in
+    for_all_vars_typ (cvar @ dvar) t
+      (_neq (apply (Const (c, ctyp) :: map var cvar))
+            (apply (Const (d, dtyp) :: map var dvar))) in
+  let fs2 =
+    let+ (c, ctyp) = constructors in
+    if is_fun ctyp then
+      [for_all_vars_typ ["x"; "y"] t
+        (implies (Eq (App (Const (c, ctyp), var "x"), App (Const (c, ctyp), var "y")))
+                 (Eq (var "x", var "y")))] else [] in
+  let f3 =
+    let p = Var ("P", Fun (t, Bool)) in
+    let preserves (c, ctyp) =
+      if ctyp = t then App (p, Const (c, t)) else
+        _for_all "x" t (implies (App (p, var "x"))
+                                (App (p, App (Const (c, ctyp), var "x")))) in
+    let fs = map preserves constructors in
+    let concl = Eq (p, Lambda ("x", t, _true)) in
+    _for_all "P" (Fun (t, Bool)) (fold_right implies1 fs concl) in
+  let fs =
+    (fs1 @ fs2 |> map (fun f -> (f, None))) @ [(f3, Some ("induction on " ^ id))] in
+  fs |> mapi (fun i (f, name) ->
+    let id = sprintf "%d.%c" !axiom_count (Char.chr (Char.code 'a' + i)) in
+    Axiom { id; formula = f; name; defined = Some (last constructors) }))
+
+let infer_type_definition env id constructors : statement list =
+  if is_type_defined id env then (
+    let e = sprintf "duplicate type definition: %s\n" id in
+    error e empty_range);
+  let type_decl = ConstDecl (id, Type) in
+  let cs = map (check_const (type_decl :: env)) constructors |> map (fun (c, typ) ->
+    if typ <> Base id && typ <> Fun (Base id, Base id) then (
+      let e = sprintf "unsupported constructor type: %s\n" (show_type typ) in
+      error e empty_range);
+    (c, typ)) in
+  type_decl :: map mk_const_decl cs @ inductive_axioms id cs
 
 let infer_definition env f : id * typ * formula =
   (* f has the form ∀σ₁...σₙ v₁...vₙ (C φ₁ ... φₙ = ψ) .  We check types and build
@@ -444,8 +491,8 @@ let rec blocks_steps in_proof env lenv blocks : statement list list * formula =
 and block_steps in_proof env lenv (Block (step, children)) : statement list list * formula =
   let child_steps stmts = blocks_steps in_proof (stmts @ env) (stmts @ lenv) children in
   let const_decl (id, typ) =
-    if typ = Type then infer_type_decl env id else infer_const_decl env id typ in
-  let const_decls ids_typs = rev (map const_decl ids_typs) in
+    if typ = Type then infer_type_definition env id [] else [infer_const_decl env id typ] in
+  let const_decls ids_typs = rev (concat_map const_decl ids_typs) in
   match step with
     | Assert (f, reason) ->
         let fs = gather_and f in
@@ -623,7 +670,7 @@ and translate_if_block f : formula option * formula * formula option =
 
 and infer_stmt env stmt : statement list =
   match stmt with
-    | HTypeDecl (id, _name) -> [infer_type_decl env id]
+    | HTypeDef (id, constructors, _name) -> infer_type_definition env id constructors
     | HConstDecl (id, typ) -> [infer_const_decl env id typ]
     | HDefinition (f, justification) ->
         let (id, typ, f') = infer_definition env (generalize f) in

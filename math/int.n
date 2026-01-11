@@ -510,7 +510,7 @@ Proof.
 
         z(n, 0) + 1 = z(n, 0) + z(1, 0) = z(n + 1, 0).
     
-    Hence n + 1 ∈ B.  We have shown that for all n ∈ B, n + 1 ∈ B.  Hence by [induction] B = ℕ.  Thus for all n : ℕ z(n, 0) ∈ A.
+    Hence n + 1 ∈ B.  We have shown that for all n ∈ B, n + 1 ∈ B.  Hence by [induction on ℕ] B = ℕ.  Thus for all n : ℕ z(n, 0) ∈ A.
     
     Now let a ∈ 𝒲.  Then there are some k, i : ℕ such that a = z(k, i).  Since a ∈ 𝒲, z(k, i) ≥ 0, so k ≥ i.  Hence k = i + j for some j : ℕ.  Thus z(k, i) = z(j, 0), so a = z(j, 0), so a ∈ A.  We have shown that a ∈ A for all a ∈ 𝒲, and so A = 𝒲.
 

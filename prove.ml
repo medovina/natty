@@ -1233,7 +1233,7 @@ let ac_completion_axiom op typ =
   let var v = Var (v, typ) in
   let e1 = apply [c_op; var "x"; apply [c_op; var "y"; var "z"]] in
   let e2 = apply [c_op; var "y"; apply [c_op; var "x"; var "z"]] in
-  for_all_vars_typ (["x"; "y"; "z"], typ) (Eq (e1, e2))
+  for_all_vars_typ ["x"; "y"; "z"] typ (Eq (e1, e2))
 
 let to_pformula name f =
   create_pformula name [] (rename_vars f)
@@ -1256,7 +1256,7 @@ let dist_completion kind op1 op2 typ : pformula =
   let vsubst = [("$f", Const (op1, op_type)); ("$g", Const (op2, op_type));
                ("$a", Var ("x", typ)); ("$b", Var ("y", typ)); ("$c", Var ("z", typ))] in
   let name = sprintf "distributive completion: %s, %s" (basic_const op1) (basic_const op2) in
-  let f = for_all_vars_typ (["x"; "y"; "z"], typ) (subst_vars vsubst t) in
+  let f = for_all_vars_typ ["x"; "y"; "z"] typ (subst_vars vsubst t) in
   let axiom = { (to_pformula name f) with ac = Some kind2 } in
   axiom
 

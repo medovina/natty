@@ -18,6 +18,8 @@ type statement =
       { id: string; name: string option; formula: formula;
         steps: statement list list; by: id list; is_step: bool; range: range }
 
+let mk_const_decl (id, typ) = ConstDecl (id, typ)
+
 let is_hypothesis = function
   | Hypothesis _ -> true | _ -> false
 
