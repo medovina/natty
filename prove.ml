@@ -1303,7 +1303,7 @@ let find_proof_consts thm all_known local_known by_thms hyps const_map : id list
     if !step_strategy then
       all_known |> concat_map (function
         | Axiom { formula = f ; defined = Some (c, _); _ } 
-        | Definition (c, _, f) ->
+        | Definition { id = c; formula = f; _ } ->
             if mem c proof_consts && subset (formula_base_types f) proof_types
               then consts_of const_map f else []
         | _ -> [])
@@ -1329,7 +1329,7 @@ let find_axiom_symbols all_known : id list =
       then Some c else None)
 
 let defined_symbol axiom_symbols stmt : id option = match stmt with
-  | Definition (c, _, _) -> Some c
+  | Definition { id = c; _ } -> Some c
   | Axiom { defined = Some (c, _); _ }
       when mem c axiom_symbols -> Some c
   | _ -> None
@@ -1360,7 +1360,7 @@ let gen_pformulas thm all_known local_known : pformula list =
                 (* when proving ⊥, two last hypotheses have number 1 *)
                 max 1 (i + 1 - (if by_contradiction then 1 else 0))
             | _ -> 0 in
-          let p = { (to_pformula (stmt_id_name stmt) f)
+          let p = { (to_pformula (stmt_label_name stmt) f)
             with hypothesis = hyp;
                  definition;
                  defined = defined_symbol axiom_symbols stmt;
@@ -1405,9 +1405,9 @@ let lower_stmts stmts =
     | Hypothesis (name, f) ->
         let& g = opt_to_list (lower_definition f) in
         Hypothesis (name ^ "_lower", g)
-    | Definition (id, typ, f) ->
+    | Definition ({ formula = f; _ } as def) ->
         let& g = opt_to_list (lower_definition f) in
-        Definition (id, typ, g)        
+        Definition { def with formula = g }
     | _ -> [] in
   concat_map lower stmts
 
@@ -1431,7 +1431,7 @@ let prove env_known local_known thm cancel_check : proof_result * float =
   let known = gen_pformulas thm all_known local_known in
   let f = get_stmt_formula thm in
   let fs = f :: functional_extend f in
-  let goals = fs |> map (fun f -> to_pformula (stmt_id_name thm) f) in
+  let goals = fs |> map (fun f -> to_pformula (stmt_label_name thm) f) in
   let goals = if !(opts.disprove) then goals else
       goals |> map (fun goal -> create_pformula "negate" [goal] (negate goal.formula)) in
   let goals = goals |> map (fun g -> {g with goal = true}) in

@@ -35,7 +35,7 @@ let prove_stmts data stmts =
     | [] -> ()
     | (filename, thm, env_known, known) :: ss ->
         let success =
-          printf "proving %s\n%!" (stmt_id_name thm);
+          printf "proving %s\n%!" (stmt_label_name thm);
           let (proof, _elapsed) =
             prove env_known known thm (cancel_check data stmts) in
           match proof with
@@ -270,7 +270,7 @@ let run () =
               let stmts = stmts |> map (function
                 | Theorem { range = (pos1, pos2); _ } as thm ->
                     diagnostic (adjust_pos text pos1) (adjust_pos text pos2) Warning
-                      ("could not prove " ^ (stmt_id_name thm))
+                      ("could not prove " ^ (stmt_label_name thm))
                 | _ -> assert false) in
               (filename, stmts)) in
           update_diagnostics output existing_diags all_diags

@@ -9,8 +9,7 @@ open Util
 
 exception Check_error of string * range
 
-let axiom_count = ref 0
-let theorem_count = ref 0
+let axiom_count, definition_count, theorem_count = ref 0, ref 0, ref 0
 
 let error s range = raise (Check_error (s, range))
 let errorf s f range = error (sprintf "%s: %s" s (show_formula f)) range
@@ -348,7 +347,7 @@ let check_const env (id, typ) : id * typ =
 
 let infer_const_decl env id typ : statement =
   let (id, typ) = check_const env (id, typ) in
-  ConstDecl (id, typ)
+  mk_const_decl id typ
 
 (* Generate inductive axioms.  If the constructors are 0 : ℕ and s : ℕ → ℕ we produce
  *  1. ∀x:ℕ. 0 ≠ s(x)
@@ -385,21 +384,21 @@ let inductive_axioms id constructors : statement list =
     (fs1 @ fs2 |> map (fun f -> (f, None))) @ [(f3, Some ("induction on " ^ id))] in
   fs |> mapi (fun i (f, name) ->
     let id = sprintf "%d.%c" !axiom_count (Char.chr (Char.code 'a' + i)) in
-    Axiom { id; formula = f; name; defined = Some (last constructors) }))
+    Axiom { label = id; formula = f; name; defined = Some (last constructors) }))
 
 let infer_type_definition env id constructors : statement list =
   if is_type_defined id env then (
     let e = sprintf "duplicate type definition: %s\n" id in
     error e empty_range);
-  let type_decl = ConstDecl (id, Type) in
+  let type_decl = mk_const_decl id Type in
   let cs = map (check_const (type_decl :: env)) constructors |> map (fun (c, typ) ->
     if typ <> Base id && typ <> Fun (Base id, Base id) then (
       let e = sprintf "unsupported constructor type: %s\n" (show_type typ) in
       error e empty_range);
     (c, typ)) in
-  type_decl :: map mk_const_decl cs @ inductive_axioms id cs
+  type_decl :: map (mk_const_decl' true) cs @ inductive_axioms id cs
 
-let infer_definition env f : id * typ * formula =
+let infer_def_formula env f : id * typ * formula =
   (* f has the form ∀σ₁...σₙ v₁...vₙ (C φ₁ ... φₙ = ψ) .  We check types and build
     * a formula of the form ∀σ₁...σₙ v₁...vₙ (C σ₁...σₙ φ₁ ... φₙ = ψ) .*)
   let (vs, f) = gather_quant "(∀)" (strip_range f) in
@@ -423,9 +422,9 @@ let infer_definition env f : id * typ * formula =
               let g_type, g = infer g in
               let c_type = mk_fun_types arg_types g_type in
               decl_type |> Option.iter (fun t -> if t <> c_type then (
-                  printf "infer_definition: declared type = %s, actual = %s\n"
+                  printf "infer_def_formula: declared type = %s, actual = %s\n"
                     (show_type t) (show_type c_type);
-                  failwith "infer_definition")
+                  failwith "infer_def_formula")
               );
               let c_type = mk_pi_types univ c_type in
               let type_args = univ |> map (fun v -> Var (v, Type)) in
@@ -454,7 +453,7 @@ let rec with_type_vars env typ : typ = match typ with
   | _ -> map_type (with_type_vars env) typ
 
 let mk_thm env lenv f by : statement list = Theorem {
-    id = ""; name = None; formula = top_infer env f;
+    label = ""; name = None; formula = top_infer env f;
     steps = []; by; is_step = true; range = range_of f } :: lenv
 
 let assert_chain env lenv in_proof f by =
@@ -513,9 +512,9 @@ and block_steps in_proof env lenv (Block (step, children)) : statement list list
         let imps = multi_and (let+ (id, f) = subids in [App (f, _var id)]) in
         (fs, for_all_vars_types_if_free ids_types (implies imps concl))
     | LetDef (_id, _typ, g) ->
-        let (id, typ, f) = infer_definition env g in
+        let (id, typ, f) = infer_def_formula env g in
         let (fs, concl) =
-          child_steps [Hypothesis ("hyp", f); ConstDecl (id, typ)] in
+          child_steps [Hypothesis ("hyp", f); mk_const_decl id typ] in
         let mk_concl h = _for_all id (with_type_vars lenv typ) (implies h concl) in
         let concl = match g with
           | Eq (Const (id, typ), value) ->
@@ -651,6 +650,15 @@ let rec expand_proof id name env steps proof_steps : formula * statement list li
     map rev stmtss in
   (top_infer env concl, stmtss)
 
+(* If f is a definition by cases such as 'abs(x) = { x if 0 ≤ x; −x if x < 0 }',
+   we produce
+     1. a justification that exactly one case applies, e.g.
+          '∀x:ℤ.(0 ≤ x ∨ x < 0) ∧ ¬(0 ≤ x ∧ x < 0)'
+     2. a definitional formula, e.g.
+          '∀x:ℤ.(0 ≤ x → abs(x) = x) ∧ (x < 0 → abs(x) = -(x))'
+     3. a theorem that the function's value always matches one case, e.g.
+          '∀x:ℤ.abs(x) = x ∨ abs(x) = -(x)'
+ *)
 and translate_if_block f : formula option * formula * formula option =
   let vs, f' = gather_for_all f in
   match f' with
@@ -668,36 +676,139 @@ and translate_if_block f : formula option * formula * formula option =
         Some (for_all_vars_types vs justify), for_all_vars_types vs eqs, Some eq_some
     | _ -> None, f, None
 
+and find_constructors env of_type : (id * typ) list =
+  env |> filter_map (function
+    | ConstDecl { id; typ; constructor } ->
+        if constructor && target_type typ = of_type
+          then Some (id, typ) else None
+    | _ -> None)
+
+and combinations arg_map types : id option list list =
+  match types with
+    | [] -> [[]]
+    | t :: types ->
+        let cs = match assoc t arg_map with
+          | [] -> [None]
+          | ds -> let& (d, _) = ds in Some d in
+        let rest = combinations arg_map types in
+        let+ c = cs in
+        let+ r = rest in
+        [c :: r]
+
+(* Check that a set of definitional equations such as
+     for all x, y: ℕ,
+       a. x + 0 = x
+       b. x + s(y) = s(x + y)
+   is valid.  We check that
+     1. Every argument on the left is a quantified variable ('x'), a constant constructor ('0')
+        or a constructor applied to a quantified variable ('s(y)').
+     1a. No variable appears more than once on the left.
+     2. The equations cover all possible constructors and are mutually exclusive.
+     3. All recursion is primitive.
+ *)
+and check_equations env id typ fs =
+  let err msg = error ("bad definition: " ^ msg) empty_range in
+  let check msg b = if not b then err msg in
+  let arg_ts = arg_types typ in
+  let n = length arg_ts in
+  let arg_map = let& t = arg_ts in (t, find_constructors env t) in
+  let is_constructor (c, typ) = mem (c, typ) (assoc (target_type typ) arg_map) in
+  let check_arg y z =
+    if y <> z then match y with
+      | App (Const (c, typ), y') ->
+          check "recursion is not primitive" (is_constructor (c, typ) && y' = z)
+      | _ -> err "recursion is not primitive" in
+  let rec check_recursion ys f = match f with
+    | App _ ->
+        let (c, zs) = collect_args f in
+        if c = Const (id, typ) then iter2 check_arg ys zs;
+        iter (check_recursion ys) zs
+    | f -> iter_formula (check_recursion ys) f in
+  let check_formula f : id option list =
+    let (xs, f) = gather_for_all f in
+    match f with
+      | Eq (f, g) ->
+          let (c, ys) = collect_args f in
+          check "left side doesn't match defined symbol"
+            (c = Const (id, typ) && length ys = n);
+          let check_arg = function
+            | Var (x, typ) -> check "variable not quantified" (mem (x, typ) xs); None
+            | Const (c, typ) -> check "not a constructor" (is_constructor (c, typ)); Some c
+            | App (Const (c, c_typ), Var (x, x_typ)) ->
+                check "invalid constructor" (is_constructor (c, c_typ) && mem (x, x_typ) xs);
+                Some c
+            | _ -> err "argument is not variable or constructor" in
+          let args = map check_arg ys in  (* check 1 *)
+          check "duplicate variable in pattern"  (* check 1a *)
+            (not (has_duplicate (vars_in_formula false f)));
+          check_recursion ys g;   (* check 3 *)
+          args
+      | _ -> err "not an equality" in
+  let f_args = map check_formula fs in
+  let match_arg opt_c arg = match arg with
+    | None -> true
+    | Some c -> opt_c = Some c in
+  let matches combo args = for_all2 match_arg combo args in
+  let combos : id option list list = combinations arg_map arg_ts in
+  (* check 2 *)
+  let counts = combos |> map (fun combo -> count_true (matches combo) f_args) in
+  if maximum counts > 1 then err "overlapping patterns";
+  if minimum counts < 1 then err "incomplete patterns"
+
+and infer_definition env id_type recursive defs justification : statement list =
+  let fs = defs |> map (fun d -> d.formula) in
+  let (id, typ, fs) = match id_type with
+    | Some (id, typ) ->
+        let typ = check_type env typ in
+        let env = if recursive then mk_const_decl id typ :: env else env in
+        let fs = map (top_infer env) fs in
+        check_equations env id typ fs;
+        (id, typ, fs)
+    | None ->  (* implicit definition *)
+        match fs with
+          | [f] ->
+              let (id, typ, f') = infer_def_formula env (generalize f) in
+              (id, typ, [f'])
+          | _ -> failwith "infer_definition" in
+  check_dup_const env id typ "definition" empty_range;
+  let (justify, fs, eq_some) = match fs with
+    | [f] ->
+        let (justify, f, eq_some) = translate_if_block f in
+        (justify, [f], eq_some)
+    | _ -> (None, fs, None) in
+  let justify =
+    let& j = opt_to_list justify in
+    incr theorem_count;
+    let thm_id = string_of_int !theorem_count in
+    let name = Some ("justify " ^ id) in
+    let steps = if justification = [] then [] else
+      snd (expand_proof thm_id name env [mk_assert j] justification) in
+    Theorem { label = thm_id; name; formula = j; steps; by = [];
+              is_step = false; range = empty_range } in
+  let gs =
+    let& eq_some = opt_to_list eq_some in
+    incr axiom_count;
+    Axiom { label = string_of_int !axiom_count; formula = eq_some;
+            name = Some (id ^ "_eq_some"); defined = None } in
+  incr definition_count;
+  let mk_def (def: hdef) f = Definition {
+    label = count_sub_index !definition_count def.sub_index; id; typ; formula = f } in
+  let definitions = map2 mk_def defs fs in
+  justify @ [mk_const_decl id typ] @ definitions @ gs
+
 and infer_stmt env stmt : statement list =
   match stmt with
     | HTypeDef (id, constructors, _name) -> infer_type_definition env id constructors
     | HConstDecl (id, typ) -> [infer_const_decl env id typ]
-    | HDefinition (f, justification) ->
-        let (id, typ, f') = infer_definition env (generalize f) in
-        check_dup_const env id typ "definition" (range_of f);
-        let justify, f', eq_some = translate_if_block f' in
-        let justify =
-          let& j = opt_to_list justify in
-          incr theorem_count;
-          let thm_id = string_of_int !theorem_count in
-          let name = Some ("justify " ^ id) in
-          let steps = if justification = [] then [] else
-            snd (expand_proof thm_id name env [mk_assert j] justification) in
-          Theorem { id = thm_id; name; formula = j; steps; by = [];
-                    is_step = false; range = empty_range } in
-        let gs =
-          let& eq_some = opt_to_list eq_some in
-          incr axiom_count;
-          Axiom { id = string_of_int !axiom_count; formula = eq_some;
-                  name = Some (id ^ "_eq_some"); defined = None } in
-        justify @ [ConstDecl (id, typ); Definition (id, typ, f')] @ gs
+    | HDefinition { id_type; recursive; defs; justification } ->
+        infer_definition env id_type recursive defs justification
     | HAxiomGroup (id_typ, haxioms) ->
         incr axiom_count;
         let+ { sub_index; name; steps } = haxioms in
         let id = count_sub_index !axiom_count sub_index in
         let blocks = infer_blocks env (generalize_types steps) in
         let (_, f) = blocks_steps false env [] blocks in
-        [Axiom { id; formula = top_infer env f; name; defined = id_typ }]
+        [Axiom { label = id; formula = top_infer env f; name; defined = id_typ }]
     | HTheoremGroup htheorems ->
         incr theorem_count;
         let check env htheorem : statement list * statement =
@@ -707,7 +818,7 @@ and infer_stmt env stmt : statement list =
           let range = match (last steps) with
             | Assert (f, _) -> range_of f
             | _ -> failwith "assert expected" in
-          let stmt = Theorem { id; name; formula = f; steps = stmts;
+          let stmt = Theorem { label = id; name; formula = f; steps = stmts;
                                by = []; is_step = false; range } in
           (stmt :: env, stmt) in
         snd (fold_left_map check env htheorems)
@@ -839,7 +950,7 @@ let basic_check env f : typ * formula =
   check [] f
 
 let fix_by env by : string =
-  match env |> find_opt (fun stmt -> stmt_id stmt = by) with
+  match env |> find_opt (fun stmt -> stmt_label stmt = by) with
     | Some stmt -> stmt_ref stmt
     | _ -> error ("formula not found: " ^ by) empty_range
 

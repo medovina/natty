@@ -98,8 +98,8 @@ and quantifier s mk =
 and formula s = expression operators term s
 
 let thf_type : (id * statement) p = id << str ":" >>= fun id ->
-   (str "$tType" >>$ (id, ConstDecl (id, Type))) <|>
-   (typ |>> fun typ -> (id, ConstDecl (id, typ)))
+   (str "$tType" >>$ (id, mk_const_decl id Type)) <|>
+   (typ |>> fun typ -> (id, mk_const_decl id typ))
 
 type thm_info = string list * bool  (* by, is_step *)
 
@@ -110,7 +110,7 @@ let extra_item : (thm_info -> thm_info) p = choice [
 
 let thf_formula last_const : (id option * statement) p = empty >>?
   str "thf" >> parens (
-    let> id, role = pair (id << str ",") (id << str ",") in
+    let> label, role = pair (id << str ",") (id << str ",") in
     match role with
       | "type" ->
           let$ (id, stmt) = thf_type in (Some id, stmt)
@@ -119,19 +119,20 @@ let thf_formula last_const : (id option * statement) p = empty >>?
           | "axiom" | "theorem"  ->
               formula |>> fun f ->
                 Axiom {
-                  id; formula = f; name = None;
+                  label; formula = f; name = None;
                   defined = if role = "axiom"
                             then let* c = last_const in Some (c, unknown_type) else None }
           | "definition" ->
-              formula |>> fun f -> Definition (opt_get last_const, unknown_type, f)
+              formula |>> fun f ->
+                Definition { label; id = opt_get last_const; typ = unknown_type; formula = f }
           | "hypothesis" ->
-              formula |>> fun f -> Hypothesis (id, f)
+              formula |>> fun f -> Hypothesis (label, f)
           | "conjecture" ->
               let> f = formula in
               let$ extras =
                 opt [] (str "," >> str "file," >> brackets (comma_sep1 extra_item)) in
               let (by, is_step) = (fold_left Fun.compose Fun.id extras) ([], false) in
-              Theorem { id; name = None; formula = f; steps = [];
+              Theorem { label; name = None; formula = f; steps = [];
                         by; is_step; range = empty_range }
           | _ -> failwith "unknown role" in
         p |>> fun x -> ((if role = "axiom" then last_const else None), x))

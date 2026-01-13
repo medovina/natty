@@ -8,17 +8,21 @@ open Util
 type str = string
 
 type statement =
-  | ConstDecl of id * typ
+  | ConstDecl of { id : id; typ : typ; constructor: bool }
   | Axiom of
-      { id: string; formula: formula; name: string option;
+      { label: string; formula: formula; name: string option;
         defined: (id * typ) option }
-  | Hypothesis of string * formula
-  | Definition of id * typ * formula
+  | Hypothesis of string * formula  (* label, formula *)
+  | Definition of { label: string; id: string; typ: typ; formula: formula }
   | Theorem of
-      { id: string; name: string option; formula: formula;
+      { label: string; name: string option; formula: formula;
         steps: statement list list; by: id list; is_step: bool; range: range }
 
-let mk_const_decl (id, typ) = ConstDecl (id, typ)
+let mk_const_decl id typ =
+  ConstDecl { id; typ; constructor = false }
+
+let mk_const_decl' constructor (id, typ) =
+  ConstDecl { id; typ; constructor }
 
 let is_hypothesis = function
   | Hypothesis _ -> true | _ -> false
@@ -27,7 +31,7 @@ let is_definition = function
   | Definition _ -> true | _ -> false
 
 let stmt_defined = function
-  | Definition (c, _, _) -> Some c
+  | Definition { id = c; _ } -> Some c
   | Axiom { defined = Some (c, _); _ } -> Some c
   | _ -> None
 
@@ -40,14 +44,14 @@ let is_step = function
   | Theorem { is_step = true; _ } -> true
   | _ -> false
 
-let stmt_id = function
-  | ConstDecl (id, _) | Axiom { id; _ }
-  | Hypothesis (id, _) | Definition (id, _, _)
-  | Theorem { id; _ } -> id
+let stmt_label = function
+  | ConstDecl { id; _ } -> id
+  | Axiom { label; _ } | Theorem { label; _ }
+  | Hypothesis (label, _) | Definition { label; _ } -> label
 
-let with_stmt_id id = function
-  | Hypothesis (_, formula) -> Hypothesis (id, formula)
-  | Theorem thm -> Theorem { thm with id }
+let with_stmt_label label = function
+  | Hypothesis (_, formula) -> Hypothesis (label, formula)
+  | Theorem thm -> Theorem { thm with label = label }
   | _ -> assert false
 
 let stmt_prefix = function
@@ -55,9 +59,9 @@ let stmt_prefix = function
   | Axiom _ -> "ax" | Hypothesis _ -> "hyp" | Definition _ -> "def"
   | Theorem _ -> "thm"
 
-let stmt_prefix_id sep stmt = stmt_prefix stmt ^ sep ^ stmt_id stmt
+let stmt_prefix_label sep stmt = stmt_prefix stmt ^ sep ^ stmt_label stmt
   
-let stmt_ref = stmt_prefix_id ":"
+let stmt_ref = stmt_prefix_label ":"
 
 let stmt_name = function
   | Axiom { name; _ } -> name
@@ -71,8 +75,8 @@ let stmt_kind = function
   | Definition _ -> "definition"
   | Theorem _ -> "theorem"
 
-let stmt_id_name stmt : string =
-  let base = stmt_kind stmt ^ " " ^ strip_prefix (stmt_id stmt) in
+let stmt_label_name stmt : string =
+  let base = stmt_kind stmt ^ " " ^ strip_prefix (stmt_label stmt) in
   match stmt with
   | Axiom { name; _ }
   | Theorem { name; _ } -> 
@@ -83,7 +87,7 @@ let stmt_id_name stmt : string =
 
 let stmt_formula stmt : formula option = match stmt with
   | Axiom { formula = f; _ } | Hypothesis (_, f) | Theorem { formula = f; _ } -> Some f
-  | Definition (_id, _typ, f) -> Some f
+  | Definition { formula = f; _ } -> Some f
   | _ -> None
 
 let get_stmt_formula f : formula = Option.get (stmt_formula f)
@@ -96,14 +100,14 @@ let strip_proof stmt : statement = match stmt with
   | stmt -> stmt
 
 let show_statement multi s : string =
-  let name = stmt_id_name s in
+  let name = stmt_label_name s in
   let show prefix f = indent_with_prefix prefix (show_formula_multi multi f) in
   match s with
-    | ConstDecl (id, Type) -> "type " ^ id
-    | ConstDecl (id, typ) ->
+    | ConstDecl { id; typ = Type; _ } -> "type " ^ id
+    | ConstDecl { id; typ; _ } ->
         sprintf "const %s : %s" (without_type_suffix id) (show_type typ)
     | Axiom { formula = f; _ } | Hypothesis (_, f) -> show (name ^ ": ") f
-    | Definition (id, typ, f) ->
+    | Definition { id; typ; label = _; formula = f } ->
         let prefix =
           sprintf "definition (%s: %s): " (without_type_suffix id) (show_type typ) in
         show prefix f
@@ -111,12 +115,14 @@ let show_statement multi s : string =
 
 let rec map_statement1 id_fn typ_fn fn stmt =
   match stmt with
-  | ConstDecl (id, typ) -> ConstDecl (id_fn typ id, typ_fn typ)
-  | Axiom { id; formula; name; defined } ->
-      Axiom { id; formula = fn formula; name;
+  | ConstDecl { id;  typ; constructor } ->
+      ConstDecl { id = id_fn typ id; typ = typ_fn typ; constructor }
+  | Axiom { label; formula; name; defined } ->
+      Axiom { label; formula = fn formula; name;
               defined = let* (id, typ) = defined in Some (id_fn typ id, typ_fn typ) }
   | Hypothesis (id, f) -> Hypothesis (id, fn f)
-  | Definition (id, typ, f) -> Definition (id_fn typ id, typ_fn typ, fn f)
+  | Definition { label; id; typ; formula = f } ->
+      Definition { label; id = id_fn typ id; typ = typ_fn typ; formula = fn f }
   | Theorem ({ formula = f; steps = esteps; _ } as thm) ->
       let map_proof esteps = map (map (map_statement1 id_fn typ_fn fn)) esteps in
       Theorem { thm with formula = fn f; steps = map_proof esteps }
@@ -128,7 +134,7 @@ let map_stmt_formulas fn = map_statement Fun.id fn
 let apply_types_in_stmt = map_statement without_pi apply_types_in_formula
 
 let decl_var stmt : (id * typ) option = match stmt with
-  | ConstDecl (i, typ) -> Some (i, typ)
+  | ConstDecl { id; typ; _ } -> Some (id, typ)
   | _ -> None
 
 let is_const_decl id def : typ option =
@@ -136,28 +142,28 @@ let is_const_decl id def : typ option =
   if i = id then Some typ else None
 
 let is_type_decl id = function
-  | ConstDecl (id', Type) when id = id' -> true
+  | ConstDecl { id = id'; typ = Type; _ } when id = id' -> true
   | _ -> false
 
 let number_hypotheses name stmts =
   let f n = function
     | (Hypothesis _) as hyp ->
         let hyp_name = sprintf "%s.h%d" name n in
-        (n + 1, with_stmt_id hyp_name hyp)
+        (n + 1, with_stmt_label hyp_name hyp)
     | stmt -> (n, stmt) in
   snd (fold_left_map f 1 stmts)
 
 let match_thm_id thm_id selector =
   thm_id = selector || starts_with (selector ^ ".") thm_id
 
-let match_thm thm selector = match_thm_id (stmt_id thm) selector
+let match_thm thm selector = match_thm_id (stmt_label thm) selector
 
 let expand_proofs apply_types stmts with_full : (statement * statement list) list =
   let only_thm = !(opts.only_thm) in
   let rec expand known = function
     | stmt :: stmts ->
         let thms = match stmt with
-          | Theorem { id; steps = fs; _ } as thm ->
+          | Theorem { label = id; steps = fs; _ } as thm ->
               let thm_known =
                 if opt_for_all (match_thm_id id) only_thm &&
                   (with_full || fs = [])
@@ -167,7 +173,7 @@ let expand_proofs apply_types stmts with_full : (statement * statement list) lis
                   let step_name = sprintf "%s.s%d" id (j + 1) in
                   if opt_for_all (match_thm_id step_name) only_thm then
                     let (hypotheses, conjecture) = split_last (map apply_types stmts) in
-                    Some (with_stmt_id step_name conjecture,
+                    Some (with_stmt_label step_name conjecture,
                           rev (number_hypotheses id hypotheses) @ known)
                   else None))
           | _ -> [] in

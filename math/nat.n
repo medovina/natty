@@ -12,10 +12,10 @@ Corollary.  1 ≠ 0.
 
 # Addition
 
-Axiom.  There is a binary operation + : ℕ → ℕ → ℕ such that for all x, y : ℕ,
+Definition.  The binary operation + : ℕ → ℕ → ℕ is defined recursively such that for all x, y : ℕ,
 
-  a. x + 0 = x.
-  b. x + s(y) = s(x + y).
+    a. x + 0 = x.
+    b. x + s(y) = s(x + y).
 
 Lemma.  For all x, y : ℕ, x + (y + 0) = (x + y) + 0.
 
@@ -183,10 +183,10 @@ We have shown that for all x ∈ B, s(x) ∈ B.  By [induction on ℕ] B = ℕ. 
 
 # Multiplication
 
-Axiom.  There is a binary operation · : ℕ → ℕ → ℕ such that for all x, y ∈ ℕ,
+Definition.  The binary operation · : ℕ → ℕ → ℕ is defined recursively such that for all x, y ∈ ℕ,
 
     a. x · 0 = 0.
-    b. x · s(y) = (x · y) + x.  [mul succ]
+    b. x · s(y) = (x · y) + x.
 
 Theorem (distributive laws).  Let x, y, z : ℕ.
 
@@ -197,10 +197,10 @@ Proof.
 
     b. Let A = { x : ℕ | (y + z) · x = y · x + z · x }.  We must prove that A = ℕ.  First, (y + z) · 0 = 0 = y · 0 + z · 0, so 0 ∈ ℕ.  Now let w ∈ A.  Then (y + z) · w = y · w + z · w.  Hence
 
-        (y + z) · s(w) = ((y + z) · w + (y + z))     by [mul succ]
+        (y + z) · s(w) = ((y + z) · w + (y + z))
                              = (y · w + z · w) + (y + z)  by the inductive hypothesis
                              = (y · w + y) + (z · w + z)
-                             = y · s(w) + z · s(w)           by [mul succ].
+                             = y · s(w) + z · s(w).
 
     Thus s(w) ∈ A.  We have shown that for all w ∈ A, s(w) ∈ A.  By [induction on ℕ] A = ℕ.
 
@@ -215,7 +215,7 @@ Theorem (commutativity of multiplication).  For all x, y : ℕ,
 
 Proof.  Let x : ℕ.  Let A = { y : ℕ | x · y = y · x }.  We must prove that A = ℕ.  By [zero mul], 0 ∈ A.  Now assume that y ∈ A.  Thus x · y = y · x.  Hence
 
-    x · s(y) = (x · y) + x            by [mul succ]
+    x · s(y) = (x · y) + x
                 = (y · x) + x            by the inductive hypothesis
                 = (y · x) + (1 · x)     by [one mul]
                 = (y + 1) · x            by [right distributive]

@@ -49,7 +49,7 @@ typ = id | typ type_op typ | 'Set' '(' typ ')' | '(' typ ')';
 
 of_type = (':' typ | '∈' id);
 
-id_type = id of_type;
+decl_id_type = id_or_sym of_type;
 
 id_opt_type = id [of_type];
 
@@ -202,11 +202,12 @@ proposition =
 
 (* top propositions, which may include steps *)
 
-operation = ['a' | 'an'] ['binary' | 'unary']
-    ('operation' | 'relation') ['s'];
+operation = ['binary' | 'unary'] ('operation' | 'relation') ['s'];
+
+an_operation = ['a' | 'an'] operation;
 
 let_decl = 'Consider any' decl_ids_types |
-    'Let' (decl_ids_types ['be' operation] | id 'be a type');
+    'Let' (decl_ids_types ['be' an_operation] | id 'be a type');
 
 let_step = let_decl [with_exprs];
 
@@ -249,7 +250,7 @@ type_name = 'type' id ['(' 'the' word [word] ')'];
 
 type_decl = 'a' type_name;
 
-const_decl = ('a constant' | 'an element' | 'a function' | operation) decl_ids_type;
+const_decl = ('a constant' | 'an element' | 'a function' | an_operation) decl_ids_type;
 
 axiom_decl = type_decl | const_decl;
 
@@ -317,6 +318,10 @@ proofs = 'Proof.' (proof_item+ | proof_steps);
 type_definition =
     'The' type_name 'is defined inductively with constructors' decl_ids_types '.';
 
+explicit_definition =
+    'The' operation decl_id_type 'is defined' ['recursively'] 'such that'
+    for_all_ids ',' top_prop_or_items;
+
 def_prop = ['we write'] small_prop '.';
 
 definition_body = {let_decl '.'} [for_all_ids ','] {['Let'] def_prop}+;
@@ -324,7 +329,8 @@ definition_body = {let_decl '.'} [for_all_ids ','] {['Let'] def_prop}+;
 const_or_fun_definition = definition_body ['Justification.' proof_steps];
 
 definition =
-    'Definition' [stmt_name] '.' (type_definition | const_or_fun_definition);
+    'Definition' [stmt_name] '.'
+    (type_definition | explicit_definition | const_or_fun_definition);
 
 (* theorems *)
 

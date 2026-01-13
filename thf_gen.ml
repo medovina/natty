@@ -94,8 +94,9 @@ let thf_statement is_conjecture stmt : string =
   let const id typ =
     sprintf "%s, type, %s: %s"
       (quote (id ^ "_decl")) (quote (prefix_upper id)) (thf_type typ) in
-  let axiom name kind f =
-    sprintf "%s, %s, %s" (quote name) kind (thf_formula f) in
+  let prefix_label stmt = (quote (stmt_prefix_label "_" stmt)) in
+  let output_formula stmt kind f suffix =
+    sprintf "%s, %s, %s%s" (prefix_label stmt) kind (thf_formula f) suffix in
   let thm_or_hyp stmt kind by f =
     let extra =
       (if is_step stmt then ["step"] else []) @
@@ -104,13 +105,12 @@ let thf_statement is_conjecture stmt : string =
         [sprintf "by([%s])" (comma_join (map adjust by))]) in
     let suffix =
       if extra = [] then "" else sprintf ", file, [%s]" (comma_join extra) in
-    sprintf "%s, %s, %s%s"
-      (quote (stmt_prefix_id "_" stmt)) kind (thf_formula f) suffix in
+    output_formula stmt kind f suffix in
   let conv stmt = match stmt with
-    | ConstDecl (id, typ) -> const id typ
-    | Axiom { formula = f; _ } -> axiom (stmt_prefix_id "_" stmt) "axiom" f
+    | ConstDecl { id; typ; _ } -> const id typ
+    | Axiom { formula = f; _ } -> output_formula stmt "axiom" f ""
     | Hypothesis (_, f) -> thm_or_hyp stmt "hypothesis" [] f
-    | Definition (id, _typ, f) -> axiom (id ^ "_def") "definition" f
+    | Definition { formula = f; _ } -> output_formula stmt "definition" f ""
     | Theorem { formula = f; by; _ } ->
         let kind = if is_conjecture then "conjecture" else "theorem" in
         thm_or_hyp stmt kind by f in
@@ -151,7 +151,7 @@ let export_module dir all_modules md =
   let using = map base_name (all_using md all_modules) in
   expand_proofs Fun.id md.stmts !(opts.export_full) |> iter (fun (thm, known) ->
     match thm with
-      | Theorem { id; name; _ } ->
+      | Theorem { label = id; name; _ } ->
           let filename = String.concat ":" ([id] @ opt_to_list name) in
           write_thf subdir (fix_filename filename) using (rev known) (Some thm)
       | _ -> failwith "theorem expected");

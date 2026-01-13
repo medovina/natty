@@ -118,6 +118,10 @@ type haxiom = {
   steps: proof_step list
 }
 
+type hdef = {
+  sub_index: string; formula: formula
+}
+
 type htheorem = {
   sub_index: string; name: string option;
   steps: proof_step list; proof_steps: proof_step list
@@ -127,7 +131,10 @@ type hstatement =
   | HTypeDef of id * (id * typ) list * string option  (* name, constructors, long name *)
   | HConstDecl of id * typ
   | HAxiomGroup of (id * typ) option * haxiom list
-  | HDefinition of formula * proof_step list
+  | HDefinition of {
+      id_type: (id * typ) option; recursive: bool; defs: hdef list;
+      justification: proof_step list
+    }
   | HTheoremGroup of htheorem list
 
 let defined_id_type hstmt : id * typ = match hstmt with

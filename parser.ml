@@ -156,7 +156,7 @@ let of_type = choice [
   str "∈" >> let$ id in Sub (_var id)
 ]
 
-let id_type = pair id of_type
+let decl_id_type = pair id_or_sym of_type
 
 let id_opt_type = pair id (opt unknown_type of_type)
 
@@ -490,14 +490,16 @@ and proposition s : formula pr = choice [
 (* top propositions *)
 
 let operation =
-  optional (any_str ["a"; "an"]) >>? optional (any_str ["binary"; "unary"]) >>
+  optional (any_str ["binary"; "unary"]) >>
     any_str ["operation"; "operations"; "relation"; "relations"]
+
+let an_operation = optional (any_str ["a"; "an"]) >>? operation
 
 let let_decl : (id * typ) list p =
   str "Consider any" >> decl_ids_types <|> (
   str "Let" >> choice [
     id <<? str "be a type" |>> (fun id -> [(id, Type)]);
-    decl_ids_types << optional (str "be" >> operation)
+    decl_ids_types << optional (str "be" >> an_operation)
   ])
 
 let let_step : proof_step list p = pipe2 
@@ -550,12 +552,11 @@ let prop_items : (id * ((proof_step list) * id option)) list p =
   if has_duplicate (map fst items) then fail "duplicate label"
   else return items
 
-let top_prop_or_items (name: id option):
-  (id * proof_step list * id option) list p =
-    choice [
-        prop_items;
-        top_sentence |>> fun (fr, name1) -> [("", (fr, opt_or_opt name1 name))]
-    ] |>> map (fun (sub_index, (steps, name)) -> (sub_index, steps, name))
+let top_prop_or_items (name: id option): (id * proof_step list * id option) list p =
+  choice [
+    prop_items;
+    top_sentence |>> fun (fr, name1) -> [("", (fr, opt_or_opt name1 name))]
+  ] |>> map (fun (sub_index, (steps, name)) -> (sub_index, steps, name))
 
 let propositions name : (id * proof_step list * id option) list p =
   let> (vars, with_expr) = opt ([], None) for_all_with in
@@ -583,7 +584,7 @@ let type_decl : hstatement p =
   HTypeDef (id, [], opt_name)
 
 let const_decl : hstatement list p =
-  let$ (cs, typ) = (any_str ["a constant"; "an element"; "a function"] <|> operation) >>
+  let$ (cs, typ) = (any_str ["a constant"; "an element"; "a function"] <|> an_operation) >>
     decl_ids_type in
   let& c = cs in
   HConstDecl (unary_prefix c typ, typ)
@@ -722,14 +723,26 @@ let proofs : (id * proof_step list) list p = str "Proof." >> choice [
 (* definitions *)
 
 let type_definition : hstatement p =
-  let> (id, opt_name) = str "The" >> type_name in
+  let> (id, opt_name) = str "The" >>? type_name in
   let$ constructors =
     str "is defined inductively with constructors" >> decl_ids_types << str "." in
   HTypeDef (id, constructors, opt_name)
 
+let explicit_definition : hstatement p =
+  let> id_type = str "The" >> operation >> decl_id_type in
+  let> recursive = str "is defined" >> opt false (str "recursively" >>$ true) in
+  let> all = str "such that" >> for_all_ids in
+  let$ props = str "," >> top_prop_or_items None in
+  let defs = let& (sub_index, steps, _) = props in
+    match steps with
+      | [Assert (f, _)] -> { sub_index; formula = for_all_vars_types_if_free all f }
+      | _ -> failwith "explicit_definition" in
+  HDefinition { id_type = Some id_type; recursive; defs; justification = [] }
+
 let define ids_types justification prop : hstatement =
   let prop = for_all_vars_types ids_types prop in
-  HDefinition (prop, justification)
+  let defs = [{ sub_index = ""; formula = prop }] in
+  HDefinition { id_type = None; recursive = false; defs; justification }
 
 let def_prop : formula p = 
     not_before new_paragraph >> opt_str "we write" >>
@@ -750,7 +763,7 @@ let const_or_fun_definition : hstatement list p =
 
 let definition : hstatement list p =
   str "Definition" >> optional stmt_name >> str "." >>
-  (single type_definition <|> const_or_fun_definition)
+  (single type_definition <|> single explicit_definition <|> const_or_fun_definition)
 
 (* theorems *)
 

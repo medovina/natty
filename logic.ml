@@ -34,6 +34,10 @@ let mk_product_type ts = Product ts
 let mk_fun_types ts u : typ = fold_right mk_fun_type ts u
 let mk_pi_types xs u : typ = fold_right mk_pi_type xs u
 
+let rec arg_types t : typ list = match t with
+  | Fun (t, u) -> t :: arg_types u
+  | _ -> []
+
 let rec target_type = function
   | Fun (_, u) -> target_type u
   | t -> t
@@ -146,6 +150,11 @@ let map_formula fn = function
   | Lambda (id, typ, f) -> Lambda (id, typ, fn f)
   | Eq (f, g) -> Eq (fn f, fn g)
   | f -> f
+
+let iter_formula fn = function
+  | App (f, g) | Eq (f, g) -> fn f; fn g
+  | Lambda (_, _, f) -> fn f
+  | _ -> ()
 
 let rec base_types typ : id list =
   let find = function
