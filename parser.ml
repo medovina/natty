@@ -63,7 +63,11 @@ let mid_ellipsis : string p = any_str ["···"; "⋯"]
 
 let id_or_sym = id <|> sym
 
-let word = empty >>? many1_chars letter
+let keywords = ["and"; "div"; "from"; "is"; "mod"; "of"; "or"]
+
+let word = empty >>? attempt @@
+  let> w = many1_chars letter in
+  if mem w keywords then fail "word" else return w
 
 let adverb = attempt @@
   let> w = word in
@@ -105,7 +109,7 @@ let super_digits = map fst super_digit_map
 
 let super_digit = any_str super_digits |>> fun s -> assoc s super_digit_map
 
-let keywords = [
+let paragraph_keywords = [
   "axiom"; "corollary"; "definition"; "justification"; "lemma"; "proof"; "theorem"
 ]
 
@@ -311,19 +315,21 @@ and expr s = expr1 true s
 
 and exprs s = (sep_by1 expr (str "and") |>> multi_and) s
 
-and predicate_target word : (formula -> formula) p =
+and opt_predicate_target word : (formula -> formula) p =
   let app xs f = apply ([_const ("is_" ^ word); f] @ xs) in
   choice [
     str "as" >> expr |>> (fun x -> app [x]);
     pipe2 (str "of" >> expr) (opt [] (single (str "and" >> expr)))
         (fun x y -> (app ([x] @ y)));
-    pipe2 (str "from" >> expr) (str "to" >> expr) (fun y z -> app [y; z])
+    pipe2 (str "from" >> expr) (str "to" >> expr) (fun y z -> app [y; z]);
+    return (app [])
   ]
 
 and target_predicate s : (formula -> formula) pr = (
-  let>? w = any_str ["a"; "an"; "the"] >>? word in
-  predicate_target w <|>
-    let> x = word in predicate_target (w ^ "_" ^ x)) s
+  let> w1 = any_str ["a"; "an"; "the"] >>? word in
+  let> w2 = option word in
+  let w = String.concat "_" (w1 :: opt_to_list w2) in
+  opt_predicate_target w) s
 
 and predicate s : (formula -> formula) pr = choice [
   target_predicate;
@@ -703,7 +709,7 @@ let proof_clause : proof_step list p = pipe2
 let proof_sentence : proof_step list p =
   (sep_by1 proof_clause (str ";") |>> concat) << str "." << optional label
 
-let new_paragraph : id p = empty >>? (any_str keywords <|> sub_index)
+let new_paragraph : id p = empty >>? (any_str paragraph_keywords <|> sub_index)
 
 let proof_steps : proof_step list p =
   many1 (not_before new_paragraph >> proof_sentence) |>>

@@ -857,10 +857,10 @@ let encode_id consts typ id : id =
       sprintf "%s:%s" id' (type_as_id typ))
     else id
 
-let encode_type typ : typ = match typ with
+let rec encode_type typ : typ = match typ with
   | Fun (Product typs, u) ->
         fold_right mk_fun_type typs u   (* curry type *)
-  | _ -> typ
+  | _ -> map_type encode_type typ
 
 let check_subtypes typ : unit =
   let rec check typ = match typ with

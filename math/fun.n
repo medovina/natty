@@ -11,3 +11,13 @@ Definition. For all S : Set(σ) and T : Set(τ) and f : σ → τ, f is a surjec
 Definition.  For all f : σ → τ, f is surjective if f is a surjection from σ to τ.
 
 Definition. For all S : Set(σ) and T : Set(τ) and f : σ → τ, f is a bijection from S to T if f is an injection from S to T and f is a surjection from S to T.
+
+# Relations
+
+Definition.  For all R : σ ⨯ σ → 𝔹, R is reflexive if R(x, x) is true for all x : σ.
+
+Definition.  For all R : σ ⨯ σ → 𝔹, R is symmetric if R(x, y) implies R(y, x) for all x, y : σ.
+
+Definition.  For all R : σ ⨯ σ → 𝔹, R is transitive if R(x, y) and R(y, z) implies R(x, z) for all x, y, z : σ.
+
+Definition.  For all R : σ ⨯ σ → 𝔹, R is an equivalence relation if R is reflexive and R is symmetric and R is transitive.

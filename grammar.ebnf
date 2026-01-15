@@ -116,7 +116,7 @@ exprs = expr { 'and' expr };
 predicate_target =
     'as' expr | 'of' expr ['and' expr] | 'from' expr 'to' expr;
 
-target_predicate = ('a' | 'an' | 'the') word [word] predicate_target;
+target_predicate = ('a' | 'an' | 'the') word [word] [predicate_target];
 
 predicate =
     ['not'] adjective_phrase | target_predicate;

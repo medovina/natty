@@ -2,6 +2,8 @@ using nat, set;
 
 # Integers: definition
 
+Definition.  For all a, b, c, d : ℕ, (a, b) ~ (c, d) if and only if a + d = b + c.
+
 Axiom.  There exists a type ℤ (the integers) with a function z : ℕ ⨯ ℕ → ℤ such that
 
   a. For all a, b, c, d ∈ ℕ, z(a, b) = z(c, d) if and only if a + d = b + c.  [equality on ℤ]
