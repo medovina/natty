@@ -454,16 +454,6 @@ let show_range (pos1, pos2) : string =
   if pos2 = (0, 0) then show_pos pos1
   else sprintf "%s - %s" (show_pos pos1) (show_pos pos2)
 
-let encode_range ((line1, col1), (line2, col2)) : string =
-  sprintf "@ %d %d %d %d" line1 col1 line2 col2
-
-let decode_range s : range =
-  let words = String.split_on_char ' ' (string_from s 1) |>
-    filter ((<>) "") |> map int_of_string in
-  match words with
-    | [line1; col1; line2; col2] -> ((line1, col1), (line2, col2))
-    | _ -> failwith "decode_range"
-
 (* profiling *)
 
 let dummy = ref false

@@ -186,10 +186,10 @@ let is_type_defined id env = exists (is_type_decl id) env
 
 let id_types env id : typ list = filter_map (is_const_decl id) env
 
-let find_const env _formula id : formula list =
+let find_const env formula range id : formula list =
   let consts = id_types env id |> map (fun typ -> Const (id, typ)) in
   match consts with
-    | [] -> error (sprintf "undefined: %s" (strip_range id)) (id_range id)
+    | [] -> errorf (sprintf "undefined: %s\n" id) formula range
     | _ -> consts
 
 let univ f : formula = match f with
@@ -205,7 +205,7 @@ let is_lambda_or_set_comp f = match f with
   | _ -> false
 
 let rec check_type1 env vars typ : typ =
-  let rec check vars typ =
+  let rec check range vars typ =
     let lookup_type id =
       if mem (id, Type) vars then Some (TypeVar id)
       else if is_type_defined id env then Some (Base id)
@@ -214,14 +214,14 @@ let rec check_type1 env vars typ : typ =
       | Bool | Type -> typ
       | Base id ->
           if not (is_unknown typ) && not (is_type_defined id env) then
-            error ("undefined type " ^ id) (id_range id)
+            error ("undefined type " ^ id) range
           else typ
       | TypeVar id -> (match lookup_type id with
           | Some typ -> typ
-          | None -> error ("undefined type variable " ^ id) (id_range id))
-      | Fun (t, u) -> Fun (check vars t, check vars u)
-      | Pi (id, t) -> Pi (id, check ((id, Type) :: vars) t)
-      | Product typs -> Product (map (check vars) typs)
+          | None -> error ("undefined type variable " ^ id) range)
+      | Fun (t, u) -> Fun (check range vars t, check range vars u)
+      | Pi (id, t) -> Pi (id, check range ((id, Type) :: vars) t)
+      | Product typs -> Product (map (check range vars) typs)
       | TypeApp _ -> failwith "check_type1: typeapp"
       | Sub f -> match f with
         | Var (id, _) as f ->
@@ -229,7 +229,7 @@ let rec check_type1 env vars typ : typ =
               let (_typ, f) = infer_formula env vars f in
               Sub f)
         | _ -> failwith "check_type1: sub"
-  in check vars typ
+  in check empty_range vars typ
 
 and check_type env typ : typ = check_type1 env [] typ
 
@@ -244,11 +244,11 @@ and infer_formula env vars formula : typ * formula =
         let v = new_type_var () in
           inst (App (f, type_const v)) (type_subst t v x)
     | _ -> (f, typ) in
-  let rec check vars tsubst formula : (tsubst * typ * formula) list =
+  let rec check range vars tsubst formula : (tsubst * typ * formula) list =
     match formula with
       | Const (id, typ) ->
           let+ c = if is_unknown typ
-                    then find_const env formula id
+                    then find_const env formula range id
                     else [Const (id, check_type1 env vars typ)] in
           let c = univ c in
           let (f, typ) = inst c (type_of c) in
@@ -258,7 +258,7 @@ and infer_formula env vars formula : typ * formula =
             | Some typ ->
                 let f = univ (Var (id, typ)) in
                 [(tsubst, type_of f, f)]
-            | None -> check vars tsubst (_const id))
+            | None -> check range vars tsubst (_const id))
       | App (App (Const ("_", _), f), g) ->
           let h = match f, g with
             | Var (v, _), Const (c, _) ->
@@ -266,7 +266,7 @@ and infer_formula env vars formula : typ * formula =
                 if mem name (map fst vars) || is_declared env name
                   then _var name else App (f, g)
             | _ -> failwith "infer_formula" in
-          check vars tsubst h
+          check range vars tsubst h
       | App (Const (q, _), Lambda (x, (Sub _ as typ), g))
             when q = "(∀)" || q = "(∃)" || q = "{}" ->
           let join = if q = "(∀)" then implies else _and in
@@ -275,12 +275,12 @@ and infer_formula env vars formula : typ * formula =
                 let typ = erase_sub (Sub p) in
                 typ, join (App (p, Var (x, typ))) g
             | typ -> typ, g in
-          check vars tsubst (quant1 q x typ g)
-      | App (Const ("{}", _), f) -> check vars tsubst f
+          check range vars tsubst (quant1 q x typ g)
+      | App (Const ("{}", _), f) -> check range vars tsubst f
       | App (f, g) ->
           let possible = 
-            let+ (tsubst, t, f) = check vars tsubst f in
-            let& (tsubst, u, g) = check vars tsubst g in
+            let+ (tsubst, t, f) = check range vars tsubst f in
+            let& (tsubst, u, g) = check range vars tsubst g in
             (tsubst, t, u, f, g) in
           let all =
             let+ (tsubst, t, u, f, g) = possible in
@@ -291,36 +291,36 @@ and infer_formula env vars formula : typ * formula =
                     | None -> [])
               | _ ->
                   let h = apply [Var ("·", unknown_type); f; g] in
-                  check vars tsubst h in (
+                  check range vars tsubst h in (
           match all with
             | [] ->
                 possible |> iter (fun (_, t, u, f, g) ->
                   printf "f = %s : %s, g = %s : %s\n"
                     (show_formula f) (show_type t) (show_formula g) (show_type u));
-                errorf "can't apply" formula empty_range
+                errorf "can't apply" formula range
             | [sol] -> [sol]
             | _ ->
                 let types = all |> map (fun (tsubst, typ, _) -> subst_types tsubst typ) in
                 if all_same types
-                  then errorf "ambiguous application" formula empty_range
+                  then errorf "ambiguous application" formula range
                 else all)
       | Lambda (x, typ, f) ->
           let typ = check_type1 env vars typ in
-          let+ (tsubst, t, f) = check ((x, erase_sub typ) :: vars) tsubst f in
+          let+ (tsubst, t, f) = check range ((x, erase_sub typ) :: vars) tsubst f in
           let return_type = if typ = Type then Pi (x, t) else Fun (typ, t) in
           [(tsubst, return_type, Lambda (x, typ, f))]
       | Eq (f, g) ->
           let all =
-            let+ (tsubst, t, f) = check vars tsubst f in
-            let+ (tsubst, u, g) = check vars tsubst g in
+            let+ (tsubst, t, f) = check range vars tsubst f in
+            let+ (tsubst, u, g) = check range vars tsubst g in
             match unify_types is_var tsubst t u with
               | Some tsubst -> [(tsubst, Bool, Eq (f, g))]
               | None -> [] in
           match all with
-            | [] -> errorf "incomparable types" formula empty_range
+            | [] -> errorf "incomparable types" formula range
             | [sol] -> [sol]
-            | _ -> errorf "ambiguous comparison" formula empty_range in
-  match check vars [] formula with
+            | _ -> errorf "ambiguous comparison" formula range in
+  match check empty_range vars [] formula with
     | [(tsubst, typ, f)] ->
         (subst_types tsubst typ, subst_types_in_formula tsubst f)
     | [] -> failwith "infer_formula"
@@ -707,7 +707,7 @@ and check_equations env id typ fs =
   let arg_ts = arg_types typ in
   let n = length arg_ts in
   let arg_map = let& t = arg_ts in (t, find_constructors env t) in
-  let is_constructor (c, typ) = mem_id_type (c, typ) (assoc (target_type typ) arg_map) in
+  let is_constructor (c, typ) = mem (c, typ) (assoc (target_type typ) arg_map) in
   let check_arg y z =
     if y <> z then match y with
       | App (Const (c, typ), y') ->
@@ -742,7 +742,7 @@ and check_equations env id typ fs =
   let f_args = map check_formula fs in
   let match_arg opt_c arg = match arg with
     | None -> true
-    | Some c -> opt_exists (id_eq c) opt_c in
+    | Some c -> opt_c = Some c in
   let matches combo args = for_all2 match_arg combo args in
   let combos : id option list list = combinations arg_map arg_ts in
   (* check 2 *)
@@ -844,7 +844,6 @@ let tuple_constructor types : string =
   str_join (tuple_cons (length types) :: map show_type types)
 
 let encode_id consts typ id : id =
-  let id = strip_range id in
   if id = _type || mem id logical_ops then id
   else
     let n = count_true (fun (c, _) -> c = id) consts in

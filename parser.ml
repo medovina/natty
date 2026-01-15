@@ -12,12 +12,6 @@ let comment = char '#' << skip_many_until any_char newline
 
 let empty = skip_many (space <|> comment)
 
-let with_range (p : 'a p) : (('a * range) p) = empty >>?
-  (get_pos >>= fun (_index, line1, col1) ->
-  p >>= fun x ->
-  get_pos |>> fun (_index, line2, col2) ->
-    (x, ((line1, col1), (line2, col2))))
-
 let raw_number = many1_chars digit
 
 let number = empty >>? raw_number
@@ -62,8 +56,6 @@ let sym = choice [
   empty >>? (digit <|> any_of "+-/<>~^") |>> char_to_string;
   any_str ["·"; "≤"; "≥"; "≮"; "≯"; "≁"; "⊆"];
   str "−" >>$ "-"]
-
-let range_sym = with_range sym |>> fun (s, range) -> s ^ encode_range range
 
 let minus = any_str ["-"; "−"]
 
@@ -120,6 +112,12 @@ let super_digit = any_str super_digits |>> fun s -> assoc s super_digit_map
 let paragraph_keywords = [
   "axiom"; "corollary"; "definition"; "justification"; "lemma"; "proof"; "theorem"
 ]
+
+let with_range (p : 'a p) : (('a * range) p) = empty >>?
+  (get_pos >>= fun (_index, line1, col1) ->
+  p >>= fun x ->
+  get_pos |>> fun (_index, line2, col2) ->
+    (x, ((line1, col1), (line2, col2))))
 
 (* types *)
 
@@ -230,7 +228,7 @@ and range_term f f_sub =
           App (_const "Π", mk_tuple [f; f_sub; g_sub])
       | _ -> failwith "subscript expected");
 
-and id_term s : formula pr = (
+and id_term s = (
   let> (f, f_sub) = id_sub in
   opt (mk_sub f f_sub) (range_term f f_sub)
   ) s
@@ -254,7 +252,7 @@ and if_block s : formula pr = (
   fold_right (fun (f, p) g -> _eif p f g) cs undefined) s
 
 and base_term s : formula pr = (unit_term <|> choice [
-  (range_sym |>> _const);
+  (sym |>> _const);
   str "⊤" >>$ _true;
   str "⊥" >>$ _false;
   str "|" >> expr1 false << str "|" |>> (fun f -> App (_const "abs", f));
@@ -313,7 +311,7 @@ and operators with_bar = [
 
 and expr1 with_bar s = (expression (operators with_bar) terms) s
 
-and expr s : formula pr = expr1 true s
+and expr s = expr1 true s
 
 and exprs s = (sep_by1 expr (str "and") |>> multi_and) s
 
