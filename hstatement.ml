@@ -15,21 +15,7 @@ let decode_range s : range =
     | [line1; col1; line2; col2] -> ((line1, col1), (line2, col2))
     | _ -> failwith "decode_range"
 
-let strip_type_range t : typ = match t with
-  | TypeApp (c, [typ]) when c.[0] = '@' -> typ
-  | _ -> t
-
-let strip_range f : formula = match f with
-  | App (Const (c, _), g) when starts_with "@" c -> g
-  | _ -> f
-
-let rec strip_ranges f : formula =
-  map_formula strip_ranges (strip_range f)
-
-let rec range_of f : range = match f with
-  | App (Const (c, _), _) when starts_with "@" c -> decode_range c
-  | App (Const ("(∀)", _), Lambda (_, _, g)) -> range_of g
-  | _ -> empty_range
+let range_of _f : range = empty_range
 
 type reason = (string * range) list
 
@@ -148,7 +134,7 @@ let theorem_name id name : string =
     | _ -> "")
 
 let definition_id f : id =
-  match is_eq_or_iff (strip_range (remove_universal f)) with
+  match is_eq_or_iff (remove_universal f) with
     | Some (f, _g) ->
         get_const_or_var (head_of f)
     | _ -> failwith "definition_id: definition expected"

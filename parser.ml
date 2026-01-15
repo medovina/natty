@@ -797,8 +797,7 @@ let using : string list p =
 let _module : hstatement list p = optional using >>
   many (axiom_group <|> definition <|> theorem_group) << empty << eof |>> concat
 
-let parse_formula text : formula =
-  strip_ranges (always_parse expr text)
+let parse_formula text : formula = always_parse expr text
 
 let parse_files filenames sources : (hmodule list, string * frange) Stdlib.result =
   parse_modules (opt [] using) _module filenames sources

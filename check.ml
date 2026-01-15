@@ -41,9 +41,9 @@ let rec all_vars steps : id list = match steps with
 (* Tranform "assume x ∈ g" to a variable declaration "let x : [g]". *)
 let map_assume_step env vars step = match step with
   | Assume f -> (
-      match strip_range f with
+      match f with
         | (App (App (Const ("∈", _), v), g)) -> (
-            match strip_range v with
+            match v with
               | Var (x, _) ->
                   if mem x (concat vars) || is_declared env x
                     then step else Let [(x, Sub g)]
@@ -52,8 +52,8 @@ let map_assume_step env vars step = match step with
   | _ -> step
 
 let has_premise f g =
-  match remove_for_all (strip_ranges f) with
-    | App (App (Const ("(→)", _), g'), _) when g' = strip_ranges g -> true
+  match remove_for_all f with
+    | App (App (Const ("(→)", _), g'), _) when g' = g -> true
     | _ -> false
 
 let trim_escape rest : proof_step list = match rest with
@@ -61,7 +61,7 @@ let trim_escape rest : proof_step list = match rest with
   | _ -> rest
 
 let is_assert_false step = match step with
-  | Assert (f, _) when strip_range f = _false -> true
+  | Assert (f, _) when f = _false -> true
   | _ -> false
 
 let infer_blocks env steps : block list =
@@ -84,7 +84,7 @@ let infer_blocks env steps : block list =
                   else infer vars scope_vars None rest
             | Assert (f, _) when opt_exists (has_premise f) in_assume ->
                 ([], steps, true)  (* proof invoked last assumption as a premise, so exit scope *)
-            | Assert (f, _) when strip_range f = _false ->
+            | Assert (f, _) when f = _false ->
                 if is_some in_assume then
                   ([Block (step, [])], trim_escape rest, true)
                 else error "contradiction without assumption" (range_of f)
@@ -120,7 +120,7 @@ let infer_blocks env steps : block list =
   blocks
 
 let is_comparison f : (string * formula * formula) option =
-  match strip_range f with
+  match f with
     | Eq (g, h) -> Some ("=", g, h)
     | App (Const ("(¬)", _), Eq (g, h)) -> Some ("≠", g, h)
     | App (App (Var (c, _), g), h) when mem c Parser.compare_ops -> Some (c, g, h)
@@ -222,9 +222,8 @@ let rec check_type1 env vars typ : typ =
       | Fun (t, u) -> Fun (check range vars t, check range vars u)
       | Pi (id, t) -> Pi (id, check range ((id, Type) :: vars) t)
       | Product typs -> Product (map (check range vars) typs)
-      | TypeApp (c, [typ]) when c.[0] = '@' -> check (decode_range c) vars typ
       | TypeApp _ -> failwith "check_type1: typeapp"
-      | Sub f -> match strip_range f with
+      | Sub f -> match f with
         | Var (id, _) as f ->
             opt_or (lookup_type id) (fun () ->
               let (_typ, f) = infer_formula env vars f in
@@ -260,8 +259,6 @@ and infer_formula env vars formula : typ * formula =
                 let f = univ (Var (id, typ)) in
                 [(tsubst, type_of f, f)]
             | None -> check range vars tsubst (_const id))
-      | App (Const (c, _), f) when c.[0] = '@' ->
-          check (decode_range c) vars tsubst f
       | App (App (Const ("_", _), f), g) ->
           let h = match f, g with
             | Var (v, _), Const (c, _) ->
@@ -401,21 +398,21 @@ let infer_type_definition env id constructors : statement list =
 let infer_def_formula env f : id * typ * formula =
   (* f has the form ∀σ₁...σₙ v₁...vₙ (C φ₁ ... φₙ = ψ) .  We check types and build
     * a formula of the form ∀σ₁...σₙ v₁...vₙ (C σ₁...σₙ φ₁ ... φₙ = ψ) .*)
-  let (vs, f) = gather_quant "(∀)" (strip_range f) in
+  let (vs, f) = gather_quant "(∀)" f in
   let (type_vars, vars) = vs |> partition (fun (_, typ) -> typ = Type) in
   let univ = map fst type_vars in
   let vars = vars |> map (fun (v, typ) -> (v, check_type1 env type_vars typ)) in
   let vs = type_vars @ vars in (
-  match strip_range f with
+  match f with
     | Eq (f, g) | App (App (Const ("(↔)", _), f), g) | App (App (Const ("(→)", _), g), f)->
-        let (c, args) = collect_args (strip_range f) in
+        let (c, args) = collect_args f in
         let (c, args) = match c with
           | Const (c, _) when c.[0] = '@' -> (hd args, tl args)
           | _ -> (c, args) in
         let (c, decl_type, args) = match c with
           | Const (":", Fun (typ, _)) -> (hd args, Some (check_type env typ), tl args)
           | _ -> (c, None, args) in (
-        match strip_range c with
+        match c with
           | Const (id, _) | Var (id, _) ->
               let infer f = infer_formula env vs f in
               let arg_types, args = unzip (map infer args) in
@@ -461,13 +458,12 @@ let assert_chain env lenv in_proof f by =
   let reasons : str list list =
     let rs, last = split_last reasons in
     rs @ [last @ by] in
-  let eqs' = map strip_range eqs in
   let concl =
-    if in_proof && length eqs' >= 2 && count_false is_eq eqs' <= 1 then
-      let op = match find_opt (Fun.negate is_eq) eqs' with
+    if in_proof && length eqs >= 2 && count_false is_eq eqs <= 1 then
+      let op = match find_opt (Fun.negate is_eq) eqs with
         | Some eq -> comparison_op eq
         | None -> "=" in
-      match is_comparison (hd eqs'), is_comparison (last eqs') with
+      match is_comparison (hd eqs), is_comparison (last eqs) with
         | Some (_, a, _), Some (_, _, b) ->
             apply_comparison op a b
         | _ -> failwith "block_steps"
@@ -609,8 +605,7 @@ let rec insert_conclusion_step blocks init last_step : block list =
           | Block (Let ids_typs, blocks) ->
               let f = get_assert last_step in
               let (xs, g) = gather_for_all f in
-              let strip (id, typ) = (id, strip_type_range typ) in
-              if list_starts_with (map strip ids_typs) (map strip xs) then (
+              if list_starts_with ids_typs xs then (
                 let h = for_all_vars_types (drop (length ids_typs) xs) g in
                 first_blocks @
                   [Block (Let ids_typs, insert_conclusion_step blocks [] (mk_assert h))])
