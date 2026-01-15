@@ -4,19 +4,6 @@ open Logic
 open Module
 open Util
 
-let encode_range ((line1, col1), (line2, col2)) : string =
-  sprintf "@ %d %d %d %d" line1 col1 line2 col2
-
-let decode_range s : range =
-  if s = "" then empty_range else
-  let words = String.split_on_char ' ' (string_from s 1) |>
-    filter ((<>) "") |> map int_of_string in
-  match words with
-    | [line1; col1; line2; col2] -> ((line1, col1), (line2, col2))
-    | _ -> failwith "decode_range"
-
-let range_of _f : range = empty_range
-
 type reason = (string * range) list
 
 type proof_step =

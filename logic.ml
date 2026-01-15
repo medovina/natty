@@ -377,6 +377,23 @@ let is_eq_or_iff f = match f with
   | Eq (f, g) | App (App (Const ("(↔)", _), f), g) -> Some (f, g)
   | _ -> None
 
+let range_of _f : range = empty_range
+
+let id_range id : range =
+  match String.index_opt id '@' with
+    | Some i -> decode_range (string_from id i)
+    | None -> empty_range
+
+let strip_range id : string =
+  match String.index_opt id '@' with
+    | Some i -> String.sub id 0 i
+    | None -> id
+
+let id_eq x y = strip_range x = strip_range y
+
+let mem_id_type (id, typ) ids_types =
+  exists (fun (id', typ') -> id_eq id id' && typ = typ') ids_types
+
 let strip_prefix c = match c.[0] with
   | '%' | '~' -> string_from c 1
   | '[' -> let i = String.index c ']' in string_from c (i + 1)
@@ -385,7 +402,7 @@ let strip_prefix c = match c.[0] with
       string_range c 1 (strlen c - 1)
   | _ -> c
 
-let basic_const c = without_type_suffix (strip_prefix c)
+let basic_const c = without_type_suffix (strip_prefix (strip_range c))
 
 type formula_kind =
   | True

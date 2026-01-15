@@ -139,7 +139,7 @@ let decl_var stmt : (id * typ) option = match stmt with
 
 let is_const_decl id def : typ option =
   let* (i, typ) = decl_var def in
-  if i = id then Some typ else None
+  if id_eq i id then Some typ else None
 
 let is_type_decl id = function
   | ConstDecl { id = id'; typ = Type; _ } when id = id' -> true
