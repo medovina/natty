@@ -236,8 +236,9 @@ and id_term s = (
 
 and unit_term s : formula pr = (choice [
   id_term;
-  parens_exprs |>> mk_tuple
-]) s  
+  with_range parens_exprs |>> (fun (fs, range) ->
+    set_range (mk_tuple fs) range)
+]) s
 
 and comprehension s : formula pr = (
   let>? var = str "{" >> var in
@@ -269,7 +270,7 @@ and term s = (pipe2 base_term (option super_expr) apply_super) s
 and next_term s = (not_before space >>?
   pipe2 unit_term (option super_expr) apply_super ) s
 
-and terms s = (term >>= fun t -> many_fold_left app t next_term) s
+and terms s = (term >>= fun t -> many_fold_left app_range t next_term) s
 
 (* expressions *)
 

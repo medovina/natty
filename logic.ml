@@ -103,7 +103,7 @@ let _tuple n : formula =
 
 let is_tuple_constructor = starts_with "(,"
 
-let mk_tuple = function
+let mk_tuple vals = match vals with
   | [] -> failwith "mk_tuple" 
   | [g] -> g
   | vals -> apply (_tuple (length vals) :: vals)
@@ -164,6 +164,19 @@ let app_or_eq h f g = match h with
   | App _ -> app f g
   | Eq _ -> Eq (f, g)
   | _ -> assert false
+
+let range_of = function
+  | Const (_, _, range) | Var (_, _, range) | App (_, _, range) -> range
+  | _ -> empty_range
+
+let set_range f range = match f with
+  | Const (c, typ, _) -> Const (c, typ, range)
+  | Var (v, typ, _) -> Var (v, typ, range)
+  | App (f, g, _) -> App (f, g, range)
+  | f -> f
+
+let app_range f g =
+  set_range (app f g) (cat_ranges (range_of f) (range_of g))
 
 let map_formula fn = function
   | App (f, g, r) -> App (fn f, fn g, r)

@@ -453,6 +453,10 @@ type frange = string * range  (* filename, position *)
 
 let empty_range = ((0, 0), (0, 0))
 
+let cat_ranges ((pos1, _) as r1) ((_, pos2) as r2) =
+  if r1 = empty_range || r2 = empty_range then empty_range
+  else (pos1, pos2)
+
 let show_pos (line, col) = sprintf "%d:%d" line col
 
 let show_range (pos1, pos2) : string =
