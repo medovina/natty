@@ -42,7 +42,7 @@ let rec all_vars steps : id list = match steps with
 let map_assume_step env vars step = match step with
   | Assume f -> (
       match f with
-        | (App (App (Const ("∈", _, _), v), g)) -> (
+        | (App (App (Const ("∈", _, _), v, _), g, _)) -> (
             match v with
               | Var (x, _, _) ->
                   if mem x (concat vars) || is_declared env x
@@ -53,7 +53,7 @@ let map_assume_step env vars step = match step with
 
 let has_premise f g =
   match remove_for_all f with
-    | App (App (Const ("(→)", _, _), g'), _) when g' = g -> true
+    | App (App (Const ("(→)", _, _), g', _), _, _) when g' = g -> true
     | _ -> false
 
 let trim_escape rest : proof_step list = match rest with
@@ -122,8 +122,8 @@ let infer_blocks env steps : block list =
 let is_comparison f : (string * formula * formula) option =
   match f with
     | Eq (g, h) -> Some ("=", g, h)
-    | App (Const ("(¬)", _, _), Eq (g, h)) -> Some ("≠", g, h)
-    | App (App (Var (c, _, _), g), h) when mem c Parser.compare_ops -> Some (c, g, h)
+    | App (Const ("(¬)", _, _), Eq (g, h), _) -> Some ("≠", g, h)
+    | App (App (Var (c, _, _), g, _), h, _) when mem c Parser.compare_ops -> Some (c, g, h)
     | _ -> None
 
 let comparison_op f = match is_comparison f with
@@ -143,7 +143,7 @@ let apply_comparison op f g : formula =
   else apply [_var op; f; g]
 
 let rec extract_by f : formula * reason = match f with
-  | App (Const (c, _, _), h) -> (
+  | App (Const (c, _, _), h, _) -> (
       match opt_remove_prefix "$by " c with
         | Some reasons ->
             let rs = String.split_on_char ',' reasons in
@@ -201,7 +201,7 @@ let quant1 q id typ f =
   if q = "{}" then Lambda (id, typ, f) else quant q id typ f
 
 let is_lambda_or_set_comp f = match f with
-  | Lambda _ | App (Const ("{}", _, _), _) -> true
+  | Lambda _ | App (Const ("{}", _, _), _, _) -> true
   | _ -> false
 
 let rec check_type1 env vars typ : typ =
@@ -242,7 +242,7 @@ and infer_formula env vars formula : typ * formula =
   let rec inst f typ : formula * typ = match typ with
     | Pi (x, t) ->
         let v = new_type_var () in
-          inst (App (f, type_const v)) (type_subst t v x)
+          inst (app f (type_const v)) (type_subst t v x)
     | _ -> (f, typ) in
   let rec check vars tsubst formula : (tsubst * typ * formula) list =
     match formula with
@@ -259,25 +259,25 @@ and infer_formula env vars formula : typ * formula =
                 let f = univ (var id typ) in
                 [(tsubst, type_of f, f)]
             | None -> check vars tsubst (Const (id, unknown_type, range)))
-      | App (App (Const ("_", _, _), f), g) ->
+      | App (App (Const ("_", _, _), f, _), g, _) ->
           let h = match f, g with
             | Var (v, _, _), Const (c, _, _) ->
                 let name = v ^ digit_to_sub c in
                 if mem name (map fst vars) || is_declared env name
-                  then _var name else App (f, g)
+                  then _var name else app f g
             | _ -> failwith "infer_formula" in
           check vars tsubst h
-      | App (Const (q, _, _), Lambda (x, (Sub _ as typ), g))
+      | App (Const (q, _, _), Lambda (x, (Sub _ as typ), g), _)
             when q = "(∀)" || q = "(∃)" || q = "{}" ->
           let join = if q = "(∀)" then implies else _and in
           let typ, g = match check_type1 env vars typ with
             | Sub p ->
                 let typ = erase_sub (Sub p) in
-                typ, join (App (p, var x typ)) g
+                typ, join (app p (var x typ)) g
             | typ -> typ, g in
           check vars tsubst (quant1 q x typ g)
-      | App (Const ("{}", _, _), f) -> check vars tsubst f
-      | App (f, g) ->
+      | App (Const ("{}", _, _), f, _) -> check vars tsubst f
+      | App (f, g, range) ->
           let possible = 
             let+ (tsubst, t, f) = check vars tsubst f in
             let& (tsubst, u, g) = check vars tsubst g in
@@ -287,7 +287,7 @@ and infer_formula env vars formula : typ * formula =
             match t with
               | Fun (v, w) -> (
                   match unify_types_or_pi is_var tsubst v u with
-                    | Some tsubst -> [tsubst, w, App (f, g)]
+                    | Some tsubst -> [tsubst, w, app f g]
                     | None -> [])
               | _ ->
                   let h = apply [var "·" unknown_type; f; g] in
@@ -297,12 +297,12 @@ and infer_formula env vars formula : typ * formula =
                 possible |> iter (fun (_, t, u, f, g) ->
                   printf "f = %s : %s, g = %s : %s\n"
                     (show_formula f) (show_type t) (show_formula g) (show_type u));
-                errorf "can't apply" formula empty_range
+                errorf "can't apply" formula range
             | [sol] -> [sol]
             | _ ->
                 let types = all |> map (fun (tsubst, typ, _) -> subst_types tsubst typ) in
                 if all_same types
-                  then errorf "ambiguous application" formula empty_range
+                  then errorf "ambiguous application" formula range
                 else all)
       | Lambda (x, typ, f) ->
           let typ = check_type1 env vars typ in
@@ -333,7 +333,7 @@ let top_infer_with_type env f =
 let top_infer env f = snd (top_infer_with_type env f)
 
 let check_dup_const env id typ kind range =
-  if mem typ (id_types env id) then (
+  if exists (eq_type typ) (id_types env id) then (
     let e = sprintf "duplicate %s: %s : %s\n" kind id (show_type typ) in
     error e range)
 
@@ -355,7 +355,7 @@ let inductive_axioms id constructors : statement list =
   incr axiom_count;
   let t = base_type id in
   let ivar v = var v t in
-  let var_for typ v = if typ = t then [] else [v] in
+  let var_for typ v = if eq_type typ t then [] else [v] in
   let fs1 =
     let& ((c, ctyp), (d, dtyp)) = all_pairs constructors in
     let cvar, dvar = var_for ctyp "x", var_for dtyp "y" in
@@ -366,14 +366,14 @@ let inductive_axioms id constructors : statement list =
     let+ (c, ctyp) = constructors in
     if is_fun ctyp then
       [for_all_vars_typ ["x"; "y"] t
-        (implies (Eq (App (const c ctyp, ivar "x"), App (const c ctyp, ivar "y")))
+        (implies (Eq (app (const c ctyp) (ivar "x"), app (const c ctyp) (ivar "y")))
                  (Eq (ivar "x", ivar "y")))] else [] in
   let f3 =
     let p = var "P" (Fun (t, Bool)) in
     let preserves (c, ctyp) =
-      if ctyp = t then App (p, const c t) else
-        _for_all "x" t (implies (App (p, ivar "x"))
-                                (App (p, App (const c ctyp, ivar "x")))) in
+      if eq_type ctyp t then app p (const c t) else
+        _for_all "x" t (implies (app p (ivar "x"))
+                                (app p (app (const c ctyp) (ivar "x")))) in
     let fs = map preserves constructors in
     let concl = Eq (p, Lambda ("x", t, _true)) in
     _for_all "P" (Fun (t, Bool)) (fold_right implies1 fs concl) in
@@ -389,8 +389,8 @@ let infer_type_definition env id constructors : statement list =
     error e empty_range);
   let type_decl = mk_const_decl id Type in
   let cs = map (check_const (type_decl :: env)) constructors |> map (fun (c, typ) ->
-    let t = strip_type_range typ in
-    if t <> base_type id && t <> Fun (base_type id, base_type id) then (
+    if not (eq_type typ (base_type id)) &&
+       not (eq_type typ (Fun (base_type id, base_type id))) then (
       let e = sprintf "unsupported constructor type: %s\n" (show_type typ) in
       error e empty_range);
     (c, typ)) in
@@ -405,7 +405,9 @@ let infer_def_formula env f : id * typ * formula =
   let vars = vars |> map (fun (v, typ) -> (v, check_type1 env type_vars typ)) in
   let vs = type_vars @ vars in (
   match f with
-    | Eq (f, g) | App (App (Const ("(↔)", _, _), f), g) | App (App (Const ("(→)", _, _), g), f)->
+    | Eq (f, g)
+    | App (App (Const ("(↔)", _, _), f, _), g, _)
+    | App (App (Const ("(→)", _, _), g, _), f, _)->
         let (c, args) = collect_args f in
         let (c, args) = match c with
           | Const (c, _, _) when c.[0] = '@' -> (hd args, tl args)
@@ -419,7 +421,7 @@ let infer_def_formula env f : id * typ * formula =
               let arg_types, args = unzip (map infer args) in
               let g_type, g = infer g in
               let c_type = mk_fun_types arg_types g_type in
-              decl_type |> Option.iter (fun t -> if t <> c_type then (
+              decl_type |> Option.iter (fun t -> if not (eq_type t c_type) then (
                   printf "infer_def_formula: declared type = %s, actual = %s\n"
                     (show_type t) (show_type c_type);
                   failwith "infer_def_formula")
@@ -499,14 +501,14 @@ and block_steps in_proof env lenv (Block (step, children)) : statement list list
         let resolve_subtype (id, typ) = match typ, check_type env typ with
           | Sub f, (Sub f' as t) ->
               let ptyp = erase_sub t in
-              let hyp = Hypothesis ("hyp", App (f', const id ptyp)) in
+              let hyp = Hypothesis ("hyp", app f' (const id ptyp)) in
               [(id, f)], [hyp], (id, ptyp)
           | _ -> [], [], (id, typ) in
         let subids, hyps, ids_types = unzip3 (map resolve_subtype ids_types) in
         let subids, hyps = concat subids, concat hyps in
         let decls = const_decls ids_types in
         let (fs, concl) = child_steps (rev hyps @ decls) in
-        let imps = multi_and (let+ (id, f) = subids in [App (f, _var id)]) in
+        let imps = multi_and (let+ (id, f) = subids in [app f (_var id)]) in
         (fs, for_all_vars_types_if_free ids_types (implies imps concl))
     | LetDef (_id, _typ, g) ->
         let (id, typ, f) = infer_def_formula env g in
@@ -606,7 +608,7 @@ let rec insert_conclusion_step blocks init last_step : block list =
           | Block (Let ids_typs, blocks) ->
               let f = get_assert last_step in
               let (xs, g) = gather_for_all f in
-              if list_starts_with ids_typs xs then (
+              if list_starts_with eq_id_type ids_typs xs then (
                 let h = for_all_vars_types (drop (length ids_typs) xs) g in
                 first_blocks @
                   [Block (Let ids_typs, insert_conclusion_step blocks [] (mk_assert h))])
@@ -675,7 +677,7 @@ and translate_if_block f : formula option * formula * formula option =
 and find_constructors env of_type : (id * typ) list =
   env |> filter_map (function
     | ConstDecl { id; typ; constructor } ->
-        if constructor && target_type typ = of_type
+        if constructor && eq_type (target_type typ) of_type
           then Some (id, typ) else None
     | _ -> None)
 
@@ -683,7 +685,7 @@ and combinations arg_map types : id option list list =
   match types with
     | [] -> [[]]
     | t :: types ->
-        let cs = match assoc t arg_map with
+        let cs = match assoc_eq eq_type t arg_map with
           | [] -> [None]
           | ds -> let& (d, _) = ds in Some d in
         let rest = combinations arg_map types in
@@ -708,10 +710,11 @@ and check_equations env id typ fs =
   let arg_ts = arg_types typ in
   let n = length arg_ts in
   let arg_map = let& t = arg_ts in (t, find_constructors env t) in
-  let is_constructor (c, typ) = mem (c, typ) (assoc (target_type typ) arg_map) in
+  let is_constructor (c, typ) =
+    mem_id_type (c, typ) (assoc_eq eq_type (target_type typ) arg_map) in
   let check_arg y z =
     if y <> z then match y with
-      | App (Const (c, typ, _), y') ->
+      | App (Const (c, typ, _), y', _) ->
           check "recursion is not primitive" (is_constructor (c, typ) && y' = z)
       | _ -> err "recursion is not primitive" in
   let rec check_recursion ys f = match f with
@@ -728,10 +731,11 @@ and check_equations env id typ fs =
           check "left side doesn't match defined symbol"
             (is_const_id_type id typ c && length ys = n);
           let check_arg = function
-            | Var (x, typ, _) -> check "variable not quantified" (mem (x, typ) xs); None
+            | Var (x, typ, _) ->
+                check "variable not quantified" (mem_id_type (x, typ) xs); None
             | Const (c, typ, _) -> check "not a constructor" (is_constructor (c, typ)); Some c
-            | App (Const (c, c_typ, _), Var (x, x_typ, _)) ->
-                check "invalid constructor" (is_constructor (c, c_typ) && mem (x, x_typ) xs);
+            | App (Const (c, c_typ, _), Var (x, x_typ, _), _) ->
+                check "invalid constructor" (is_constructor (c, c_typ) && mem_id_type (x, x_typ) xs);
                 Some c
             | _ -> err "argument is not variable or constructor" in
           let args = map check_arg ys in  (* check 1 *)
@@ -848,14 +852,15 @@ let encode_id consts typ id : id =
   if id = _type || mem id logical_ops then id
   else
     let n = count_true (fun (c, _) -> c = id) consts in
-    if n > (if mem (id, typ) consts then 1 else 0) then (
+    if n > (if mem_id_type (id, typ) consts then 1 else 0) then (
       let id' = if id = "u-" then "-" else id in  (* 'u' prefix is unnecessary with explicit type *)
       sprintf "%s:%s" id' (type_as_id typ))
     else id
 
 let rec encode_type typ : typ = match typ with
+  | Base (id, _) -> Base (id, empty_range)
   | Fun (Product typs, u) ->
-        fold_right mk_fun_type typs u   (* curry type *)
+        fold_right mk_fun_type (map encode_type typs) u   (* curry type *)
   | _ -> map_type encode_type typ
 
 let check_subtypes typ : unit =
@@ -874,23 +879,25 @@ let encode_formula consts f : formula =
       | (Const (c, typ, _), args) when is_tuple_constructor c ->
           apply_types c typ (map encode args)
       | (Const ("∈", _, _), [_type; x; set]) ->
-          encode (App (set, x))
+          encode (app set x)
       | _ ->
         match f with
-          | Const (id, typ, r) -> Const (encode_id consts typ id, encode_type typ, r)
-          | Var (id, typ, r) -> Var (id, encode_type typ, r)
-          | App (f, g) ->
+          | Const (id, typ, _) ->
+              Const (encode_id consts typ id, encode_type typ, empty_range)
+          | Var (id, typ, _) ->
+              Var (id, encode_type typ, empty_range)
+          | App (f, g, _) ->
               let f, g = encode f, encode g in (
               match collect_args g with
                 | (Const (c, _, _), args) when is_tuple_constructor c ->
                     apply (f :: args)   (* curry arguments *)
-                | _ -> App (f, g))
+                | _ -> app f g)
           | Lambda (id, typ, f) ->
               Lambda (id, encode_type typ, encode f)
           | Eq (f, Lambda (_, typ, tr)) when tr = _true ->
               (* apply functional extensionality *)
               let x = next_var "x" (free_vars f) in
-              let h = _for_all x typ (App (f, var x typ)) in
+              let h = _for_all x typ (app f (var x typ)) in
               encode h
           | f -> map_formula encode f in
   let f = encode f in
@@ -919,18 +926,18 @@ let basic_check env f : typ * formula =
         match assoc_opt id vars with
           | Some typ -> (typ, var id typ)
           | None -> errorf "undefined variable" f range)
-    | App (g, h) ->
+    | App (g, h, _) ->
         let (g_type, g) = check vars g in
         let (h_type, h) = check vars h in
         let typ = match g_type, h_type with
-          | Fun (Fun (Type, t), u), Pi (_, t') when t = t' ->
+          | Fun (Fun (Type, t), u), Pi (_, t') when eq_type t t' ->
               u (* allow * → τ to match Πσ.τ, like in unify_types_or_pi *)
-          | Fun (t, u), t' when t = t' -> u
+          | Fun (t, u), t' when eq_type t t' -> u
           | Pi (x, t), Type -> type_subst t (get_const_type h) x
           | _ ->
               printf "f = %s\n" (show_formula f);
               failwith "can't apply" in
-        (typ, App (g, h))
+        (typ, app g h)
     | Lambda (x, t, f) ->
         let t = check_type1 env vars t in
         let (u, f) = check ((x, t) :: vars) f in
@@ -939,7 +946,7 @@ let basic_check env f : typ * formula =
     | Eq (g, h) ->
         let (g_type, g) = check vars g in
         let (h_type, h) = check vars h in
-        if g_type <> h_type then (
+        if not (eq_type g_type h_type) then (
           printf "g_type = %s, h_type = %s\n" (show_type g_type) (show_type h_type);
           errorf "can't compare" f empty_range);
         (Bool, Eq (g, h)) in

@@ -18,7 +18,7 @@ type typ =
 and formula =
   | Const of id * typ * range
   | Var of id * typ * range
-  | App of formula * formula
+  | App of formula * formula * range
   | Lambda of id * typ * formula
   | Eq of formula * formula
 
@@ -65,6 +65,12 @@ let rec strip_type_range typ = match typ with
   | Base (id, _) -> Base (id, empty_range)
   | _ -> map_type strip_type_range typ
 
+let eq_type t u = strip_type_range t = strip_type_range u
+
+let eq_id_type (x, t) (x', u) = x = x' && eq_type t u
+
+let mem_id_type x ys = exists (eq_id_type x) ys
+
 let const c typ = Const (c, typ, empty_range)
 let _const c = const c unknown_type
 
@@ -72,7 +78,7 @@ let var v typ = Var (v, typ, empty_range)
 let _var v = var v unknown_type
 let mk_var' (id, typ) = var id typ
 
-let mk_app f g = App (f, g)
+let app f g = App (f, g, empty_range)
 let lambda id typ f = Lambda (id, typ, f)
 let lambda' (id, typ) f = Lambda (id, typ, f)
 let mk_eq f g = Eq (f, g)
@@ -82,7 +88,7 @@ let _type = "_type"
 
 let type_const typ = const _type typ
 
-let apply formulas : formula = fold_left1 mk_app formulas
+let apply formulas : formula = fold_left1 app formulas
 
 let tuple_cons n = sprintf "(%s)" (String.make (n - 1) ',')
 
@@ -111,7 +117,7 @@ let is_const_id c = function
   | _ -> false
 
 let is_const_id_type id typ = function
-   | Const (id', typ', _) when (id, typ) = (id', typ') -> true
+   | Const (id', typ', _) when id = id' && eq_type typ typ' -> true
    | _ -> false
 
 let is_var = function
@@ -119,7 +125,7 @@ let is_var = function
   | _ -> false
 
 let is_var_id_type id typ = function
-   | Var (id', typ', _) when (id, typ) = (id', typ') -> true
+   | Var (id', typ', _) when id = id' && eq_type typ typ' -> true
    | _ -> false
 
 let get_var = function
@@ -147,26 +153,26 @@ let is_eq = function
   | _ -> false
 
 let is_neq = function
-  | App (Const ("(¬)", _, _), Eq _) -> true
+  | App (Const ("(¬)", _, _), Eq _, _) -> true
   | _ -> false
 
 let is_iff = function
-  | App (App (Const ("(↔)", _, _), _), _) -> true
+  | App (App (Const ("(↔)", _, _), _, _), _, _) -> true
   | _ -> false
 
 let app_or_eq h f g = match h with
-  | App _ -> App (f, g)
+  | App _ -> app f g
   | Eq _ -> Eq (f, g)
   | _ -> assert false
 
 let map_formula fn = function
-  | App (f, g) -> App (fn f, fn g)
+  | App (f, g, r) -> App (fn f, fn g, r)
   | Lambda (id, typ, f) -> Lambda (id, typ, fn f)
   | Eq (f, g) -> Eq (fn f, fn g)
   | f -> f
 
 let iter_formula fn = function
-  | App (f, g) | Eq (f, g) -> fn f; fn g
+  | App (f, g, _) | Eq (f, g) -> fn f; fn g
   | Lambda (_, _, f) -> fn f
   | _ -> ()
 
@@ -183,7 +189,7 @@ let rec base_types typ : id list =
 
 and formula_types f = unique @@ match f with
   | Const (_, typ, _) | Var (_, typ, _) -> [typ]
-  | App (f, g) | Eq (f, g) -> concat_map formula_types [f; g]
+  | App (f, g, _) | Eq (f, g) -> concat_map formula_types [f; g]
   | Lambda (_, typ, f) -> typ :: formula_types f
 
 let formula_base_types f = unique @@
@@ -207,7 +213,7 @@ and vars_in_formula only_free f : (id * typ) list =
   let rec find = function
     | Const _ -> []
     | Var (id, typ, _) -> (id, typ) :: vars_in_type only_free typ
-    | App (t, u) | Eq (t, u) -> find t @ find u
+    | App (t, u, _) | Eq (t, u) -> find t @ find u
     | Lambda (id, typ, t) ->
         vars_in_type only_free typ @
         if only_free then remove_all_assoc id (find t) else (id, typ) :: find t in
@@ -228,7 +234,7 @@ let free_type_vars_in_type t : id list = only_type_vars (vars_in_type true t)
 let free_type_vars f : id list = only_type_vars (vars_in_formula true f)
 
 let rec has_subformula s f = s = f || match f with
-  | App (f, g) | Eq (f, g) -> has_subformula s f || has_subformula s g
+  | App (f, g, _) | Eq (f, g) -> has_subformula s f || has_subformula s g
   | Lambda (_, _, f) -> has_subformula s f
   | _ -> false
 
@@ -277,7 +283,7 @@ let subst_types_in_formula tsubst f : formula =
 
 let rec count_binders = function
   | Const _ | Var _ -> 0
-  | App (f, g) | Eq (f, g) -> count_binders f + count_binders g
+  | App (f, g, _) | Eq (f, g) -> count_binders f + count_binders g
   | Lambda (_, _, f) -> 1 + count_binders f
 
 let _false = const "%⊥" Bool
@@ -287,7 +293,7 @@ let undefined = const "undef" (Pi ("σ", TypeVar "σ"))
 
 let is_bool_const x = x = _true || x = _false
 
-let _not f = App (const "(¬)" (Fun (Bool, Bool)), f)
+let _not f = app (const "(¬)" (Fun (Bool, Bool))) f
 let _neq f g = _not (Eq (f, g))
 
 let logical_binary = ["(∧)"; "(∨)"; "(→)"; "(↔)"]
@@ -296,7 +302,7 @@ let logical_syms = ["(¬)"; "(∀)"; "(∃)"] @ logical_binary
 
 let logical_ops = ["%⊥"; "%⊤"] @ logical_syms
 
-let binop op typ f g : formula = App (App (const op typ, f), g) 
+let binop op typ f g : formula = app (app (const op typ) f) g
 let binop_unknown op = binop op unknown_type
 
 let logical_op_type = Fun (Bool, Fun (Bool, Bool))
@@ -327,7 +333,7 @@ let multi_or = function
 
 let quant q id typ f : formula =
   let quant_type = Fun (Fun (typ, Bool), Bool) in
-  App (const q quant_type, Lambda (id, typ, f))
+  app (const q quant_type) (Lambda (id, typ, f))
   
 let quant' q (id, typ) f : formula = quant q id typ f
 
@@ -378,7 +384,7 @@ let without_type_suffix id =
 
 let collect_args f : formula * formula list =
   let rec collect = function
-    | App (f, g) ->
+    | App (f, g, _) ->
         let (head, args) = collect f in
         (head, g :: args)
     | head -> (head, []) in
@@ -388,7 +394,7 @@ let collect_args f : formula * formula list =
 let head_of f : formula = fst (collect_args f)
 
 let is_eq_or_iff f = match f with
-  | Eq (f, g) | App (App (Const ("(↔)", _, _), f), g) -> Some (f, g)
+  | Eq (f, g) | App (App (Const ("(↔)", _, _), f, _), g, _) -> Some (f, g)
   | _ -> None
 
 let strip_prefix c = match c.[0] with
@@ -420,12 +426,12 @@ let rec get_const_type f = match f with
 and fkind boolean f : formula_kind = match f with
   | Const ("%⊤", _, _) -> True
   | Const ("%⊥", _, _) -> False
-  | App (Const ("(¬)", _, _), f) -> Not f
-  | App (App (Const (op, typ, _), t), u)
-  | App (App (Var (op, typ, _), t), u)
+  | App (Const ("(¬)", _, _), f, _) -> Not f
+  | App (App (Const (op, typ, _), t, _), u, _)
+  | App (App (Var (op, typ, _), t, _), u, _)
       when mem op logical_binary || (not boolean) ->
         Binary (op, typ, t, u)
-  | App (Const (q, _, _) as c, Lambda (id, typ, u)) when is_quantifier c ->
+  | App (Const (q, _, _) as c, Lambda (id, typ, u), _) when is_quantifier c ->
       Quant(q, id, typ, u)
   | f -> Other f
 
@@ -550,7 +556,7 @@ let is_ground f =
     | Const _ -> false
     | Var (v, _, _) -> not (mem v outer)
     | Lambda (x, _, f) -> has_free (x :: outer) f
-    | App (t, u) | Eq (t, u) ->
+    | App (t, u, _) | Eq (t, u) ->
         has_free outer t || has_free outer u in
   not (has_free [] f)
 
@@ -558,7 +564,7 @@ let all_consts0 f : id list =
   let rec find = function
     | Const (id, _typ, _) -> [id]
     | Var _ -> []
-    | App (t, u) | Eq (t, u) -> find t @ find u
+    | App (t, u, _) | Eq (t, u) -> find t @ find u
     | Lambda (id, _typ, t) -> remove id (find t)
   in find f
 
@@ -569,7 +575,7 @@ let is_var_in v =
   let rec find_var = function
     | Const _ -> false
     | Var (x, _, _) -> x = v
-    | App (f, g) | Eq (f, g) -> find_var f || find_var g
+    | App (f, g, _) | Eq (f, g) -> find_var f || find_var g
     | Lambda (x, _typ, f) -> x = v || find_var f
   in find_var
 
@@ -650,7 +656,7 @@ let rec apply_types c typ args : formula = match typ with
   | _ -> apply (const c typ :: args)
 
 let rec apply_types_in_formula f : formula = match f with
-  | App (Const ("(∀)", _, _), Lambda (_, Type, f)) -> apply_types_in_formula f
+  | App (Const ("(∀)", _, _), Lambda (_, Type, f), _) -> apply_types_in_formula f
   | App _ -> (match collect_args f with
     | (Const (c, typ, _), args) -> apply_types c typ (map apply_types_in_formula args)
     | _ -> map_formula apply_types_in_formula f)
@@ -674,7 +680,7 @@ let rec replace_in_formula u v t : formula =
 let rec subst1 (t: formula) (u: formula) (x: id) = match t with
   | Const _ -> t
   | Var (y, _, _) -> if x = y then u else t
-  | App (f, g) | Eq (f, g) ->
+  | App (f, g, _) | Eq (f, g) ->
       app_or_eq t (subst1 f u x) (subst1 g u x)
   | Lambda (y, typ, t') -> if x = y then t else
       if not (mem y (free_vars u)) then Lambda (y, typ, subst1 t' u x)
@@ -693,9 +699,9 @@ let subst_n (tsubst, vsubst) f : formula =
 
 (* β-reduction *)
 let rec b_reduce = function
-  | App (f, g) -> (match b_reduce f, b_reduce g with
+  | App (f, g, _) -> (match b_reduce f, b_reduce g with
       | Lambda (x, _typ, f), g -> b_reduce (subst1 f g x)  
-      | f, g -> App (f, g))
+      | f, g -> app f g)
   | Lambda (id, typ, f) -> Lambda (id, typ, b_reduce f)
   | Eq (f, g) -> Eq (b_reduce f, b_reduce g)
   | f -> f
@@ -704,7 +710,7 @@ let rsubst1 t u x : formula = b_reduce (subst1 t u x)
 let rsubst subst f : formula = b_reduce (subst_n subst f)
 
 let eta = function
-  | Lambda (id, typ, App (f, Var (id', typ', _)))
+  | Lambda (id, typ, App (f, Var (id', typ', _), _))
       when id = id' && typ = typ' && not (is_free_in id f) -> f  
   | f -> f
 
@@ -712,6 +718,7 @@ let eta = function
    t matches u if tσ = u for some type substitution σ.   *)
 let unify_or_match_types is_unify is_var tsubst t u : tsubst option =
   let rec unify tsubst t u : tsubst option = match t, u with
+    | Base (t, _), Base (u, _) -> if t = u then Some tsubst else None
     | TypeVar x, t when is_var x ->
         if t = TypeVar x then Some tsubst
         else (match assoc_opt x tsubst with
@@ -745,7 +752,7 @@ let unify_types_or_pi is_var tsubst t u = match t, u with
 
 let rec type_of1 tsubst f : typ = match f with
   | Const (_, typ, _) | Var (_, typ, _) -> typ
-  | App (f, g) -> (match type_of f with
+  | App (f, g, _) -> (match type_of f with
       | Fun (t, u) ->
           let g_type = type_of g in
           if t = g_type then u (* optimization: try direct comparison first *)
@@ -782,7 +789,7 @@ let unify_or_match is_unify comm_ops subst t u : subst list =
           let+ tsubst = unify_term_types t u in
           [(tsubst, vsubst)]
       | Var _, Const (c, _, _) when mem c logical_syms -> []
-      | Var _, App (Const ("(∨)", _, _), _) -> []
+      | Var _, App (Const ("(∨)", _, _), _, _) -> []
       | Var (x, typ, _), f ->
           if is_var_id_type x typ f then [subst]
           else
@@ -798,9 +805,10 @@ let unify_or_match is_unify comm_ops subst t u : subst list =
                     let vsubst = vsubst |> map (fun (y, g) -> (y, subst1 g f x)) in
                     [(tsubst, (x, f) :: vsubst)])
       | _f, Var (_x, _typ, _) when is_unify -> unify' subst u t
-      | App (App (Const (op, _, _), f), g), App (App (Const (op', _, _), f'), g')
+      | App (App (Const (op, _, _), f, _), g, _),
+        App (App (Const (op', _, _), f', _), g', _)
           when op = op' && mem op comm_ops -> unify_commutative f g f' g'
-      | App (f, g), App (f', g') -> unify_pairs f g f' g'
+      | App (f, g, _), App (f', g', _) -> unify_pairs f g f' g'
       | Eq (f, g), Eq (f', g') -> unify_commutative f g f' g'
       | Lambda (x, xtyp, f), Lambda (y, ytyp, g) ->
           let+ tsubst = unify_term_types xtyp ytyp in
@@ -896,7 +904,7 @@ let rename_vars f : formula =
           match assoc_opt id !name_map with
             | Some name -> Var (name, typ, r)
             | None -> Var (next_id id typ, typ, r))
-      | App (f, g) | Eq (f, g) -> app_or_eq h (rename f) (rename g)
+      | App (f, g, _) | Eq (f, g) -> app_or_eq h (rename f) (rename g)
       | Lambda (id, typ, f) ->
           let typ = map_type typ in
           let x = next_id id typ in

@@ -63,7 +63,7 @@ and typ s = expression type_operators type_term s
 let eq = empty >>? attempt (char '=' >> not_followed_by (char '>') "")
 
 let operators = [
-  [ infix "@" (fun f g -> App (f, g)) Assoc_left ];
+  [ infix "@" app Assoc_left ];
   [ infix1 eq mk_eq Assoc_left;
     infix "!=" mk_neq Assoc_left ];
   [ infix "&" _and Assoc_left ];

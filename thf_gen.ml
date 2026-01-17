@@ -76,7 +76,7 @@ let rec thf outer right f : string =
           | Const (id, typ, _) ->
               if id = _type then thf_type1 (outer <> "") typ else quote (prefix_upper id)
           | Var (id, _, _) -> to_var id
-          | App (g, h) ->
+          | App (g, h, _) ->
               let s = sprintf "%s @ %s" (thf "@" false g) (thf "@" true h) in
               parens (outer <> "@" || right) s
           | Lambda (id, typ, f) -> quant "^" [(id, typ)] f

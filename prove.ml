@@ -59,7 +59,7 @@ let weight f : int =
     | Const (c, _typ, _) ->
         if mem c ["%⊥"; "(¬)"; "(∀)"; "(∃)"] then 0 else 1
     | Var _ -> 1
-    | App (f, g) -> weigh f + weigh g
+    | App (f, g, _) -> weigh f + weigh g
     | Eq (f, g) -> weigh f + weigh g
     | Lambda (_, _, f) -> weigh f in
   weigh f
@@ -115,7 +115,7 @@ let is_inductive pformula =
   match kind f with
   | Quant ("(∀)", p, Fun (_, Bool), _) -> (
       match kind (last (gather_implies (remove_universal f))) with
-        | Quant ("(∀)", x, _, App (Var (p', _, _), Var (x', _, _)))
+        | Quant ("(∀)", x, _, App (Var (p', _, _), Var (x', _, _), _))
             when p = p' && x = x' -> true
         | _ -> false)
   | _ -> false
@@ -337,9 +337,9 @@ let term_ge s t = s = t || term_gt s t
 
 let terms with_iff f : bool * formula * formula = match f with
   | Eq (f, g) -> (true, f, g)
-  | App (App (Const ("(↔)", _, _), f), g) when with_iff -> (true, f, g)
-  | App (Const ("(¬)", _, _), Eq (f, g)) -> (false, f, g)
-  | App (Const ("(¬)", _, _), f) -> (true, f, _false)
+  | App (App (Const ("(↔)", _, _), f, _), g, _) when with_iff -> (true, f, g)
+  | App (Const ("(¬)", _, _), Eq (f, g), _) -> (false, f, g)
+  | App (Const ("(¬)", _, _), f, _) -> (true, f, _false)
   | f -> (true, f, _true)
 
 let lit_to_multi f : formula list list =
@@ -461,7 +461,7 @@ let subterms is_blue t : (formula * ((formula * formula) list)) list =
   let rec gather parent_eq acc t =
     (if is_var t || not is_blue && is_fluid t then [] else [(t, parent_eq)]) @
     match t with
-      | App (f, g) ->
+      | App (f, g, _) ->
           if is_quantifier f then
             if is_blue then match g with
               | Lambda (_x, _typ, h) -> gather parent_eq acc h
@@ -507,14 +507,14 @@ let by_induction p = exists is_inductive p.parents
 
 (* Find terms such as g in "g = ...". *)
 let rec eq_terms f : formula list = match f with
-  | App (Const ("(¬)", _, _), f) -> eq_terms f
+  | App (Const ("(¬)", _, _), f, _) -> eq_terms f
   | Eq (g, h) -> [g; h]
   | _ -> []
 
 let top_consts p : id list =
   let rec find f = match f with
-    | App (Const ("(¬)", _, _), f) -> find f
-    | App (Const ("(∀)", _, _), Lambda (_, _, f)) -> find f
+    | App (Const ("(¬)", _, _), f, _) -> find f
+    | App (Const ("(∀)", _, _), Lambda (_, _, f), _) -> find f
     | Eq (f, g) -> find f @ find g
     | _ ->
         opt_to_list (opt_const (fst (collect_args f))) in
@@ -882,7 +882,7 @@ let rec canonical_lit f : formula =
     let f, g = canonical_lit f, canonical_lit g in
     if f < g then op f g else op g f in
   match f with
-    | App (App (Const (op, typ, _), f), g)
+    | App (App (Const (op, typ, _), f, _), g, _)
         when mem op !comm_ops -> commutative_pair (binop op typ) f g
     | Eq (f, g) ->
         commutative_pair mk_eq f g
@@ -1213,7 +1213,7 @@ let def_is_synonym f : (str * str) option =
   def_match "f(x)(y) ↔ g(y)(x)" f
 
 let def_is_atomic f : (str * str) option = match remove_for_all f with
-  | App (App (Const ("(↔)", _, _), f), g) -> (
+  | App (App (Const ("(↔)", _, _), f, _), g, _) -> (
       match head_of f, head_of g with
         | Const (c, _, _), Const (d, _, _) when not (mem d logical_ops) ->
             Some (c, d)
@@ -1415,7 +1415,7 @@ let lower_stmts stmts =
 let functional_extend f : formula list = match f with
   | Eq (g, h) -> (match type_of g with
       | Fun (t, Bool) ->  (* apply functional extensionality *)
-          [_for_all "x" t (_iff (App (g, var "x" t)) (App (h, var "x" t)))]
+          [_for_all "x" t (_iff (app g (var "x" t)) (app h (var "x" t)))]
       | _ -> [])
   | _ -> []
 

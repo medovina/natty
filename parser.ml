@@ -181,10 +181,10 @@ let mk_not_binop op f g = _not (binop_unknown op f g)
 
 (* We use separate constant names for unary and binary minus so that
  * a - b cannot be interpreted as (-a)(b) using implicit multiplication. *)
-let unary_minus f = App (_const "u-", f)
+let unary_minus f = app (_const "u-") f
 
 let ascribe typ f =
-  App (const ":" (Fun (typ, typ)), f)
+  app (const ":" (Fun (typ, typ))) f
 
 let sub_term = (sub_digit1 |>> _const) <|> (sub_letter |>> _var)
 
@@ -216,7 +216,7 @@ let mk_sub f sub : formula = match sub with
       (* This could be either a variable x₀ or a sequence element x₀.
          Let the type checker resolve it. *)
       apply [_const "_"; f; g]
-  | Some sub -> App (f, sub)  (* not a variable *)
+  | Some sub -> app f sub  (* not a variable *)
   | None -> f
 
 let rec parens_exprs s = (parens (sep_by1 expr (str ","))) s
@@ -226,7 +226,7 @@ and range_term f f_sub =
     match f_sub, g_sub with
       | Some f_sub, Some g_sub ->
           assert (f = g);
-          App (_const "Π", mk_tuple [f; f_sub; g_sub])
+          app (_const "Π") (mk_tuple [f; f_sub; g_sub])
       | _ -> failwith "subscript expected");
 
 and id_term s = (
@@ -243,7 +243,7 @@ and comprehension s : formula pr = (
   let>? var = str "{" >> var in
   let>? typ = of_type in
   let$ expr = str "|" >> proposition << str "}" in
-  App (const "{}" unknown_type, Lambda (var, typ, expr))) s
+  app (const "{}" unknown_type) (Lambda (var, typ, expr))) s
 
 and if_clause s : (formula * formula) pr =
   (pair expr (str "if" >> expr)) s
@@ -256,7 +256,7 @@ and base_term s : formula pr = (unit_term <|> choice [
   (with_range sym |>> fun (id, range) -> Const (id, unknown_type, range));
   str "⊤" >>$ _true;
   str "⊥" >>$ _false;
-  str "|" >> expr1 false << str "|" |>> (fun f -> App (_const "abs", f));
+  str "|" >> expr1 false << str "|" |>> app (_const "abs");
   comprehension;
   if_block
  ]) s
@@ -269,7 +269,7 @@ and term s = (pipe2 base_term (option super_expr) apply_super) s
 and next_term s = (not_before space >>?
   pipe2 unit_term (option super_expr) apply_super ) s
 
-and terms s = (term >>= fun t -> many_fold_left mk_app t next_term) s
+and terms s = (term >>= fun t -> many_fold_left app t next_term) s
 
 (* expressions *)
 
@@ -285,7 +285,7 @@ and eq_op s = choice ([
 
 and apply_reasons rs f : formula =
   if rs = [] then f else
-  App (_const ("$by " ^ String.concat "," (map fst rs)), f)
+  app (_const ("$by " ^ String.concat "," (map fst rs))) f
 
 and operators with_bar = [
   [ Postfix (str ":" >> typ |>> ascribe) ];
@@ -317,13 +317,13 @@ and expr s = expr1 true s
 and exprs s = (sep_by1 expr (str "and") |>> multi_and) s
 
 and opt_predicate_target word : (formula -> formula) p =
-  let app xs f = apply ([_const ("is_" ^ word); f] @ xs) in
+  let app_pred xs f = apply ([_const ("is_" ^ word); f] @ xs) in
   choice [
-    str "as" >> expr |>> (fun x -> app [x]);
+    str "as" >> expr |>> (fun x -> app_pred [x]);
     pipe2 (str "of" >> expr) (opt [] (single (str "and" >> expr)))
-        (fun x y -> (app ([x] @ y)));
-    pipe2 (str "from" >> expr) (str "to" >> expr) (fun y z -> app [y; z]);
-    return (app [])
+        (fun x y -> (app_pred ([x] @ y)));
+    pipe2 (str "from" >> expr) (str "to" >> expr) (fun y z -> app_pred [y; z]);
+    return (app_pred [])
   ]
 
 and target_predicate s : (formula -> formula) pr = (
@@ -335,7 +335,7 @@ and target_predicate s : (formula -> formula) pr = (
 and predicate s : (formula -> formula) pr = choice [
   target_predicate;
   pipe2 (option (str "not")) adjective_phrase (fun neg word f ->
-    let g = App (_const word, f) in
+    let g = app (_const word) f in
     if is_some neg then _not g else g)
 ] s
 

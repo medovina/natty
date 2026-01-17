@@ -239,10 +239,10 @@ let count_false p = count_true (Fun.negate p)
 
 let count_eq x = count_true ((=) x)
 
-let rec list_starts_with xs ys = match xs, ys with
+let rec list_starts_with eq xs ys = match xs, ys with
   | [], _ -> true
   | _, [] -> false
-  | x :: xs, y :: ys -> x = y && list_starts_with xs ys
+  | x :: xs, y :: ys -> eq x y && list_starts_with eq xs ys
 
 let rec all_pairs xs = match xs with
   | [] -> []
@@ -330,6 +330,11 @@ let gather_pairs (xs: ('a * 'b) list) : ('a * 'b list) list =
   group_by fst (fun (_, x) acc -> cons x acc) [] xs
 
 (* association lists *)
+
+let rec assoc_eq eq k = function
+  | [] -> failwith "assoc_eq"
+  | (k', v') :: rest ->
+      if eq k k' then v' else assoc_eq eq k rest
 
 let update_assoc (k, v) assoc = (k, v) :: remove_assoc k assoc
 
