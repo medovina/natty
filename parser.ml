@@ -292,6 +292,10 @@ and apply_reasons rs f : formula =
   if rs = [] then f else
   app (_const ("$by " ^ String.concat "," (map fst rs))) f
 
+and quant_op c quant =
+  Prefix (str c >> decl_ids_type << str "." |>>
+             (fun (ids, typ) -> quant_vars_typ quant ids typ))
+
 and operators with_bar = [
   [ Postfix (str ":" >> typ |>> ascribe) ];
   [ Prefix (minus >>$ unary_minus) ];
@@ -311,8 +315,7 @@ and operators with_bar = [
   [ infix "∨" _or Assoc_left ];
   [ infix "→" implies Assoc_right ];
   [ infix "↔" _iff Assoc_right ];
-  [ Prefix (str "∀" >> decl_ids_type << str "." |>>
-             (fun (ids, typ) -> for_all_vars_typ ids typ)) ] 
+  [ quant_op "∀" _for_all; quant_op "∃" _exists ]
 ]
 
 and expr1 with_bar s = (expression (operators with_bar) terms) s

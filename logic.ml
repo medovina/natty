@@ -604,6 +604,7 @@ let quant_vars_typ quant ids typ f =
   fold_right (fun id f -> quant id typ f) ids f
 
 let for_all_vars_typ = quant_vars_typ _for_all
+let exists_vars_typ = quant_vars_typ _exists
 
 let for_all_vars_types : (id * typ) list -> formula -> formula =
   fold_right _for_all'
