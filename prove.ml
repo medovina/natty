@@ -56,7 +56,7 @@ let rec num_literals f = match bool_kind f with
 
 let weight f : int =
   let rec weigh f = match f with
-    | Const (c, _typ) ->
+    | Const (c, _typ, _) ->
         if mem c ["%⊥"; "(¬)"; "(∀)"; "(∃)"] then 0 else 1
     | Var _ -> 1
     | App (f, g) -> weigh f + weigh g
@@ -75,7 +75,7 @@ let rec prefix_type_vars t : typ = match t with
 
 and prefix_vars f : formula = profile @@
   let rec prefix outer = function
-    | Const (x, typ) -> Const (x, prefix_type_vars typ)
+    | Const (x, typ, r) -> Const (x, prefix_type_vars typ, r)
     | Var (x, typ) ->
         let x = if mem x outer then x else prefix_var x in
         Var (x, prefix_type_vars typ)
@@ -101,7 +101,7 @@ let unprefix_vars f : formula = profile @@
     | Sub f -> Sub (fix f)
     | t -> map_type unprefix_type t
   and fix = function
-    | Const (c, typ) -> Const (c, unprefix_type typ)
+    | Const (c, typ, r) -> Const (c, unprefix_type typ, r)
     | Var (v, typ) ->
         let v = if is_prefixed v then assoc v var_map else v in
         Var (v, unprefix_type typ)
@@ -158,7 +158,7 @@ let distributive_axiom f : (str * str * typ * ac_type) option =
     let+ (kind, t) = distributive_templates in
     let+ (_tsubst, vsubst) = _match !comm_ops t f in
     match (let& v = ["f"; "g"; "a"; "b"; "c"] in assoc ("$" ^ v) vsubst) with
-      | [Const (f_op, ftyp); Const (g_op, gtyp); Var (_, typ); Var _; Var _] ->
+      | [Const (f_op, ftyp, _); Const (g_op, gtyp, _); Var (_, typ); Var _; Var _] ->
           assert (ftyp = gtyp);
           assert (ftyp = Fun (typ, Fun(typ, typ)));
           [(f_op, g_op, typ, kind)]
@@ -268,7 +268,7 @@ let encode_term type_map fluid_map t : formula * formula list = profile @@
   let encode_fluid t = _var ("@v" ^ string_of_int (get_index t fluid_map)) in
   let encode_type typ = _const ("@t" ^ string_of_int (get_index typ type_map)) in
   match t with
-    | Const (c, typ) when c = _type -> (encode_type typ, [])
+    | Const (c, typ, _) when c = _type -> (encode_type typ, [])
     | Const _ -> (t, [])
     | Var (v, _) -> (_var v, [])
     | App _ ->
@@ -278,7 +278,7 @@ let encode_term type_map fluid_map t : formula * formula list = profile @@
           | _ -> head in (
         match head with
           | Var _ -> (encode_fluid t, [])
-          | Const (q, _) when q = "(∀)" || q = "(∃)" -> (
+          | Const (q, _, _) when q = "(∀)" || q = "(∃)" -> (
               match args with
                 | [Lambda (x, typ, f)] ->
                     let q1 = _const ("@" ^ q) in
@@ -302,7 +302,7 @@ let rec lpo_gt s t = profile @@
   let rec lpo s t =
     let (f, ss), (g, ts) = encode s, encode t in
     match f, g with
-      | Const (c, _), Const (d, _) ->
+      | Const (c, _, _), Const (d, _, _) ->
           let (nf, ng) = length ss, length ts in
           if const_gt c d || c = d && nf > ng then majo s ts
           else if c = d && nf = ng then lex_ma s t ss ts
@@ -336,9 +336,9 @@ let term_ge s t = s = t || term_gt s t
 
 let terms with_iff f : bool * formula * formula = match f with
   | Eq (f, g) -> (true, f, g)
-  | App (App (Const ("(↔)", _), f), g) when with_iff -> (true, f, g)
-  | App (Const ("(¬)", _), Eq (f, g)) -> (false, f, g)
-  | App (Const ("(¬)", _), f) -> (true, f, _false)
+  | App (App (Const ("(↔)", _, _), f), g) when with_iff -> (true, f, g)
+  | App (Const ("(¬)", _, _), Eq (f, g)) -> (false, f, g)
+  | App (Const ("(¬)", _, _), f) -> (true, f, _false)
   | f -> (true, f, _true)
 
 let lit_to_multi f : formula list list =
@@ -404,7 +404,7 @@ let clausify_step id lits in_use :
                 names := c :: !names;
                 c
             | None -> c in
-          let skolem_const = Const (c, skolem_type) in
+          let skolem_const = const c skolem_type in
           let skolem = apply (skolem_const :: map mk_var' vars_types) in
           let g = subst1 g skolem x in
           Some ([g], [g])
@@ -506,14 +506,14 @@ let by_induction p = exists is_inductive p.parents
 
 (* Find terms such as g in "g = ...". *)
 let rec eq_terms f : formula list = match f with
-  | App (Const ("(¬)", _), f) -> eq_terms f
+  | App (Const ("(¬)", _, _), f) -> eq_terms f
   | Eq (g, h) -> [g; h]
   | _ -> []
 
 let top_consts p : id list =
   let rec find f = match f with
-    | App (Const ("(¬)", _), f) -> find f
-    | App (Const ("(∀)", _), Lambda (_, _, f)) -> find f
+    | App (Const ("(¬)", _, _), f) -> find f
+    | App (Const ("(∀)", _, _), Lambda (_, _, f)) -> find f
     | Eq (f, g) -> find f @ find g
     | _ ->
         opt_to_list (opt_const (fst (collect_args f))) in
@@ -881,7 +881,7 @@ let rec canonical_lit f : formula =
     let f, g = canonical_lit f, canonical_lit g in
     if f < g then op f g else op g f in
   match f with
-    | App (App (Const (op, typ), f), g)
+    | App (App (Const (op, typ, _), f), g)
         when mem op !comm_ops -> commutative_pair (binop op typ) f g
     | Eq (f, g) ->
         commutative_pair mk_eq f g
@@ -1202,7 +1202,7 @@ let def_match template f : (id * id) option = head_opt @@
   let g = prefix_vars (Parser.parse_formula template) in
   let+ (_, vsubst) = _match !comm_ops g (remove_for_all f) in
   match (let& x = ["f"; "g"; "x"; "y"] in assoc ("$" ^ x) vsubst) with
-    | [Const (c, _ctyp); Const (d, _dtyp); Var _; Var _] -> [(c, d)]
+    | [Const (c, _ctyp, _); Const (d, _dtyp, _); Var _; Var _] -> [(c, d)]
     | _ -> []
 
 let def_is_or_equal f : (str * str) option =
@@ -1212,9 +1212,9 @@ let def_is_synonym f : (str * str) option =
   def_match "f(x)(y) ↔ g(y)(x)" f
 
 let def_is_atomic f : (str * str) option = match remove_for_all f with
-  | App (App (Const ("(↔)", _), f), g) -> (
+  | App (App (Const ("(↔)", _, _), f), g) -> (
       match head_of f, head_of g with
-        | Const (c, _), Const (d, _) when not (mem d logical_ops) ->
+        | Const (c, _, _), Const (d, _, _) when not (mem d logical_ops) ->
             Some (c, d)
         | _ -> None)
   | _ -> None
@@ -1229,7 +1229,7 @@ let is_safe_for_rewrite f =
  * which turns * into a ground convergent system.
  * See e.g. Baader/Nipkow, section 11.2 "Ordered rewriting". *)
 let ac_completion_axiom op typ =
-  let c_op = Const (op, Fun (typ, Fun (typ, typ))) in
+  let c_op = const op (Fun (typ, Fun (typ, typ))) in
   let var v = Var (v, typ) in
   let e1 = apply [c_op; var "x"; apply [c_op; var "y"; var "z"]] in
   let e2 = apply [c_op; var "y"; apply [c_op; var "x"; var "z"]] in
@@ -1253,7 +1253,7 @@ let ac_completion op typ : pformula =
 let dist_completion kind op1 op2 typ : pformula =
   let (kind2, t) = distributive_templates |> find (fun (k, _) -> k <> kind) in
   let op_type = Fun (typ, Fun (typ, typ)) in
-  let vsubst = [("$f", Const (op1, op_type)); ("$g", Const (op2, op_type));
+  let vsubst = [("$f", const op1 op_type); ("$g", const op2 op_type);
                ("$a", Var ("x", typ)); ("$b", Var ("y", typ)); ("$c", Var ("z", typ))] in
   let name = sprintf "distributive completion: %s, %s" (basic_const op1) (basic_const op2) in
   let f = for_all_vars_typ ["x"; "y"; "z"] typ (subst_vars vsubst t) in
@@ -1393,7 +1393,7 @@ let encode_consts all_known local_known thm : statement list * statement list * 
             printf "encode_consts: %s\n" c;
             failwith "encode_consts" in
   let rec mapf = function
-    | Const (c, typ) -> Const (map_const typ c, typ)
+    | Const (c, typ, r) -> Const (map_const typ c, typ, r)
     | f -> map_formula mapf f in
   let map_stmt = map_statement1 map_const Fun.id mapf in
   (map map_stmt (map strip_proof all_known),

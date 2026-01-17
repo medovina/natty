@@ -55,7 +55,7 @@ let binary = [("(∧)", "&"); ("(∨)", "|"); ("(→)", "=>"); ("(↔)", "<=>")]
 let rec thf outer right f : string =
   let parens b s = if b && outer <> "" then sprintf "(%s)" s else s in
   match collect_args f with
-    | (Const (c, _), args) when is_tuple_constructor c ->
+    | (Const (c, _, _), args) when is_tuple_constructor c ->
         sprintf "[%s]" (comma_join (map thf_formula args))
     | _ ->
       match bool_kind f with
@@ -73,7 +73,7 @@ let rec thf outer right f : string =
             let (ids_typs, f) = gather_quant q u in
             quant (if q = "(∀)" then "!" else "?") ((id, typ) :: ids_typs) f
         | _ -> match f with
-          | Const (id, typ) ->
+          | Const (id, typ, _) ->
               if id = _type then thf_type1 (outer <> "") typ else quote (prefix_upper id)
           | Var (id, _) -> to_var id
           | App (g, h) ->

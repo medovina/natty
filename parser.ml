@@ -184,7 +184,7 @@ let mk_not_binop op f g = _not (binop_unknown op f g)
 let unary_minus f = App (_const "u-", f)
 
 let ascribe typ f =
-  App (Const (":", Fun (typ, typ)), f)
+  App (const ":" (Fun (typ, typ)), f)
 
 let sub_term = (sub_digit1 |>> _const) <|> (sub_letter |>> _var)
 
@@ -211,7 +211,7 @@ let id_sub : (formula * formula option) p =
   pair (base_id |>> _var) (option sub_expr)
 
 let mk_sub f sub : formula = match sub with
-  | Some (Const (c, _) as g) when strlen c = 1 && is_digit c.[0] ->
+  | Some (Const (c, _, _) as g) when strlen c = 1 && is_digit c.[0] ->
       (* This could be either a variable x₀ or a sequence element x₀.
          Let the type checker resolve it. *)
       apply [_const "_"; f; g]
@@ -242,7 +242,7 @@ and comprehension s : formula pr = (
   let>? var = str "{" >> var in
   let>? typ = of_type in
   let$ expr = str "|" >> proposition << str "}" in
-  App (Const ("{}", unknown_type), Lambda (var, typ, expr))) s
+  App (const "{}" unknown_type, Lambda (var, typ, expr))) s
 
 and if_clause s : (formula * formula) pr =
   (pair expr (str "if" >> expr)) s
@@ -252,7 +252,7 @@ and if_block s : formula pr = (
   fold_right (fun (f, p) g -> _eif p f g) cs undefined) s
 
 and base_term s : formula pr = (unit_term <|> choice [
-  (sym |>> _const);
+  (with_range sym |>> fun (id, range) -> Const (id, unknown_type, range));
   str "⊤" >>$ _true;
   str "⊥" >>$ _false;
   str "|" >> expr1 false << str "|" |>> (fun f -> App (_const "abs", f));
@@ -516,7 +516,7 @@ let let_step : proof_step list p = pipe2
 let let_val_step : proof_step p = 
   pipe2 (str "let" >>? id_opt_type <<? str "=") expr
     (fun (id, typ) f ->
-      (LetDef (id, typ, Eq (Const (id, typ), f))))
+      (LetDef (id, typ, Eq (const id typ, f))))
 
 let define_step : proof_step p =
   pipe2 (str "define" >> atomic) for_all_ids (fun f ids_types ->
