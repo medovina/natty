@@ -175,9 +175,6 @@ let set_range f range = match f with
   | App (f, g, _) -> App (f, g, range)
   | f -> f
 
-let app_range f g =
-  set_range (app f g) (cat_ranges (range_of f) (range_of g))
-
 let map_formula fn = function
   | App (f, g, r) -> App (fn f, fn g, r)
   | Lambda (id, typ, f) -> Lambda (id, typ, fn f)
@@ -304,7 +301,10 @@ let _true = const "%⊤" Bool
 
 let undefined = const "undef" (Pi ("σ", TypeVar "σ"))
 
-let is_bool_const x = x = _true || x = _false
+let is_const_true = is_const_id "%⊤"
+let is_const_false = is_const_id "%⊥"
+
+let is_bool_const f = is_const_true f || is_const_false f
 
 let _not f = app (const "(¬)" (Fun (Bool, Bool))) f
 let _neq f g = _not (Eq (f, g))
@@ -550,6 +550,9 @@ let show_multi = show_formula_multi true
 
 let prefix_show prefix f =
   indent_with_prefix prefix (show_multi f)
+
+let app_range f g =
+  set_range (app f g) (cat_ranges (range_of f) (range_of g))
 
 let negate f = match bool_kind f with
   | Not f -> f

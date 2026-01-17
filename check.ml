@@ -61,7 +61,7 @@ let trim_escape rest : proof_step list = match rest with
   | _ -> rest
 
 let is_assert_false step = match step with
-  | Assert (f, _) when f = _false -> true
+  | Assert (Const ("%⊥", _, _), _) -> true
   | _ -> false
 
 let infer_blocks env steps : block list =
@@ -84,10 +84,10 @@ let infer_blocks env steps : block list =
                   else infer vars scope_vars None rest
             | Assert (f, _) when opt_exists (has_premise f) in_assume ->
                 ([], steps, true)  (* proof invoked last assumption as a premise, so exit scope *)
-            | Assert (f, _) when f = _false ->
+            | Assert (Const ("%⊥", _, range), _) ->
                 if is_some in_assume then
                   ([Block (step, [])], trim_escape rest, true)
-                else error "contradiction without assumption" (range_of f)
+                else error "contradiction without assumption" range
             | Group steps ->
                 let rec group_blocks steps : block list = match steps with
                   | [] -> []
@@ -419,18 +419,17 @@ let infer_def_formula env f : id * typ * formula =
           | Const (id, _, _) | Var (id, _, _) ->
               let infer f = infer_formula env vs f in
               let arg_types, args = unzip (map infer args) in
-              let g_type, g = infer g in
+              let g_type, g' = infer g in
               let c_type = mk_fun_types arg_types g_type in
               decl_type |> Option.iter (fun t -> if not (eq_type t c_type) then (
-                  printf "infer_def_formula: declared type = %s, actual = %s\n"
-                    (show_type t) (show_type c_type);
-                  failwith "infer_def_formula")
-              );
+                  error (sprintf "bad definition: declared type = %s, actual = %s\n"
+                    (show_type t) (show_type c_type)) (range_of g)
+              ));
               let c_type = mk_pi_types univ c_type in
               let type_args = univ |> map (fun v -> var v Type) in
               let eq = if g_type = Bool then _iff else mk_eq in
               let body = for_all_vars_types vs @@
-                eq (apply (const id c_type :: type_args @ args)) g in
+                eq (apply (const id c_type :: type_args @ args)) g' in
               (id, c_type, body)
           | _ -> failwith "definition expected (1)")
     | _ -> failwith "definition expected (2)")
@@ -529,7 +528,7 @@ and block_steps in_proof env lenv (Block (step, children)) : statement list list
         let decls = const_decls ids_typs in
         let decls = Hypothesis ("hyp", top_infer (decls @ env) f) :: decls in
         let (fs, concl) = child_steps decls in
-        (fs, if concl = _true then _true
+        (fs, if is_const_true concl then _true
              else for_all_vars_types ids_typs (implies f concl))
     | IsSome (ids_types, g, reason) ->
         let by = map (check_ref env) reason in
@@ -538,7 +537,7 @@ and block_steps in_proof env lenv (Block (step, children)) : statement list list
         let stmts = Hypothesis ("hyp", top_infer (decls @ env) g) :: decls in
         let (fs, concl) = child_steps stmts in
         (mk_thm env lenv ex by :: fs,
-         if concl = _true then ex else
+         if is_const_true concl then ex else
          if any_free_in (map fst ids_types) concl
             then exists_vars_types ids_types concl else concl)
     | Escape | Group _ -> failwith "block_formulas"
@@ -894,7 +893,7 @@ let encode_formula consts f : formula =
                 | _ -> app f g)
           | Lambda (id, typ, f) ->
               Lambda (id, encode_type typ, encode f)
-          | Eq (f, Lambda (_, typ, tr)) when tr = _true ->
+          | Eq (f, Lambda (_, typ, Const ("%⊤", _, _))) ->
               (* apply functional extensionality *)
               let x = next_var "x" (free_vars f) in
               let h = _for_all x typ (app f (var x typ)) in

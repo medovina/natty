@@ -40,7 +40,7 @@ let sub_digit = choice [
 
 let var0 = pipe2 (empty >>? letter1) (opt "" (string "'")) (^)
 
-let var = pipe2 var0 (opt "" (sub_digit)) (^)
+let pvar = pipe2 var0 (opt "" (sub_digit)) (^)
 
 let long_id = any_str [
   "π"; "σ"; "τ"; "Π"; "Σ"; "𝔹"; "ℕ"; "ℚ"; "ℤ";
@@ -50,7 +50,7 @@ let long_id = any_str [
 
 let base_id = long_id <|> var0
 
-let id = long_id <|> var
+let id = long_id <|> pvar
 
 let sym = choice [
   empty >>? (digit <|> any_of "+-/<>~^") |>> char_to_string;
@@ -114,10 +114,14 @@ let paragraph_keywords = [
 ]
 
 let with_range (p : 'a p) : (('a * range) p) = empty >>?
-  (get_pos >>= fun (_index, line1, col1) ->
-  p >>= fun x ->
-  get_pos |>> fun (_index, line2, col2) ->
-    (x, ((line1, col1), (line2, col2))))
+  let> (_index, line1, col1) = get_pos in
+  let> x = p in
+  let$ (_index, line2, col2) = get_pos in
+  (x, ((line1, col1), (line2, col2)))
+
+let with_set_range p : formula p =
+  let$ (f, range) = with_range p in
+  set_range f range
 
 (* types *)
 
@@ -208,8 +212,7 @@ let exists_vars_with ids_types prop opt_with : formula =
     exists_vars_types ids_types (opt_fold _and opt_with prop)
 
 let id_sub : (formula * formula option) p =
-  pair (with_range base_id |>> fun (id, range) -> Var (id, unknown_type, range))
-       (option sub_expr)
+  pair (base_id |>> _var) (option sub_expr)
 
 let mk_sub f sub : formula = match sub with
   | Some (Const (c, _, _) as g) when strlen c = 1 && is_digit c.[0] ->
@@ -234,14 +237,13 @@ and id_term s = (
   opt (mk_sub f f_sub) (range_term f f_sub)
   ) s
 
-and unit_term s : formula pr = (choice [
+and unit_term s : formula pr = s |> with_set_range (choice [
   id_term;
-  with_range parens_exprs |>> (fun (fs, range) ->
-    set_range (mk_tuple fs) range)
-]) s
+  parens_exprs |>> mk_tuple
+])
 
 and comprehension s : formula pr = (
-  let>? var = str "{" >> var in
+  let>? var = str "{" >> pvar in
   let>? typ = of_type in
   let$ expr = str "|" >> proposition << str "}" in
   app (const "{}" unknown_type) (Lambda (var, typ, expr))) s
@@ -253,22 +255,24 @@ and if_block s : formula pr = (
   let$ cs = str "{" >> sep_by1 if_clause (str ";") << str "}" in
   fold_right (fun (f, p) g -> _eif p f g) cs undefined) s
 
-and base_term s : formula pr = (unit_term <|> choice [
-  (with_range sym |>> fun (id, range) -> Const (id, unknown_type, range));
+and base_term s : formula pr = s |> with_set_range @@ choice [
+  unit_term;
+  (sym |>> _const);
   str "⊤" >>$ _true;
   str "⊥" >>$ _false;
   str "|" >> expr1 false << str "|" |>> app (_const "abs");
   comprehension;
   if_block
- ]) s
+ ]
 
 and apply_super f super : formula =
   opt_fold (fun c f -> apply [_var "^"; f; c]) super f
 
-and term s = (pipe2 base_term (option super_expr) apply_super) s
+and term s = s |>
+  with_set_range (pipe2 base_term (option super_expr) apply_super)
 
-and next_term s = (not_before space >>?
-  pipe2 unit_term (option super_expr) apply_super ) s
+and next_term s = s |> (not_before space >>?
+  with_set_range (pipe2 unit_term (option super_expr) apply_super))
 
 and terms s = (term >>= fun t -> many_fold_left app_range t next_term) s
 
