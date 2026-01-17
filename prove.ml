@@ -76,9 +76,9 @@ let rec prefix_type_vars t : typ = match t with
 and prefix_vars f : formula = profile @@
   let rec prefix outer = function
     | Const (x, typ, r) -> Const (x, prefix_type_vars typ, r)
-    | Var (x, typ) ->
+    | Var (x, typ, r) ->
         let x = if mem x outer then x else prefix_var x in
-        Var (x, prefix_type_vars typ)
+        Var (x, prefix_type_vars typ, r)
     | Lambda (x, typ, f) ->
         Lambda (x, prefix_type_vars typ, prefix (x :: outer) f)
     | f -> map_formula (prefix outer) f
@@ -102,9 +102,9 @@ let unprefix_vars f : formula = profile @@
     | t -> map_type unprefix_type t
   and fix = function
     | Const (c, typ, r) -> Const (c, unprefix_type typ, r)
-    | Var (v, typ) ->
+    | Var (v, typ, r) ->
         let v = if is_prefixed v then assoc v var_map else v in
-        Var (v, unprefix_type typ)
+        Var (v, unprefix_type typ, r)
     | Lambda (x, typ, f) ->
         Lambda (x, unprefix_type typ, fix f)
     | f -> map_formula fix f in
@@ -115,17 +115,17 @@ let is_inductive pformula =
   match kind f with
   | Quant ("(∀)", p, Fun (_, Bool), _) -> (
       match kind (last (gather_implies (remove_universal f))) with
-        | Quant ("(∀)", x, _, App (Var (p', _), Var (x', _)))
+        | Quant ("(∀)", x, _, App (Var (p', _, _), Var (x', _, _)))
             when p = p' && x = x' -> true
         | _ -> false)
   | _ -> false
   
 let associative_axiom f : (str * typ) option =
   let is_assoc (f, g) = match kind f, kind g with
-    | Binary (op, _, f1, Var (z, typ)), Binary (op3, _, Var (x', _), g1) -> (
+    | Binary (op, _, f1, Var (z, typ, _)), Binary (op3, _, Var (x', _, _), g1) -> (
         match kind f1, kind g1 with
-          | Binary (op2, _, Var (x, _), Var (y, _)),
-            Binary (op4, _, Var (y', _), Var (z', _))
+          | Binary (op2, _, Var (x, _, _), Var (y, _, _)),
+            Binary (op4, _, Var (y', _, _), Var (z', _, _))
               when op = op2 && op2 = op3 && op3 = op4 &&
                   (x, y, z) = (x', y', z') -> Some (op, typ)
           | _ -> None)
@@ -139,7 +139,8 @@ let is_associative_axiom p = is_some (associative_axiom p.formula)
 let commutative_axiom f : (str * typ) option =
   remove_universal f |> function
     | Eq (f, g) -> (match kind f, kind g with
-        | Binary (op, _, Var (x, typ), Var (y, _)), Binary (op', _, Var (y', _), Var (x', _))
+        | Binary (op, _, Var (x, typ, _), Var (y, _, _)),
+          Binary (op', _, Var (y', _, _), Var (x', _, _))
             when (op, x, y) = (op', x', y') -> Some (op, typ)
         | _ -> None)
     | _ -> None
@@ -158,7 +159,7 @@ let distributive_axiom f : (str * str * typ * ac_type) option =
     let+ (kind, t) = distributive_templates in
     let+ (_tsubst, vsubst) = _match !comm_ops t f in
     match (let& v = ["f"; "g"; "a"; "b"; "c"] in assoc ("$" ^ v) vsubst) with
-      | [Const (f_op, ftyp, _); Const (g_op, gtyp, _); Var (_, typ); Var _; Var _] ->
+      | [Const (f_op, ftyp, _); Const (g_op, gtyp, _); Var (_, typ, _); Var _; Var _] ->
           assert (ftyp = gtyp);
           assert (ftyp = Fun (typ, Fun(typ, typ)));
           [(f_op, g_op, typ, kind)]
@@ -249,7 +250,7 @@ let get_index x map : int =
 
 let de_bruijn_encode x f : formula =
   let rec encode count t = match t with
-    | Var (id, _typ) ->
+    | Var (id, _typ, _) ->
         if id = x then _const ("@db" ^ string_of_int count) else t
     | Lambda (id, typ, f) ->
         if id = x then t else Lambda (id, typ, encode (count + 1) f)
@@ -270,11 +271,11 @@ let encode_term type_map fluid_map t : formula * formula list = profile @@
   match t with
     | Const (c, typ, _) when c = _type -> (encode_type typ, [])
     | Const _ -> (t, [])
-    | Var (v, _) -> (_var v, [])
+    | Var (v, _, _) -> (_var v, [])
     | App _ ->
         let (head, args) = collect_args t in
         let head = match head with
-          | Var (v, _) -> _var v
+          | Var (v, _, _) -> _var v
           | _ -> head in (
         match head with
           | Var _ -> (encode_fluid t, [])
@@ -307,7 +308,7 @@ let rec lpo_gt s t = profile @@
           if const_gt c d || c = d && nf > ng then majo s ts
           else if c = d && nf = ng then lex_ma s t ss ts
           else alpha ss t
-      | _, Var (y, _) -> s <> t && (
+      | _, Var (y, _, _) -> s <> t && (
           if (starts_with "@v" y) then
             let i = int_of_string (string_from y 2) in
             let t' = nth !fluid_map i in
@@ -391,7 +392,7 @@ let clausify_step id lits in_use :
             let vars = concat_map free_vars lits in
             if mem x vars then 
               let y = next_var x vars in
-              subst1 f (Var (y, typ)) x
+              subst1 f (var y typ) x
             else f in
           Some ([f], [f])
       | Quant ("(∃)", x, typ, g) ->
@@ -807,7 +808,7 @@ let subsumes cp (d_lits, d_exist) : bool =
       if vsubst |> for_all (fun (id, f) ->
         not (is_prefixed id) || mem id d_exist || 
           match f with
-            | Var (id, _typ) -> not (is_prefixed id)
+            | Var (id, _typ, _) -> not (is_prefixed id)
             | _ -> false) then [subst] else [] in
   let rec subsume_lits c_lits d_lits subst : bool = match c_lits with
     | [] -> true
@@ -895,8 +896,8 @@ let simplify pformula =
 
 let taut_lit f = match bool_kind f with
   | True -> true
-  | Quant ("(∃)", x, _typ, Eq (Var (x', _), _)) when x = x' -> true
-  | Quant ("(∃)", x, _typ, Eq (_, Var (x', _))) when x = x' -> true
+  | Quant ("(∃)", x, _typ, Eq (Var (x', _, _), _)) when x = x' -> true
+  | Quant ("(∃)", x, _typ, Eq (_, Var (x', _, _))) when x = x' -> true
   | _ -> false
 
 let is_tautology f =
@@ -1230,9 +1231,9 @@ let is_safe_for_rewrite f =
  * See e.g. Baader/Nipkow, section 11.2 "Ordered rewriting". *)
 let ac_completion_axiom op typ =
   let c_op = const op (Fun (typ, Fun (typ, typ))) in
-  let var v = Var (v, typ) in
-  let e1 = apply [c_op; var "x"; apply [c_op; var "y"; var "z"]] in
-  let e2 = apply [c_op; var "y"; apply [c_op; var "x"; var "z"]] in
+  let avar v = var v typ in
+  let e1 = apply [c_op; avar "x"; apply [c_op; avar "y"; avar "z"]] in
+  let e2 = apply [c_op; avar "y"; apply [c_op; avar "x"; avar "z"]] in
   for_all_vars_typ ["x"; "y"; "z"] typ (Eq (e1, e2))
 
 let to_pformula name f =
@@ -1254,7 +1255,7 @@ let dist_completion kind op1 op2 typ : pformula =
   let (kind2, t) = distributive_templates |> find (fun (k, _) -> k <> kind) in
   let op_type = Fun (typ, Fun (typ, typ)) in
   let vsubst = [("$f", const op1 op_type); ("$g", const op2 op_type);
-               ("$a", Var ("x", typ)); ("$b", Var ("y", typ)); ("$c", Var ("z", typ))] in
+               ("$a", var "x" typ); ("$b", var "y" typ); ("$c", var "z" typ)] in
   let name = sprintf "distributive completion: %s, %s" (basic_const op1) (basic_const op2) in
   let f = for_all_vars_typ ["x"; "y"; "z"] typ (subst_vars vsubst t) in
   let axiom = { (to_pformula name f) with ac = Some kind2 } in
@@ -1414,7 +1415,7 @@ let lower_stmts stmts =
 let functional_extend f : formula list = match f with
   | Eq (g, h) -> (match type_of g with
       | Fun (t, Bool) ->  (* apply functional extensionality *)
-          [_for_all "x" t (_iff (App (g, Var ("x", t))) (App (h, Var ("x", t))))]
+          [_for_all "x" t (_iff (App (g, var "x" t)) (App (h, var "x" t)))]
       | _ -> [])
   | _ -> []
 

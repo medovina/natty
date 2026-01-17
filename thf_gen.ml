@@ -75,7 +75,7 @@ let rec thf outer right f : string =
         | _ -> match f with
           | Const (id, typ, _) ->
               if id = _type then thf_type1 (outer <> "") typ else quote (prefix_upper id)
-          | Var (id, _) -> to_var id
+          | Var (id, _, _) -> to_var id
           | App (g, h) ->
               let s = sprintf "%s @ %s" (thf "@" false g) (thf "@" true h) in
               parens (outer <> "@" || right) s

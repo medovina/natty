@@ -208,7 +208,8 @@ let exists_vars_with ids_types prop opt_with : formula =
     exists_vars_types ids_types (opt_fold _and opt_with prop)
 
 let id_sub : (formula * formula option) p =
-  pair (base_id |>> _var) (option sub_expr)
+  pair (with_range base_id |>> fun (id, range) -> Var (id, unknown_type, range))
+       (option sub_expr)
 
 let mk_sub f sub : formula = match sub with
   | Some (Const (c, _, _) as g) when strlen c = 1 && is_digit c.[0] ->
