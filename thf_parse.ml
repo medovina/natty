@@ -50,7 +50,7 @@ let rec type_term s = choice [
   parens typ;
   str "$o" >>$ Bool;
   str "$tType" >>$ Type;
-  id |>> (fun id -> Base id);
+  id |>> base_type;
   var |>> (fun id -> TypeVar id);
   pipe2 (str "!>" >> brackets (comma_sep1 pi_arg))
         (str ":" >> type_term)

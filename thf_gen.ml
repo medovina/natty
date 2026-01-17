@@ -35,7 +35,7 @@ let rec thf_type1 left typ =
   let rec f left typ = match typ with
     | Bool -> "$o"
     | Type -> "$tType"
-    | Base id -> quote id
+    | Base (id, _) -> quote id
     | TypeVar id -> to_var id
     | Fun (t, u) ->
         let s = sprintf "%s > %s" (f true t) (f false u) in

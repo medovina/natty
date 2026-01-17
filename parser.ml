@@ -143,8 +143,8 @@ let is_type_var s = "σ" <= s && s <= "ω"
 
 let rec typ_term s : typ pr = choice [
   str "Set" >> parens typ |>> (fun typ -> (Fun (typ, Bool)));
-  (id |>> fun id ->
-    if is_type_var id then TypeVar id else mk_base_type id);
+  (with_range id |>> fun (id, range) ->
+    if is_type_var id then TypeVar id else base_type_range id range);
   parens typ
 ] s
 

@@ -7,7 +7,7 @@ type id = string
 type typ =
   | Bool
   | Type
-  | Base of id
+  | Base of id * range
   | TypeVar of id
   | Fun of typ * typ
   | Pi of id * typ
@@ -22,9 +22,11 @@ and formula =
   | Lambda of id * typ * formula
   | Eq of formula * formula
 
-let mk_base_type = function
+let base_type_range typ range = match typ with
   | "𝔹" -> Bool
-  | id -> Base id
+  | id -> Base (id, range)
+
+let base_type typ = base_type_range typ empty_range
 
 let mk_type_var x = TypeVar x
 let mk_fun_type t u = Fun (t, u)
@@ -42,10 +44,10 @@ let rec target_type = function
   | Fun (_, u) -> target_type u
   | t -> t
 
-let unknown_type = Base "?"
+let unknown_type = base_type "?"
 
 let is_unknown = function
-  | Base id -> id.[0] = '?'
+  | Base (id, _) -> id.[0] = '?'
   | _ -> false
 
 let rec arity = function
@@ -58,6 +60,10 @@ let map_type fn = function
   | TypeApp (x, typs) -> TypeApp (x, map fn typs)
   | Product typs -> Product (map fn typs)
   | t -> t
+
+let rec strip_type_range typ = match typ with
+  | Base (id, _) -> Base (id, empty_range)
+  | _ -> map_type strip_type_range typ
 
 let const c typ = Const (c, typ, empty_range)
 let _const c = const c unknown_type
@@ -167,7 +173,7 @@ let iter_formula fn = function
 let rec base_types typ : id list =
   let find = function
     | Bool | Type | TypeVar _ -> []
-    | Base id -> [id]
+    | Base (id, _) -> [id]
     | Fun (t, u) -> base_types t @ base_types u
     | Pi (_, t) -> base_types t
     | TypeApp (_, types) | Product types ->
@@ -405,7 +411,7 @@ type formula_kind =
 
 let rec get_const_type f = match f with
   | Const (id, t, _) when id = _type -> t
-  | Const (id, Type, _) -> Base id
+  | Const (id, Type, r) -> Base (id, r)
   | Var (v, Type, _) -> TypeVar v
   | _ ->
       printf "get_const_type: f = %s (%b)\n" (show_formula f) (is_const f);
@@ -443,7 +449,7 @@ and show_type t =
     match typ with
       | Bool -> "𝔹"
       | Type -> "*"
-      | Base id -> id
+      | Base (id, _) -> id
       | TypeVar id -> id
       | Fun (t, u) -> op 1 "→" t u
       | Pi (id, t) ->

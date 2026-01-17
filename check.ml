@@ -194,7 +194,7 @@ let find_const env range id : formula list =
 
 let univ f : formula = match f with
   | Var (id, Type, _) -> Lambda ("x", TypeVar id,  _true)
-  | Const (id, Type, _) -> Lambda ("x", Base id, _true)
+  | Const (id, Type, range) -> Lambda ("x", Base (id, range), _true)
   | f -> f
 
 let quant1 q id typ f =
@@ -205,23 +205,23 @@ let is_lambda_or_set_comp f = match f with
   | _ -> false
 
 let rec check_type1 env vars typ : typ =
-  let rec check range vars typ =
+  let rec check vars typ =
     let lookup_type id =
       if mem (id, Type) vars then Some (TypeVar id)
-      else if is_type_defined id env then Some (Base id)
+      else if is_type_defined id env then Some (base_type id)
       else None in
     match typ with
       | Bool | Type -> typ
-      | Base id ->
+      | Base (id, range) ->
           if not (is_unknown typ) && not (is_type_defined id env) then
             error ("undefined type " ^ id) range
           else typ
       | TypeVar id -> (match lookup_type id with
           | Some typ -> typ
-          | None -> error ("undefined type variable " ^ id) range)
-      | Fun (t, u) -> Fun (check range vars t, check range vars u)
-      | Pi (id, t) -> Pi (id, check range ((id, Type) :: vars) t)
-      | Product typs -> Product (map (check range vars) typs)
+          | None -> error ("undefined type variable " ^ id) empty_range)
+      | Fun (t, u) -> Fun (check vars t, check vars u)
+      | Pi (id, t) -> Pi (id, check ((id, Type) :: vars) t)
+      | Product typs -> Product (map (check vars) typs)
       | TypeApp _ -> failwith "check_type1: typeapp"
       | Sub f -> match f with
         | Var (id, _, _) as f ->
@@ -229,7 +229,7 @@ let rec check_type1 env vars typ : typ =
               let (_typ, f) = infer_formula env vars f in
               Sub f)
         | _ -> failwith "check_type1: sub"
-  in check empty_range vars typ
+  in check vars typ
 
 and check_type env typ : typ = check_type1 env [] typ
 
@@ -353,7 +353,7 @@ let infer_const_decl env id typ : statement =
 let inductive_axioms id constructors : statement list =
   if constructors = [] then [] else (
   incr axiom_count;
-  let t = Base id in
+  let t = base_type id in
   let ivar v = var v t in
   let var_for typ v = if typ = t then [] else [v] in
   let fs1 =
@@ -389,7 +389,8 @@ let infer_type_definition env id constructors : statement list =
     error e empty_range);
   let type_decl = mk_const_decl id Type in
   let cs = map (check_const (type_decl :: env)) constructors |> map (fun (c, typ) ->
-    if typ <> Base id && typ <> Fun (Base id, Base id) then (
+    let t = strip_type_range typ in
+    if t <> base_type id && t <> Fun (base_type id, base_type id) then (
       let e = sprintf "unsupported constructor type: %s\n" (show_type typ) in
       error e empty_range);
     (c, typ)) in
@@ -445,7 +446,7 @@ let chain_comparisons env f : (formula * string list) list =
 (* Restore type variables for any type that has become a constant in the
  * local environment. *)
 let rec with_type_vars env typ : typ = match typ with
-  | Base id ->
+  | Base (id, _) ->
       if is_type_defined id env then TypeVar id else typ
   | _ -> map_type (with_type_vars env) typ
 
