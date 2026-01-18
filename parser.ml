@@ -375,10 +375,12 @@ and atomic s : formula pr = (choice [
 
 (* reasons *)
 
-and id_eq_term s = (id >> str "=" >> term) s
+and id_eq_term s : formula pr = (id >> str "=" >> term) s
 
-and theorem_ref s : string pr = brackets (
-  name << optional (str ":" << sep_by1 id_eq_term (str ","))) s
+and theorem_ref s : string pr = s |> choice [
+  str "Axiom" >> stmt_num |>> (fun num -> "axiom " ^ num);
+  brackets (name << optional (str ":" << sep_by1 id_eq_term (str ",")))
+]
 
 and reference s : reason pr = choice [
   single (with_range theorem_ref);

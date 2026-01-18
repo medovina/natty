@@ -435,9 +435,15 @@ let infer_def_formula env f : id * typ * formula =
     | _ -> failwith "definition expected (2)")
 
 let check_ref env (name, range) : id =
-  match find_opt (fun s -> stmt_name s = Some name) env with
+  let r = match opt_remove_prefix "axiom " name with
+    | Some r -> Some ("ax:" ^ r)
+    | None -> None in
+  let match_stmt stmt = match r with
+    | Some r -> stmt_ref stmt = r
+    | None -> stmt_name stmt = Some name in
+  match find_opt match_stmt env with
     | Some stmt -> stmt_ref stmt
-    | None -> error ("theorem not found: " ^ name) range
+    | None -> error ("reference not found: " ^ name) range
 
 let chain_comparisons env f : (formula * string list) list =
   let fs, ops = collect_cmp f in
