@@ -41,7 +41,9 @@ sub_sym = '₊' | '₋';
 
 super_digit = '⁰' .. '⁹';
 
-stmt_num = number {'.' number};
+sub_index = number | letter;
+
+stmt_num = number {'.' sub_index};
 
 (* types *)
 
@@ -232,7 +234,7 @@ top_prop = {let_or_assume '.'} ['Then'] proposition;
 
 (* proposition lists *)
 
-sub_index = (letter | number) '.';
+sub_index_dot = sub_index '.';
 
 label = '[' name ']';
 
@@ -240,7 +242,7 @@ top_sentence = top_prop '.' [label];
 
 stmt_name = '(' name ')';
 
-proposition_item = sub_index top_sentence;
+proposition_item = sub_index_dot top_sentence;
 
 prop_items = proposition_item+;
 
@@ -313,7 +315,7 @@ proof_sentence = proof_clause {';' proof_clause} '.' [label];
 
 proof_steps = proof_sentence+;
 
-proof_item = sub_index proof_steps;
+proof_item = sub_index_dot proof_steps;
 
 proofs = 'Proof.' (proof_item+ | proof_steps);
 

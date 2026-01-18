@@ -109,9 +109,11 @@ let super_digits = map fst super_digit_map
 
 let super_digit = any_str super_digits |>> fun s -> assoc s super_digit_map
 
+let sub_index : id p = (raw_number <|> (letter |>> char_to_string))
+
 let stmt_num : string p =
   let> n = number in
-  let$ sub = many (char '.' >>? raw_number) in
+  let$ sub = many (char '.' >>? sub_index) in
   String.concat "." (n :: sub)
 
 let paragraph_keywords = [
@@ -558,8 +560,8 @@ let top_prop : proof_step list p =
 
 (* proposition lists *)
 
-let sub_index : id p = 
-  ((empty >>? letter |>> char_to_string) <|> number) <<? string "."
+let sub_index_dot : id p =
+  empty >>? sub_index <<? string "."
 
 let stmt_name = parens in_parens_name
 
@@ -569,7 +571,7 @@ let top_sentence : (proof_step list * id option) p =
     pair (top_prop << str ".") (option label)
 
 let proposition_item : (id * (proof_step list * id option)) p =
-  pair sub_index top_sentence
+  pair sub_index_dot top_sentence
 
 let prop_items : (id * ((proof_step list) * id option)) list p =
   let> items = many1 proposition_item in
@@ -728,13 +730,13 @@ let proof_clause : proof_step list p = pipe2
 let proof_sentence : proof_step list p =
   (sep_by1 proof_clause (str ";") |>> concat) << str "." << optional label
 
-let new_paragraph : id p = empty >>? (any_str paragraph_keywords <|> sub_index)
+let new_paragraph : id p = empty >>? (any_str paragraph_keywords <|> sub_index_dot)
 
 let proof_steps : proof_step list p =
   many1 (not_before new_paragraph >> proof_sentence) |>>
     (fun steps -> concat steps)
 
-let proof_item : (id * proof_step list) p = pair sub_index proof_steps
+let proof_item : (id * proof_step list) p = pair sub_index_dot proof_steps
 
 let proof_items : (id * proof_step list) list p =
   let> items = many1 proof_item in
