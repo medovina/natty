@@ -401,7 +401,8 @@ and reason s : reason pr = (
       any_str ["assumption"; "hypothesis"];
     str "definition";
     str "the definition of" << term;
-    str "transitivity of ="] >>$ [])) s
+    any_str ["substitutivity"; "transitivity"] << any_str ["of ="; "of equality"]
+    ] >>$ [])) s
 
 and by_reason s : reason pr =
   (opt_str "again" >> str "by" >> sep_by1 reason (str "and") |>> concat) s

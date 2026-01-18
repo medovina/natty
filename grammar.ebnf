@@ -147,7 +147,7 @@ reason =
     ['contradiction with'] reference |
     [['the'] ('inductive' | 'induction')] ('assumption' | 'hypothesis') |
     'definition' | 'the definition of' term |
-    'transitivity of =';
+    ('substitutivity' | 'transitivity') 'of' ('equality' | '=');
 
 by_reason = ['again'] 'by' reason {'and' reason};
 
