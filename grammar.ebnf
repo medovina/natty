@@ -41,7 +41,7 @@ sub_sym = '₊' | '₋';
 
 super_digit = '⁰' .. '⁹';
 
-theorem_num = number {'.' number};
+stmt_num = number {'.' number};
 
 (* types *)
 
@@ -260,7 +260,7 @@ axiom_exists =
     there_exists axiom_decl {('and' | 'with') axiom_decl}
     ('such that' propositions | '.');
 
-axiom_group = 'Axiom' [stmt_name] '.' (axiom_exists | propositions);
+axiom_group = 'Axiom' [stmt_num] [stmt_name] '.' (axiom_exists | propositions);
 
 (* proofs *)
 
@@ -337,7 +337,7 @@ definition =
 (* theorems *)
 
 theorem_group =
-    ('Corollary' | 'Lemma' | 'Theorem') [theorem_num] [stmt_name] '.'
+    ('Corollary' | 'Lemma' | 'Theorem') [stmt_num] [stmt_name] '.'
     {let_step '.'} top_prop_or_items [proofs];
 
 (* module *)

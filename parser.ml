@@ -109,7 +109,7 @@ let super_digits = map fst super_digit_map
 
 let super_digit = any_str super_digits |>> fun s -> assoc s super_digit_map
 
-let theorem_num : string p =
+let stmt_num : string p =
   let> n = number in
   let$ sub = many (char '.' >>? raw_number) in
   String.concat "." (n :: sub)
@@ -612,24 +612,25 @@ let const_decl : hstatement list p =
 let axiom_decl : hstatement list p =
   single type_decl <|> const_decl
 
-let axiom_propositions id_typ name : hstatement list p =
+let axiom_propositions id_typ num name : hstatement list p =
   let$ props = propositions name in
-  [HAxiomGroup (id_typ, 
+  [HAxiomGroup (num, id_typ, 
     let& (sub_index, steps, name) = props in
     { sub_index; name; steps })]
 
-let axiom_exists name : hstatement list p =
+let axiom_exists num name : hstatement list p =
   there_exists >>?
   let> consts = sep_by1 axiom_decl (any_str ["and"; "with"]) in
   let consts = concat consts in
   let id_typ = defined_id_type (last consts) in
-  let$ props = (str "such that" >> axiom_propositions (Some id_typ) name) <|>
+  let$ props = (str "such that" >> axiom_propositions (Some id_typ) num name) <|>
                (str "." >>$ []) in
   consts @ props
 
 let axiom_group : hstatement list p =
-  let> name = str "Axiom" >> option stmt_name << str "." in
-  axiom_exists name <|> axiom_propositions None name
+  let> num = str "Axiom" >> opt "" stmt_num in
+  let> name = option stmt_name << str "." in
+  axiom_exists num name <|> axiom_propositions None num name
 
 (* proofs *)
 
@@ -789,7 +790,7 @@ let definition : hstatement list p =
 
 let theorem_group : hstatement list p =
   any_str ["Corollary"; "Lemma"; "Theorem"] >>
-  let> num = opt "" theorem_num in
+  let> num = opt "" stmt_num in
   let> name = option stmt_name << str "." in
   let> let_steps = many_concat (let_step << str ".") in
   let> props = top_prop_or_items name in

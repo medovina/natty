@@ -116,7 +116,7 @@ type htheorem = {
 type hstatement =
   | HTypeDef of id * (id * typ) list * string option  (* name, constructors, long name *)
   | HConstDecl of id * typ
-  | HAxiomGroup of (id * typ) option * haxiom list
+  | HAxiomGroup of string * (id * typ) option * haxiom list  (* number, defined symbol, axioms *)
   | HDefinition of {
       id_type: (id * typ) option; recursive: bool; defs: hdef list;
       justification: proof_step list

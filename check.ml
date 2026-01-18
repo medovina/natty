@@ -795,23 +795,25 @@ and infer_definition env id_type recursive defs justification : statement list =
   let definitions = map2 mk_def defs fs in
   justify @ [mk_const_decl id typ] @ definitions @ gs
 
+and next_num num count =
+  if num = "" then (incr count; string_of_int !count)
+  else num
+
 and infer_stmt env stmt : statement list =
   match stmt with
     | HTypeDef (id, constructors, _name) -> infer_type_definition env id constructors
     | HConstDecl (id, typ) -> [infer_const_decl env id typ]
     | HDefinition { id_type; recursive; defs; justification } ->
         infer_definition env id_type recursive defs justification
-    | HAxiomGroup (id_typ, haxioms) ->
-        incr axiom_count;
+    | HAxiomGroup (num, id_typ, haxioms) ->
+        let num = next_num num axiom_count in
         let+ { sub_index; name; steps } = haxioms in
-        let id = count_sub_index !axiom_count sub_index in
+        let id = num ^ dot sub_index in
         let blocks = infer_blocks env (generalize_types steps) in
         let (_, f) = blocks_steps false env [] blocks in
         [Axiom { label = id; formula = top_infer env f; name; defined = id_typ }]
     | HTheoremGroup (num, htheorems) ->
-        let num = if num = "" then (
-          incr theorem_count; string_of_int !theorem_count)
-        else num in
+        let num = next_num num theorem_count in
         let check env htheorem : statement list * statement =
           let { sub_index; name; steps; proof_steps } = htheorem in
           let id = num ^ dot sub_index in
