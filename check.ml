@@ -435,9 +435,17 @@ let infer_def_formula env f : id * typ * formula =
     | _ -> failwith "definition expected (2)")
 
 let check_ref env (name, range) : id =
-  let r = match opt_remove_prefix "axiom " name with
-    | Some r -> Some ("ax:" ^ r)
-    | None -> None in
+  let (r, name) = if name.[0] = '$' then
+    let name = string_from name 1 in
+    match str_words name with
+      | [kind; r] ->
+        let prefix = match kind with
+          | "axiom" -> "ax"
+          | "lemma" | "theorem" -> "thm"
+          | _ -> failwith "check_ref" in
+        (Some (prefix ^ ":" ^ r), name)
+      | _ -> failwith "check_ref"
+    else (None, name) in
   let match_stmt stmt = match r with
     | Some r -> stmt_ref stmt = r
     | None -> stmt_name stmt = Some name in

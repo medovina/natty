@@ -119,6 +119,7 @@ let comma_join = String.concat ", "
 let unwords = String.concat " "
 let unlines = String.concat "\n"
 
+let str_words = String.split_on_char ' '
 let str_lines = String.split_on_char '\n'
 
 let parens_if b s = if b then sprintf "(%s)" s else s

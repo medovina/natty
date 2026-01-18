@@ -135,7 +135,7 @@ atomic =
 id_eq_term = id '=' term;
 
 theorem_ref =
-    'Axiom' stmt_num |
+    ('Axiom' | 'Lemma' | 'Theorem') stmt_num |
     '[' name [':' id_eq_term {',' id_eq_term}] ']';
 
 reference = theorem_ref | ('our' | 'the') 'assumption' ['that' atomic] |

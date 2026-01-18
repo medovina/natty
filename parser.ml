@@ -378,7 +378,9 @@ and atomic s : formula pr = (choice [
 and id_eq_term s : formula pr = (id >> str "=" >> term) s
 
 and theorem_ref s : string pr = s |> choice [
-  str "Axiom" >> stmt_num |>> (fun num -> "axiom " ^ num);
+  (let> kind = any_str ["Axiom"; "Lemma"; "Theorem"] in
+  let$ num = stmt_num in
+  "$" ^ to_lower kind ^ " " ^ num);
   brackets (name << optional (str ":" << sep_by1 id_eq_term (str ",")))
 ]
 
