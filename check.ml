@@ -142,7 +142,8 @@ let apply_comparison op f g : formula =
   else if op = "≠" then _neq f g
   else apply [_var op; f; g]
 
-let rec extract_by f : formula * reason = match f with
+let rec extract_by f : formula * reason =
+  match f with
   | App (Const (c, _, _), h, _) -> (
       match opt_remove_prefix "$by " c with
         | Some reasons ->
@@ -151,13 +152,18 @@ let rec extract_by f : formula * reason = match f with
             (h, by)
         | None -> (f, []))
   | _ ->
-      (* In an assertion such as "x < 0 or 0 < x by [trichotomy]", we want
+      (* In an assertion such as "x < 0 or 0 < x by [trichotomy]" or
+         "x + 1 = y + 1 implies x = y by Axiom 1.2", we want
          the reason to apply to the entire formula. *)
-    let (f, args) = collect_args f in
-    if args = [] then (f, []) else
+    let (f', args) = match f with
+      | Eq (g, h) -> (_const "=", [g; h])
+      | _ -> collect_args f in
+    if args = [] then (f', []) else
     let args, last = split_last args in
     let (last, by) = extract_by last in
-    (apply (f :: args @ [last]), by)
+    match f with
+      | Eq (g, _) -> (Eq (g, last), by)
+      | _ -> (apply (f' :: args @ [last]), by)
 
 let rec join_comparisons fs ops : (formula * reason) list =
   match fs, ops with
