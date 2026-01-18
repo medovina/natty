@@ -581,9 +581,9 @@ let free_type_vars_in_steps steps : id list =
           | _ -> type_vars in
   unique (find steps)
 
-let count_sub_index num sub_index =
-  if sub_index = "" then sprintf "%d" num
-  else sprintf "%d.%s" num sub_index
+let dot s = if s = "" then "" else "." ^ s
+
+let count_sub_index num s = string_of_int num ^ dot s
 
 let rec gather_eif f = match collect_args f with
   | (c, [_type; p; f; g]) when c = _eif_c ->
@@ -808,11 +808,13 @@ and infer_stmt env stmt : statement list =
         let blocks = infer_blocks env (generalize_types steps) in
         let (_, f) = blocks_steps false env [] blocks in
         [Axiom { label = id; formula = top_infer env f; name; defined = id_typ }]
-    | HTheoremGroup htheorems ->
-        incr theorem_count;
+    | HTheoremGroup (num, htheorems) ->
+        let num = if num = "" then (
+          incr theorem_count; string_of_int !theorem_count)
+        else num in
         let check env htheorem : statement list * statement =
           let { sub_index; name; steps; proof_steps } = htheorem in
-          let id = count_sub_index !theorem_count sub_index in
+          let id = num ^ dot sub_index in
           let (f, stmts) = expand_proof id name env steps proof_steps in
           let range = match (last steps) with
             | Assert (f, _) -> range_of f

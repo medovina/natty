@@ -41,6 +41,8 @@ sub_sym = '₊' | '₋';
 
 super_digit = '⁰' .. '⁹';
 
+theorem_num = number {'.' number};
+
 (* types *)
 
 type_op = '⨯' | '→';
@@ -334,8 +336,9 @@ definition =
 
 (* theorems *)
 
-theorem_group = ('Corollary' | 'Lemma' | 'Theorem') [stmt_name] '.' {let_step '.'}
-    top_prop_or_items [proofs];
+theorem_group =
+    ('Corollary' | 'Lemma' | 'Theorem') [theorem_num] [stmt_name] '.'
+    {let_step '.'} top_prop_or_items [proofs];
 
 (* module *)
 

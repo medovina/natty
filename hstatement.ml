@@ -121,7 +121,7 @@ type hstatement =
       id_type: (id * typ) option; recursive: bool; defs: hdef list;
       justification: proof_step list
     }
-  | HTheoremGroup of htheorem list
+  | HTheoremGroup of string * htheorem list  (* number, subtheorems *)
 
 let defined_id_type hstmt : id * typ = match hstmt with
   | HTypeDef (id, _, _) -> (id, Type)

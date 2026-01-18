@@ -109,6 +109,11 @@ let super_digits = map fst super_digit_map
 
 let super_digit = any_str super_digits |>> fun s -> assoc s super_digit_map
 
+let theorem_num : string p =
+  let> n = number in
+  let$ sub = many (char '.' >>? raw_number) in
+  String.concat "." (n :: sub)
+
 let paragraph_keywords = [
   "axiom"; "corollary"; "definition"; "justification"; "lemma"; "proof"; "theorem"
 ]
@@ -784,10 +789,11 @@ let definition : hstatement list p =
 
 let theorem_group : hstatement list p =
   any_str ["Corollary"; "Lemma"; "Theorem"] >>
+  let> num = opt "" theorem_num in
   let> name = option stmt_name << str "." in
   let> let_steps = many_concat (let_step << str ".") in
   let> props = top_prop_or_items name in
-  let$ proofs = opt [] proofs in [HTheoremGroup (
+  let$ proofs = opt [] proofs in [HTheoremGroup (num, 
   props |> map (fun (sub_index, steps, name) ->
     { sub_index; name;
       steps = let_steps @ steps;
