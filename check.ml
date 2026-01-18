@@ -475,7 +475,7 @@ let mk_thm env lenv f by : statement list = Theorem {
     label = ""; name = None; formula = top_infer env f;
     steps = []; by; is_step = true; range = range_of f } :: lenv
 
-let assert_chain env lenv in_proof f by =
+let assert_chain env lenv in_proof f by : statement list list * formula =
   let eqs, reasons = unzip (chain_comparisons env f) in
   let reasons : str list list =
     let rs, last = split_last reasons in

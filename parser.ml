@@ -485,18 +485,23 @@ and exists_prop s : formula pr = pipe4
   (fun some ids_types with_exprs p ->
     (if some then Fun.id else _not) (exists_vars_with ids_types p with_exprs)) s
 
-and precisely_prop s : formula pr = (
-  any_str ["Exactly"; "Precisely"] >> str "one of" >> opt_str "the conditions" >>
-    small_prop << str "holds" |>>
-    fun f ->
-      let gs = gather_or f in
-      assert (length gs > 1);
-      let ns = all_pairs gs |> map (fun (f, g) -> _not (_and f g)) in
-      multi_and (f :: ns)
+and exclusive_or exact f : formula =
+  let gs = gather_or f in
+  assert (length gs > 1);
+  let ns = all_pairs gs |> map (fun (f, g) -> _not (_and f g)) in
+  multi_and (if exact then f :: ns else ns)
+
+and multi_or_prop s : formula pr = (
+  let> g = choice [
+    str "At least" >>$ Fun.id;
+    str "At most" >>$ exclusive_or false;
+    any_str ["Exactly"; "Precisely"] >>$ exclusive_or true] in
+  let$ f = str "one of" >> opt_str "the conditions" >> small_prop << str "holds" in
+  g f
   ) s
 
 and small_prop s : formula pr = expression (prop_operators ())
-  (if_then_prop <|> for_all_prop <|> exists_prop <|> precisely_prop <|> atomic) s
+  (if_then_prop <|> for_all_prop <|> exists_prop <|> multi_or_prop <|> atomic) s
 
 (* propositions *)
 

@@ -185,14 +185,15 @@ exists_prop =
     there_exists ['some' | 'an operation' | 'no'] decl_ids_types [with_exprs]
     'such that' small_prop;
 
-precisely_prop =
-    ('Exactly' | 'Precisely') 'one of' ['the conditions'] small_prop 'holds';
+multi_or_prop =
+    ('At least' | 'At most' | 'Exactly' | 'Precisely')
+    'one of' ['the conditions'] small_prop 'holds';
 
 prop_op = 'and' | 'or' | 'if' | 'implies' ['that'] | 'if and only if' | 'iff' |
           ', and' | ', or';
 
 small_prop =
-    atomic | if_then_prop | for_all_prop | exists_prop | precisely_prop |
+    atomic | if_then_prop | for_all_prop | exists_prop | multi_or_prop |
     small_prop prop_op small_prop |
     small_prop 'for' ('all' | 'some') decl_ids_type [with_exprs];
 
