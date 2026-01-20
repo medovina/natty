@@ -10,6 +10,7 @@ type options = {
   export_full: bool ref;
   keep_going: bool ref;
   from_thm: string option ref;
+  ignore_by: bool ref;
   only_thm: string option ref;
   pipe: string ref;
   server: bool ref;
@@ -30,6 +31,7 @@ let opts = {
   export = ref false;
   export_full = ref false;
   from_thm = ref None;
+  ignore_by = ref false;
   keep_going = ref false;
   only_thm = ref None;
   pipe = ref "";
@@ -50,6 +52,7 @@ let usage () =
   {|usage: natty [options] <file>.{n,thf}
   
       -a                continue proof attempts even if one or more proofs fail
+      -b                ignore hints about which theorems to use in proving a step
       -c                try to disprove all theorems
       -d<level>         debug level
       -e                reformat proof from E
@@ -82,6 +85,7 @@ let parse_args args =
           let int_val () = int_of_string value in
           (match arg.[1] with
             | 'a' -> opts.keep_going := true
+            | 'b' -> opts.ignore_by := true
             | 'c' -> opts.disprove := true
             | 'd' -> let level = if arg = "-d" then 1 else int_val () in
                      debug := level

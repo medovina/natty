@@ -24,6 +24,12 @@ all_provers = {
           'stats_arg': '-i',
           'stats' : { 'given': r'given: (\d+)',
                       'generated': r'generated: (\d+)' } },
+    'Natty (no by)' :
+        { 'cmd': './natty -b -t{timeout}',
+          'short_name': 'nat_no_by',
+          'stats_arg': '-i',
+          'stats' : { 'given': r'given: (\d+)',
+                      'generated': r'generated: (\d+)' } },
     'E' :   # -s: silent
         { 'cmd': 'eprover-ho --auto -s --cpu-limit={timeout}',
           'stats_arg': '--print-statistics',
@@ -39,6 +45,9 @@ all_provers = {
           'stats' : { 'given' : r'^# done (\d+) iterations'} }
 }
 all_prover_names = list(all_provers.keys())
+
+def short_name(p):
+    return all_provers[p].get('short_name') or p
 
 def maybe_to_int(s):
     return int(s) if s.isdigit() else s
@@ -203,6 +212,13 @@ def run_prover(theorems, prover, results):
     else:
         return False
 
+def is_float(s):
+    try:
+        float(s)
+        return True
+    except ValueError:
+        return False
+
 def write_results(theorems, results, results_file):
     proved : defaultdict = defaultdict(int)
     total_stat = defaultdict(lambda: defaultdict(float)) # prover -> stat -> total
@@ -210,13 +226,10 @@ def write_results(theorems, results, results_file):
     for prover, stats in results.items():
         for id in theorems:
             r = stats['time'].get(id)
-            if r != None and r != '':
-                try:
-                    proved[prover] += 1
-                    for stat, d in stats.items():
-                        total_stat[prover][stat] += float(d[id])
-                except ValueError:
-                    pass
+            if r != None and is_float(r):
+                proved[prover] += 1
+                for stat, d in stats.items():
+                    total_stat[prover][stat] += float(d[id])
 
     with open(results_file, 'w') as out:
         prover_stats = [(prover, stats) for prover in all_prover_names
@@ -270,7 +283,7 @@ def parse_args():
             conf.prove_steps = False
         elif arg.startswith('-p'):
             prefix = arg[2:].lower()
-            provers = [p for p in all_prover_names if p.lower().startswith(prefix)]
+            provers = [p for p in all_prover_names if short_name(p).lower().startswith(prefix)]
             conf.eval_provers = [] if provers == [] else [provers[0]]
         elif arg == '-s':
             conf.stats = True

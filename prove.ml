@@ -1348,7 +1348,7 @@ let gen_pformulas thm all_known local_known : pformula list =
     match stmt_formula stmt with
       | None -> (ops, [])
       | Some f ->
-          let by = memq stmt by_thms in
+          let by = not !(opts.ignore_by) && memq stmt by_thms in
           let definition = is_definition stmt in
           let kind_op = ac_kind f in
           if not ( by || is_hypothesis stmt ||
