@@ -206,20 +206,17 @@ def run_prover(theorems, prover, results):
 def write_results(theorems, results, results_file):
     proved : defaultdict = defaultdict(int)
     total_stat = defaultdict(lambda: defaultdict(float)) # prover -> stat -> total
-    total_score = defaultdict(float)
 
     for prover, stats in results.items():
         for id in theorems:
             r = stats['time'].get(id)
             if r != None and r != '':
                 try:
-                    time = float(r)
                     proved[prover] += 1
-                    total_score[prover] += time
                     for stat, d in stats.items():
                         total_stat[prover][stat] += float(d[id])
                 except ValueError:
-                    total_score[prover] += 2 * conf.timeout
+                    pass
 
     with open(results_file, 'w') as out:
         prover_stats = [(prover, stats) for prover in all_prover_names
@@ -244,8 +241,7 @@ def write_results(theorems, results, results_file):
 
         proved_row = [f'proved (of {n})', '']
         avg_row = ['average', '']
-        par2_row = ['PAR-2 score', '']
-        stats_rows = [proved_row, avg_row, par2_row]
+        stats_rows = [proved_row, avg_row]
 
         for prover, stats in prover_stats:
             for stat in stats:
@@ -255,12 +251,8 @@ def write_results(theorems, results, results_file):
                 if stat == 'time':
                     percent = proved[prover] / n * 100
                     proved_row.append(f'{proved[prover]} ({percent:.0f}%)')
-
-                    par2 = total_score[prover] / n
-                    par2_row.append(f'{par2:.2f}')
                 else:
                     proved_row.append('')
-                    par2_row.append('')
 
         for row in stats_rows:
             writer.writerow(row)
