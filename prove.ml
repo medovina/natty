@@ -1454,19 +1454,24 @@ let show_proof pf dis elapsed stats =
 
 let prove_all thf modules = profile @@
   let dis = if !(opts.disprove) then "dis" else "" in
-  let rec prove_stmts succeeded failed = function
+  let succeeded, failed, skipped = ref 0, ref 0, ref 0 in
+  let rec prove_stmts = function
     | [] ->
         if (not thf) then
-          if failed = 0 then
-            printf "%s theorems were %sproved.\n"
-              (if !(opts.disprove) then "No" else "All") dis
+          if !failed = 0 then (
+            let skip = if !skipped > 0 then sprintf " (%d skipped)" !skipped else "" in
+            printf "%s theorems were %sproved%s.\n"
+              (if !(opts.disprove) then "No" else "All") dis skip)
           else if !(opts.keep_going) then
+            let skip = if !skipped > 0 then sprintf ", %d skipped" !skipped else "" in
             if !(opts.disprove) then
-              printf "%d theorems/steps disproved.\n" failed
+              printf "%d theorems/steps disproved%s.\n" !failed skip
             else
-              printf "%d theorems/steps proved, %d not proved.\n" succeeded failed
-    | (_, thm, all_known, local_known) :: rest ->
-        let (succeed, fail) = match thm with
+              printf "%d theorems/steps proved, %d not proved%s.\n" !succeeded !failed skip
+    | (_, thm, all_known, local_known) :: rest -> (
+        match thm with
+          | Theorem { by = ["$skip"]; _ } ->
+              incr skipped;
           | Theorem { steps = []; _ } ->
               print_endline (show_statement true thm ^ "\n");
               let (result, elapsed) =
@@ -1478,10 +1483,11 @@ let prove_all thf modules = profile @@
                   | Stopped -> assert false in
               if thf then printf "SZS status %s\n" (szs result);
               print_newline ();
-              if !(opts.disprove) then (not b, b) else (b, not b)
-          | _ -> assert false in
-        let (succeeded, failed) = (succeeded + int_of_bool succeed), (failed + int_of_bool fail) in
-        if failed = 0 || !(opts.keep_going) then
-          prove_stmts succeeded failed rest in
+              let (succeed, fail) = if !(opts.disprove) then (not b, b) else (b, not b) in
+              succeeded := !succeeded + int_of_bool succeed;
+              failed := !failed + int_of_bool fail
+          | _ -> assert false);
+        if !failed = 0 || !(opts.keep_going) then
+          prove_stmts rest in
   let prove_modules = if !(opts.all_modules) then modules else [last modules] in
-  prove_stmts 0 0 (expand_modules1 prove_modules modules)
+  prove_stmts (expand_modules1 prove_modules modules)

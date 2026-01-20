@@ -642,30 +642,35 @@ let generalize_types steps =
   let type_vars = free_type_vars_in_steps steps in
   (type_vars |> map (fun id -> Let [(id, Type)])) @ steps
 
-let rec expand_proof id name env steps proof_steps : formula * statement list list =
+let rec expand_proof id name env steps proof_steps :
+    formula * statement list list * string list =
   let steps = generalize_types (trim_lets steps) in
   let blocks0 = chain_blocks steps [] in
   let (_, concl) = blocks_steps false env [] blocks0 in
-  let stmtss = if proof_steps = [] then [] else
-    let (init, last_step) = split_last steps in
-    let include_init = not (duplicate_lets (collect_lets init) proof_steps) in
-    if !(opts.show_structure) then (
-      printf "%s:\n\n" (theorem_name id name);
-      if !debug > 1 then (
-        let show_steps = (if include_init then init else []) @ proof_steps in
-        show_steps |> iter (fun s -> print_endline (show_proof_step s));
-        print_newline ()
+  let (stmtss, by) = match proof_steps with
+    | [] -> ([], [])
+    | [Assert (Const ("$thm", _, _), [("$skip", _)])] ->
+        ([], ["$skip"])
+    | _ ->
+      let (init, last_step) = split_last steps in
+      let include_init = not (duplicate_lets (collect_lets init) proof_steps) in
+      if !(opts.show_structure) then (
+        printf "%s:\n\n" (theorem_name id name);
+        if !debug > 1 then (
+          let show_steps = (if include_init then init else []) @ proof_steps in
+          show_steps |> iter (fun s -> print_endline (show_proof_step s));
+          print_newline ()
+        );
       );
-    );
-    let blocks = infer_blocks env proof_steps in
-    let blocks =
-      if include_init
-        then insert_conclusion_step (chain_blocks init blocks) init last_step
-      else blocks @ [Block (mk_assert concl, [])] in
-    if !(opts.show_structure) then print_blocks blocks;
-    let (stmtss, _concl) = blocks_steps true env [] blocks in
-    map rev stmtss in
-  (top_infer env concl, stmtss)
+      let blocks = infer_blocks env proof_steps in
+      let blocks =
+        if include_init
+          then insert_conclusion_step (chain_blocks init blocks) init last_step
+        else blocks @ [Block (mk_assert concl, [])] in
+      if !(opts.show_structure) then print_blocks blocks;
+      let (stmtss, _concl) = blocks_steps true env [] blocks in
+    (map rev stmtss, []) in
+  (top_infer env concl, stmtss, by)
 
 (* If f is a definition by cases such as 'abs(x) = { x if 0 ≤ x; −x if x < 0 }',
    we produce
@@ -800,9 +805,9 @@ and infer_definition env id_type recursive defs justification : statement list =
     incr theorem_count;
     let thm_id = string_of_int !theorem_count in
     let name = Some ("justify " ^ id) in
-    let steps = if justification = [] then [] else
-      snd (expand_proof thm_id name env [mk_assert j] justification) in
-    Theorem { label = thm_id; name; formula = j; steps; by = [];
+    let (_, steps, by) = if justification = [] then (_false, [], []) else
+      expand_proof thm_id name env [mk_assert j] justification in
+    Theorem { label = thm_id; name; formula = j; steps; by;
               is_step = false; range = empty_range } in
   let gs =
     let& eq_some = opt_to_list eq_some in
@@ -837,12 +842,12 @@ and infer_stmt env stmt : statement list =
         let check env htheorem : statement list * statement =
           let { sub_index; name; steps; proof_steps } = htheorem in
           let id = num ^ dot sub_index in
-          let (f, stmts) = expand_proof id name env steps proof_steps in
+          let (f, stmts, by) = expand_proof id name env steps proof_steps in
           let range = match (last steps) with
             | Assert (f, _) -> range_of f
             | _ -> failwith "assert expected" in
           let stmt = Theorem { label = id; name; formula = f; steps = stmts;
-                               by = []; is_step = false; range } in
+                               by; is_step = false; range } in
           (stmt :: env, stmt) in
         snd (fold_left_map check env htheorems)
 

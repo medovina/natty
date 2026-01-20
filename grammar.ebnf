@@ -314,7 +314,9 @@ proof_clause = [clause_intro [',']] (let_or_assumes | assert_steps);
 
 proof_sentence = proof_clause {';' proof_clause} '.' [label];
 
-proof_steps = proof_sentence+;
+skip = 'Left to the reader.';
+
+proof_steps = skip | proof_sentence+;
 
 proof_item = sub_index_dot proof_steps;
 

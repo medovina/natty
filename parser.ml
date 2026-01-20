@@ -738,9 +738,13 @@ let proof_sentence : proof_step list p =
 
 let new_paragraph : id p = empty >>? (any_str paragraph_keywords <|> sub_index_dot)
 
-let proof_steps : proof_step list p =
+let skip : proof_step list p =
+  str "Left to the reader." >>$
+  [Assert (_const "$thm", [("$skip", empty_range)])]
+
+let proof_steps : proof_step list p = skip <|> (
   many1 (not_before new_paragraph >> proof_sentence) |>>
-    (fun steps -> concat steps)
+    (fun steps -> concat steps))
 
 let proof_item : (id * proof_step list) p = pair sub_index_dot proof_steps
 
