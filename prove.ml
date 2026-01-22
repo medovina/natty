@@ -1454,24 +1454,20 @@ let show_proof pf dis elapsed stats =
 
 let prove_all thf modules = profile @@
   let dis = if !(opts.disprove) then "dis" else "" in
-  let succeeded, failed, skipped = ref 0, ref 0, ref 0 in
+  let succeeded, failed = ref 0, ref 0 in
   let rec prove_stmts = function
     | [] ->
         if (not thf) then
           if !failed = 0 then (
-            let skip = if !skipped > 0 then sprintf " (%d skipped)" !skipped else "" in
-            printf "%s theorems were %sproved%s.\n"
-              (if !(opts.disprove) then "No" else "All") dis skip)
+            printf "%s theorems were %sproved.\n"
+              (if !(opts.disprove) then "No" else "All") dis)
           else if !(opts.keep_going) then
-            let skip = if !skipped > 0 then sprintf ", %d skipped" !skipped else "" in
             if !(opts.disprove) then
-              printf "%d theorems/steps disproved%s.\n" !failed skip
+              printf "%d theorems/steps disproved.\n" !failed
             else
-              printf "%d theorems/steps proved, %d not proved%s.\n" !succeeded !failed skip
+              printf "%d theorems/steps proved, %d not proved.\n" !succeeded !failed
     | (_, thm, all_known, local_known) :: rest -> (
         match thm with
-          | Theorem { by = ["$skip"]; _ } ->
-              incr skipped;
           | Theorem { steps = []; _ } ->
               print_endline (show_statement true thm ^ "\n");
               let (result, elapsed) =

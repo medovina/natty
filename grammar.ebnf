@@ -147,9 +147,11 @@ reason =
     ['contradiction with'] reference |
     [['the'] ('inductive' | 'induction')] ('assumption' | 'hypothesis') |
     'definition' | 'the definition of' term |
-    ('substitutivity' | 'transitivity') 'of' ('equality' | '=');
+    ['the'] ('substitutivity' | 'transitivity') 'of' ('equality' | '=');
 
-by_reason = ['again'] 'by' reason {'and' reason};
+reasons = reason {'and' reason};
+
+by_reason = ['again'] 'by' reasons;
 
 (* so / have *)
 
@@ -314,9 +316,9 @@ proof_clause = [clause_intro [',']] (let_or_assumes | assert_steps);
 
 proof_sentence = proof_clause {';' proof_clause} '.' [label];
 
-skip = 'Left to the reader.';
+proof_by = ('Follows from' reasons | 'Left to the reader') '.';
 
-proof_steps = skip | proof_sentence+;
+proof_steps = proof_by | proof_sentence+;
 
 proof_item = sub_index_dot proof_steps;
 

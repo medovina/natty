@@ -165,8 +165,7 @@ let expand_proofs apply_types stmts with_full : (statement * statement list) lis
         let thms = match stmt with
           | Theorem { label = id; steps = fs; _ } as thm ->
               let thm_known =
-                if opt_for_all (match_thm_id id) only_thm &&
-                  (with_full || fs = [])
+                if opt_for_all (match_thm_id id) only_thm && (with_full || fs = [])
                 then [(thm, known)] else [] in
               thm_known @
                 (fs |> filter_mapi (fun j stmts ->

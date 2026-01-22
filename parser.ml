@@ -401,11 +401,13 @@ and reason s : reason pr = (
       any_str ["assumption"; "hypothesis"];
     str "definition";
     str "the definition of" << term;
-    any_str ["substitutivity"; "transitivity"] << any_str ["of ="; "of equality"]
+    opt_str "the" >>? any_str ["substitutivity"; "transitivity"] <<
+      any_str ["of ="; "of equality"]
     ] >>$ [])) s
 
-and by_reason s : reason pr =
-  (opt_str "again" >> str "by" >> sep_by1 reason (str "and") |>> concat) s
+and reasons s : reason pr = s |> (sep_by1 reason (str "and") |>> concat)
+
+and by_reason s : reason pr = (opt_str "again" >> str "by" >> reasons) s
 
 (* so / have *)
 
@@ -738,11 +740,13 @@ let proof_sentence : proof_step list p =
 
 let new_paragraph : id p = empty >>? (any_str paragraph_keywords <|> sub_index_dot)
 
-let skip : proof_step list p =
-  str "Left to the reader." >>$
-  [Assert (_const "$thm", [("$skip", empty_range)])]
+let proof_by : proof_step list p =
+  let$ reasons = choice [
+    str "Follows from" >> reasons;
+    str "Left to the reader" >>$ []] << str "." in
+  [Assert (_const "$thm", reasons)]
 
-let proof_steps : proof_step list p = skip <|> (
+let proof_steps : proof_step list p = proof_by <|> (
   many1 (not_before new_paragraph >> proof_sentence) |>>
     (fun steps -> concat steps))
 

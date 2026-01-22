@@ -649,8 +649,8 @@ let rec expand_proof id name env steps proof_steps :
   let (_, concl) = blocks_steps false env [] blocks0 in
   let (stmtss, by) = match proof_steps with
     | [] -> ([], [])
-    | [Assert (Const ("$thm", _, _), [("$skip", _)])] ->
-        ([], ["$skip"])
+    | [Assert (Const ("$thm", _, _), reasons)] ->
+        ([], map (check_ref env) reasons)
     | _ ->
       let (init, last_step) = split_last steps in
       let include_init = not (duplicate_lets (collect_lets init) proof_steps) in
