@@ -145,8 +145,9 @@ reference = theorem_ref | ('our' | 'the') 'assumption' ['that' atomic] |
 
 reason =
     ['contradiction with'] reference |
-    [['the'] ('inductive' | 'induction')] ('assumption' | 'hypothesis') |
     'definition' | 'the definition of' term |
+    [['the'] ('inductive' | 'induction')] ('assumption' | 'hypothesis') |
+    'reductio ad absurdum' |
     ['the'] ('substitutivity' | 'transitivity') 'of' ('equality' | '=');
 
 reasons = reason {'and' reason};
@@ -273,8 +274,10 @@ axiom_group = 'Axiom' [stmt_num] [stmt_name] '.' (axiom_exists | propositions);
 
 because_prop = ['because' | 'since'] proposition;
 
+ref_or_expr = reference | expr;
+
 contradiction = 
-     ('a contradiction' ['to' reference] | 'contradicting' reference)
+     ('a contradiction' ['to' ref_or_expr] | 'contradicting' ref_or_expr)
      [because_prop];
 
 which_is_contradiction =
@@ -291,13 +294,13 @@ proof_if_prop = 'if' small_prop [','] 'then' proof_prop {',' so proof_prop};
 
 and_or_so = ('and' [so] | so) [','];
 
-will_show = ('We' ('must' | 'need to' | 'will'))
+will_show = ('We' ('must' | 'need to' | 'shall' | 'will'))
             ['now'] ('deduce' | 'prove' | 'show') [by_reason] 'that';
 
 assert_step =
     [have] proof_if_prop |
     [have] because_prop [','] proof_prop |
-    will_show proposition |
+    will_show prop_reason |
     'The result follows' by_reason |
     [and_or_so] have_contradiction |
     [and_or_so] proof_prop;

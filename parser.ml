@@ -397,10 +397,11 @@ and reason s : reason pr = (
   reference <|>
   (choice [
     str "contradiction with" >> reference >>$ "";
-    optional (opt_str "the" >>? any_str ["inductive"; "induction"]) >>?
-      any_str ["assumption"; "hypothesis"];
     str "definition";
     str "the definition of" << term;
+    optional (opt_str "the" >>? any_str ["inductive"; "induction"]) >>?
+      any_str ["assumption"; "hypothesis"];
+    str "reductio ad absurdum";
     opt_str "the" >>? any_str ["substitutivity"; "transitivity"] <<
       any_str ["of ="; "of equality"]
     ] >>$ [])) s
@@ -659,10 +660,12 @@ let because_prop : proof_step p =
   any_str ["because"; "since"] >> proposition |>>
     (fun p -> Assert (p, []))
 
+let ref_or_expr : reason p = reference <|> (expr >>$ [])
+
 let contradiction : proof_step list p =
   let> contra = choice [
-      str "a contradiction" >> (opt [] (str "to" >> reference));
-      str "contradicting" >> reference ] in
+      str "a contradiction" >> (opt [] (str "to" >> ref_or_expr));
+      str "contradicting" >> ref_or_expr ] in
   let step = [Assert (_false, contra)] in
   let$ because = opt [] (single because_prop) in
   because @ step
@@ -695,7 +698,7 @@ let and_or_so =
   ((str "and" << optional so) <|> so) << opt_str ","
 
 let will_show =
-  (str "We" >>? any_str ["must"; "need to"; "will"]) >>?
+  (str "We" >>? any_str ["must"; "need to"; "shall"; "will"]) >>?
     opt_str "now" >>? any_str ["deduce"; "prove"; "show"] >>
     optional by_reason >> str "that"
 
@@ -703,7 +706,7 @@ let assert_step : proof_step list p =
   choice [
     optional have >>? proof_if_prop;
     optional have >>? pipe2 (single because_prop) (opt_str "," >> proof_prop) (@);
-    will_show >> proposition >>$ [];
+    will_show >> prop_reason >>$ [];
     str "The result follows" >> by_reason >>$ [];
     optional and_or_so >>? have_contradiction;
     optional and_or_so >> proof_prop
