@@ -21,7 +21,8 @@ id = var | long_id;
 
 sym = digit |
     '+' | '-' | '<' | '>' | '|' | '~' | '^' |
-    '·' | '/' | '≤' | '≥' | '≮' | '≯' | '−' | '⊆';
+    '·' | '/' | '≤' | '≥' | '≮' | '≯' | '−' |
+    '⊆' | '∪' | '∩' | '∅';
 
 id_or_sym = id | sym;
 
@@ -285,6 +286,8 @@ which_is_contradiction =
 
 have_contradiction = ('This is' | 'We have') contradiction;
 
+to_contradiction = 'this leads to a contradiction';
+
 prop_reason = proposition [by_reason];
 
 proof_prop =
@@ -300,7 +303,7 @@ will_show = ('We' ('must' | 'need to' | 'shall' | 'will'))
 assert_step =
     [have] proof_if_prop |
     [have] because_prop [','] proof_prop |
-    will_show prop_reason |
+    will_show (to_contradiction | prop_reason) |
     'The result follows' by_reason |
     [and_or_so] have_contradiction |
     [and_or_so] proof_prop;
@@ -319,7 +322,10 @@ proof_clause = [clause_intro [',']] (let_or_assumes | assert_steps);
 
 proof_sentence = proof_clause {';' proof_clause} '.' [label];
 
-proof_by = ('Follows from' reasons | 'Left to the reader') '.';
+proof_by =
+    ('By' reasons |
+     'Follows' ['easily'] 'from' reasons |
+     'Left to the reader') '.';
 
 proof_steps = proof_by | proof_sentence+;
 

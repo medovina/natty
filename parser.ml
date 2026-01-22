@@ -54,7 +54,7 @@ let id = long_id <|> pvar
 
 let sym = choice [
   empty >>? (digit <|> any_of "+-/<>~^") |>> char_to_string;
-  any_str ["·"; "≤"; "≥"; "≮"; "≯"; "≁"; "⊆"];
+  any_str ["·"; "≤"; "≥"; "≮"; "≯"; "≁"; "⊆"; "∪"; "∩"; "∅"];
   str "−" >>$ "-"]
 
 let minus = any_str ["-"; "−"]
@@ -308,9 +308,10 @@ and operators with_bar = [
   [ Prefix (minus >>$ unary_minus) ];
   [ Prefix (str "¬" >>$ _not) ];
   [ infix_binop "^" Assoc_right ];
-  (let& op = ["·"; "/"; "div"; "mod"] in infix_binop op Assoc_left);
+  (let& op = ["·"; "/"; "∩"; "div"; "mod"] in infix_binop op Assoc_left);
   [ infix_binop "+" Assoc_left;
-    infix_binop1 minus "-" Assoc_left ];
+    infix_binop1 minus "-" Assoc_left;
+    infix_binop "∪" Assoc_left ];
   [ Postfix (by_reason |>> fun r -> apply_reasons r) ];
   (if with_bar then [ infix_binop "|" Assoc_none ] else []) @
   [ infix_negop "∤" "|" Assoc_none;   (* does not divide *)
@@ -676,6 +677,8 @@ let which_is_contradiction : proof_step list p = str "," >>?
 let have_contradiction : proof_step list p =
   any_str ["This is"; "We have"] >>? contradiction
 
+let to_contradiction = str "this leads to a contradiction"
+
 let prop_reason : (formula * reason) p =
   pair proposition (opt [] by_reason)
 
@@ -706,7 +709,7 @@ let assert_step : proof_step list p =
   choice [
     optional have >>? proof_if_prop;
     optional have >>? pipe2 (single because_prop) (opt_str "," >> proof_prop) (@);
-    will_show >> prop_reason >>$ [];
+    will_show >> (skip to_contradiction <|> skip prop_reason) >>$ [];
     str "The result follows" >> by_reason >>$ [];
     optional and_or_so >>? have_contradiction;
     optional and_or_so >> proof_prop
@@ -744,9 +747,11 @@ let proof_sentence : proof_step list p =
 let new_paragraph : id p = empty >>? (any_str paragraph_keywords <|> sub_index_dot)
 
 let proof_by : proof_step list p =
-  let$ reasons = choice [
-    str "Follows from" >> reasons;
-    str "Left to the reader" >>$ []] << str "." in
+  let$ reasons =
+    attempt (str "By" >> reasons << str ".") <|>
+    (choice [
+      str "Follows" >> opt_str "easily" >> str "from" >> reasons;
+      str "Left to the reader" >>$ []] << str ".") in
   [Assert (_const "$thm", reasons)]
 
 let proof_steps : proof_step list p = proof_by <|> (
