@@ -90,26 +90,38 @@ and quant q ids_typs f =
 
 and thf_formula f = thf "" false f
 
-let thf_statement is_conjecture stmt : string =
+let stmt_prefix = function
+  | ConstDecl _ -> "const"
+  | Axiom _ -> "ax" | Hypothesis _ -> "hyp" | Definition _ -> "def"
+  | Theorem _ -> "thm"
+
+let stmt_prefix_label stmt = stmt_prefix stmt ^ "_" ^ stmt_label stmt
+  
+let thf_statement env is_conjecture stmt : string =
   let const id typ =
     sprintf "%s, type, %s: %s"
       (quote (id ^ "_decl")) (quote (prefix_upper id)) (thf_type typ) in
-  let prefix_label stmt = (quote (stmt_prefix_label "_" stmt)) in
+  let prefix_label stmt = (quote (stmt_prefix_label stmt)) in
   let output_formula stmt kind f suffix =
     sprintf "%s, %s, %s%s" (prefix_label stmt) kind (thf_formula f) suffix in
   let thm_or_hyp stmt kind by f =
     let extra =
       (if is_step stmt then ["step"] else []) @
       (if by = [] then [] else
-        let adjust id = quote (str_replace ":" "_" id) in
-        [sprintf "by([%s])" (comma_join (map adjust by))]) in
+        let lookup_ref r =
+          match find_opt (match_ref r) env with
+            | Some stmt -> prefix_label stmt
+            | None ->
+                printf "thf_statement: not found: %s\n" (show_ref r);
+                failwith "thf_statement" in
+        [sprintf "by([%s])" (comma_join (map lookup_ref by))]) in
     let suffix =
       if extra = [] then "" else sprintf ", file, [%s]" (comma_join extra) in
     output_formula stmt kind f suffix in
   let conv stmt = match stmt with
     | ConstDecl { id; typ; _ } -> const id typ
     | Axiom { formula = f; _ } -> output_formula stmt "axiom" f ""
-    | Hypothesis (_, f) -> thm_or_hyp stmt "hypothesis" [] f
+    | Hypothesis { formula = f; _ } -> thm_or_hyp stmt "hypothesis" [] f
     | Definition { formula = f; _ } -> output_formula stmt "definition" f ""
     | Theorem { formula = f; by; _ } ->
         let kind = if is_conjecture then "conjecture" else "theorem" in
@@ -118,7 +130,7 @@ let thf_statement is_conjecture stmt : string =
 
 let thf_file dir name = mk_path dir (name ^ ".thf")
 
-let write_thf dir name using proven (stmt: statement option) =
+let write_thf dir name using using_env proven (stmt: statement option) =
   let f = thf_file dir (Str.global_replace (Str.regexp "\\.\\| ") "_" name) in
   if not (Sys.file_exists f) then (
     let out = open_out f in
@@ -132,7 +144,7 @@ let write_thf dir name using proven (stmt: statement option) =
     if using <> [] then fprintf out "\n";
     let write is_last stmt = (
       fprintf out "%% %s\n" (show_statement false (apply_types_in_stmt stmt));
-      fprintf out "%s\n\n" (thf_statement is_last stmt)) in
+      fprintf out "%s\n\n" (thf_statement (proven @ using_env) is_last stmt)) in
     iter (write false) proven;
     Option.iter (write true) stmt;
     Out_channel.close out)
@@ -148,11 +160,12 @@ let export_module dir all_modules md =
   let module_name = base_name md in
   let subdir = mk_path dir module_name in
   mk_dir subdir;
+  let using_env = map apply_types_in_stmt (module_env md all_modules) in
   let using = map base_name (all_using md all_modules) in
   expand_proofs Fun.id md.stmts !(opts.export_full) |> iter (fun (thm, known) ->
     match thm with
       | Theorem { label = id; name; _ } ->
           let filename = String.concat ":" ([id] @ opt_to_list name) in
-          write_thf subdir (fix_filename filename) using (rev known) (Some thm)
+          write_thf subdir (fix_filename filename) using using_env (rev known) (Some thm)
       | _ -> failwith "theorem expected");
-  write_thf subdir module_name [] md.stmts None
+  write_thf subdir module_name [] [] md.stmts None

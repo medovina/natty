@@ -218,6 +218,15 @@ let rec split_last (xs : 'a list) : ('a list * 'a) = match xs with
       let (ys, last) = split_last xs in
       (x :: ys, last)
 
+let map_first f xs = match xs with
+  | x :: rest -> f x :: rest
+  | _ -> failwith "map_first"
+
+let rec map_last f (xs : 'a list) : ('a list) = match xs with
+  | [] -> failwith "map_last"
+  | [x] -> [f x]
+  | x :: xs -> x :: map_last f xs
+
 let index_of_opt x ys = find_index ((=) x) ys
 let index_of x ys = Option.get (index_of_opt x ys)
 

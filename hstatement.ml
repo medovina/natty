@@ -20,7 +20,7 @@ let range_of _f : range = empty_range
 type reason = (string * range) list
 
 type proof_step =
-  | Assert of formula * reason
+  | Assert of formula * reason * string option   (* formula, reason(s), name *)
   | Let of (id * typ) list
   | LetDef of id * typ * formula
   | Assume of formula
@@ -28,11 +28,11 @@ type proof_step =
   | Escape
   | Group of proof_step list
 
-let mk_assert f = Assert (f, [])
+let mk_assert f = Assert (f, [], None)
 let mk_assume f = Assume f
 
 let get_assert step = match step with
-  | Assert (f, _) -> f
+  | Assert (f, _, _) -> f
   | _ -> failwith "get_assert"
 
 let is_let_def = function
@@ -59,7 +59,7 @@ let rec step_decl_vars = function
   | _ -> []
 
 let rec step_formulas = function
-  | Assert (f, _) -> [f]
+  | Assert (f, _, _) -> [f]
   | Let _ | Escape -> []
   | LetDef (_, _, f) -> [f]
   | Assume f -> [f]
@@ -78,6 +78,10 @@ let step_free_type_vars step = unique @@
   concat_map free_type_vars_in_type (step_types step) @
   concat_map free_type_vars (step_formulas step)
 
+let set_step_name name step : proof_step = match step with
+  | Assert (f, r, _) -> Assert (f, r, name)
+  | _ -> step
+
 let show_chain chain : string =
   let to_str (op, f, _) =
     let s = show_formula f in
@@ -89,7 +93,7 @@ let show_ids_types ids_types : string =
   comma_join (map show ids_types)
 
 let rec show_proof_step step : string = match step with
-  | Assert (f, _) -> sprintf "assert %s" (show_formula f)
+  | Assert (f, _, _) -> sprintf "assert %s" (show_formula f)
   | Let ids_types -> "let " ^ show_ids_types ids_types
   | LetDef (_id, _typ, f) -> sprintf "let_def : %s" (show_formula f)
   | Assume f -> sprintf "assume %s" (show_formula f)
@@ -114,7 +118,7 @@ type htheorem = {
 }
 
 type hstatement =
-  | HTypeDef of id * (id * typ) list * string option  (* name, constructors, long name *)
+  | HTypeDef of id * (id * typ) list * string option  (* id, constructors, long name *)
   | HConstDecl of id * typ
   | HAxiomGroup of string * (id * typ) option * haxiom list  (* number, defined symbol, axioms *)
   | HDefinition of {

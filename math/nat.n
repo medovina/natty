@@ -190,8 +190,8 @@ Definition.  The binary operation · : ℕ → ℕ → ℕ is defined recursivel
 
 Theorem (distributive laws).  Let x, y, z : ℕ.
 
-    a. x · (y + z) = (x · y) + (x · z).     [left distributive]
-    b. (y + z) · x = (y · x) + (z · x).     [right distributive]
+    a. x · (y + z) = x · y + x · z.     [left distributive]
+    b. (y + z) · x = y · x + z · x.     [right distributive]
 
 Proof.
 

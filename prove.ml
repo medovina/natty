@@ -1336,7 +1336,10 @@ let defined_symbol axiom_symbols stmt : id option = match stmt with
   | _ -> None
 
 let gen_pformulas thm all_known local_known : pformula list =
-  let by_thms = all_known |> filter (fun s -> mem (stmt_ref s) (thm_by thm)) in
+  let by_thms =
+    let+ r = thm_by thm in
+    let stmts = filter (match_ref r) all_known in
+    assert (stmts <> []); stmts in
   let by_contradiction = (stmt_formula thm = Some _false) in
   let hyps = rev (filter is_hypothesis local_known) in
   let const_map =
@@ -1403,9 +1406,9 @@ let encode_consts all_known local_known thm : statement list * statement list * 
 
 let lower_stmts stmts =
   let lower stmt = stmt :: match stmt with
-    | Hypothesis (name, f) ->
-        let& g = opt_to_list (lower_definition f) in
-        Hypothesis (name ^ "_lower", g)
+    | Hypothesis hyp ->
+        let& g = opt_to_list (lower_definition hyp.formula) in
+        Hypothesis { hyp with label = hyp.label ^ "_lower"; formula = g }
     | Definition ({ formula = f; _ } as def) ->
         let& g = opt_to_list (lower_definition f) in
         Definition { def with formula = g }
@@ -1466,12 +1469,12 @@ let prove_all thf modules = profile @@
               printf "%d theorems/steps disproved.\n" !failed
             else
               printf "%d theorems/steps proved, %d not proved.\n" !succeeded !failed
-    | (_, thm, all_known, local_known) :: rest -> (
+    | (_, thm, using_env, local_known) :: rest -> (
         match thm with
           | Theorem { steps = []; _ } ->
               print_endline (show_statement true thm ^ "\n");
               let (result, elapsed) =
-                prove all_known local_known thm (Fun.const false) in
+                prove using_env local_known thm (Fun.const false) in
               let b = match result with
                   | Proof (pf, stats) -> show_proof pf dis elapsed stats; true
                   | GaveUp -> printf "Not %sproved.\n" dis; false

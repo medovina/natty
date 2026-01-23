@@ -655,11 +655,11 @@ let mk_step f reasons : proof_step =
     | Quant ("(∃)", _, _, _) ->
         let (ids_types, f) = gather_quant "(∃)" f in
         IsSome (ids_types, f, reasons)
-    | _ -> Assert (f, reasons)
+    | _ -> Assert (f, reasons, None)
 
 let because_prop : proof_step p =
   any_str ["because"; "since"] >> proposition |>>
-    (fun p -> Assert (p, []))
+    (fun p -> Assert (p, [], None))
 
 let ref_or_expr : reason p = reference <|> (expr >>$ [])
 
@@ -667,7 +667,7 @@ let contradiction : proof_step list p =
   let> contra = choice [
       str "a contradiction" >> (opt [] (str "to" >> ref_or_expr));
       str "contradicting" >> ref_or_expr ] in
-  let step = [Assert (_false, contra)] in
+  let step = [Assert (_false, contra, None)] in
   let$ because = opt [] (single because_prop) in
   because @ step
 
@@ -742,7 +742,9 @@ let proof_clause : proof_step list p = pipe2
     in esc @ steps)
 
 let proof_sentence : proof_step list p =
-  (sep_by1 proof_clause (str ";") |>> concat) << str "." << optional label
+  let> steps = (sep_by1 proof_clause (str ";") |>> concat) << str "." in
+  let$ label = option label in
+  if steps = [] then [] else map_last (set_step_name label) steps
 
 let new_paragraph : id p = empty >>? (any_str paragraph_keywords <|> sub_index_dot)
 
@@ -752,7 +754,7 @@ let proof_by : proof_step list p =
     (choice [
       str "Follows" >> opt_str "easily" >> str "from" >> reasons;
       str "Left to the reader" >>$ []] << str ".") in
-  [Assert (_const "$thm", reasons)]
+  [Assert (_const "$thm", reasons, None)]
 
 let proof_steps : proof_step list p = proof_by <|> (
   many1 (not_before new_paragraph >> proof_sentence) |>>
@@ -784,7 +786,7 @@ let explicit_definition : hstatement p =
   let$ props = str "," >> top_prop_or_items None in
   let defs = let& (sub_index, steps, _) = props in
     match steps with
-      | [Assert (f, _)] -> { sub_index; formula = for_all_vars_types_if_free all f }
+      | [Assert (f, _, _)] -> { sub_index; formula = for_all_vars_types_if_free all f }
       | _ -> failwith "explicit_definition" in
   HDefinition { id_type = Some id_type; recursive; defs; justification = [] }
 

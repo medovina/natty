@@ -101,12 +101,13 @@ let thf_type : (id * statement) p = id << str ":" >>= fun id ->
    (str "$tType" >>$ (id, mk_const_decl id Type)) <|>
    (typ |>> fun typ -> (id, mk_const_decl id typ))
 
-type thm_info = string list * bool  (* by, is_step *)
+type thm_info = stmt_ref list * bool  (* by, is_step *)
 
 let extra_item : (thm_info -> thm_info) p = choice [
   str "step" >>$ (fun (by, _) -> (by, true));
   let$ ids = str "by" >> parens (brackets (comma_sep1 id)) in
-  fun (_, is_step) -> (ids, is_step)]
+  let refs = let& id = ids in LabelRef ("_", id) in
+  fun (_, is_step) -> (refs, is_step)]
 
 let thf_formula last_const : (id option * statement) p = empty >>?
   str "thf" >> parens (
@@ -126,7 +127,7 @@ let thf_formula last_const : (id option * statement) p = empty >>?
               formula |>> fun f ->
                 Definition { label; id = opt_get last_const; typ = unknown_type; formula = f }
           | "hypothesis" ->
-              formula |>> fun f -> Hypothesis (label, f)
+              formula |>> fun f -> Hypothesis { label; formula = f; name = None }
           | "conjecture" ->
               let> f = formula in
               let$ extras =
@@ -135,7 +136,7 @@ let thf_formula last_const : (id option * statement) p = empty >>?
               Theorem { label; name = None; formula = f; steps = [];
                         by; is_step; range = empty_range }
           | _ -> failwith "unknown role" in
-        p |>> fun x -> ((if role = "axiom" then last_const else None), x))
+        p |>> fun x -> ((if role = "axiom" || role = "definition" then last_const else None), x))
   << str "."
 
 let _include = str "include" >> parens quoted_id << str "."
