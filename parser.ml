@@ -28,6 +28,8 @@ let opt_str s = optional (str s)
 
 let any_str ss = choice (map str ss)
 
+let opt_any_str ss = optional (any_str ss)
+
 let parens s = str "(" >> s << str ")"
 
 let brackets s = str "[" >> s << str "]"
@@ -381,7 +383,7 @@ and atomic s : formula pr = (choice [
 and id_eq_term s : formula pr = (id >> str "=" >> term) s
 
 and theorem_ref s : string pr = s |> choice [
-  (let> kind = any_str ["Axiom"; "Lemma"; "Theorem"] in
+  (let> kind = any_str ["Axiom"; "Corollary"; "Lemma"; "Theorem"] in
   let$ num = stmt_num in
   "$" ^ to_lower kind ^ " " ^ num);
   brackets (name << optional (str ":" << sep_by1 id_eq_term (str ",")))
@@ -526,10 +528,10 @@ and proposition s : formula pr = choice [
 (* top propositions *)
 
 let operation =
-  optional (any_str ["binary"; "unary"]) >>
-    any_str ["operation"; "operations"; "relation"; "relations"]
+  opt_any_str ["binary"; "unary"] >>
+  any_str ["operation"; "operations"; "relation"; "relations"]
 
-let an_operation = optional (any_str ["a"; "an"]) >>? operation
+let an_operation = opt_any_str ["a"; "an"] >>? operation
 
 let let_decl : (id * typ) list p =
   str "Consider any" >> decl_ids_types <|> (
@@ -672,7 +674,7 @@ let contradiction : proof_step list p =
   because @ step
 
 let which_is_contradiction : proof_step list p = str "," >>?
-  (opt_str "which is" >>? optional (any_str ["again"; "also"; "similarly"])) >>? contradiction
+  (opt_str "which is" >>? opt_any_str ["again"; "also"; "similarly"]) >>? contradiction
 
 let have_contradiction : proof_step list p =
   any_str ["This is"; "We have"] >>? contradiction
@@ -752,7 +754,7 @@ let proof_by : proof_step list p =
   let$ reasons =
     attempt (str "By" >> reasons << str ".") <|>
     (choice [
-      str "Follows" >> opt_str "easily" >> str "from" >> reasons;
+      str "Follows" >> opt_any_str ["easily"; "immediately" ] >> str "from" >> reasons;
       str "Left to the reader" >>$ []] << str ".") in
   [Assert (_const "$thm", reasons, None)]
 

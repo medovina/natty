@@ -138,7 +138,7 @@ atomic =
 id_eq_term = id '=' term;
 
 theorem_ref =
-    ('Axiom' | 'Lemma' | 'Theorem') stmt_num |
+    ('Axiom' | 'Corollary' | 'Lemma' | 'Theorem') stmt_num |
     '[' name [':' id_eq_term {',' id_eq_term}] ']';
 
 reference = theorem_ref | ('our' | 'the') 'assumption' ['that' atomic] |
@@ -324,7 +324,7 @@ proof_sentence = proof_clause {';' proof_clause} '.' [label];
 
 proof_by =
     ('By' reasons |
-     'Follows' ['easily'] 'from' reasons |
+     'Follows' ['easily' | 'immediately'] 'from' reasons |
      'Left to the reader') '.';
 
 proof_steps = proof_by | proof_sentence+;
