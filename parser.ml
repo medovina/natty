@@ -389,11 +389,15 @@ and theorem_ref s : string pr = s |> choice [
   brackets (name << optional (str ":" << sep_by1 id_eq_term (str ",")))
 ]
 
+and part_ref s : string pr = s |>
+  let$ i = parens sub_index in
+  "(" ^ i ^ ")"
+
 and reference s : reason pr = choice [
   single (with_range theorem_ref);
   any_str ["our"; "the"] >>?
     str "assumption" >> optional (str "that" >> atomic) >>$ [];
-  str "part" >> parens number >> opt_str "of this theorem" >>$ []
+  single (with_range part_ref)
   ] s
 
 and reason s : reason pr = (

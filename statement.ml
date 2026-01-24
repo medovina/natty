@@ -11,15 +11,19 @@ type stmt_ref =
   | NameRef of string
   | LabelRef of string * string   (* kind, label *)
 
-let parse_ref r : stmt_ref =
-  if r.[0] = '$' then
-    match str_words (string_from r 1) with
-      | [kind; label] ->
-          let kind =
-            if kind = "corollary" || kind = "lemma" then "theorem" else kind in
-          LabelRef (kind, label)
-      | _ -> failwith "parse_ref"
-  else NameRef r
+let parse_ref num r : stmt_ref =
+  match r.[0] with
+    | '$' -> (
+      match str_words (string_from r 1) with
+        | [kind; label] ->
+            let kind =
+              if kind = "corollary" || kind = "lemma" then "theorem" else kind in
+            LabelRef (kind, label)
+        | _ -> failwith "parse_ref")
+    | '(' ->
+      let n = String.sub r 1 (strlen r - 2) in
+      LabelRef ("theorem", num ^ "." ^ n)
+    | _ -> NameRef r
 
 let show_ref = function
   | NameRef s -> s

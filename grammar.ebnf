@@ -141,8 +141,10 @@ theorem_ref =
     ('Axiom' | 'Corollary' | 'Lemma' | 'Theorem') stmt_num |
     '[' name [':' id_eq_term {',' id_eq_term}] ']';
 
+part_ref = '(' sub_index ')';
+
 reference = theorem_ref | ('our' | 'the') 'assumption' ['that' atomic] |
-    'part (' number ')' ['of this theorem'];
+    part_ref;
 
 reason =
     ['contradiction with'] reference |
