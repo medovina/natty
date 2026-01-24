@@ -547,14 +547,14 @@ and block_steps env lenv thm_num (Block (step, children)) : statement list list 
              else for_all_vars_types ids_typs (implies f concl))
     | IsSome (ids_types, g, reason) ->
         let by = map (check_ref env thm_num) reason in
-        let ex = exists_vars_types ids_types g in
+        let ex = exists_vars_types false ids_types g in
         let decls = rev (map (fun (id, typ) -> infer_const_decl env id typ) ids_types) in
         let stmts = new_hyp (top_infer (decls @ env) g) :: decls in
         let (fs, concl) = child_steps stmts in
         (mk_thm env lenv ex by :: fs,
          if is_const_true concl then ex else
          if any_free_in (map fst ids_types) concl
-            then exists_vars_types ids_types concl else concl)
+            then exists_vars_types false ids_types concl else concl)
     | Escape | Group _ -> failwith "block_formulas"
 
 let trim_lets steps : proof_step list =
@@ -912,6 +912,14 @@ let encode_formula consts f : formula =
           apply_types c typ (map encode args)
       | (Const ("∈", _, _), [_type; x; set]) ->
           encode (app set x)
+      | (Const ("(∃!)", _, _), [Lambda (x, typ, f)]) ->
+          let y = next_var x (free_vars f) in
+          let g =
+            _and (_exists x typ f)
+                 (for_all_vars_typ [x; y] typ
+                    (implies (_and f (subst1 f (var y typ) x))
+                             (Eq (var x typ, var y typ)))) in
+          encode g
       | _ ->
         match f with
           | Const (id, typ, _) ->

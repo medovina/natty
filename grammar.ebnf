@@ -167,7 +167,7 @@ have = 'clearly' |
     'it' ['then'] 'follows' ['from' reference | by_reason] 'that' |
     'it is' ('clear' | 'obvious') 'that' | 'it must be that' |
     'likewise' [','] | 'notice that' | 'observe that' |
-    'on the other hand' [','] | 'similarly' [','] |
+    'on the other hand' [','] | 'remember that' | 'similarly' [','] |
     'the only alternative is' | 'this means that' | 'this shows that' | 'trivially' |
     'we conclude that' | 'we deduce that' | 'we have' ['shown that'] |
     'we know that' | 'we may write' | 'we must have' | 'we obtain' | 'we see that';
@@ -188,7 +188,7 @@ there_exists =
     'There' ('is' | 'are' | 'exists' | 'must be' | ['must'] 'exist');
 
 exists_prop =
-    there_exists ['some' | 'an operation' | 'no'] decl_ids_types [with_exprs]
+    there_exists ['some' | 'an operation' | 'no' | 'a unique'] decl_ids_types [with_exprs]
     'such that' small_prop;
 
 multi_or_prop =

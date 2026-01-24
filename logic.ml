@@ -354,6 +354,7 @@ let _for_all = quant "(∀)"
 let _for_all' = quant' "(∀)"
 let _exists = quant "(∃)"
 let _exists' = quant' "(∃)"
+let _exists_unique' = quant' "(∃!)"
 
 let generalize f : formula =
   let vs = free_type_vars f in
@@ -410,8 +411,8 @@ let is_eq_or_iff f = match f with
   | Eq (f, g) | App (App (Const ("(↔)", _, _), f, _), g, _) -> Some (f, g)
   | _ -> None
 
-let strip_prefix c = match c.[0] with
-  | '%' | '~' -> string_from c 1
+let strip_prefix c : id = match c.[0] with
+  | '%' | '~' -> if strlen c > 1 then string_from c 1 else c
   | '[' -> let i = String.index c ']' in string_from c (i + 1)
   | '(' ->
       assert (last_char c = ')');
@@ -608,8 +609,8 @@ let exists_vars_typ = quant_vars_typ _exists
 
 let for_all_vars_types : (id * typ) list -> formula -> formula =
   fold_right _for_all'
-let exists_vars_types : (id * typ) list -> formula -> formula =
-  fold_right _exists'
+let exists_vars_types unique : (id * typ) list -> formula -> formula =
+  fold_right (if unique then _exists_unique' else _exists')
 
 let for_all_vars_types_if_free ids_typs f : formula =
   let fv = free_vars f in

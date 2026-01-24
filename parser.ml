@@ -188,6 +188,8 @@ let decl_ids_types : ((id * typ) list) p =
 
 (* terms *)
 
+type exists = ExistsSome | ExistsNo | ExistsUnique
+
 let compare_op op = infix op (binop_unknown op) Assoc_right
 
 let mk_not_binop op f g = _not (binop_unknown op f g)
@@ -217,8 +219,8 @@ let super_expr : formula p =
 let for_all_vars_with ids_types prop opt_with : formula =
     for_all_vars_types ids_types (opt_fold implies opt_with prop)
 
-let exists_vars_with ids_types prop opt_with : formula =
-    exists_vars_types ids_types (opt_fold _and opt_with prop)
+let exists_vars_with unique ids_types prop opt_with : formula =
+    exists_vars_types unique ids_types (opt_fold _and opt_with prop)
 
 let id_sub : (formula * formula option) p =
   pair (base_id |>> _var) (option sub_expr)
@@ -430,7 +432,7 @@ and have s : reason pr = (
     opt [] ((str "from" >> reference) <|> by_reason) << str "that") <|>
   (choice [
     any_str ["clearly"; "it must be that"; "notice that";
-      "observe that"; "the only alternative is"; "this means that";
+      "observe that"; "remember that"; "the only alternative is"; "this means that";
       "this shows that"; "trivially";
       "we conclude that"; "we deduce that";
       "we know that"; "we may write"; "we must have"; "we obtain"; "we see that"];
@@ -453,7 +455,7 @@ and for_with text q s : (formula -> formula) pr =
       q ids_types f opt_with) s
 
 and post_for_all_with s = for_with "for all" for_all_vars_with s
-and post_for_some_with s = for_with "for some" exists_vars_with s
+and post_for_some_with s = for_with "for some" (exists_vars_with false) s
 
 and _if_op = str "if" <<? not_before (str "and only")
 
@@ -489,12 +491,18 @@ and there_exists =
 
 and with_exprs s = (str "with" >> exprs) s
 
-and exists_prop s : formula pr = pipe4
-  (there_exists >>
-    opt true ((any_str ["some"; "an operation"] >>$ true) <|> (str "no" >>$ false)))
-  decl_ids_types (option with_exprs) (str "such that" >> small_prop)
-  (fun some ids_types with_exprs p ->
-    (if some then Fun.id else _not) (exists_vars_with ids_types p with_exprs)) s
+and exists_prop s : formula pr = s |>
+  let> some = there_exists >> choice [
+    any_str ["some"; "an operation"] >>$ ExistsSome;
+    str "no" >>$ ExistsNo;
+    str "a unique" >>$ ExistsUnique;
+    return ExistsSome
+  ] in
+  let> ids_types = decl_ids_types in
+  let> with_exprs = option with_exprs in
+  let$ p = str "such that" >> small_prop in
+  (if some = ExistsNo then _not else Fun.id)
+    (exists_vars_with (some = ExistsUnique) ids_types p with_exprs)
 
 and exclusive_or exact f : formula =
   let gs = gather_or f in
