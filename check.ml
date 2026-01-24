@@ -880,11 +880,20 @@ let encode_id consts typ id : id =
       sprintf "%s:%s" id' (type_as_id typ))
     else id
 
-let rec encode_type typ : typ = match typ with
-  | Base (id, _) -> Base (id, empty_range)
-  | Fun (Product typs, u) ->
-        fold_right mk_fun_type (map encode_type typs) u   (* curry type *)
-  | _ -> map_type encode_type typ
+(* e.g. map (ℕ ⨯ ℕ) ⨯ (ℕ ⨯ ℕ) to [ℕ, ℕ, ℕ, ℕ] *)
+let rec product_types typ : typ list = match typ with
+  | Product typs -> concat_map product_types typs
+  | _ -> [typ]
+
+let rec encode_type typ : typ =
+  match typ with
+    | Base (id, _) -> Base (id, empty_range)
+    | Fun _ ->    (* curry arguments *)
+        let args = map encode_type (arg_types typ) in
+        let ret = encode_type (target_type typ) in
+        let args = concat_map product_types args in
+        mk_fun_types args ret
+    | _ -> map_type encode_type typ
 
 let check_subtypes typ : unit =
   let rec check typ = match typ with
