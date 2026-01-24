@@ -642,28 +642,33 @@ let rec expand_proof id name num env steps proof_steps :
   let steps = generalize_types (trim_lets steps) in
   let blocks0 = chain_blocks steps [] in
   let (_, concl) = blocks_steps env [] "" blocks0 in
-  let (stmtss, by) = match proof_steps with
-    | [] -> ([], [])
-    | [Assert (Const ("$thm", _, _), reasons, _)] ->
-        ([], map (check_ref env num) reasons)
+  let (proof_steps, reasons) = match proof_steps with
+    | [] -> (proof_steps, [])
     | _ ->
-      let (init, last_step) = split_last steps in
-      let include_init = not (duplicate_lets (collect_lets init) proof_steps) in
-      if !(opts.show_structure) then (
-        printf "%s:\n\n" (theorem_name id name);
-        if !debug > 1 then (
-          let show_steps = (if include_init then init else []) @ proof_steps in
-          show_steps |> iter (fun s -> print_endline (show_proof_step s));
-          print_newline ()
-        );
+      let (init, last) = split_last proof_steps in
+      match last with
+        | Assert (Const ("$thm", _, _), reasons, _) -> (init, reasons)
+        | _ -> (proof_steps, []) in
+  let (stmtss, by) =
+    if proof_steps = [] then ([], map (check_ref env num) reasons) else
+    let (init, last_step) = split_last steps in
+    let include_init = not (duplicate_lets (collect_lets init) proof_steps) in
+    if !(opts.show_structure) then (
+      printf "%s:\n\n" (theorem_name id name);
+      if !debug > 1 then (
+        let show_steps = (if include_init then init else []) @ proof_steps in
+        show_steps |> iter (fun s -> print_endline (show_proof_step s));
+        print_newline ()
       );
-      let blocks = infer_blocks env proof_steps in
-      let blocks =
-        if include_init
-          then insert_conclusion_step (chain_blocks init blocks) init last_step
-        else blocks @ [Block (mk_assert concl, [])] in
-      if !(opts.show_structure) then print_blocks blocks;
-      let (stmtss, _concl) = blocks_steps env [] num blocks in
+    );
+    let blocks = infer_blocks env proof_steps in
+    let blocks =
+      if include_init
+        then insert_conclusion_step (chain_blocks init blocks)
+                init (with_reasons reasons last_step)
+      else blocks @ [Block (Assert (concl, reasons, None), [])] in
+    if !(opts.show_structure) then print_blocks blocks;
+    let (stmtss, _concl) = blocks_steps env [] num blocks in
     (map rev stmtss, []) in
   (top_infer env concl, stmtss, by)
 

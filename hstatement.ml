@@ -82,6 +82,10 @@ let set_step_name name step : proof_step = match step with
   | Assert (f, r, _) -> Assert (f, r, name)
   | _ -> step
 
+let with_reasons reasons step : proof_step = match step with
+  | Assert (f, _, name) -> Assert (f, reasons, name)
+  | _ -> failwith "with_reasons"
+
 let show_chain chain : string =
   let to_str (op, f, _) =
     let s = show_formula f in

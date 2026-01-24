@@ -719,12 +719,15 @@ let will_show =
     opt_str "now" >>? any_str ["deduce"; "prove"; "show"] >>
     optional by_reason >> str "that"
 
+let assert_follows reasons : proof_step list =
+  [Assert (_const "$thm", reasons, None)]
+
 let assert_step : proof_step list p =
   choice [
     optional have >>? proof_if_prop;
     optional have >>? pipe2 (single because_prop) (opt_str "," >> proof_prop) (@);
     will_show >> (skip to_contradiction <|> skip prop_reason) >>$ [];
-    str "The result follows" >> by_reason >>$ [];
+    str "The result follows" >> by_reason |>> assert_follows;
     optional and_or_so >>? have_contradiction;
     optional and_or_so >> proof_prop
     ]
@@ -742,7 +745,7 @@ let let_or_assumes : proof_step list p =
   sep_by1 let_or_assume (str "," >> str "and") |>> concat
 
 let clause_intro = choice [
-  str "First" >>$ 0;
+  any_str ["First"; "To prove uniqueness"] >>$ 0;
   now >>$ 1;
   optional so >>? any_case >>$ 2
 ]
@@ -768,7 +771,7 @@ let proof_by : proof_step list p =
     (choice [
       str "Follows" >> opt_any_str ["easily"; "immediately" ] >> str "from" >> reasons;
       str "Left to the reader" >>$ []] << str ".") in
-  [Assert (_const "$thm", reasons, None)]
+  assert_follows reasons
 
 let proof_steps : proof_step list p = proof_by <|> (
   many1 (not_before new_paragraph >> proof_sentence) |>>
