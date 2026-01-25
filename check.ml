@@ -842,6 +842,11 @@ and infer_stmt env stmt : statement list =
         let check env htheorem : statement list * statement =
           let { sub_index; name; steps; proof_steps } = htheorem in
           let id = num ^ dot sub_index in
+          if exists (match_ref (LabelRef ("theorem", id))) env then
+            error ("duplicate theorem number: " ^ id) empty_range else
+          name |> Option.iter (fun name ->
+            if exists (fun stmt -> stmt_name stmt = Some name) env then
+            error ("duplicate theorem name: " ^ name) empty_range);
           let (f, stmts, by) = expand_proof id name num env steps proof_steps in
           let range = match (last steps) with
             | Assert (f, _, _) -> range_of f
