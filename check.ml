@@ -53,7 +53,7 @@ let map_assume_step env vars step = match step with
 
 let has_premise f g =
   match remove_for_all f with
-    | App (App (Const ("(→)", _, _), g', _), _, _) when g' = g -> true
+    | App (App (Const ("(→)", _, _), g', _), _, _) when eq_formula g' g -> true
     | _ -> false
 
 let trim_escape rest : proof_step list = match rest with

@@ -399,25 +399,28 @@ and reference s : reason pr = choice [
   single (with_range theorem_ref);
   any_str ["our"; "the"] >>?
     str "assumption" >> optional (str "that" >> atomic) >>$ [];
+  str "the fact that" >> atomic >>$ [];
   single (with_range part_ref)
   ] s
 
 and reason s : reason pr = (
   reference <|>
   (choice [
+    any_str ["a similar argument"; "definition"; "reductio ad absurdum"];
     str "contradiction with" >> reference >>$ "";
-    str "definition";
     str "the definition of" << term;
     optional (opt_str "the" >>? any_str ["inductive"; "induction"]) >>?
       any_str ["assumption"; "hypothesis"];
-    str "reductio ad absurdum";
     opt_str "the" >>? any_str ["substitutivity"; "transitivity"] <<
       any_str ["of ="; "of equality"]
     ] >>$ [])) s
 
 and reasons s : reason pr = s |> (sep_by1 reason (str "and") |>> concat)
 
-and by_reason s : reason pr = (opt_str "again" >> str "by" >> reasons) s
+and by_reason s : reason pr = s |> choice [
+  opt_str "again" >> str "by" >> reasons;
+  str "as an exercise for the reader" >>$ []
+]
 
 (* so / have *)
 
@@ -677,19 +680,22 @@ let because_prop : proof_step p =
 
 let ref_or_expr : reason p = reference <|> (expr >>$ [])
 
+let contradiction_by contra : proof_step = Assert (_false, contra, None)
+
 let contradiction : proof_step list p =
   let> contra = choice [
       str "a contradiction" >> (opt [] (str "to" >> ref_or_expr));
       str "contradicting" >> ref_or_expr ] in
-  let step = [Assert (_false, contra, None)] in
+  let step = [contradiction_by contra] in
   let$ because = opt [] (single because_prop) in
   because @ step
 
 let which_is_contradiction : proof_step list p = str "," >>?
   (opt_str "which is" >>? opt_any_str ["again"; "also"; "similarly"]) >>? contradiction
 
-let have_contradiction : proof_step list p =
-  any_str ["This is"; "We have"] >>? contradiction
+let have_contradiction : proof_step list p = choice [
+  any_str ["This is"; "We have"] >>? contradiction;
+  single (str "This contradicts" >> ref_or_expr |>> contradiction_by)]
 
 let to_contradiction = str "this leads to a contradiction"
 

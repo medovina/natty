@@ -63,13 +63,23 @@ let map_type fn = function
 
 let rec strip_type_range typ = match typ with
   | Base (id, _) -> Base (id, empty_range)
+  | Sub f -> Sub (strip_range f)
   | _ -> map_type strip_type_range typ
+
+and strip_range f = match f with
+  | Const (id, typ, _) -> Const (id, strip_type_range typ, empty_range)
+  | Var (id, typ, _) -> Var (id, strip_type_range typ, empty_range)
+  | App (f, g, _) -> App (strip_range f, strip_range g, empty_range)
+  | Lambda (id, typ, f) -> Lambda (id, strip_type_range typ, strip_range f)
+  | Eq (f, g) -> Eq (strip_range f, strip_range g)
 
 let eq_type t u = strip_type_range t = strip_type_range u
 
 let eq_id_type (x, t) (x', u) = x = x' && eq_type t u
 
 let mem_id_type x ys = exists (eq_id_type x) ys
+
+let eq_formula f g = strip_range f = strip_range g
 
 let const c typ = Const (c, typ, empty_range)
 let _const c = const c unknown_type

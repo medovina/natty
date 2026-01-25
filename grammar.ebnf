@@ -143,10 +143,13 @@ theorem_ref =
 
 part_ref = '(' sub_index ')';
 
-reference = theorem_ref | ('our' | 'the') 'assumption' ['that' atomic] |
+reference = theorem_ref |
+    ('our' | 'the') 'assumption' ['that' atomic] |
+    'the fact that' atomic |
     part_ref;
 
 reason =
+    'a similar argument' |
     ['contradiction with'] reference |
     'definition' | 'the definition of' term |
     [['the'] ('inductive' | 'induction')] ('assumption' | 'hypothesis') |
@@ -155,7 +158,7 @@ reason =
 
 reasons = reason {'and' reason};
 
-by_reason = ['again'] 'by' reasons;
+by_reason = ['again'] 'by' reasons | 'as an exercise for the reader';
 
 (* so / have *)
 
@@ -286,7 +289,9 @@ contradiction =
 which_is_contradiction =
     ',' (['which is'] ['again' | 'also' | 'similarly']) contradiction;
 
-have_contradiction = ('This is' | 'We have') contradiction;
+have_contradiction =
+    ('This is' | 'We have') contradiction |
+    'This contradicts' ref_or_expr;
 
 to_contradiction = 'this leads to a contradiction';
 
