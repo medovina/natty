@@ -554,7 +554,7 @@ and block_steps env lenv thm_num (Block (step, children)) : statement list list 
         (mk_thm env lenv ex by :: fs,
          if is_const_true concl then ex else
          if any_free_in (map fst ids_types) concl
-            then exists_vars_types false ids_types concl else concl)
+            then exists_vars_types false ids_types (_and g concl) else concl)
     | Escape | Group _ -> failwith "block_formulas"
 
 let trim_lets steps : proof_step list =

@@ -834,7 +834,7 @@ let rec expand f : formula list = match or_split f with
   | Some (s, t) -> expand s @ expand t
   | None -> [f]
 
-let rec simp f = match bool_kind f with
+let rec simp f : formula = match bool_kind f with
   | Not f ->
       let f = simp f in (
       match bool_kind f with

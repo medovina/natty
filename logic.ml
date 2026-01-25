@@ -539,10 +539,12 @@ and show_formula_multi multi f =
         | Var (id, _typ, _) -> id
         | App _ ->
             let (head, args) = collect_args f in (
-            match head with
-              | Const (c, _typ, _) when is_tuple_constructor c ->
+            match head, args with
+              | Const (c, _typ, _), _ when is_tuple_constructor c ->
                   parens_if (outer > -2) @@
                     comma_join (map (show1 (-1) false) args)
+              | Const (c, _, _), [arg] when starts_with "$by" c ->
+                  show1 outer right arg
               | _ ->  (* display curried args in uncurried form *)
                   let args_s = map (show1 (-2) false) args in
                   sprintf "%s(%s)" (show1 10 false head) (comma_join args_s))
@@ -576,7 +578,7 @@ let is_and f = match bool_kind f with
 let gather_and = gather_associative "(∧)"
 let gather_or = gather_associative "(∨)"
 
-let implies f g = if f = _true then g else fold_right implies1 (gather_and f) g
+let implies f g = if is_const_true f then g else fold_right implies1 (gather_and f) g
 
 let is_ground f =
   let rec has_free outer = function
