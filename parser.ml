@@ -675,7 +675,7 @@ let mk_step f reasons : proof_step =
     | _ -> Assert (f, reasons, None)
 
 let because_prop : proof_step p =
-  any_str ["because"; "since"] >> proposition |>>
+  any_str ["because"; "from"; "since"] >> proposition |>>
     (fun p -> Assert (p, [], None))
 
 let ref_or_expr : reason p = reference <|> (expr >>$ [])
@@ -714,7 +714,7 @@ let proof_prop : proof_step list p =
 let proof_if_prop : proof_step list p =
   let> f = str "if" >> small_prop in
   let> gs = opt_str "," >> str "then" >> proof_prop in
-  let$ hs = many_concat (str "," >> so >> proof_prop) in
+  let$ hs = many_concat (str "," >> so >> opt_str "," >> proof_prop) in
   [Group (Assume f :: gs @ hs)]
 
 let and_or_so =
@@ -847,12 +847,17 @@ let theorem_group : hstatement list p =
   let> name = option stmt_name << str "." in
   let> let_steps = many_concat (let_step << str ".") in
   let> props = top_prop_or_items name in
-  let$ proofs = opt [] proofs in [HTheoremGroup (num, 
-  props |> map (fun (sub_index, steps, name) ->
-    { sub_index; name;
-      steps = let_steps @ steps;
-      proof_steps = opt_default (assoc_opt sub_index proofs) [] })
-  )]
+  let prop_indices = props |> map (fun (i, _, _) -> i) in
+  let> proofs = opt [] proofs in
+  match map fst proofs |> find_opt (fun i -> not (mem i prop_indices)) with
+    | Some i -> fail ("proof has no corresponding theorem: " ^ i)
+    | None -> return
+        [HTheoremGroup (num, 
+          props |> map (fun (sub_index, steps, name) ->
+            { sub_index; name;
+              steps = let_steps @ steps;
+              proof_steps = opt_default (assoc_opt sub_index proofs) [] })
+          )]
 
 (* module *)
 

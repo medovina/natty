@@ -278,7 +278,7 @@ axiom_group = 'Axiom' [stmt_num] [stmt_name] '.' (axiom_exists | propositions);
 
 (* proofs *)
 
-because_prop = ['because' | 'since'] proposition;
+because_prop = ['because' | 'from' | 'since'] proposition;
 
 ref_or_expr = reference | expr;
 
@@ -300,7 +300,7 @@ prop_reason = proposition [by_reason];
 proof_prop =
     [by_reason [',']] [have] prop_reason [because_prop] [which_is_contradiction];
 
-proof_if_prop = 'if' small_prop [','] 'then' proof_prop {',' so proof_prop};
+proof_if_prop = 'if' small_prop [','] 'then' proof_prop {',' so [','] proof_prop};
 
 and_or_so = ('and' [so] | so) [','];
 
