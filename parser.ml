@@ -451,14 +451,18 @@ and and_op s = (str "and" <<? not_before new_phrase) s
 
 (* small propositions *)
 
-and for_with text q s : (formula -> formula) pr =
-  pipe2 (str text >> decl_ids_type) (option with_exprs)
-    (fun (ids, typ) opt_with f ->
-      let ids_types = (let+ id = ids in [(id, typ)]) in
-      q ids_types f opt_with) s
+and for_with p q s : (formula -> formula) pr = s |>
+  let> (ids, typ) = p >> decl_ids_type in
+  let$ opt_with = option with_exprs in
+  (fun f ->
+    let ids_types = (let+ id = ids in [(id, typ)]) in
+    q ids_types f opt_with)
 
-and post_for_all_with s = for_with "for all" for_all_vars_with s
-and post_for_some_with s = for_with "for some" (exists_vars_with false) s
+and post_for_all_with s =
+  for_with (any_str ["for all"; "for every"]) for_all_vars_with s
+
+and post_for_some_with s =
+  for_with (str "for some") (exists_vars_with false) s
 
 and _if_op = str "if" <<? not_before (str "and only")
 
@@ -479,7 +483,7 @@ and if_then_prop s : formula pr =
     implies s
 
 and for_all_ids s : (id * typ) list pr =
-    (str "For all" >> decl_ids_types) s
+    (any_str ["For all"; "For every"] >> decl_ids_types) s
 
 and for_all_with s : ((id * typ) list * formula option) pr = s |>
   pair for_all_ids (option with_exprs << opt_str ",")

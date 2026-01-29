@@ -181,7 +181,7 @@ if_then_prop = 'if' small_prop [','] 'then' small_prop;
 
 with_exprs = 'with' exprs;
 
-for_all_ids = 'For all' decl_ids_types;
+for_all_ids = 'For' ('all' | 'every') decl_ids_types;
 
 for_all_with = for_all_ids [with_exprs] [','];
 
@@ -204,7 +204,7 @@ prop_op = 'and' | 'or' | 'if' | 'implies' ['that'] | 'if and only if' | 'iff' |
 small_prop =
     atomic | if_then_prop | for_all_prop | exists_prop | multi_or_prop |
     small_prop prop_op small_prop |
-    small_prop 'for' ('all' | 'some') decl_ids_type [with_exprs];
+    small_prop 'for' ('all' | 'every' | 'some') decl_ids_type [with_exprs];
 
 (* propositions *)
 
