@@ -119,27 +119,29 @@ let infer_blocks env steps : block list =
   assert (rest = []);
   blocks
 
-let is_comparison f : (string * formula * formula) option =
+let is_chainable f : (string * formula * formula) option =
   match f with
     | Eq (g, h) -> Some ("=", g, h)
     | App (Const ("(¬)", _, _), Eq (g, h), _) -> Some ("≠", g, h)
     | App (App (Var (c, _, _), g, _), h, _) when mem c Parser.compare_ops -> Some (c, g, h)
+    | App (App (Const ("∈", _, _), g, _), h, _) -> Some ("∈", g, h)
     | _ -> None
 
-let comparison_op f = match is_comparison f with
+let chainable_op f = match is_chainable f with
   | Some (op, _, _) -> op
   | None -> failwith "comparison_op"
 
-let rec collect_cmp f : formula list * id list =
-  match is_comparison f with
+let rec collect_chainable f : formula list * id list =
+  match is_chainable f with
     | Some (op, g, h) ->
-        let (gs, g_ops), (hs, h_ops) = collect_cmp g, collect_cmp h in
+        let (gs, g_ops), (hs, h_ops) = collect_chainable g, collect_chainable h in
         (gs @ hs, g_ops @ [op] @ h_ops)
     | None -> ([f], [])
 
-let apply_comparison op f g : formula =
+let apply_chainable op f g : formula =
   if op = "=" then Eq (f, g)
   else if op = "≠" then _neq f g
+  else if op = "∈" then elem f g
   else apply [_var op; f; g]
 
 let rec extract_by f : formula * reason =
@@ -165,28 +167,28 @@ let rec extract_by f : formula * reason =
       | Eq (g, _) -> (Eq (g, last), by)
       | _ -> (apply (f' :: args @ [last]), by)
 
-let rec join_comparisons fs ops : (formula * reason) list =
+let rec join_chainable fs ops : (formula * reason) list =
   match fs, ops with
     | [f], [] ->
         let f, by = extract_by f in
         [(f, by)]
     | [f; g], [op] ->
         let g, by = extract_by g in
-        [(apply_comparison op f g, by)]
+        [(apply_chainable op f g, by)]
     | f :: g :: fs, op :: ops ->
         let g, by = extract_by g in
-        (apply_comparison op f g, by) :: join_comparisons (g :: fs) ops
+        (apply_chainable op f g, by) :: join_chainable (g :: fs) ops
     | _ -> failwith "chain_comparisons"
 
-let join_cmp fs ops : formula list =
-  let fs, reasons = unzip (join_comparisons fs ops) in
+let join_chain fs ops : formula list =
+  let fs, reasons = unzip (join_chainable fs ops) in
   assert (for_all ((=) []) reasons);
   fs
 
 let rec expand_chains f : formula =
-  let fs, ops = collect_cmp f in
+  let fs, ops = collect_chainable f in
   if length fs <= 2 then map_formula expand_chains f
-  else multi_and (join_cmp (map expand_chains fs) ops)
+  else multi_and (join_chain (map expand_chains fs) ops)
 
 let is_type_defined id env = exists (is_type_decl id) env
 
@@ -446,8 +448,8 @@ let check_ref env thm_num (name, range) : stmt_ref =
   else error ("reference not found: " ^ (remove_prefix "$" name)) range
 
 let chain_comparisons env thm_num f : (formula * stmt_ref list) list =
-  let fs, ops = collect_cmp f in
-  let& (f, reasons) = join_comparisons fs ops in
+  let fs, ops = collect_chainable f in
+  let& (f, reasons) = join_chainable fs ops in
   (f, map (check_ref env thm_num) reasons)
 
 (* Restore type variables for any type that has become a constant in the
@@ -466,11 +468,11 @@ let assert_chain env lenv thm_num f : statement list list * formula =
   let concl =
     if thm_num <> "" && length eqs >= 2 && count_false is_eq eqs <= 1 then
       let op = match find_opt (Fun.negate is_eq) eqs with
-        | Some eq -> comparison_op eq
+        | Some eq -> chainable_op eq
         | None -> "=" in
-      match is_comparison (hd eqs), is_comparison (last eqs) with
+      match is_chainable (hd eqs), is_chainable (last eqs) with
         | Some (_, a, _), Some (_, _, b) ->
-            apply_comparison op a b
+            apply_chainable op a b
         | _ -> failwith "block_steps"
     else multi_and eqs in
   (map2 (mk_thm env lenv) eqs reasons, concl)
