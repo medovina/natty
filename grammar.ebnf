@@ -104,7 +104,7 @@ terms = term {next_term};
 
 binary_op = '·' | '+' | '-' | '^' | '∈' | '∉' | '|' | '∤' | '∧' | '∨' | '→' | '↔';
 
-compare_op = '=' | '<' | '≤' | '>' | '≥' | '~' | '⊆';
+compare_op = '=' | '<' | '≤' | '>' | '≥' | '~' | '≈' | '⊆';
 
 eq_op = compare_op | '≠' | '≮' | '≯' | '≁';
 
@@ -144,8 +144,8 @@ theorem_ref =
 part_ref = '(' sub_index ')';
 
 reference = theorem_ref |
-    ('our' | 'the') 'assumption' ['that' atomic] |
-    'the fact that' atomic |
+    ('our' | 'the') 'assumption' ['that' small_prop] |
+    'the fact that' small_prop |
     part_ref;
 
 reason =
@@ -313,7 +313,7 @@ will_show =
 
 assert_step =
     [have] proof_if_prop |
-    [have] because_prop [','] proof_prop |
+    [so | have] because_prop [','] proof_prop |
     will_show (to_contradiction | prop_reason) |
     'The result follows' by_reason |
     [and_or_so] have_contradiction |

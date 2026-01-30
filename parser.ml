@@ -56,7 +56,7 @@ let id = long_id <|> pvar
 
 let sym = choice [
   empty >>? (digit <|> any_of "+-/<>~^") |>> char_to_string;
-  any_str ["·"; "≤"; "≥"; "≮"; "≯"; "≁"; "⊆"; "∪"; "∩"; "∅"];
+  any_str ["·"; "≤"; "≥"; "≮"; "≯"; "≁"; "≈"; "⊆"; "∪"; "∩"; "∅"];
   str "−" >>$ "-"]
 
 let minus = any_str ["-"; "−"]
@@ -291,7 +291,7 @@ and terms s = (term >>= fun t -> many_fold_left app_range t next_term) s
 
 (* expressions *)
 
-and compare_ops = ["<"; "≤"; ">"; "≥"; "~"; "⊆"]
+and compare_ops = ["<"; "≤"; ">"; "≥"; "~"; "≈"; "⊆"]
 
 and eq_op s = choice ([
   str "=" >>$ mk_eq;
@@ -400,8 +400,8 @@ and part_ref s : string pr = s |>
 and reference s : reason pr = choice [
   single (with_range theorem_ref);
   any_str ["our"; "the"] >>?
-    str "assumption" >> optional (str "that" >> atomic) >>$ [];
-  str "the fact that" >> atomic >>$ [];
+    str "assumption" >> optional (str "that" >> small_prop) >>$ [];
+  str "the fact that" >> small_prop >>$ [];
   single (with_range part_ref)
   ] s
 
@@ -728,6 +728,8 @@ let proof_if_prop : proof_step list p =
 let and_or_so =
   ((str "and" << optional so) <|> so) << opt_str ","
 
+let so_or_have = skip so <|> skip have
+
 let will_show = choice [
     str "We" >>? any_str ["must"; "need to"; "shall"; "will"] <<? opt_str "now";
     str "It suffices" >> opt_str "then" >> str "to"] >>?
@@ -740,7 +742,7 @@ let assert_follows reasons : proof_step list =
 let assert_step : proof_step list p =
   choice [
     optional have >>? proof_if_prop;
-    optional have >>? pipe2 (single because_prop) (opt_str "," >> proof_prop) (@);
+    optional so_or_have >>? pipe2 (single because_prop) (opt_str "," >> proof_prop) (@);
     will_show >> (skip to_contradiction <|> skip prop_reason) >>$ [];
     str "The result follows" >> by_reason |>> assert_follows;
     optional and_or_so >>? have_contradiction;
