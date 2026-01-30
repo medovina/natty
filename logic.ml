@@ -621,8 +621,10 @@ let exists_vars_typ = quant_vars_typ _exists
 
 let for_all_vars_types : (id * typ) list -> formula -> formula =
   fold_right _for_all'
-let exists_vars_types unique : (id * typ) list -> formula -> formula =
-  fold_right (if unique then _exists_unique' else _exists')
+let exists_vars_types unique ids_types f : formula =
+  if unique && length ids_types > 1 then
+    failwith "multiple unique vars are not yet supported";
+  fold_right (if unique then _exists_unique' else _exists') ids_types f
 
 let for_all_vars_types_if_free ids_typs f : formula =
   let fv = free_vars f in

@@ -13,7 +13,7 @@ var0 = letter ["'"];
 var = var0 [sub_digit];
 
 long_id = 'π' | 'σ' | 'τ' | 'Π' | 'Σ' | '𝔹' | 'ℕ' | 'ℤ' | '𝒫' |
-    'div' | 'egcd' | 'gcd' | 'mod';
+    'abs' | 'div' | 'egcd' | 'gcd' | 'mod';
 
 base_id = var0 | long_id;
 
@@ -138,7 +138,7 @@ atomic =
 id_eq_term = id '=' term;
 
 theorem_ref =
-    ('Axiom' | 'Corollary' | 'Lemma' | 'Theorem') stmt_num |
+    ('Axiom' | 'Corollary' | 'Exercise' | 'Lemma' | 'Theorem') stmt_num |
     '[' name [':' id_eq_term {',' id_eq_term}] ']';
 
 part_ref = '(' sub_index ')';
@@ -181,7 +181,9 @@ if_then_prop = 'if' small_prop [','] 'then' small_prop;
 
 with_exprs = 'with' exprs;
 
-for_all_ids = 'For' ('all' | 'every') decl_ids_types;
+any = 'all' | 'any' | 'every';
+
+for_all_ids = 'For' any decl_ids_types;
 
 for_all_with = for_all_ids [with_exprs] [','];
 
@@ -191,7 +193,7 @@ there_exists =
     'There' ('is' | 'are' | 'exists' | 'must be' | ['must'] 'exist');
 
 exists_prop =
-    there_exists ['some' | 'an operation' | 'no' | 'a unique'] decl_ids_types [with_exprs]
+    there_exists ['some' | 'an operation' | 'no' | ['a'] 'unique'] decl_ids_types [with_exprs]
     'such that' small_prop;
 
 multi_or_prop =
@@ -204,7 +206,7 @@ prop_op = 'and' | 'or' | 'if' | 'implies' ['that'] | 'if and only if' | 'iff' |
 small_prop =
     atomic | if_then_prop | for_all_prop | exists_prop | multi_or_prop |
     small_prop prop_op small_prop |
-    small_prop 'for' ('all' | 'every' | 'some') decl_ids_type [with_exprs];
+    small_prop 'for' (any | 'some') decl_ids_type [with_exprs];
 
 (* propositions *)
 
@@ -304,8 +306,10 @@ proof_if_prop = 'if' small_prop [','] 'then' proof_prop {',' so [','] proof_prop
 
 and_or_so = ('and' [so] | so) [','];
 
-will_show = ('We' ('must' | 'need to' | 'shall' | 'will'))
-            ['now'] ('deduce' | 'prove' | 'show') [by_reason] 'that';
+will_show =
+    ('We' ('must' | 'need to' | 'shall' | 'will') ['now'] |
+     'It suffices' ['then'] 'to')
+    ('deduce' | 'prove' | 'show') [by_reason] 'that';
 
 assert_step =
     [have] proof_if_prop |
@@ -323,7 +327,7 @@ any_case = 'in' ('all cases' | 'any case' | 'both cases' | 'either case') ;
 
 let_or_assumes = let_or_assume {', and' let_or_assume};
 
-clause_intro = 'First' | 'To prove uniqueness' | now | [so] any_case;
+clause_intro = 'First' | 'To see this' | now | [so] any_case;
 
 proof_clause = [clause_intro [',']] (let_or_assumes | assert_steps);
 
@@ -332,7 +336,7 @@ proof_sentence = proof_clause {';' proof_clause} '.' [label];
 proof_by =
     ('By' reasons |
      'Follows' ['easily' | 'immediately'] 'from' reasons |
-     'Left to the reader') '.';
+     'Similar to' part_ref) '.';
 
 proof_steps = proof_by | proof_sentence+;
 
@@ -362,7 +366,7 @@ definition =
 (* theorems *)
 
 theorem_group =
-    ('Corollary' | 'Lemma' | 'Theorem') [stmt_num] [stmt_name] '.'
+    ('Corollary' | 'Exercise' | 'Lemma' | 'Theorem') [stmt_num] [stmt_name] '.'
     {let_step '.'} top_prop_or_items [proofs];
 
 (* module *)

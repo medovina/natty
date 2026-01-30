@@ -47,7 +47,7 @@ let pvar = pipe2 var0 (opt "" (sub_digit)) (^)
 let long_id = any_str [
   "π"; "σ"; "τ"; "Π"; "Σ"; "𝔹"; "ℕ"; "ℚ"; "ℤ";
   "𝒢"; "𝒫"; "𝒮"; "𝒲"; (* script characters G, P, S, W *)
-  "div"; "egcd"; "gcd"; "mod"
+  "abs"; "div"; "egcd"; "gcd"; "mod"
 ]
 
 let base_id = long_id <|> var0
@@ -118,8 +118,10 @@ let stmt_num : string p =
   let$ sub = many (char '.' >>? sub_index) in
   String.concat "." (n :: sub)
 
+let theorem_synonyms = ["Corollary"; "Exercise"; "Lemma"; "Theorem"]
+
 let paragraph_keywords = [
-  "axiom"; "corollary"; "definition"; "justification"; "lemma"; "proof"; "theorem"
+  "axiom"; "corollary"; "definition"; "exercise"; "justification"; "lemma"; "proof"; "theorem"
 ]
 
 let with_range (p : 'a p) : (('a * range) p) = empty >>?
@@ -385,7 +387,7 @@ and atomic s : formula pr = (choice [
 and id_eq_term s : formula pr = (id >> str "=" >> term) s
 
 and theorem_ref s : string pr = s |> choice [
-  (let> kind = any_str ["Axiom"; "Corollary"; "Lemma"; "Theorem"] in
+  (let> kind = any_str ("Axiom" :: theorem_synonyms) in
   let$ num = stmt_num in
   "$" ^ to_lower kind ^ " " ^ num);
   brackets (name << optional (str ":" << sep_by1 id_eq_term (str ",")))
@@ -452,17 +454,17 @@ and and_op s = (str "and" <<? not_before new_phrase) s
 (* small propositions *)
 
 and for_with p q s : (formula -> formula) pr = s |>
-  let> (ids, typ) = p >> decl_ids_type in
+  let> (ids, typ) = str "for" >>? p >> decl_ids_type in
   let$ opt_with = option with_exprs in
   (fun f ->
     let ids_types = (let+ id = ids in [(id, typ)]) in
     q ids_types f opt_with)
 
 and post_for_all_with s =
-  for_with (any_str ["for all"; "for every"]) for_all_vars_with s
+  for_with any for_all_vars_with s
 
 and post_for_some_with s =
-  for_with (str "for some") (exists_vars_with false) s
+  for_with (str "some") (exists_vars_with false) s
 
 and _if_op = str "if" <<? not_before (str "and only")
 
@@ -482,8 +484,10 @@ and if_then_prop s : formula pr =
   pipe2 (str "if" >> small_prop << opt_str ",") (str "then" >> small_prop)
     implies s
 
-and for_all_ids s : (id * typ) list pr =
-    (any_str ["For all"; "For every"] >> decl_ids_types) s
+and any s : string pr = s |> any_str ["all"; "any"; "every"]
+
+and for_all_ids s : (id * typ) list pr = s |>
+  (str "for" >> any >> decl_ids_types)
 
 and for_all_with s : ((id * typ) list * formula option) pr = s |>
   pair for_all_ids (option with_exprs << opt_str ",")
@@ -502,7 +506,7 @@ and exists_prop s : formula pr = s |>
   let> some = there_exists >> choice [
     any_str ["some"; "an operation"] >>$ ExistsSome;
     str "no" >>$ ExistsNo;
-    str "a unique" >>$ ExistsUnique;
+    opt_str "a" >>? str "unique" >>$ ExistsUnique;
     return ExistsSome
   ] in
   let> ids_types = decl_ids_types in
@@ -724,9 +728,10 @@ let proof_if_prop : proof_step list p =
 let and_or_so =
   ((str "and" << optional so) <|> so) << opt_str ","
 
-let will_show =
-  (str "We" >>? any_str ["must"; "need to"; "shall"; "will"]) >>?
-    opt_str "now" >>? any_str ["deduce"; "prove"; "show"] >>
+let will_show = choice [
+    str "We" >>? any_str ["must"; "need to"; "shall"; "will"] <<? opt_str "now";
+    str "It suffices" >> opt_str "then" >> str "to"] >>?
+    any_str ["deduce"; "prove"; "show"] >>
     optional by_reason >> str "that"
 
 let assert_follows reasons : proof_step list =
@@ -755,7 +760,7 @@ let let_or_assumes : proof_step list p =
   sep_by1 let_or_assume (str "," >> str "and") |>> concat
 
 let clause_intro = choice [
-  any_str ["First"; "To prove uniqueness"] >>$ 0;
+  any_str ["First"; "To see this"] >>$ 0;
   now >>$ 1;
   optional so >>? any_case >>$ 2
 ]
@@ -780,7 +785,7 @@ let proof_by : proof_step list p =
     attempt (str "By" >> reasons << str ".") <|>
     (choice [
       str "Follows" >> opt_any_str ["easily"; "immediately" ] >> str "from" >> reasons;
-      str "Left to the reader" >>$ []] << str ".") in
+      str "Similar to" >> part_ref >>$ []] << str ".") in
   assert_follows reasons
 
 let proof_steps : proof_step list p = proof_by <|> (
@@ -846,7 +851,7 @@ let definition : hstatement list p =
 (* theorems *)
 
 let theorem_group : hstatement list p =
-  any_str ["Corollary"; "Lemma"; "Theorem"] >>
+  any_str theorem_synonyms >>
   let> num = opt "" stmt_num in
   let> name = option stmt_name << str "." in
   let> let_steps = many_concat (let_step << str ".") in

@@ -17,7 +17,7 @@ let parse_ref num r : stmt_ref =
       match str_words (string_from r 1) with
         | [kind; label] ->
             let kind =
-              if kind = "corollary" || kind = "lemma" then "theorem" else kind in
+              if mem kind ["corollary"; "exercise"; "lemma"] then "theorem" else kind in
             LabelRef (kind, label)
         | _ -> failwith "parse_ref")
     | '(' ->
