@@ -114,7 +114,7 @@ let super_digit = any_str super_digits |>> fun s -> assoc s super_digit_map
 let sub_index : id p = (raw_number <|> (letter |>> char_to_string))
 
 let stmt_num : string p =
-  let> n = number in
+  let> n = empty >>? sub_index in
   let$ sub = many (char '.' >>? sub_index) in
   String.concat "." (n :: sub)
 

@@ -4,7 +4,7 @@ digit = '0' .. '9';
 
 number = {digit}+;
 
-letter = 'a' .. 'z';
+letter = 'a' .. 'z' | 'A' .. 'Z';
 
 sub_digit = '₀' .. '₉';
 
@@ -44,7 +44,7 @@ super_digit = '⁰' .. '⁹';
 
 sub_index = number | letter;
 
-stmt_num = number {'.' sub_index};
+stmt_num = sub_index {'.' sub_index};
 
 (* types *)
 
