@@ -68,15 +68,15 @@ decl_ids_types = decl_ids_type {'and' decl_ids_type};
 
 parens_exprs = '(' expr {',' expr} ')';
 
-sub_term = sub_digit | sub_letter;
+sub_term = sub_digit | sub_letter | '₍' sub_expr '₎';
 
-small_term = number | letter;
-
-sub_expr = '_' small_term | sub_term {sub_sym sub_term};
+sub_expr = sub_term {sub_sym sub_term};
 
 super_expr = ['⁻'] super_digit;
 
-id_sub = base_id [sub_expr];
+small_term = number | letter;
+
+id_sub = base_id ['_' small_term | sub_expr];
 
 unit_term =
     id_sub ["⋯" id_sub] | parens_exprs;

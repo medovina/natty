@@ -203,15 +203,15 @@ let unary_minus f = app (_const "u-") f
 let ascribe typ f =
   app (const ":" (Fun (typ, typ))) f
 
-let sub_term = (sub_digit1 |>> _const) <|> (sub_letter |>> _var)
-
-let small_term = (number |>> _const) <|> (letter1 |>> _var)
-
-let sub_expr = choice [
-  chain_left1 sub_term (sub_sym |>> fun sym e1 e2 ->
-    apply [_const sym; e1; e2]);
-  str "_" >> small_term
+let rec sub_term s = s |> choice [
+  sub_digit1 |>> _const;
+  sub_letter |>> _var;
+  string "₍" >> sub_expr << string "₎"
 ]
+
+and sub_expr s = s |> (
+  chain_left1 sub_term (sub_sym |>> fun sym e1 e2 ->
+    apply [_const sym; e1; e2]))
 
 let super_expr : formula p =
   let> opt_minus = opt Fun.id (str "⁻" >>$ unary_minus) in
@@ -224,8 +224,10 @@ let for_all_vars_with ids_types prop opt_with : formula =
 let exists_vars_with unique ids_types prop opt_with : formula =
     exists_vars_types unique ids_types (opt_fold _and opt_with prop)
 
+let small_term = (number |>> _const) <|> (letter1 |>> _var)
+
 let id_sub : (formula * formula option) p =
-  pair (base_id |>> _var) (option sub_expr)
+  pair (base_id |>> _var) (option ((str "_" >> small_term) <|> sub_expr))
 
 let mk_sub f sub : formula = match sub with
   | Some (Const (c, _, _) as g) when strlen c = 1 && is_digit c.[0] ->
