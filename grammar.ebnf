@@ -260,8 +260,6 @@ prop_items = proposition_item+;
 
 top_prop_or_items = prop_items | top_sentence;
 
-propositions = [for_all_with] top_prop_or_items;
-
 (* axioms *)
 
 type_name = 'type' id ['(' 'the' word [word] ')'];
@@ -272,11 +270,18 @@ const_decl = ('a constant' | 'an element' | 'a function' | an_operation) decl_id
 
 axiom_decl = type_decl | const_decl;
 
+special_sym = 'the product' unit_term;
+
+special_def = special_sym ':' typ 'is defined as follows:';
+
+axiom_propositions = [for_all_with] [special_def] top_prop_or_items;
+
 axiom_exists = 
     there_exists axiom_decl {('and' | 'with') axiom_decl}
-    ('such that' propositions | '.');
+    ('such that' axiom_propositions | '.');
 
-axiom_group = 'Axiom' [stmt_num] [stmt_name] '.' (axiom_exists | propositions);
+axiom_group = 'Axiom' [stmt_num] [stmt_name] '.'
+    (axiom_exists | axiom_propositions);
 
 (* proofs *)
 

@@ -44,7 +44,7 @@ Theorem (prime divides factor).  Let p, a, b : ℤ.  Suppose that p is prime and
 
 Proof.  Suppose that p ∤ a.  We must show that p | b.  Let c : ℤ with c > 0, and suppose that c | p and c | a.  Since p is prime, c = p or c = 1.  If c = p then p | a, which is a contradiction.  So c = 1.  Consequently p and a are relatively prime. Hence by [relatively prime iff linear combination is 1] 1 = xp + ya for some x, y : ℤ. Therefore 1 · b = (xp + ya) · b, so b = xbp + yab.  We know that p | ab, so p | (xb)p + y(ab), so p | b.
 
-Axiom.  There is a function Π : (ℤ → ℤ) ⨯ ℤ ⨯ ℤ → ℤ such that for all a : ℤ → ℤ and i, j : ℤ,
+Axiom.  For all a : ℤ → ℤ and i, j : ℤ, the product aᵢ ··· aⱼ : ℤ is defined as follows:
 
     a. If j < i then aᵢ ··· aⱼ = 1.
     b. If i ≤ j then aᵢ ··· aⱼ = (aᵢ ··· aⱼ₋₁) · aⱼ.
@@ -96,7 +96,7 @@ Let
 
     u = q₁ ··· qₖ + 1.
 
-By [product of positive sequence] q₁ ··· qₖ > 0, so u > 1.  By [divisible by prime] there is some p : ℤ such that p is prime and p | u.  Hence there is some j : ℤ with 1 ≤ j ≤ k such that p = q(j).  Hence by [sequence divisor] p | q₁ ··· qₖ.  But
+By [product of positive sequence] q₁ ··· qₖ > 0, so u > 1.  By [divisible by prime] there is some p : ℤ such that p is prime and p | u.  Hence there is some j : ℤ with 1 ≤ j ≤ k such that p = qⱼ.  Hence by [sequence divisor] p | q₁ ··· qₖ.  But
 
     1 = u − (q₁ ··· qₖ)
        = 1 · u + (−1) · (q₁ ··· qₖ).

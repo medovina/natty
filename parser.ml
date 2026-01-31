@@ -621,14 +621,13 @@ let top_prop_or_items (name: id option): (id * proof_step list * id option) list
     top_sentence |>> fun (fr, name1) -> [("", (fr, opt_or_opt name1 name))]
   ] |>> map (fun (sub_index, (steps, name)) -> (sub_index, steps, name))
 
-let propositions name : (id * proof_step list * id option) list p =
-  let> (vars, with_expr) = opt ([], None) for_all_with in
+(* axioms *)
+
+let propositions name vars with_expr: (id * proof_step list * id option) list p =
   let$ props = top_prop_or_items name in
   let assume_steps = map mk_assume (opt_to_list with_expr) in
   let& (id, steps, name) = props in
   (id, Let vars :: assume_steps @ steps, name)
-
-(* axioms *)
 
 let unary_prefix id typ =
   if arity typ = 1 && id = "-" then "u-" else id
@@ -655,9 +654,26 @@ let const_decl : hstatement list p =
 let axiom_decl : hstatement list p =
   single type_decl <|> const_decl
 
+let special_sym = str "the product" >> unit_term
+
+let special_def vars : hstatement list p =
+  let> f = special_sym in
+  let> typ = str ":" >> typ << str "is defined as follows:" in
+  match collect_args f with
+    | Const (c, _, _), [tuple] -> (
+        match collect_args tuple with
+          | Const (t, _, _), args when is_tuple_constructor t ->
+              let vs = map fst (map get_var args) in
+              let var_types = vs |> map (fun v -> assoc v vars) in
+              return [HConstDecl (c, Fun (Product var_types, typ))]
+          | _ -> fail "special_def")
+    | _ -> fail "special_def"
+
 let axiom_propositions id_typ num name : hstatement list p =
-  let$ props = propositions name in
-  [HAxiomGroup (num, id_typ, 
+  let> (vars, with_expr) = opt ([], None) for_all_with in
+  let> special = opt [] (special_def vars) in
+  let$ props = propositions name vars with_expr in
+  special @ [HAxiomGroup (num, id_typ, 
     let& (sub_index, steps, name) = props in
     { sub_index; name; steps })]
 
