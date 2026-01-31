@@ -61,29 +61,29 @@ Now assume that i ≤ j.  Let S = { k : ℤ | aᵢ ··· aₖ > 0 }.  We know t
 
 So k + 1 ∈ S.  So by [induction on a range of ℤ] k ∈ S for all k : ℤ with i ≤ k ≤ j.  Then j ∈ S, so aᵢ ··· aⱼ > 0. 
 
-Lemma (product of sequences).  Let a : ℤ → ℤ.  Let i, j, k : ℤ with i ≤ j ≤ k.  Then aᵢ ··· aⱼ · aⱼ₊₁ ··· aₖ = aᵢ ··· aₖ.
+Lemma (product of sequences).  Let a : ℤ → ℤ.  Let i, j, k : ℤ with i ≤ j ≤ k.  Then (aᵢ ··· aⱼ) · (aⱼ₊₁ ··· aₖ) = aᵢ ··· aₖ.
 
-Proof.  Let B = { x : ℤ | aᵢ ··· aⱼ · aⱼ₊₁ ··· aₓ = aᵢ ··· aₓ }. We know that aⱼ₊₁ ··· aⱼ = 1, so aᵢ ··· aⱼ · aⱼ₊₁ ··· aⱼ = aᵢ ··· aⱼ.  So j ∈ B.
+Proof.  Let B = { x : ℤ | (aᵢ ··· aⱼ) · (aⱼ₊₁ ··· aₓ) = aᵢ ··· aₓ }. We know that aⱼ₊₁ ··· aⱼ = 1, so (aᵢ ··· aⱼ) · (aⱼ₊₁ ··· aⱼ) = aᵢ ··· aⱼ.  So j ∈ B.
 
 Now let x ∈ B, and suppose that j ≤ x < k.  We know that i ≤ j ≤ x < x + 1, so by [≤ with < are transitive on ℤ] i < x + 1.  Then
 
-    aᵢ ··· aⱼ · aⱼ₊₁ ··· aₓ₊₁
-        = aᵢ ··· aⱼ · (Π(a, j + 1, (x + 1) − 1) · aₓ₊₁)
-        = aᵢ ··· aⱼ · (aⱼ₊₁ ··· aₓ · aₓ₊₁)
-        = (aᵢ ··· aⱼ · aⱼ₊₁ ··· aₓ) · aₓ₊₁
-        = aᵢ ··· aₓ · aₓ₊₁  by the inductive hypothesis
+    (aᵢ ··· aⱼ) · (aⱼ₊₁ ··· aₓ₊₁)
+        = (aᵢ ··· aⱼ) · (Π(a, j + 1, (x + 1) − 1) · aₓ₊₁)
+        = (aᵢ ··· aⱼ) · (aⱼ₊₁ ··· aₓ · aₓ₊₁)
+        = ((aᵢ ··· aⱼ) · (aⱼ₊₁ ··· aₓ)) · aₓ₊₁
+        = (aᵢ ··· aₓ) · aₓ₊₁  by the inductive hypothesis
         = Π(a, i, (x + 1) − 1) · aₓ₊₁
         = aᵢ ··· aₓ₊₁.
 
-So x + 1 ∈ B.  Then by [induction on a range of ℤ] x ∈ B for all x : ℤ with j ≤ x ≤ k.  So k ∈ B, so aᵢ ··· aⱼ · aⱼ₊₁ ··· aₖ = aᵢ ··· aₖ.
+So x + 1 ∈ B.  Then by [induction on a range of ℤ] x ∈ B for all x : ℤ with j ≤ x ≤ k.  So k ∈ B, so (aᵢ ··· aⱼ) · (aⱼ₊₁ ··· aₖ) = aᵢ ··· aₖ.
 
 Lemma (sequence divisor).  Let a : ℤ → ℤ.  Let i, j, k : ℤ.  Suppose that i ≤ j ≤ k.  Then aⱼ | aᵢ ··· aₖ.
 
 Proof.
 
-    aⱼ · (aᵢ ··· aⱼ₋₁ · aⱼ₊₁ ··· aₖ)
-        = (aᵢ ··· aⱼ₋₁ · aⱼ) · aⱼ₊₁ ··· aₖ
-        = aᵢ ··· aⱼ · aⱼ₊₁ ··· aₖ
+    aⱼ · ((aᵢ ··· aⱼ₋₁) · (aⱼ₊₁ ··· aₖ))
+        = ((aᵢ ··· aⱼ₋₁) · aⱼ) · (aⱼ₊₁ ··· aₖ)
+        = (aᵢ ··· aⱼ) · (aⱼ₊₁ ··· aₖ)
         = aᵢ ··· aₖ by [product of sequences].
 
 # The infinitude of primes, Wiedijk #11
@@ -98,7 +98,7 @@ Let
 
 By [product of positive sequence] q₁ ··· qₖ > 0, so u > 1.  By [divisible by prime] there is some p : ℤ such that p is prime and p | u.  Hence there is some j : ℤ with 1 ≤ j ≤ k such that p = q(j).  Hence by [sequence divisor] p | q₁ ··· qₖ.  But
 
-    1 = u − q₁ ··· qₖ
-       = 1 · u + (−1) · q₁ ··· qₖ.
+    1 = u − (q₁ ··· qₖ)
+       = 1 · u + (−1) · (q₁ ··· qₖ).
        
 So by [divides linear combination] p | 1.  Since p is prime, p > 1, which is a contradiction.
