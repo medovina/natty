@@ -46,59 +46,59 @@ Proof.  Suppose that p ∤ a.  We must show that p | b.  Let c : ℤ with c > 0,
 
 Axiom.  There is a function Π : (ℤ → ℤ) ⨯ ℤ ⨯ ℤ → ℤ such that for all a : ℤ → ℤ and i, j : ℤ,
 
-    a. If j < i then Π(a, i, j) = 1.
-    b. If i ≤ j then Π(a, i, j) = Π(a, i, j − 1) · a(j).
+    a. If j < i then aᵢ ··· aⱼ = 1.
+    b. If i ≤ j then aᵢ ··· aⱼ = (aᵢ ··· aⱼ₋₁) · aⱼ.
 
-Lemma (product of positive sequence).  Let a : ℤ → ℤ.  Let i, j : ℤ.  Suppose that a(k) > 0 for all k: ℤ with i ≤ k ≤ j.  Then Π(a, i, j) > 0.
+Lemma (product of positive sequence).  Let a : ℤ → ℤ.  Let i, j : ℤ.  Suppose that aₖ > 0 for all k: ℤ with i ≤ k ≤ j.  Then aᵢ ··· aⱼ > 0.
 
-Proof.  Either j < i or i ≤ j.  If j < i then Π(a, i, j) = 1 : ℤ > 0.
+Proof.  Either j < i or i ≤ j.  If j < i then aᵢ ··· aⱼ = 1 : ℤ > 0.
 
-Now assume that i ≤ j.  Let S = { k : ℤ | Π(a, i, k) > 0 }.  We know that Π(a, i, i) = Π(a, i, i − 1) · a(i) = 1 · a(i) = a(i) > 0.  So i ∈ S.  Now let k ∈ S, and suppose that i ≤ k < j.  Then i < k + 1 ≤ j, so
+Now assume that i ≤ j.  Let S = { k : ℤ | aᵢ ··· aₖ > 0 }.  We know that aᵢ ··· aᵢ = (aᵢ ··· aᵢ₋₁) · aᵢ = 1 · aᵢ = aᵢ > 0.  So i ∈ S.  Now let k ∈ S, and suppose that i ≤ k < j.  Then i < k + 1 ≤ j, so
 
-    Π(a, i, k + 1) = Π(a, i, (k + 1) − 1) · a(k + 1)
-                         = Π(a, i, k) · a(k + 1)
+    aᵢ ··· aₖ₊₁ = Π(a, i, (k + 1) − 1) · aₖ₊₁
+                         = aᵢ ··· aₖ · aₖ₊₁
                           > 0 by [product of positives is positive].
 
-So k + 1 ∈ S.  So by [induction on a range of ℤ] k ∈ S for all k : ℤ with i ≤ k ≤ j.  Then j ∈ S, so Π(a, i, j) > 0. 
+So k + 1 ∈ S.  So by [induction on a range of ℤ] k ∈ S for all k : ℤ with i ≤ k ≤ j.  Then j ∈ S, so aᵢ ··· aⱼ > 0. 
 
-Lemma (product of sequences).  Let a : ℤ → ℤ.  Let i, j, k : ℤ with i ≤ j ≤ k.  Then Π(a, i, j) · Π(a, j + 1, k) = Π(a, i, k).
+Lemma (product of sequences).  Let a : ℤ → ℤ.  Let i, j, k : ℤ with i ≤ j ≤ k.  Then aᵢ ··· aⱼ · aⱼ₊₁ ··· aₖ = aᵢ ··· aₖ.
 
-Proof.  Let B = { x : ℤ | Π(a, i, j) · Π(a, j + 1, x) = Π(a, i, x) }. We know that Π(a, j + 1, j) = 1, so Π(a, i, j) · Π(a, j + 1, j) = Π(a, i, j).  So j ∈ B.
+Proof.  Let B = { x : ℤ | aᵢ ··· aⱼ · aⱼ₊₁ ··· aₓ = aᵢ ··· aₓ }. We know that aⱼ₊₁ ··· aⱼ = 1, so aᵢ ··· aⱼ · aⱼ₊₁ ··· aⱼ = aᵢ ··· aⱼ.  So j ∈ B.
 
 Now let x ∈ B, and suppose that j ≤ x < k.  We know that i ≤ j ≤ x < x + 1, so by [≤ with < are transitive on ℤ] i < x + 1.  Then
 
-    Π(a, i, j) · Π(a, j + 1, x + 1)
-        = Π(a, i, j) · (Π(a, j + 1, (x + 1) − 1) · a(x + 1))
-        = Π(a, i, j) · (Π(a, j + 1, x) · a(x + 1))
-        = (Π(a, i, j) · Π(a, j + 1, x)) · a(x + 1)
-        = Π(a, i, x) · a(x + 1)  by the inductive hypothesis
-        = Π(a, i, (x + 1) − 1) · a(x + 1)
-        = Π(a, i, x + 1).
+    aᵢ ··· aⱼ · aⱼ₊₁ ··· aₓ₊₁
+        = aᵢ ··· aⱼ · (Π(a, j + 1, (x + 1) − 1) · aₓ₊₁)
+        = aᵢ ··· aⱼ · (aⱼ₊₁ ··· aₓ · aₓ₊₁)
+        = (aᵢ ··· aⱼ · aⱼ₊₁ ··· aₓ) · aₓ₊₁
+        = aᵢ ··· aₓ · aₓ₊₁  by the inductive hypothesis
+        = Π(a, i, (x + 1) − 1) · aₓ₊₁
+        = aᵢ ··· aₓ₊₁.
 
-So x + 1 ∈ B.  Then by [induction on a range of ℤ] x ∈ B for all x : ℤ with j ≤ x ≤ k.  So k ∈ B, so Π(a, i, j) · Π(a, j + 1, k) = Π(a, i, k).
+So x + 1 ∈ B.  Then by [induction on a range of ℤ] x ∈ B for all x : ℤ with j ≤ x ≤ k.  So k ∈ B, so aᵢ ··· aⱼ · aⱼ₊₁ ··· aₖ = aᵢ ··· aₖ.
 
-Lemma (sequence divisor).  Let a : ℤ → ℤ.  Let i, j, k : ℤ.  Suppose that i ≤ j ≤ k.  Then a(j) | Π(a, i, k).
+Lemma (sequence divisor).  Let a : ℤ → ℤ.  Let i, j, k : ℤ.  Suppose that i ≤ j ≤ k.  Then aⱼ | aᵢ ··· aₖ.
 
 Proof.
 
-    a(j) · (Π(a, i, j − 1) · Π(a, j + 1, k))
-        = (Π(a, i, j − 1) · a(j)) · Π(a, j + 1, k)
-        = Π(a, i, j) · Π(a, j + 1, k)
-        = Π(a, i, k) by [product of sequences].
+    aⱼ · (aᵢ ··· aⱼ₋₁ · aⱼ₊₁ ··· aₖ)
+        = (aᵢ ··· aⱼ₋₁ · aⱼ) · aⱼ₊₁ ··· aₖ
+        = aᵢ ··· aⱼ · aⱼ₊₁ ··· aₖ
+        = aᵢ ··· aₖ by [product of sequences].
 
 # The infinitude of primes, Wiedijk #11
 
 Theorem.  { x : ℤ | x is prime } is infinite.
 
-Proof.  Let P = { x : ℤ | x is prime }.  Assume that P is finite.  Then by [finite set] there is some k : ℤ and q : ℤ → ℤ such that P = { x : ℤ | x = q(i) for some i : ℤ with 1 ≤ i ≤ k }.  Let i : ℤ, and assume that 1 ≤ i ≤ k.  Then q(i) is prime, so q(i) > 1, so q(i) > 0 by [< is transitive on ℤ].  So q(i) > 0 for all i : ℤ with 1 ≤ i ≤ k.
+Proof.  Let P = { x : ℤ | x is prime }.  Assume that P is finite.  Then by [finite set] there is some k : ℤ and q : ℤ → ℤ such that P = { x : ℤ | x = qᵢ for some i : ℤ with 1 ≤ i ≤ k }.  Let i : ℤ, and assume that 1 ≤ i ≤ k.  Then qᵢ is prime, so qᵢ > 1, so qᵢ > 0 by [< is transitive on ℤ].  So qᵢ > 0 for all i : ℤ with 1 ≤ i ≤ k.
 
 Let
 
-    u = Π(q, 1, k) + 1.
+    u = q₁ ··· qₖ + 1.
 
-By [product of positive sequence] Π(q, 1, k) > 0, so u > 1.  By [divisible by prime] there is some p : ℤ such that p is prime and p | u.  Hence there is some j : ℤ with 1 ≤ j ≤ k such that p = q(j).  Hence by [sequence divisor] p | Π(q, 1, k).  But
+By [product of positive sequence] q₁ ··· qₖ > 0, so u > 1.  By [divisible by prime] there is some p : ℤ such that p is prime and p | u.  Hence there is some j : ℤ with 1 ≤ j ≤ k such that p = q(j).  Hence by [sequence divisor] p | q₁ ··· qₖ.  But
 
-    1 = u − Π(q, 1, k)
-       = 1 · u + (−1) · Π(q, 1, k),
+    1 = u − q₁ ··· qₖ
+       = 1 · u + (−1) · q₁ ··· qₖ.
        
-so by [divides linear combination] p | 1.  Since p is prime, p > 1, which is a contradiction.
+So by [divides linear combination] p | 1.  Since p is prime, p > 1, which is a contradiction.
