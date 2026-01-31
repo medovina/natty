@@ -150,7 +150,7 @@ let rec extract_by f : formula * reason =
       match opt_remove_prefix "$by " c with
         | Some reasons ->
             let rs = String.split_on_char ',' reasons in
-            let by = map (fun r -> (r, empty_range)) rs in
+            let by = map decode_reason rs in
             (h, by)
         | None -> (f, []))
   | _ ->

@@ -303,7 +303,7 @@ and eq_op s = choice ([
 
 and apply_reasons rs f : formula =
   if rs = [] then f else
-  app (_const ("$by " ^ String.concat "," (map fst rs))) f
+  app (_const ("$by " ^ String.concat "," (map encode_reason rs))) f
 
 and quant_op c quant =
   Prefix (str c >> decl_ids_type << str "." |>>
