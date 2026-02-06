@@ -107,7 +107,7 @@ let thf_statement env is_conjecture stmt : string =
   let thm_or_hyp stmt kind by f =
     let extra =
       (if is_step stmt then ["step"] else []) @
-      (if by = [] then [] else
+      (if by = [] || not is_conjecture then [] else
         let lookup_ref r =
           match find_opt (match_ref r) env with
             | Some stmt -> prefix_label stmt
@@ -153,7 +153,7 @@ let base_name md = Filename.remove_extension (Filename.basename md.filename)
 
 (* replace characters that commonly cause trouble in filenames *)
 let fix_filename name =
-  let char_map = ["<", "lt"; ">", "gt"; "(", ""; ")", ""] in
+  let char_map = ["<", "lt"; ">", "gt"; "(", ""; ")", ""; "'", "_prime"] in
   fold_left (fun name (s, t) -> str_replace s t name) name char_map
 
 let export_module dir all_modules md =

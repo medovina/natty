@@ -49,12 +49,15 @@ all_prover_names = list(all_provers.keys())
 def short_name(p):
     return all_provers[p].get('short_name') or p
 
-def maybe_to_int(s):
-    return int(s) if s.isdigit() else s
+def to_int(s):
+    if s.isdigit():
+        return int(s)
+    assert len(s) == 1
+    return ord(s) - ord('a')
 
 def sort_key(s):
     s = s.split(':')[0]
-    return [maybe_to_int(n) for n in s.replace('s', '').split('_')]
+    return [to_int(n) for n in s.replace('_s', '_').split('_')]
 
 def read_theorems():
     files = [name.removesuffix('.thf') for name in os.listdir(conf.dir)
