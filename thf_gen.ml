@@ -161,11 +161,11 @@ let export_module dir all_modules md =
   let subdir = mk_path dir module_name in
   mk_dir subdir;
   let using_env = map apply_types_in_stmt (module_env md all_modules) in
-  let using = map base_name (all_using md all_modules) in
+  let using = map base_name (uses all_modules md) in
   expand_proofs Fun.id md.stmts !(opts.export_full) |> iter (fun (thm, known) ->
     match thm with
       | Theorem { label = id; name; _ } ->
           let filename = String.concat ":" ([id] @ opt_to_list name) in
           write_thf subdir (fix_filename filename) using using_env (rev known) (Some thm)
       | _ -> failwith "theorem expected");
-  write_thf subdir module_name [] [] md.stmts None
+  write_thf subdir module_name using [] md.stmts None

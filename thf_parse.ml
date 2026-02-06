@@ -28,7 +28,14 @@ let id_chars = many_chars (alphanum <|> char '_' <|> char '-')
 
 let chars first = pipe2 first id_chars (fun c s -> char_to_string c ^ s)
 
-let quoted_id = char '\'' >> many_chars_until any_char (char '\'')
+let sq_char : char p = choice [
+  string "\\'" >>$ '\'';
+  string "\\\\" >>$ '\\';
+  any_char
+]
+
+let quoted_id : string p =
+  char '\'' >> (many_until sq_char (char '\'') |>> chars_to_string)
 
 let id = empty >>? (chars lowercase <|> quoted_id)
 

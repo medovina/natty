@@ -82,6 +82,8 @@ let strlen = String.length
 
 let char_to_string = String.make 1
 
+let chars_to_string cs = String.of_seq (List.to_seq cs)
+
 let string_range s i j = String.sub s i (j - i)
 
 let string_from s i = string_range s i (String.length s)
