@@ -158,7 +158,7 @@ let thf_file : statement list p =
   many _include >> formulas None << empty << eof
 
 let parse_thf source : (smodule list, string * frange) Stdlib.result =
-  parse_modules (many _include) thf_file [source] []
+  parse_modules (many _include) thf_file [source] [] true
   
 type derivation =
   | Step of id

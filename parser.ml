@@ -903,7 +903,7 @@ let _module : hstatement list p = optional using >>
 let parse_formula text : formula = always_parse expr text
 
 let parse_files filenames sources : (hmodule list, string * frange) Stdlib.result =
-  parse_modules (opt [] using) _module filenames sources
+  parse_modules (opt [] using) _module filenames sources false
 
 let parse_file filename = profile @@
   parse_files [filename] []

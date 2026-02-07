@@ -18,7 +18,7 @@ let module_env md existing : 's list =
 
 let relative_name from f = mk_path (Filename.dirname from) f
 
-let parse_modules using_parser text_parser filenames sources :
+let parse_modules using_parser text_parser filenames sources linear :
     ('s _module list, string * frange) Stdlib.result =
   let rec parse modules filename : ('s _module list, string * frange) Stdlib.result =
     if exists (fun m -> m.filename = filename) modules then Ok modules else
@@ -28,6 +28,7 @@ let parse_modules using_parser text_parser filenames sources :
       let** modules = fold_left_res parse modules using in
       match MParser.parse_string text_parser text () with
         | Success stmts ->
+            let using = if linear then map (fun m -> m.filename) modules else using in
             let modd = { filename; using; stmts } in
             Ok (modd :: modules)
         | Failed (err, Parse_error ((_index, line, col), _)) ->
