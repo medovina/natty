@@ -9,11 +9,9 @@ type 's _module = {
 let find_module modules name : 's _module =
     find (fun m -> m.filename = name) modules
 
-let uses existing md : 's _module list =
-  map (find_module existing) md.using
-
 let all_using md existing : 's _module list =
-  rev (dsearch1 (uses existing md) (uses existing))
+  let uses m = map (find_module existing) m.using in
+  rev (dsearch1 (uses md) uses)
 
 let module_env md existing : 's list =
   concat_map (fun m -> m.stmts) (all_using md existing)
