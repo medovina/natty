@@ -1,4 +1,4 @@
-using card, gcd, rat;
+using card, div, rat;
 
 Definition.  Let a, b : ℤ.  a and b are relatively prime if for all c : ℤ with c > 0, if c | a and c | b then c = 1.
 
