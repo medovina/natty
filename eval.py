@@ -1,4 +1,4 @@
-import csv, multiprocessing, os, re, subprocess, sys, threading
+import csv, glob, multiprocessing, os, re, subprocess, sys, threading
 from collections import defaultdict
 from concurrent import futures
 from dataclasses import dataclass
@@ -15,17 +15,18 @@ class Config:
     timeout: int
     prove_steps: bool
     stats: bool
+    summary: bool
 
-conf = Config('', [], default_timeout, True, False)
+conf = Config('', [], default_timeout, True, False, False)
 
 all_provers = {
     'Natty' :
-        { 'cmd': './natty -t{timeout}',
+        { 'cmd': 'natty -t{timeout}',
           'stats_arg': '-i',
           'stats' : { 'given': r'given: (\d+)',
                       'generated': r'generated: (\d+)' } },
     'Natty (no by)' :
-        { 'cmd': './natty -b -t{timeout}',
+        { 'cmd': 'natty -b -t{timeout}',
           'short_name': 'nat_no_by',
           'stats_arg': '-i',
           'stats' : { 'given': r'given: (\d+)',
@@ -296,6 +297,8 @@ def parse_args():
             conf.stats = True
         elif arg.startswith('-t'):
             conf.timeout = int(arg[2:])
+        elif arg == '-y':
+            conf.summary = True
         else:
             break
         i += 1
@@ -303,26 +306,87 @@ def parse_args():
     if i != len(sys.argv) - 1:
         print(f'usage: {sys.argv[0]} [options...] <dir>')
         print( '    -a: evaluate all provers')
-        print( '    -e: evaluate all provers except the given prover')
+        print( '    -e<prover>: evaluate all provers except the given prover')
         print( '    -h: try to prove theorems without using proof steps')
         print( '    -p<prover>: evaluate only the given prover')
         print( '    -s: collect statistics')
         print(f'    -t<num>: timeout (default is {default_timeout} seconds)')
+        print( '    -y: generate summary csv')
         exit(1)
 
-    if conf.eval_provers == []:
+    if conf.eval_provers == [] and not conf.summary:
         print('must specify prover(s)')
         exit(1)
 
     return sys.argv[i]
 
+def summary():
+    header = None
+    proved_row, times_row = {}, {}
+    total_proved, total_time = defaultdict(int), defaultdict(float)
+    total = 0
+    for file in sorted(glob.glob(path.join(conf.dir, '*.csv'))):
+        module = path.splitext(path.basename(file))[0]
+        if module == 'results':
+            continue
+        with open(file) as f:
+            proved = {}
+            reader = csv.reader(f)
+            for n, row in enumerate(reader):
+                if n == 0:
+                    if header == None:
+                        assert row[0:2] == ['', 'conjecture']
+                        header = row
+                    else:
+                        assert header == row
+                    continue
+                if row != [] and (m := re.fullmatch(r'proved \(of (\d+)\)', row[0])):
+                    total += int(m[1])
+                    for prover, s in zip(header[2:], row[2:]):
+                        n = int(s.split()[0])
+                        proved[prover] = n
+                        total_proved[prover] += n
+                    del row[1]
+                    proved_row[module] = row
+                if row != [] and row[0] == 'average':
+                    for prover, s in zip(header[2:], row[2:]):
+                        t = float(s.split()[0])
+                        total_time[prover] += t * proved[prover]
+                    del row[1]
+                    times_row[module] = row
+    with open(path.join(conf.dir, 'results.csv'), 'w') as out:
+        writer = csv.writer(out)
+        header[1] = ''      # erase "conjecture"
+        writer.writerow(header)
+        for module in proved_row:
+            row = proved_row[module]
+            row.insert(0, module)
+            writer.writerow(row)
+            row = times_row[module]
+            row.insert(0, '')
+            writer.writerow(row)
+        total_row = ['TOTAL', f'proved (of {total})']
+        for p in header[2:]:
+            percent = 100 * total_proved[p] / total
+            total_row.append(f'{total_proved[p]} ({percent:.0f}%)')
+        writer.writerow(total_row)
+        average_row = ['', 'average']
+        for p in header[2:]:
+            average_time = total_time[p] / total_proved[p]
+            average_row.append(f'{average_time:.2f} sec')
+        writer.writerow(average_row)
+
 def main():
     conf.dir = parse_args()
+    if conf.summary:
+        summary()
+        return
+
     theorems = read_theorems()
 
-    kind = 'steps' if conf.prove_steps else 'theorems'
+    kind = '' if conf.prove_steps else '_theorems'
     timeout_suffix = '' if conf.timeout == default_timeout else f'_{conf.timeout}'
-    results_file = f'{conf.dir}_{kind}{timeout_suffix}.csv'
+    results_file = f'{conf.dir}{kind}{timeout_suffix}.csv'
     results = read_results(theorems, results_file)
 
     for prover in conf.eval_provers:
