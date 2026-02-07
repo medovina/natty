@@ -974,7 +974,7 @@ let basic_check env f : typ * formula =
                 then (typ, const id typ)
                 else errorf "undefined constant" f range
           | [typ] -> (typ, const id typ)
-          | _ -> failwith "ambiguous constant")
+          | _ -> error ("ambiguous constant: " ^ id) range)
     | Var (id, _, range) -> (
         match assoc_opt id vars with
           | Some typ -> (typ, var id typ)
