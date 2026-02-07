@@ -656,7 +656,7 @@ let axiom_decl : hstatement list p =
 
 let special_sym = str "the product" >> unit_term
 
-let special_def vars : hstatement list p =
+let special_def vars : (id * typ) p =
   let> f = special_sym in
   let> typ = str ":" >> typ << str "is defined as follows:" in
   match collect_args f with
@@ -665,15 +665,17 @@ let special_def vars : hstatement list p =
           | Const (t, _, _), args when is_tuple_constructor t ->
               let vs = map fst (map get_var args) in
               let var_types = vs |> map (fun v -> assoc v vars) in
-              return [HConstDecl (c, Fun (Product var_types, typ))]
+              return (c, Fun (Product var_types, typ))
           | _ -> fail "special_def")
     | _ -> fail "special_def"
 
 let axiom_propositions id_typ num name : hstatement list p =
   let> (vars, with_expr) = opt ([], None) for_all_with in
-  let> special = opt [] (special_def vars) in
+  let> id_typ1 = option (special_def vars) in
   let$ props = propositions name vars with_expr in
-  special @ [HAxiomGroup (num, id_typ, 
+  let special =
+    let* (id, typ) = id_typ1 in Some (HConstDecl (id, typ)) in
+  opt_to_list special @ [HAxiomGroup (num, opt_or_opt id_typ1 id_typ, 
     let& (sub_index, steps, name) = props in
     { sub_index; name; steps })]
 
