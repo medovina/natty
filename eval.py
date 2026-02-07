@@ -281,7 +281,11 @@ def parse_args():
     while i < len(sys.argv):
         arg = sys.argv[i]
         if arg == '-a':
-            conf.eval_provers = list(all_provers.keys())
+            conf.eval_provers = all_prover_names
+        elif arg.startswith('-e'):
+            prefix = arg[2:].lower()
+            conf.eval_provers = [p for p in all_prover_names
+                       if not (short_name(p).lower().startswith(prefix))]
         elif arg == '-h':
             conf.prove_steps = False
         elif arg.startswith('-p'):
@@ -299,6 +303,7 @@ def parse_args():
     if i != len(sys.argv) - 1:
         print(f'usage: {sys.argv[0]} [options...] <dir>')
         print( '    -a: evaluate all provers')
+        print( '    -e: evaluate all provers except the given prover')
         print( '    -h: try to prove theorems without using proof steps')
         print( '    -p<prover>: evaluate only the given prover')
         print( '    -s: collect statistics')
@@ -306,7 +311,7 @@ def parse_args():
         exit(1)
 
     if conf.eval_provers == []:
-        print('must specify prover(s) with -p or -a')
+        print('must specify prover(s)')
         exit(1)
 
     return sys.argv[i]
