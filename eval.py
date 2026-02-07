@@ -137,7 +137,7 @@ def prove(prover, file):
 
     completed = subprocess.run("time -f 'time:%U %S' " + cmd, shell = True, capture_output = True)
 
-    text = completed.stdout.decode('utf-8') + completed.stderr.decode('utf-8')
+    text = completed.stdout.decode('utf-8', 'ignore') + completed.stderr.decode('utf-8', 'ignore')
     lines = text.splitlines()
     times = lines[-1].removeprefix('time:')
     assert times != lines[-1], 'no times found'
