@@ -63,7 +63,12 @@ def sort_key(s):
 
 def read_theorems(thf_dir):
     files = [name.removesuffix('.thf') for name in os.listdir(thf_dir)
-             if name.endswith('.thf') and name[0].isdigit()]
+             if name.endswith('.thf')]
+    if len(files) == 0:
+        print(f'no .thf files in {thf_dir}')
+        exit()
+
+    files = [name for name in files if name[0].isdigit()]
     files.sort(key = sort_key)
 
     theorems = {}
@@ -391,12 +396,8 @@ def main():
     else:
         thf_dirs = [conf.dir]
 
-    for thf_dir in thf_dirs:
+    for thf_dir in sorted(thf_dirs):
         theorems = read_theorems(thf_dir)
-        if len(theorems) == 0:
-            print(f'no theorems in {thf_dir}')
-            exit()
-
         kind = '' if conf.prove_steps else '_theorems'
         timeout_suffix = '' if conf.timeout == default_timeout else f'_{conf.timeout}'
         results_file = f'{thf_dir}{kind}{timeout_suffix}.csv'
