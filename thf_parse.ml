@@ -141,7 +141,7 @@ let thf_formula last_const : (id option * statement) p = empty >>?
                 opt [] (str "," >> str "file," >> brackets (comma_sep1 extra_item)) in
               let (by, is_step) = (fold_left Fun.compose Fun.id extras) ([], false) in
               Theorem { label; name = None; formula = f; steps = [];
-                        by; is_step; range = empty_range }
+                        by; is_step; range = empty_range; on_contra_path = false }
           | _ -> failwith "unknown role" in
         p |>> fun x -> ((if role = "axiom" || role = "definition" then last_const else None), x))
   << str "."

@@ -459,11 +459,12 @@ let rec with_type_vars env typ : typ = match typ with
       if is_type_defined id env then TypeVar id else typ
   | _ -> map_type (with_type_vars env) typ
 
-let mk_thm env lenv f by : statement list = Theorem {
+let mk_thm env lenv contra f by : statement list = Theorem {
     label = ""; name = None; formula = top_infer env f;
-    steps = []; by; is_step = true; range = range_of f } :: lenv
+    steps = []; by; is_step = true; range = range_of f;
+    on_contra_path = contra } :: lenv
 
-let assert_chain env lenv thm_num f : statement list list * formula =
+let assert_chain env lenv contra thm_num f : statement list list * formula =
   let eqs, reasons = unzip (chain_comparisons env thm_num f) in
   let concl =
     if thm_num <> "" && length eqs >= 2 && count_false is_eq eqs <= 1 then
@@ -475,7 +476,7 @@ let assert_chain env lenv thm_num f : statement list list * formula =
             apply_chainable op a b
         | _ -> failwith "block_steps"
     else multi_and eqs in
-  (map2 (mk_thm env lenv) eqs reasons, concl)
+  (map2 (mk_thm env lenv contra) eqs reasons, concl)
 
 let thm_add_by by stmt : statement = match stmt with
   | Theorem thm -> Theorem { thm with by = thm.by @ by }
@@ -487,22 +488,26 @@ let block_name (Block (step, _)) : string option = match step with
   | Assert (_, _, name) -> name
   | _ -> None
 
-let rec blocks_steps env lenv thm_num blocks : statement list list * formula =
+let rec leads_to_false (Block (step, blocks)) =
+  is_assert_false step || not (is_assume step) && exists leads_to_false blocks
+
+let rec blocks_steps env lenv contra thm_num blocks : statement list list * formula =
   match blocks with
     | [] -> ([], _true)
     | block :: rest ->
-        let (fs, concl) = block_steps env lenv thm_num block in
+        let contra1 = contra || exists leads_to_false blocks in
+        let (fs, concl) = block_steps env lenv contra1 thm_num block in
         let hyp = Hypothesis { label = "hyp"; formula = top_infer env concl;
                                name = block_name block } in
-        let (gs, final_concl) = blocks_steps (hyp :: env) (hyp :: lenv) thm_num rest in
+        let (gs, final_concl) = blocks_steps (hyp :: env) (hyp :: lenv) contra thm_num rest in
         ( fs @ gs,
           if rest = [] then concl
           else match last blocks with
             | Block (Assume _, _) -> _and concl final_concl
             | _ -> final_concl)
 
-and block_steps env lenv thm_num (Block (step, children)) : statement list list * formula =
-  let child_steps stmts = blocks_steps (stmts @ env) (stmts @ lenv) thm_num children in
+and block_steps env lenv contra thm_num (Block (step, children)) : statement list list * formula =
+  let child_steps stmts = blocks_steps (stmts @ env) (stmts @ lenv) contra thm_num children in
   let const_decl (id, typ) =
     if typ = Type then infer_type_definition env id [] else [infer_const_decl env id typ] in
   let const_decls ids_typs = rev (concat_map const_decl ids_typs) in
@@ -510,7 +515,7 @@ and block_steps env lenv thm_num (Block (step, children)) : statement list list 
     | Assert (f, reason, _) ->
         let fs = gather_and f in
         let by = map (check_ref env thm_num) reason in
-        let steps, concls = unzip (map (assert_chain env lenv thm_num) fs) in
+        let steps, concls = unzip (map (assert_chain env lenv contra thm_num) fs) in
         let steps = map_last (map_first (thm_add_by by)) (concat steps) in
         (steps, multi_and concls)
     | Let ids_types ->
@@ -553,7 +558,7 @@ and block_steps env lenv thm_num (Block (step, children)) : statement list list 
         let decls = rev (map (fun (id, typ) -> infer_const_decl env id typ) ids_types) in
         let stmts = new_hyp (top_infer (decls @ env) g) :: decls in
         let (fs, concl) = child_steps stmts in
-        (mk_thm env lenv ex by :: fs,
+        (mk_thm env lenv contra ex by :: fs,
          if is_const_true concl then ex else
          if any_free_in (map fst ids_types) concl
             then exists_vars_types false ids_types (_and g concl) else concl)
@@ -643,7 +648,7 @@ let rec expand_proof id name num env steps proof_steps :
     formula * statement list list * stmt_ref list =
   let steps = generalize_types (trim_lets steps) in
   let blocks0 = chain_blocks steps [] in
-  let (_, concl) = blocks_steps env [] "" blocks0 in
+  let (_, concl) = blocks_steps env [] false "" blocks0 in
   let (proof_steps, reasons) = match proof_steps with
     | [] -> (proof_steps, [])
     | _ ->
@@ -670,7 +675,7 @@ let rec expand_proof id name num env steps proof_steps :
                 init (with_reasons reasons last_step)
       else blocks @ [Block (Assert (concl, reasons, None), [])] in
     if !(opts.show_structure) then print_blocks blocks;
-    let (stmtss, _concl) = blocks_steps env [] num blocks in
+    let (stmtss, _concl) = blocks_steps env [] false num blocks in
     (map rev stmtss, []) in
   (top_infer env concl, stmtss, by)
 
@@ -810,7 +815,7 @@ and infer_definition env id_type recursive defs justification : statement list =
     let (_, steps, by) = if justification = [] then (_false, [], []) else
       expand_proof thm_id name "" env [mk_assert j] justification in
     Theorem { label = thm_id; name; formula = j; steps; by;
-              is_step = false; range = empty_range } in
+              is_step = false; range = empty_range; on_contra_path = false } in
   let gs =
     let& eq_some = opt_to_list eq_some in
     incr axiom_count;
@@ -837,7 +842,7 @@ and infer_stmt env stmt : statement list =
         let+ { sub_index; name; steps } = haxioms in
         let id = num ^ dot sub_index in
         let blocks = infer_blocks env (generalize_types steps) in
-        let (_, f) = blocks_steps env [] "" blocks in
+        let (_, f) = blocks_steps env [] false "" blocks in
         [Axiom { label = id; formula = top_infer env f; name; defined = id_typ }]
     | HTheoremGroup (num, htheorems) ->
         let num = next_num num theorem_count in
@@ -854,7 +859,7 @@ and infer_stmt env stmt : statement list =
             | Assert (f, _, _) -> range_of f
             | _ -> failwith "assert expected" in
           let stmt = Theorem { label = id; name; formula = f; steps = stmts;
-                               by; is_step = false; range } in
+                               by; is_step = false; range; on_contra_path = false } in
           (stmt :: env, stmt) in
         snd (fold_left_map check env htheorems)
 

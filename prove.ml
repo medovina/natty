@@ -1457,34 +1457,34 @@ let show_proof pf dis elapsed stats =
 
 let prove_all thf modules = profile @@
   let dis = if !(opts.disprove) then "dis" else "" in
-  let succeeded, failed = ref 0, ref 0 in
+  let succeeded, failed, skipped = ref 0, ref 0, ref 0 in
   let rec prove_stmts = function
     | [] ->
         if (not thf) then
-          if !failed = 0 then (
-            printf "%s theorems were %sproved.\n"
-              (if !(opts.disprove) then "No" else "All") dis)
+          if !(opts.disprove) then
+              printf "%d theorems/steps disproved, %d proved, %d skipped.\n"
+                !failed !succeeded !skipped
+          else if !failed = 0 then printf "All theorems were proved.\n"
           else if !(opts.keep_going) then
-            if !(opts.disprove) then
-              printf "%d theorems/steps disproved.\n" !failed
-            else
-              printf "%d theorems/steps proved, %d not proved.\n" !succeeded !failed
+            printf "%d theorems/steps proved, %d not proved.\n" !succeeded !failed
     | (_, thm, using_env, local_known) :: rest -> (
         match thm with
-          | Theorem { steps = []; _ } ->
-              print_endline (show_statement true thm ^ "\n");
-              let (result, elapsed) =
-                prove using_env local_known thm (Fun.const false) in
-              let b = match result with
-                  | Proof (pf, stats) -> show_proof pf dis elapsed stats; true
-                  | GaveUp -> printf "Not %sproved.\n" dis; false
-                  | Timeout -> printf "Time limit exceeded.\n"; false
-                  | Stopped -> assert false in
-              if thf then printf "SZS status %s\n" (szs result);
-              print_newline ();
-              let (succeed, fail) = if !(opts.disprove) then (not b, b) else (b, not b) in
-              succeeded := !succeeded + int_of_bool succeed;
-              failed := !failed + int_of_bool fail
+          | Theorem { steps = []; on_contra_path = contra; _ } ->
+              if !(opts.disprove) && contra then incr skipped else (
+                print_endline (show_statement true thm ^ "\n");
+                let (result, elapsed) =
+                  prove using_env local_known thm (Fun.const false) in
+                let b = match result with
+                    | Proof (pf, stats) -> show_proof pf dis elapsed stats; true
+                    | GaveUp -> printf "Not %sproved.\n" dis; false
+                    | Timeout -> printf "Time limit exceeded.\n"; false
+                    | Stopped -> assert false in
+                if thf then printf "SZS status %s\n" (szs result);
+                print_newline ();
+                let (succeed, fail) = if !(opts.disprove) then (not b, b) else (b, not b) in
+                succeeded := !succeeded + int_of_bool succeed;
+                failed := !failed + int_of_bool fail
+              )
           | _ -> assert false);
         if !failed = 0 || !(opts.keep_going) then
           prove_stmts rest in

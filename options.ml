@@ -53,7 +53,7 @@ let usage () =
   
       -a                continue proof attempts even if one or more proofs fail
       -b                ignore hints about which theorems to use in proving a step
-      -c                try to disprove all theorems
+      -c                try to disprove all theorems/steps
       -d<level>         debug level
       -e                reformat proof from E
       -f<name>          prove/export given theorem and following

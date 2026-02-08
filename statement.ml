@@ -38,7 +38,8 @@ type statement =
   | Definition of { label: string; id: string; typ: typ; formula: formula }
   | Theorem of
       { label: string; name: string option; formula: formula;
-        steps: statement list list; by: stmt_ref list; is_step: bool; range: range }
+        steps: statement list list; by: stmt_ref list; is_step: bool; range: range;
+        on_contra_path: bool }
 
 let mk_const_decl id typ =
   ConstDecl { id; typ; constructor = false }
