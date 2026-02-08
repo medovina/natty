@@ -10,14 +10,15 @@ default_timeout = 5
 
 @dataclass
 class Config:
+    all_subdirs: bool
     dir: str
     eval_provers: list
     timeout: int
+    only_summary: bool
     prove_steps: bool
     stats: bool
-    summary: bool
 
-conf = Config('', [], default_timeout, True, False, False)
+conf = Config(False, '', [], default_timeout, False, True, False)
 
 all_provers = {
     'Natty' :
@@ -60,14 +61,14 @@ def sort_key(s):
     s = s.split(':')[0]
     return [to_int(n) for n in s.replace('_s', '_').split('_')]
 
-def read_theorems():
-    files = [name.removesuffix('.thf') for name in os.listdir(conf.dir)
+def read_theorems(thf_dir):
+    files = [name.removesuffix('.thf') for name in os.listdir(thf_dir)
              if name.endswith('.thf') and name[0].isdigit()]
     files.sort(key = sort_key)
 
     theorems = {}
     for file in files:
-        with open(path.join(conf.dir, file + '.thf')) as f:
+        with open(path.join(thf_dir, file + '.thf')) as f:
             conjecture = f.readline().strip().removeprefix('% Problem: '.strip())
         is_step = re.search(r'_s\d+$', file) is not None
         if conf.prove_steps:
@@ -118,7 +119,7 @@ lock = threading.Lock()
 def show_proving():
     print(clear_line + f'proving {', '.join(proving)}...', end = '\r')
 
-def prove(prover, file):
+def prove(thf_dir, prover, file):
     with lock:
         proving.append(file)
         show_proving()
@@ -133,7 +134,7 @@ def prove(prover, file):
     else:
         prover_stats = None
 
-    filename = path.join(conf.dir, file + '.thf')
+    filename = path.join(thf_dir, file + '.thf')
     cmd += " " + filename
 
     completed = subprocess.run("time -f 'time:%U %S' " + cmd, shell = True, capture_output = True)
@@ -195,20 +196,20 @@ def prove(prover, file):
 
     return res
 
-def prove1(prover, id):
+def prove1(thf_dir, prover, id):
     try:
         file = id.replace('.', '_')
-        return prove(prover, file)
+        return prove(thf_dir, prover, file)
     except Exception as e:
         print(e)
         raise e
 
-def run_prover(theorems, prover, results):
+def run_prover(thf_dir, theorems, prover, results):
     ids = [id for id in theorems.keys() if id not in results[prover]['time']]
 
     if ids != []:
         with futures.ThreadPoolExecutor(multiprocessing.cpu_count() // 4) as ex:
-            out = ex.map(lambda id: prove1(prover, id), ids)
+            out = ex.map(lambda id: prove1(thf_dir, prover, id), ids)
         for id, stats in zip(ids, out):
             for stat, val in stats.items():
                 results[prover][stat][id] = val
@@ -283,6 +284,8 @@ def parse_args():
         arg = sys.argv[i]
         if arg == '-a':
             conf.eval_provers = all_prover_names
+        elif arg == '-d':
+            conf.all_subdirs = True
         elif arg.startswith('-e'):
             prefix = arg[2:].lower()
             conf.eval_provers = [p for p in all_prover_names
@@ -298,7 +301,7 @@ def parse_args():
         elif arg.startswith('-t'):
             conf.timeout = int(arg[2:])
         elif arg == '-y':
-            conf.summary = True
+            conf.only_summary = True
         else:
             break
         i += 1
@@ -306,15 +309,16 @@ def parse_args():
     if i != len(sys.argv) - 1:
         print(f'usage: {sys.argv[0]} [options...] <dir>')
         print( '    -a: evaluate all provers')
+        print( '    -d: evaluate theorems in all subdirectories')
         print( '    -e<prover>: evaluate all provers except the given prover')
         print( '    -h: try to prove theorems without using proof steps')
         print( '    -p<prover>: evaluate only the given prover')
         print( '    -s: collect statistics')
         print(f'    -t<num>: timeout (default is {default_timeout} seconds)')
-        print( '    -y: generate summary csv')
+        print( '    -y: only generate summary csv')
         exit(1)
 
-    if conf.eval_provers == [] and not conf.summary:
+    if conf.eval_provers == [] and not conf.only_summary:
         print('must specify prover(s)')
         exit(1)
 
@@ -327,7 +331,7 @@ def summary():
     total = 0
     for file in sorted(glob.glob(path.join(conf.dir, '*.csv'))):
         module = path.splitext(path.basename(file))[0]
-        if module == 'results':
+        if module == 'summary':
             continue
         with open(file) as f:
             proved = {}
@@ -354,7 +358,7 @@ def summary():
                         total_time[prover] += t * proved[prover]
                     del row[1]
                     times_row[module] = row
-    with open(path.join(conf.dir, 'results.csv'), 'w') as out:
+    with open(path.join(conf.dir, 'summary.csv'), 'w') as out:
         writer = csv.writer(out)
         header[1] = ''      # erase "conjecture"
         writer.writerow(header)
@@ -378,19 +382,30 @@ def summary():
 
 def main():
     conf.dir = parse_args()
-    if conf.summary:
-        summary()
-        return
 
-    theorems = read_theorems()
+    if conf.only_summary:
+        thf_dirs = []
+    elif conf.all_subdirs:
+        thf_dirs = [p for d in os.listdir(conf.dir) for p in [path.join(conf.dir, d)]
+                    if path.isdir(p)]
+    else:
+        thf_dirs = [conf.dir]
 
-    kind = '' if conf.prove_steps else '_theorems'
-    timeout_suffix = '' if conf.timeout == default_timeout else f'_{conf.timeout}'
-    results_file = f'{conf.dir}{kind}{timeout_suffix}.csv'
-    results = read_results(theorems, results_file)
+    for thf_dir in thf_dirs:
+        theorems = read_theorems(thf_dir)
+        if len(theorems) == 0:
+            print(f'no theorems in {thf_dir}')
+            exit()
 
-    for prover in conf.eval_provers:
-        if run_prover(theorems, prover, results):
-            write_results(theorems, results, results_file)
+        kind = '' if conf.prove_steps else '_theorems'
+        timeout_suffix = '' if conf.timeout == default_timeout else f'_{conf.timeout}'
+        results_file = f'{thf_dir}{kind}{timeout_suffix}.csv'
+        results = read_results(theorems, results_file)
+
+        for prover in conf.eval_provers:
+            if run_prover(thf_dir, theorems, prover, results):
+                write_results(theorems, results, results_file)
+
+    summary()
 
 main()

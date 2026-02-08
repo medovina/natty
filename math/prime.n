@@ -1,4 +1,4 @@
-using card, div, rat;
+using card, div;
 
 Definition.  Let a, b : ℤ.  a and b are relatively prime if for all c : ℤ with c > 0, if c | a and c | b then c = 1.
 
@@ -15,12 +15,6 @@ Lemma.  Let a, b : ℤ.  a and b are relatively prime if and only if 1 = xa + yb
 Proof.  Suppose that a and b are relatively prime.  Then the gcd of a and b is 1. Also a ≠ 0 or b ≠ 0.  Hence by [Bézout] 1 = xa + yb for some x, y : ℤ.
 
 Now suppose that 1 = xa + yb for some x, y : ℤ.  Let c : ℤ, and suppose that c > 0 and c | a and c | b.  By [divides linear combination] c | xa + yb, so c | 1.  Then by [divisor of 1] c = 1.  So a and b are relatively prime.
-
-Theorem (lowest terms).  Let r : ℚ.  There exist p, q : ℤ such that q ≠ 0 and r = p / q and p and q are relatively prime.
-
-Proof.  There exist some a, b : ℤ such that r = a / b and b ≠ 0.
-
-Let d : ℤ = gcd(a, b).  Then d | a and d | b, so there exist p, q : ℤ such that dp = a and dq = b.  Since b ≠ 0 we have q ≠ 0.  By [equality on ℚ] a / b = p / q.  Now let e : ℤ, and suppose that e > 0 and e | p and e | q.  Then there exist k, l : ℤ such that p = ke and q = le, so a = dke and b = dle.  So de | a and de | b.  Because d is the gcd of a and b, de | d.  So de | d · 1, so e | 1, so by [divisor of 1] e = 1.  Thus p and q are relatively prime.
 
 Definition.  Let a : ℤ.  a is prime if and only if a > 1 and for all c : ℤ, if c > 0 and c | a then c = a or c = 1.  a is composite if and only if a is not prime.
 

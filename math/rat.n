@@ -1,4 +1,4 @@
-using int;
+using int, prime;
 
 # Rational numbers: definition
 
@@ -302,3 +302,9 @@ Proof.
     But (x · v + y · u) · (y · v) = (x · y) · v² + y² · (u · v).  Since v ≠ 0 and y ≠ 0, it follows that v² > 0 and y² > 0.  Hence (x · y) · v² > 0 and y² · (u · v) > 0.  Therefore (x · y) · v² + y² · (u · v) > 0.  So (x · v + y · u) · (y · v) > 0, so by [rational positive] r + s > 0.
 
     d. Assume that r > 0 and s > 0.  There are some x, y, u, v : ℤ such that r = x / y and s = u / v and y ≠ 0 and v ≠ 0.  Then r · s = (x · u) / (y · v).  Now, (x · u) · (y · v) = (x · y) · (u · v).  By [rational positive] x · y > 0 and u · v > 0, so (x · y) · (u · v) > 0.  So (x · u) · (y · v) > 0, hence by [rational positive] r · s > 0.
+
+Theorem (lowest terms).  Let r : ℚ.  There exist p, q : ℤ such that q ≠ 0 and r = p / q and p and q are relatively prime.
+
+Proof.  There exist some a, b : ℤ such that r = a / b and b ≠ 0.
+
+Let d : ℤ = gcd(a, b).  Then d | a and d | b, so there exist p, q : ℤ such that dp = a and dq = b.  Since b ≠ 0 we have q ≠ 0.  By [equality on ℚ] a / b = p / q.  Now let e : ℤ, and suppose that e > 0 and e | p and e | q.  Then there exist k, l : ℤ such that p = ke and q = le, so a = dke and b = dle.  So de | a and de | b.  Because d is the gcd of a and b, de | d.  So de | d · 1, so e | 1, so by [divisor of 1] e = 1.  Thus p and q are relatively prime.
