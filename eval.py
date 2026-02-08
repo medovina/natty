@@ -329,12 +329,12 @@ def parse_args():
 
     return sys.argv[i]
 
-def summary():
+def summary(top_dir):
     header = None
     proved_row, times_row = {}, {}
     total_proved, total_time = defaultdict(int), defaultdict(float)
     total = 0
-    for file in sorted(glob.glob(path.join(conf.dir, '*.csv'))):
+    for file in sorted(glob.glob(path.join(top_dir, '*.csv'))):
         module = path.splitext(path.basename(file))[0]
         if module == 'summary':
             continue
@@ -363,7 +363,7 @@ def summary():
                         total_time[prover] += t * proved[prover]
                     del row[1]
                     times_row[module] = row
-    with open(path.join(conf.dir, 'summary.csv'), 'w') as out:
+    with open(path.join(top_dir, 'summary.csv'), 'w') as out:
         writer = csv.writer(out)
         header[1] = ''      # erase "conjecture"
         writer.writerow(header)
@@ -407,6 +407,6 @@ def main():
             if run_prover(thf_dir, theorems, prover, results):
                 write_results(theorems, results, results_file)
 
-    summary()
+    summary(conf.dir if conf.only_summary or conf.all_subdirs else path.dirname(conf.dir))
 
 main()
