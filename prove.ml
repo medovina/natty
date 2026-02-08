@@ -1462,7 +1462,7 @@ let prove_all thf modules = profile @@
     | [] ->
         if (not thf) then
           if !(opts.disprove) then
-              printf "%d theorems/steps disproved, %d proved, %d skipped.\n"
+              printf "%d theorems/steps disproved, %d not disproved, %d skipped.\n"
                 !failed !succeeded !skipped
           else if !failed = 0 then printf "All theorems were proved.\n"
           else if !(opts.keep_going) then
