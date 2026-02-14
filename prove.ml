@@ -587,9 +587,8 @@ let cost p : float * bool =
  *     (ii) u is not a variable
  *     (iii) tσ ≰ t'σ
  *     (iv) the position of u is eligible in C with respect to σ
- *     (v) Cσ ≰ Dσ
- *     (vi) t = t' is maximal in D with respect to σ
- *     (vii)  if t'σ = ⊥, u is in a literal of the form u = ⊤;
+ *     (v) t = t' is maximal in D with respect to σ
+ *     (vi)  if t'σ = ⊥, u is in a literal of the form u = ⊤;
               if t'σ = ⊤, u is in a literal of the form u = ⊥ *)
 
 let super rule with_para lenient upward dp d' pairs cp c_lits c_lit : pformula list = profile @@
@@ -605,17 +604,15 @@ let super rule with_para lenient upward dp d' pairs cp c_lits c_lit : pformula l
   let d'_s = map (rsubst sub) d' in
   let t_s, t'_s = rsubst sub t, rsubst sub t' in
   let t_eq_t'_s = Eq (t_s, t'_s) in
-  (* let d_s = t_eq_t'_s :: d'_s in *)
   let c_s = map (rsubst sub) c_lits in
   let c1_s = rsubst sub c_lit in
   let fail n = if dbg then printf "super: failed check %d\n" n; true in
   if is_higher sub && not (orig_goal_or_hyp dp) && fail 0 ||
-      is_bool_const t'_s && not (top_level (t'_s = _false) u c_lit) && fail 7 || (* vii *)
-      not lenient && not (is_maximal lit_gt (simp_eq t_eq_t'_s) d'_s) && fail 6 ||  (* vi *)
+      is_bool_const t'_s && not (top_level (t'_s = _false) u c_lit) && fail 7 || (* vi *)
+      not lenient && not (is_maximal lit_gt (simp_eq t_eq_t'_s) d'_s) && fail 6 ||  (* v *)
       not upward && term_ge t'_s t_s && fail 3 ||  (* iii *)
       not (lenient || upward) && not (is_maximal lit_gt c1_s c_s &&
-                                      is_eligible sub parent_eq) && fail 4 (* *||  (* iv *)
-      not (lenient || upward) && t'_s <> _false && clause_gt d_s c_s && fail 5  (* v *) *)
+                                      is_eligible sub parent_eq) && fail 4 (* iv *)
   then [] else (
     let c1_t' = replace_in_formula t' u c_lit in
     let c_s = replace1 (rsubst sub c1_t') c1_s c_s in
