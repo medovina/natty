@@ -597,7 +597,7 @@ let super rule with_para lenient upward dp d' pairs cp c_lits c_lit : pformula l
   let+ (t, t') = pairs in
   let res = is_bool_const t' in
   if is_lambda t' || not res && not with_para then [] else
-  let lenient = res && lenient in
+  let lenient = res && lenient || upward in
   let+ (u, parent_eq) = green_subterms c_lit in  (* i, ii *)
   let+ sub = unify !comm_ops t u in
   if dbg then printf "super: unified %s with %s\n" (show_formula t) (show_formula u);
@@ -610,8 +610,8 @@ let super rule with_para lenient upward dp d' pairs cp c_lits c_lit : pformula l
   if is_higher sub && not (orig_goal_or_hyp dp) && fail 0 ||
       is_bool_const t'_s && not (top_level (t'_s = _false) u c_lit) && fail 6 || (* vi *)
       not lenient && not (is_maximal lit_gt (simp_eq t_eq_t'_s) d'_s) && fail 5 ||  (* v *)
-      not upward && term_ge t'_s t_s && fail 3 ||  (* iii *)
-      not (lenient || upward) && not (is_maximal lit_gt c1_s c_s &&
+      not lenient && term_ge t'_s t_s && fail 3 ||  (* iii *)
+      not lenient && not (is_maximal lit_gt c1_s c_s &&
                                       is_eligible sub parent_eq) && fail 4 (* iv *)
   then [] else (
     let c1_t' = replace_in_formula t' u c_lit in
@@ -647,7 +647,7 @@ let all_super1 dp cp : pformula list =
   let+ (d_lits, new_lits, _) = d_steps in
   let d_lits, new_lits = map prefix_vars d_lits, map prefix_vars new_lits in
   let+ t_t' = new_lits in
-  let pairs = eq_pairs false upward t_t' in  (* iii: pre-check *)
+  let pairs = eq_pairs false (lenient || upward) t_t' in  (* iii: pre-check *)
   let pairs = pairs |> filter (fun (t, _) ->
     def_expand |> opt_for_all (fun c -> is_const_id c (head_of t))) in
   let+ (c_lits, _, exposed_lits) = c_steps in
