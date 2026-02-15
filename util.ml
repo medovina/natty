@@ -324,6 +324,8 @@ let is_maximal gt x ys =
 let maximum_by f xs =
   snd (maximum (map (fun x -> (f x, x)) xs))
 
+let int_sum xs = fold_left (+) 0 xs
+
 let sum xs = fold_left (+.) 0.0 xs
 
 let group_by key_fun fold init xs =
@@ -340,6 +342,10 @@ let group_by key_fun fold init xs =
   
 let gather_pairs (xs: ('a * 'b) list) : ('a * 'b list) list =
   group_by fst (fun (_, x) acc -> cons x acc) [] xs
+
+let rec transpose xs = match xs with
+  | [] :: _ -> []
+  | xs -> map hd xs :: transpose (map tl xs)
 
 (* association lists *)
 

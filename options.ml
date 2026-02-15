@@ -18,8 +18,8 @@ type options = {
   show_proofs: bool ref;
   show_proof_of: int ref;
   stats: bool ref;
-  timeout: float ref;
-  verbose: bool ref
+  thm_count: bool ref;
+  timeout: float ref
 }
 
 let opts = {
@@ -40,8 +40,8 @@ let opts = {
   show_proof_of = ref 0;
   show_structure = ref false;
   stats = ref false;
-  timeout = ref 5.0;
-  verbose = ref false
+  thm_count = ref false;
+  timeout = ref 5.0
 }
 
 let debug = ref 0
@@ -59,6 +59,7 @@ let usage () =
       -f<name>          prove/export given theorem and following
       -h                print this help message
       -i                print proof statistics
+      -k                print count of theorems and proof steps
       -l                run as language server
       -n                show inferred proof structure
       -o<name>          only prove/export given theorem or proof step
@@ -68,7 +69,6 @@ let usage () =
       -s<id>,<id>       debug superposition of given formulas
       -t<num>           time limit in seconds
       -u                use deferred superposition
-      -v                verbose output
       -x                export theorems to THF files
          -xf              also generate THF files for full theorems with proof steps
       -y                allow all possible superposition inferences
@@ -93,6 +93,7 @@ let parse_args args =
             | 'f' -> opts.from_thm := Some value
             | 'h' -> usage ()
             | 'i' -> opts.stats := true
+            | 'k' -> opts.thm_count := true
             | 'l' -> opts.server := true
             | 'n' -> opts.show_structure := true
             | 'o' -> opts.only_thm := Some value
@@ -105,7 +106,6 @@ let parse_args args =
                 | _ -> failwith "expected formula ids")
             | 't' -> opts.timeout := float_of_string value
             | 'u' -> opts.deferred := true
-            | 'v' -> opts.verbose := true
             | 'x' -> opts.export := true;
                      if arg = "-xf" then opts.export_full := true
             | 'y' -> opts.all_superpositions := true;

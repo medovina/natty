@@ -110,6 +110,10 @@ let stmt_formula stmt : formula option = match stmt with
 
 let get_stmt_formula f : formula = Option.get (stmt_formula f)
 
+let thm_steps = function
+  | Theorem { steps; _ } -> steps
+  | _ -> assert false
+
 let thm_by = function
   | Theorem { by; _ } -> by | _ -> failwith "thm_by"
 
@@ -223,15 +227,24 @@ let expand_modules modules :
     (string * statement * statement list * statement list) list =
   expand_modules1 modules modules
 
-let write_thm_info md =
-  let thms = filter is_theorem md.stmts in
-  let thm_steps = function
-    | Theorem { steps; _ } -> steps
-    | _ -> assert false in
-  let step_groups = map thm_steps thms |> filter (fun steps -> steps <> []) in
+let show_thm_stats name num_thms with_proofs without proof_steps =
   printf "%s: %d theorems (%d with proofs, %d without); %d proof steps\n"
-    md.filename
-    (length thms) (length step_groups) (length thms - length step_groups)
-    (length (concat step_groups))
+    name num_thms with_proofs without proof_steps
 
+let write_thm_info md : int list =
+  let thms = filter is_theorem md.stmts in
+  let step_groups = map thm_steps thms |> filter (fun steps -> steps <> []) in
+  let num_thms, with_proofs, without =
+    length thms, length step_groups, length thms - length step_groups in
+  let proof_steps = length (concat step_groups) + without in
+  show_thm_stats md.filename num_thms with_proofs without proof_steps;
+  [num_thms; with_proofs; without; proof_steps]
+
+let write_all_thm_info modules =
+  let stats = map write_thm_info modules in
+  match (map int_sum (transpose stats)) with
+    | [num_thms; with_proofs; without; proof_steps] ->
+        show_thm_stats "total" num_thms with_proofs without proof_steps
+    | _ -> failwith "write_all_thm_info"
+      
 type smodule = statement _module

@@ -35,8 +35,8 @@ let source = parse_args (tl (Array.to_list Sys.argv)) in
             | Error (msg, (filename, range)) ->
                 printf "%s at %s: %s\n" msg filename (show_range range)
             | Ok (from_thf, modules) ->
-                if !(opts.verbose) then iter write_thm_info modules;
-                if !(opts.export) then (
+                if !(opts.thm_count) then write_all_thm_info modules
+                else if !(opts.export) then (
                   clean_dir "thf";
                   iter (export_module "thf" modules) modules)
                 else
