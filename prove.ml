@@ -1217,10 +1217,7 @@ let def_is_atomic f : (str * str) option = match remove_for_all f with
         | _ -> None)
   | _ -> None
 
-let is_safe_for_rewrite f =
-  let xs, _ = gather_for_all f in
-  is_some (def_is_synonym f) ||
-    length xs <= 1 && is_some (def_is_atomic f)
+let is_safe_for_rewrite f = is_some (def_is_atomic f)
 
 (* Given an associative/commutative operator *, construct the axiom
  *     x * (y * z) = y * (x * z)
