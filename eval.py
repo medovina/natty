@@ -33,7 +33,7 @@ all_provers = {
           'stats' : { 'given': r'given: (\d+)',
                       'generated': r'generated: (\d+)' } },
     'E' :   # -s: silent
-        { 'cmd': 'eprover-ho --auto -s --cpu-limit={timeout}',
+        { 'cmd': 'eprover-ho --auto -s --sine=Auto --cpu-limit={timeout}',
           'stats_arg': '--print-statistics',
           'stats' : { '_initial': r'# Initial clauses in saturation +: (\d+)',
                       'given': r'# ...remaining for further processing +: (\d+)',
