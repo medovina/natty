@@ -951,12 +951,6 @@ let encode_formula consts f : formula =
                 | _ -> app f g)
           | Lambda (id, typ, f) ->
               Lambda (id, encode_type typ, encode f)
-          | Eq (f, Lambda (_, typ, Const ("%⊤", _, _)))
-          | Eq (Lambda (_, typ, Const ("%⊤", _, _)), f) ->
-              (* apply functional extensionality *)
-              let x = next_var "x" (free_vars f) in
-              let h = _for_all x typ (app f (var x typ)) in
-              encode h
           | f -> map_formula encode f in
   let f = encode f in
   check_formula_subtypes f;

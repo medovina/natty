@@ -1329,6 +1329,15 @@ let defined_symbol axiom_symbols stmt : id option = match stmt with
       when mem c axiom_symbols -> Some c
   | _ -> None
 
+let rec eliminate_universal_set f = match f with
+  | Eq (f, Lambda (_, typ, Const ("%⊤", _, _)))
+  | Eq (Lambda (_, typ, Const ("%⊤", _, _)), f) ->
+      (* apply functional extensionality *)
+      let x = next_var "x" (free_vars f) in
+      let h = _for_all x typ (app f (var x typ)) in
+      eliminate_universal_set h
+  | _ -> map_formula eliminate_universal_set f
+
 let gen_pformulas thm all_known local_known : pformula list =
   let by_thms =
     let+ r = thm_by thm in
@@ -1345,6 +1354,7 @@ let gen_pformulas thm all_known local_known : pformula list =
     match stmt_formula stmt with
       | None -> (ops, [])
       | Some f ->
+          let f = eliminate_universal_set f in
           let by = not !(opts.ignore_by) && memq stmt by_thms in
           let definition = is_definition stmt in
           let kind_op = ac_kind f in
