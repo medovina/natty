@@ -16,9 +16,9 @@ let source = parse_args (tl (Array.to_list Sys.argv)) in
     | None -> usage()
     | Some source ->
         if !(opts.e_proof) then
-          match parse_proof source with
-            | Failed (msg, _) -> print_endline msg
-            | Success formulas -> format_proof formulas
+          reformat_proof source parse_e_proof format_e_proof
+        else if !(opts.vampire_proof) then
+          reformat_proof source parse_v_proof format_v_proof
         else
           let ext = Filename.extension source in
           let res = match ext with

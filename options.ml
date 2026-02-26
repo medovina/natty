@@ -19,7 +19,8 @@ type options = {
   show_proof_of: int ref;
   stats: bool ref;
   thm_count: bool ref;
-  timeout: float ref
+  timeout: float ref;
+  vampire_proof: bool ref
 }
 
 let opts = {
@@ -41,7 +42,8 @@ let opts = {
   show_structure = ref false;
   stats = ref false;
   thm_count = ref false;
-  timeout = ref 5.0
+  timeout = ref 5.0;
+  vampire_proof = ref false
 }
 
 let debug = ref 0
@@ -55,12 +57,12 @@ let usage () =
       -b                ignore hints about which theorems to use in proving a step
       -c                try to disprove all theorems/steps
       -d<level>         debug level
-      -e                reformat proof from E
       -f<name>          prove/export given theorem and following
       -h                print this help message
       -i                print proof statistics
       -k                print count of theorems and proof steps
       -l                run as language server
+      -me, -mv          reformat proof from E or Vampire
       -n                show inferred proof structure
       -o<name>          only prove/export given theorem or proof step
       -p[<id>]          output proof of theorems, or only of given formula
@@ -89,12 +91,15 @@ let parse_args args =
             | 'c' -> opts.disprove := true
             | 'd' -> let level = if arg = "-d" then 1 else int_val () in
                      debug := level
-            | 'e' -> opts.e_proof := true
             | 'f' -> opts.from_thm := Some value
             | 'h' -> usage ()
             | 'i' -> opts.stats := true
             | 'k' -> opts.thm_count := true
             | 'l' -> opts.server := true
+            | 'm' -> (match arg.[2] with
+                | 'e' -> opts.e_proof := true
+                | 'v' -> opts.vampire_proof := true
+                | _ -> failwith "parse_args")
             | 'n' -> opts.show_structure := true
             | 'o' -> opts.only_thm := Some value
             | 'p' -> if arg = "-p" then opts.show_proofs := true

@@ -159,44 +159,71 @@ let thf_file : statement list p =
 
 let parse_thf source : (smodule list, string * frange) Stdlib.result =
   parse_modules (many _include) thf_file [source] [] true
-  
-type derivation =
+
+let reformat_proof source parser formatter =
+  match parser source with
+    | Failed (msg, _) -> print_endline msg
+    | Success formulas -> formatter formulas
+
+(* Parsing output from E *)
+
+type e_derivation =
   | Step of id
-  | Inference of id * derivation list
+  | Inference of id * e_derivation list
   | File
 
-let rec derivation s = choice [
+let rec e_derivation s = choice [
   str "inference" >> parens (
     pipe2
       (id << char ',' << brackets (str "status" >> parens id) << char ',')
-      (brackets (comma_sep1 derivation))
+      (brackets (comma_sep1 e_derivation))
       (fun id derivs -> Inference (id, derivs)));
   str "file" >> parens (quoted_id << str "," << id) >>$ File;
   (id |>> fun id -> Step id)
 ] s
 
-let proof_formula = empty >>?
+let e_formula : (id * formula * e_derivation) list p = empty >>?
   str "thf" >> char '(' >> (
     pair (id << str ",") (id << str ",") >>= fun (id, role) ->
       if role = "type" then return []
-      else pipe2 (formula << str ",") derivation (fun f deriv -> [(id, f, deriv)])
+      else pipe2 (formula << str ",") e_derivation (fun f deriv -> [(id, f, deriv)])
   ) << skip_many_until any_char newline
 
-let parse_proof source =
-  MParser.parse_channel (many proof_formula |>> concat) (open_in source) ()
+let parse_e_proof source : (id * formula * e_derivation) list result =
+  MParser.parse_channel ((many e_formula << empty << eof) |>> concat) (open_in source) ()
 
 let id_num id = remove_prefix "c_0_" id
 
-let rec show_derivation = function
+let rec show_e_derivation = function
   | Step id -> id_num id
-  | Inference (id, [d]) -> show_derivation d ^ ", " ^ id
+  | Inference (id, [d]) -> show_e_derivation d ^ ", " ^ id
   | Inference ("rw", [d; Step id]) ->
-      show_derivation d ^ sprintf ", rw(%s)" (id_num id)
+      show_e_derivation d ^ sprintf ", rw(%s)" (id_num id)
   | Inference (rule, [d1; d2]) ->
-      sprintf "%s, %s, %s" (show_derivation d1) (show_derivation d2) rule
+      sprintf "%s, %s, %s" (show_e_derivation d1) (show_e_derivation d2) rule
   | Inference _ -> failwith "show_derivation"
   | File -> "file"
 
-let format_proof formulas =
+let format_e_proof formulas =
   formulas |> iter (fun (id, f, deriv) ->
-    printf "%s. %s [%s]\n" (id_num id) (show_formula f) (show_derivation deriv))
+    printf "%s. %s [%s]\n" (id_num id) (show_formula f) (show_e_derivation deriv))
+
+(* Parsing output from Vampire *)
+
+let v_formula : (int * formula * string) p = empty >>?
+  let> n = many1_chars digit << char '.' in
+  let> f = formula in
+  let$ s = str "[" >> many_chars_until any_char (char ']') in
+  (int_of_string n, f, s)
+
+let parse_v_proof source : (int * formula * string) list result =
+  MParser.parse_channel (many v_formula << empty << eof) (open_in source) ()
+
+let rec simplify_true f = match f with
+   | Eq (Const ("%⊤", _, _), g)
+   | Eq (g, Const ("%⊤", _, _)) -> simplify_true g
+   | f -> map_formula simplify_true f
+
+let format_v_proof formulas =
+  formulas |> iter (fun (n, f, deriv) ->
+    printf "%d. %s [%s]\n" n (show_formula (simplify_true f)) deriv)
