@@ -74,7 +74,7 @@ The theorems and proofs in `nat.n`, `int.n`, `div.n`, `prime.n` and `rat.n` larg
 
 At this stage there is none, aside from what you see in this README file.  I'll try to improve this over time.
 
-Reading [`nat.n`](nat.n) and other input files may give you an idea of the syntactic constructs that Natty currently understands.  You could try running Natty on your own input file with custom axioms and theorems, but be warned that syntax not already present in `nat.n` or other files is very unlikely to work.
+Reading [`nat.n`](math/nat.n) and other input files may give you an idea of the syntactic constructs that Natty currently understands.  You could try running Natty on your own input file with custom axioms and theorems, but be warned that syntax not already present in `nat.n` or other files is very unlikely to work.
 
 ### Evaluation
 
