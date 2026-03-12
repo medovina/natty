@@ -1,6 +1,10 @@
 # Natural numbers: definition
 
-Definition.  The type ℕ (the natural numbers) is defined inductively with constructors 0 : ℕ and s : ℕ → ℕ.
+Axiom.  There exists a type ℕ (the natural numbers) with an element 0 : ℕ and a function s : ℕ → ℕ such that
+
+  a. There is no n : ℕ such that s(n) = 0.  [0 is not successor]
+  b. For all n, m : ℕ, if s(n) = s(m) then n = m.  [succ is injective]
+  c. Let P : Set(ℕ).  If 0 ∈ P, and k ∈ P implies s(k) ∈ P for all k : ℕ, then P = ℕ.  [induction on ℕ]
 
 Definition.  Let 1 : ℕ = s(0).  Let 2 : ℕ = s(1).
 
@@ -12,7 +16,7 @@ Corollary.  1 ≠ 0.
 
 # Addition
 
-Definition.  The binary operation + : ℕ → ℕ → ℕ is defined recursively such that for all x, y : ℕ,
+Axiom.  There is a binary operation + : ℕ → ℕ → ℕ such that for all x, y : ℕ,
 
     a. x + 0 = x.
     b. x + s(y) = s(x + y).
@@ -183,7 +187,7 @@ We have shown that for all x ∈ B, s(x) ∈ B.  By [induction on ℕ] B = ℕ. 
 
 # Multiplication
 
-Definition.  The binary operation · : ℕ → ℕ → ℕ is defined recursively such that for all x, y ∈ ℕ,
+Axiom.  There is a binary operation · : ℕ → ℕ → ℕ such that for all x, y ∈ ℕ,
 
     a. x · 0 = 0.
     b. x · s(y) = (x · y) + x.
