@@ -629,8 +629,10 @@ let rec insert_conclusion_step blocks init last_step : block list =
           | Block (Let ids_typs, blocks) ->
               let f = get_assert last_step in
               let (xs, g) = gather_for_all f in
-              if list_starts_with eq_id_type ids_typs xs then (
-                let h = for_all_vars_types (drop (length ids_typs) xs) g in
+              if distinct (map fst xs) && distinct (map fst ids_typs) &&
+                 subset_eq eq_id_type ids_typs xs then (
+                let xs = subtract_eq eq_id_type xs ids_typs in
+                let h = for_all_vars_types xs g in
                 first_blocks @
                   [Block (Let ids_typs, insert_conclusion_step blocks [] (mk_assert h))])
               else append
@@ -669,11 +671,10 @@ let rec expand_proof id name num env steps proof_steps :
       );
     );
     let blocks = infer_blocks env proof_steps in
-    let blocks =
-      if include_init
-        then insert_conclusion_step (chain_blocks init blocks)
-                init (with_reasons reasons last_step)
-      else blocks @ [Block (Assert (concl, reasons, None), [])] in
+    let init1 = if include_init then init else [] in
+    let last = if include_init
+      then with_reasons reasons last_step else Assert (concl, reasons, None) in
+    let blocks = insert_conclusion_step (chain_blocks init1 blocks) init1 last in
     if !(opts.show_structure) then print_blocks blocks;
     let (stmtss, _concl) = blocks_steps env [] false num blocks in
     (map rev stmtss, []) in

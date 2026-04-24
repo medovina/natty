@@ -270,7 +270,10 @@ let rec unzip3 = function
   | (x, y, z) :: ps ->
       let (xs, ys, zs) = unzip3 ps in (x :: xs, y :: ys, z :: zs)
 
+let mem_eq eq x ys = exists (fun y -> eq x y) ys
+
 let subset xs ys = for_all (fun x -> mem x ys) xs
+let subset_eq eq xs ys = for_all (fun x -> mem_eq eq x ys) xs
 
 let intersect xs ys = filter (fun x -> mem x ys) xs
 
@@ -278,6 +281,7 @@ let overlap xs ys = intersect xs ys <> []
 
 let subtract xs ys = filter (fun x -> not (mem x ys)) xs
 let subtractq xs ys = filter (fun x -> not (memq x ys)) xs
+let subtract_eq eq xs ys = filter (fun x -> not (mem_eq eq x ys)) xs
 
 let remove x xs = subtract xs [x]
 
@@ -309,7 +313,9 @@ let rec unique1 key l = match l with
       let k = key x in
       if exists (fun y -> key y = k) xs then xs else x :: xs
 
-let has_duplicate l = l <> unique l
+let distinct l = l = unique l
+
+let has_duplicate l = not (distinct l)
 
 let all_same = function
   | [] -> true

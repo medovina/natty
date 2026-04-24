@@ -32,7 +32,10 @@ all_provers = {
           'stats_arg': '-i',
           'stats' : { 'given': r'given: (\d+)',
                       'generated': r'generated: (\d+)' } },
-    'E' :   # -s: silent
+    'E' :
+        # -s: silent
+        # Without --sine=Auto, E may choose a premise selection mode that
+        # excludes all premises when the conjecture is ⊥.
         { 'cmd': 'eprover-ho --auto -s --sine=Auto --cpu-limit={timeout}',
           'stats_arg': '--print-statistics',
           'stats' : { '_initial': r'# Initial clauses in saturation +: (\d+)',

@@ -492,7 +492,7 @@ let simp_eq = function
   | Eq (Eq (t, t'), f) when f = _true -> Eq (t, t')
   | f -> f
 
-let is_higher (_, vsubst) = vsubst |> exists (fun (_, f) -> is_lambda f)
+let is_higher_subst (_, vsubst) = vsubst |> exists (fun (_, f) -> is_lambda f)
 
 let oriented upward t t' : (formula * formula) list = [(t, t'); (t', t)] |>
   filter (fun (t, t') -> upward || not (term_ge t' t))
@@ -607,7 +607,7 @@ let super rule with_para lenient upward dp d' pairs cp c_lits c_lit : pformula l
   let c_s = map (rsubst sub) c_lits in
   let c1_s = rsubst sub c_lit in
   let fail n = if dbg then printf "super: failed check %d\n" n; true in
-  if is_higher sub && not (orig_goal_or_hyp dp) && fail 0 ||
+  if is_higher_subst sub && not (orig_goal_or_hyp dp) && fail 0 ||
       is_bool_const t'_s && not (top_level (t'_s = _false) u c_lit) && fail 6 || (* vi *)
       not lenient && not (is_maximal lit_gt (simp_eq t_eq_t'_s) d'_s) && fail 5 ||  (* v *)
       not lenient && term_ge t'_s t_s && fail 3 ||  (* iii *)
@@ -1471,13 +1471,13 @@ let prove_all thf modules = profile @@
           else if !failed = 0 then printf "All theorems were proved.\n"
           else if !(opts.keep_going) then
             printf "%d theorems/steps proved, %d not proved.\n" !succeeded !failed
-    | (_, thm, using_env, local_known) :: rest -> (
+    | (_, thm, env_known, local_known) :: rest -> (
         match thm with
           | Theorem { steps = []; on_contra_path = contra; _ } ->
               if !(opts.disprove) && contra then incr skipped else (
                 print_endline (show_statement true thm ^ "\n");
                 let (result, elapsed) =
-                  prove using_env local_known thm (Fun.const false) in
+                  prove env_known local_known thm (Fun.const false) in
                 let b = match result with
                     | Proof (pf, stats) -> show_proof pf dis elapsed stats; true
                     | GaveUp -> printf "Not %sproved.\n" dis; false
