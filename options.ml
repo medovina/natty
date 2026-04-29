@@ -9,6 +9,7 @@ type options = {
   early_selection: bool ref;
   export: bool ref;
   export_full: bool ref;
+  export_tff: bool ref;
   keep_going: bool ref;
   from_thm: string option ref;
   ignore_by: bool ref;
@@ -33,6 +34,7 @@ let opts = {
   early_selection = ref false;
   export = ref false;
   export_full = ref false;
+  export_tff = ref false;
   from_thm = ref None;
   ignore_by = ref false;
   keep_going = ref false;
@@ -74,8 +76,9 @@ let usage () =
       -s<id>,<id>       debug superposition of given formulas
       -t<num>           time limit in seconds
       -u                use deferred superposition
-      -x                export theorems to THF files
-         -xf              also generate THF files for full theorems with proof steps
+      -x[opts]          export theorems to THF files
+         -xf              export in first-order (TFF) format
+         -xu              also generate THF files for full theorems
       -y                allow all possible superposition inferences
       |};
     exit 1
@@ -115,8 +118,13 @@ let parse_args args =
                 | _ -> failwith "expected formula ids")
             | 't' -> opts.timeout := float_of_string value
             | 'u' -> opts.deferred := true
-            | 'x' -> opts.export := true;
-                     if arg = "-xf" then opts.export_full := true
+            | 'x' ->
+                opts.export := true;
+                for i = 2 to strlen arg - 1 do match arg.[i] with
+                  | 'f' -> opts.export_tff := true
+                  | 'u' -> opts.export_full := true
+                  | _ -> failwith "parse_args"
+                done
             | 'y' -> opts.all_superpositions := true;
             | '-' -> (match opt_remove_prefix "--pipe=" arg with
                         | Some name -> opts.pipe := name

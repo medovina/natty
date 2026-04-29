@@ -38,8 +38,14 @@ let rec thf_type1 left typ =
     | Base (id, _) -> quote id
     | TypeVar id -> to_var id
     | Fun (t, u) ->
-        let s = sprintf "%s > %s" (f true t) (f false u) in
-        if left then sprintf "(%s)" s else s
+        if !(opts.export_tff) then  (* translate to curried type *)
+          let args = match arg_types typ with
+            | [typ] -> thf_type typ
+            | typs -> sprintf "(%s)" (String.concat " * " (map thf_type typs)) in
+          sprintf "%s > %s" args (thf_type (target_type typ))
+        else
+          let s = sprintf "%s > %s" (f true t) (f false u) in
+          if left then sprintf "(%s)" s else s
     | Pi _ ->
         let (xs, typ) = gather_pi typ in
         let decls = xs |> map (fun x -> to_var x ^ ": $tType") in
@@ -77,8 +83,12 @@ let rec thf outer right f : string =
               if id = _type then thf_type1 (outer <> "") typ else quote (prefix_upper id)
           | Var (id, _, _) -> to_var id
           | App (g, h, _) ->
-              let s = sprintf "%s @ %s" (thf "@" false g) (thf "@" true h) in
-              parens (outer <> "@" || right) s
+              if !(opts.export_tff) then
+                let (f, args) = collect_args f in
+                sprintf "%s(%s)" (thf_formula f) (comma_join (map thf_formula args))
+              else
+                let s = sprintf "%s @ %s" (thf "@" false g) (thf "@" true h) in
+                parens (outer <> "@" || right) s
           | Lambda (id, typ, f) -> quant "^" [(id, typ)] f
           | Eq (t, u) ->
               parens true (sprintf "%s = %s" (thf "=" false t) (thf "=" true u))
@@ -96,7 +106,9 @@ let stmt_prefix = function
   | Theorem _ -> "thm"
 
 let stmt_prefix_label stmt = stmt_prefix stmt ^ "_" ^ stmt_label stmt
-  
+
+let form () = if !(opts.export_tff) then "tff" else "thf"
+
 let thf_statement env is_conjecture stmt : string =
   let const id typ =
     sprintf "%s, type, %s: %s"
@@ -126,9 +138,9 @@ let thf_statement env is_conjecture stmt : string =
     | Theorem { formula = f; by; _ } ->
         let kind = if is_conjecture then "conjecture" else "theorem" in
         thm_or_hyp stmt kind by f in
-  sprintf "thf(%s)." (conv stmt)
+  sprintf "%s(%s)." (form ()) (conv stmt)
 
-let thf_file dir name = mk_path dir (name ^ ".thf")
+let thf_file dir name = mk_path dir (name ^ "." ^ form ())
 
 let write_thf dir name using using_env proven (stmt: statement option) =
   let f = thf_file dir (Str.global_replace (Str.regexp "\\.\\| ") "_" name) in
@@ -140,7 +152,7 @@ let write_thf dir name using using_env proven (stmt: statement option) =
         if free_vars problem = [] then remove_universal problem else problem in
       fprintf out "%% Problem: %s\n\n" (show_formula problem));
     using |> iter (fun name ->
-      fprintf out "include('../%s/%s.thf').\n" name name);
+      fprintf out "include('../%s/%s.%s').\n" name name (form ()));
     if using <> [] then fprintf out "\n";
     let write is_last stmt = (
       fprintf out "%% %s\n" (show_statement false (apply_types_in_stmt stmt));

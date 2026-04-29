@@ -86,7 +86,7 @@ let chars_to_string cs = String.of_seq (List.to_seq cs)
 
 let string_range s i j = String.sub s i (j - i)
 
-let string_from s i = string_range s i (String.length s)
+let string_from s i = string_range s i (strlen s)
 
 let last_char s = s.[strlen s - 1]
 
@@ -111,7 +111,7 @@ let ends_with p s = String.ends_with ~suffix:p s
 let str_replace s = Str.global_replace (Str.regexp_string s)
 
 let opt_remove_prefix p s : string option =
-  if starts_with p s then Some (string_from s (String.length p))
+  if starts_with p s then Some (string_from s (strlen p))
   else None
 
 let remove_prefix p s : string = opt_default (opt_remove_prefix p s) s
@@ -132,13 +132,13 @@ let indent_lines n s = unlines (indent_by n (str_lines s))
 
 let indent_with_prefix prefix s =
   let lines = str_lines s in
-  unlines ((prefix ^ hd lines) :: indent_by (String.length prefix) (tl lines))
+  unlines ((prefix ^ hd lines) :: indent_by (strlen prefix) (tl lines))
 
 module StringSet = Set.Make (String)
 module StringMap = Map.Make (String)
 
 let singular s =
-  if last_char s = 's' then string_range s 0 (String.length s - 1)
+  if last_char s = 's' then string_range s 0 (strlen s - 1)
   else failwith "word must end with 's'"
 
 (* unicode *)
@@ -181,7 +181,7 @@ let ulen c =
 
 let utf8_count f s =
   let rec len k =
-    if k >= String.length s then 0
+    if k >= strlen s then 0
     else
       let n = ulen (Char.code s.[k]) in
       f n + len (k + n)
