@@ -1348,7 +1348,7 @@ let gen_pformulas thm all_known local_known : pformula list =
           let by = not !(opts.ignore_by) && memq stmt by_thms in
           let definition = is_definition stmt in
           let kind_op = ac_kind f in
-          if not ( by || is_hypothesis stmt ||
+          if !(opts.premise_selection) && not ( by || is_hypothesis stmt ||
                    use_premise const_map proof_consts f
                                (stmt_defined stmt) (is_some kind_op) (stmt_name stmt))
           then (ops, []) else
@@ -1368,7 +1368,8 @@ let gen_pformulas thm all_known local_known : pformula list =
           match kind_op with
             | Some (kind, op, "", typ) when kind = Assoc || kind = Comm ->
                 let ps =
-                  if kind = Comm then (comm_ops := op :: !comm_ops; []) else [p] in
+                  if kind = Comm && !(opts.commutative_unification)
+                    then (comm_ops := op :: !comm_ops; []) else [p] in
                 if mem (ac_other kind, op, typ) ops then
                   (remove (kind, op, typ) ops, ps @ [ac_completion op typ])
                 else ((kind, op, typ) :: ops, ps)
@@ -1418,7 +1419,7 @@ let functional_extend f : formula list = match f with
 
 let prove env_known local_known thm cancel_check : proof_result * float =
   step_strategy := is_step thm;
-  destructive_rewrites := not !step_strategy;
+  destructive_rewrites := !(opts.destructive) || not !step_strategy;
   let env_known, local_known = lower_stmts env_known, lower_stmts local_known in
   let all_known = env_known @ local_known in
   let all_known, local_known, thm = encode_consts all_known local_known thm in
