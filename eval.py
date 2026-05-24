@@ -17,8 +17,9 @@ class Config:
     only_summary: bool
     prove_steps: bool
     stats: bool
+    jobs: int
 
-conf = Config(False, '', [], default_timeout, False, True, False)
+conf = Config(False, '', [], default_timeout, False, True, False, 0)
 
 all_provers = {
     'Natty' :
@@ -216,7 +217,8 @@ def run_prover(thf_dir, theorems, prover, results):
     ids = [id for id in theorems.keys() if id not in results[prover]['time']]
 
     if ids != []:
-        with futures.ThreadPoolExecutor(multiprocessing.cpu_count() // 4) as ex:
+        n = conf.jobs or (multiprocessing.cpu_count() // 4)
+        with futures.ThreadPoolExecutor(n) as ex:
             out = ex.map(lambda id: prove1(thf_dir, prover, id), ids)
         for id, stats in zip(ids, out):
             for stat, val in stats.items():
@@ -300,6 +302,8 @@ def parse_args():
                        if not (short_name(p).lower().startswith(prefix))]
         elif arg == '-h':
             conf.prove_steps = False
+        elif arg.startswith('-j'):
+            conf.jobs = int(arg[2:])
         elif arg.startswith('-p'):
             prefix = arg[2:].lower()
             provers = [p for p in all_prover_names if short_name(p).lower().startswith(prefix)]
@@ -320,6 +324,7 @@ def parse_args():
         print( '    -d: evaluate theorems in all subdirectories')
         print( '    -e<prover>: evaluate all provers except the given prover')
         print( '    -h: try to prove theorems without using proof steps')
+        print( '    -j: number of proof attempts to run in parallel')
         print( '    -p<prover>: evaluate only the given prover')
         print( '    -s: collect statistics')
         print(f'    -t<num>: timeout (default is {default_timeout} seconds)')

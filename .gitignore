@@ -7,5 +7,6 @@ _build
 *.orig.n
 *.out
 *.perf
+*.tff
 *.thf
 *.trace
