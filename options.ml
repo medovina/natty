@@ -3,7 +3,9 @@ open Util
 type options = {
   all_modules: bool ref;
   all_superpositions: bool ref;
+  commutative_unification: bool ref;
   deferred: bool ref;
+  destructive: bool ref;  (* perform all rewrites destructively *)
   disprove: bool ref;
   e_proof: bool ref;
   early_selection: bool ref;
@@ -15,6 +17,7 @@ type options = {
   ignore_by: bool ref;
   only_thm: string option ref;
   pipe: string ref;
+  premise_selection: bool ref;
   server: bool ref;
   show_structure: bool ref;
   show_proofs: bool ref;
@@ -28,7 +31,9 @@ type options = {
 let opts = {
   all_modules = ref false;
   all_superpositions = ref false;
+  commutative_unification = ref true;
   deferred = ref false;
+  destructive = ref false;
   disprove = ref false;
   e_proof = ref false;
   early_selection = ref false;
@@ -40,6 +45,7 @@ let opts = {
   keep_going = ref false;
   only_thm = ref None;
   pipe = ref "";
+  premise_selection = ref true;
   server = ref false;
   show_proofs = ref false;
   show_proof_of = ref 0;
@@ -79,7 +85,10 @@ let usage () =
       -x[opts]          export theorems to THF files
          -xf              export in first-order (TFF) format
          -xu              also generate THF files for full theorems
-      -y                allow all possible superposition inferences
+      -zc               disable commutative unification
+      -zn               disable non-destructive rewriting
+      -zp               disable premise selection
+      -zs               disable superposition restrictions
       |};
     exit 1
 
@@ -125,7 +134,12 @@ let parse_args args =
                   | 'u' -> opts.export_full := true
                   | _ -> failwith "parse_args"
                 done
-            | 'y' -> opts.all_superpositions := true;
+            | 'z' -> (match string_from arg 1 with
+                | "zc" -> opts.commutative_unification := false;
+                | "zn" -> opts.destructive := true;
+                | "zp" -> opts.premise_selection := false;
+                | "zs" -> opts.all_superpositions := true;
+                | _ -> failwith "unknown option")
             | '-' -> (match opt_remove_prefix "--pipe=" arg with
                         | Some name -> opts.pipe := name
                         | None -> failwith "unknown option")
