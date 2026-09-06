@@ -8,8 +8,7 @@ Here is a simple proof in Natty as it appears using the [Natty extension](https:
 
 Natty's automatic prover is based on a subset of the higher-order superposition calculus[^1].
 
-Natty is in an early stage of development, and is currently only able to prove some basic theorems about the natural numbers, integers and rationals.  As such, in its present form it will probably be of interest only to theorem proving researchers and enthusiasts.
-
+Natty is able to prove a number of basic theorems about the natural numbers, integers and rationals, but is no longer under active development.  Its successor is [Natural Lean](https://github.com/medovina/natural_lean/).
 ### Prerequsities
 
 Natty is written in [OCaml](https://ocaml.org/), using [Dune](https://dune.build/) as its build system.  It requires OCaml version 5.4 and depends on several OCaml libraries: [MParser](https://github.com/murmour/mparser), [psq](https://github.com/pqwy/psq), and [yojson](https://github.com/ocaml-community/yojson).  You can install these libraries using [opam](https://opam.ocaml.org/):
@@ -72,7 +71,8 @@ The theorems and proofs in `nat.n`, `int.n`, `div.n`, `prime.n` and `rat.n` larg
 
 ### Documentation
 
-At this stage there is none, aside from what you see in this README file.  I'll try to improve this over time.
+At this stage there is none, aside from what you see in this README file. 
+
 
 Reading [`nat.n`](math/nat.n) and other input files may give you an idea of the syntactic constructs that Natty currently understands.  You could try running Natty on your own input file with custom axioms and theorems, but be warned that syntax not already present in `nat.n` or other files is very unlikely to work.
 
