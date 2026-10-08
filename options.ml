@@ -1,5 +1,7 @@
 open Util
 
+type export_format = FOF | TFF | THF 
+
 type options = {
   all_modules: bool ref;
   all_superpositions: bool ref;
@@ -9,8 +11,8 @@ type options = {
   disprove: bool ref;
   e_proof: bool ref;
   export: bool ref;
+  export_format: export_format ref;
   export_full: bool ref;
-  export_tff: bool ref;
   keep_going: bool ref;
   from_thm: string option ref;
   ignore_by: bool ref;
@@ -36,8 +38,8 @@ let opts = {
   disprove = ref false;
   e_proof = ref false;
   export = ref false;
+  export_format = ref THF;
   export_full = ref false;
-  export_tff = ref false;
   from_thm = ref None;
   ignore_by = ref false;
   keep_going = ref false;
@@ -53,6 +55,11 @@ let opts = {
   timeout = ref 5.0;
   vampire_proof = ref false
 }
+
+let export_ext () = match !(opts.export_format) with
+  | FOF -> "fof"
+  | TFF -> "tff"
+  | THF -> "thf"
 
 let debug = ref 0
 let debug_super = ref (0, 0)
@@ -80,8 +87,9 @@ let usage () =
       -t<num>           time limit in seconds
       -u                use deferred superposition
       -x[opts]          export theorems to THF files
-         -xf              export in first-order (TFF) format
-         -xu              also generate THF files for full theorems
+         -xf              export in first-order (FOF) format
+         -xt              export in typed first-order (TFF) format
+         -xu              also generate files for full theorems
       -zc               disable commutative unification
       -zn               disable non-destructive rewriting
       -zp               disable premise selection
@@ -126,7 +134,8 @@ let parse_args args =
             | 'x' ->
                 opts.export := true;
                 for i = 2 to strlen arg - 1 do match arg.[i] with
-                  | 'f' -> opts.export_tff := true
+                  | 'f' -> opts.export_format := FOF
+                  | 't' -> opts.export_format := TFF
                   | 'u' -> opts.export_full := true
                   | _ -> failwith "parse_args"
                 done

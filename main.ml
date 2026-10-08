@@ -37,7 +37,8 @@ let source = parse_args (tl (Array.to_list Sys.argv)) in
             | Ok (from_thf, modules) ->
                 if !(opts.thm_count) then write_all_thm_info modules
                 else if !(opts.export) then (
-                  clean_dir "thf";
-                  iter (export_module "thf" modules) modules)
+                  let dir = export_ext () in
+                  clean_dir dir;
+                  iter (export_module dir modules) modules)
                 else
                   Prove.prove_all from_thf modules
