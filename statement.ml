@@ -193,9 +193,18 @@ let is_predicate_type = function
   | Fun (_, Bool) -> true
   | _ -> false
 
-let is_higher f =
-  let (vs, _) = gather_for_all f in
-  exists is_predicate_type (map snd vs)
+let rec first_order f = match kind f with
+  | Quant (_, _, _, f) -> first_order f
+  | _ -> match f with
+    | Const _ -> true
+    | Var _ -> true
+    | App _ -> (match collect_args f with
+      | (Const _, args) -> for_all first_order args
+      | _ -> false)
+    | Lambda _ -> false
+    | Eq (f, g) -> first_order f && first_order g
+
+let is_higher f = not (first_order f)
 
 let is_higher_stmt stmt = match stmt with
   | Definition _ -> false

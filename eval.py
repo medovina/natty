@@ -13,13 +13,17 @@ class Config:
     all_subdirs: bool
     dir: str
     eval_provers: list
+    kind: str
     timeout: int
     only_summary: bool
     prove_steps: bool
     stats: bool
     jobs: int
 
-conf = Config(False, '', [], default_timeout, False, True, False, 0)
+conf = Config(False, '', [], 'thf', default_timeout, False, True, False, 0)
+
+def ext():
+    return '.' + conf.kind
 
 all_provers = {
     'Natty' :
@@ -66,10 +70,10 @@ def sort_key(s):
     return [to_int(n) for n in s.replace('_s', '_').split('_')]
 
 def read_theorems(thf_dir):
-    files = [name.removesuffix('.thf') for name in os.listdir(thf_dir)
-             if name.endswith('.thf')]
+    files = [name.removesuffix(ext()) for name in os.listdir(thf_dir)
+             if name.endswith(ext())]
     if len(files) == 0:
-        print(f'no .thf files in {thf_dir}')
+        print(f'no {ext()} files in {thf_dir}')
         exit()
 
     files = [name for name in files if name[0].isdigit()]
@@ -77,7 +81,7 @@ def read_theorems(thf_dir):
 
     theorems = {}
     for file in files:
-        with open(path.join(thf_dir, file + '.thf')) as f:
+        with open(path.join(thf_dir, file + ext())) as f:
             conjecture = f.readline().strip().removeprefix('% Problem: '.strip())
         is_step = re.search(r'_s\d+$', file) is not None
         if conf.prove_steps:
@@ -143,7 +147,7 @@ def prove(thf_dir, prover, file):
     else:
         prover_stats = None
 
-    filename = path.join(thf_dir, file + '.thf')
+    filename = path.join(thf_dir, file + ext())
     cmd += " " + filename
 
     completed = subprocess.run("time -f 'time:%U %S' " + cmd, shell = True, capture_output = True)
@@ -304,6 +308,8 @@ def parse_args():
             conf.prove_steps = False
         elif arg.startswith('-j'):
             conf.jobs = int(arg[2:])
+        elif arg.startswith('-k'):
+            conf.kind = arg[2:]
         elif arg.startswith('-p'):
             prefix = arg[2:].lower()
             provers = [p for p in all_prover_names if short_name(p).lower().startswith(prefix)]
@@ -325,6 +331,7 @@ def parse_args():
         print( '    -e<prover>: evaluate all provers except the given prover')
         print( '    -h: try to prove theorems without using proof steps')
         print( '    -j: number of proof attempts to run in parallel')
+        print( '    -k<kind>: kind of TPTP data files (default = thf)')
         print( '    -p<prover>: evaluate only the given prover')
         print( '    -s: collect statistics')
         print(f'    -t<num>: timeout (default is {default_timeout} seconds)')
