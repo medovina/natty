@@ -8,7 +8,6 @@ type options = {
   destructive: bool ref;  (* perform all rewrites destructively *)
   disprove: bool ref;
   e_proof: bool ref;
-  early_selection: bool ref;
   export: bool ref;
   export_full: bool ref;
   export_tff: bool ref;
@@ -36,7 +35,6 @@ let opts = {
   destructive = ref false;
   disprove = ref false;
   e_proof = ref false;
-  early_selection = ref false;
   export = ref false;
   export_full = ref false;
   export_tff = ref false;
@@ -67,7 +65,6 @@ let usage () =
       -b                ignore hints about which theorems to use in proving a step
       -c                try to disprove all theorems/steps
       -d<level>         debug level
-      -e                perform early premise selection
       -f<name>          prove/export given theorem and following
       -h                print this help message
       -i                print proof statistics
@@ -106,7 +103,6 @@ let parse_args args =
             | 'c' -> opts.disprove := true
             | 'd' -> let level = if arg = "-d" then 1 else int_val () in
                      debug := level
-            | 'e' -> opts.early_selection := true
             | 'f' -> opts.from_thm := Some value
             | 'h' -> usage ()
             | 'i' -> opts.stats := true

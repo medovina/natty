@@ -178,8 +178,7 @@ let export_module dir all_modules md =
     match thm with
       | Theorem { label = id; name; _ } ->
           let filename = String.concat ":" ([id] @ opt_to_list name) in
-          let extra = filter (extra_premise thm) using_env in
           write_thf subdir (fix_filename filename)
-            using using_env (extra @ rev known) (Some thm)
+            using using_env (rev known) (Some thm)
       | _ -> failwith "theorem expected");
-  write_thf subdir module_name [] [] (filter (Fun.negate is_higher_stmt) md.stmts) None
+  write_thf subdir module_name [] [] md.stmts None

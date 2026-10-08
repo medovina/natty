@@ -199,13 +199,7 @@ let is_higher f =
 
 let is_higher_stmt stmt = match stmt with
   | Definition _ -> false
-  | _ -> !(opts.early_selection) && opt_exists is_higher (stmt_formula stmt)
-
-let include_premise for_stmt stmt : bool =
-  refers_to for_stmt stmt || not (is_higher_stmt stmt)
-
-let extra_premise for_stmt stmt : bool =
-  refers_to for_stmt stmt && is_higher_stmt stmt
+  | _ -> opt_exists is_higher (stmt_formula stmt)
 
 let expand_proofs apply_types stmts with_full : (statement * statement list) list =
   let only_thm = !(opts.only_thm) in
@@ -215,15 +209,14 @@ let expand_proofs apply_types stmts with_full : (statement * statement list) lis
           | Theorem { label = id; steps = fs; _ } as thm ->
               let thm_known =
                 if opt_for_all (match_thm_id id) only_thm && (with_full || fs = [])
-                then [(thm, filter (include_premise stmt) known)] else [] in
+                then [(thm, known)] else [] in
               thm_known @
                 (fs |> filter_mapi (fun j stmts ->
                   let step_name = sprintf "%s.s%d" id (j + 1) in
                   if opt_for_all (match_thm_id step_name) only_thm then
                     let (hypotheses, conjecture) = split_last (map apply_types stmts) in
                     Some (with_stmt_label step_name conjecture,
-                          rev (number_hypotheses id hypotheses) @
-                            filter (include_premise conjecture) known)
+                          rev (number_hypotheses id hypotheses) @ known)
                   else None))
           | _ -> [] in
         thms @ expand (stmt :: known) stmts
@@ -235,11 +228,10 @@ let expand_modules1 modules all_modules :
   let stmts =
     let+ m = modules in
     let using_env = map apply_types_in_stmt (module_env m all_modules) in
-    let using_env1 = filter (Fun.negate is_higher_stmt) using_env in
     let+ (stmt, local_env) =
       expand_proofs apply_types_in_stmt (map apply_types_in_stmt m.stmts) false in
     [(m.filename, stmt,
-      using_env1 @ filter (extra_premise stmt) using_env, rev local_env)] in
+      using_env, rev local_env)] in
   let stmts = match !(opts.from_thm) with
     | Some id -> stmts |> drop_while (fun (_, stmt, _, _) -> not (match_thm stmt id))
     | None -> stmts in
