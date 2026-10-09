@@ -11,6 +11,7 @@ type options = {
   disprove: bool ref;
   e_proof: bool ref;
   export: bool ref;
+  export_ascii: bool ref;
   export_format: export_format ref;
   export_full: bool ref;
   keep_going: bool ref;
@@ -38,6 +39,7 @@ let opts = {
   disprove = ref false;
   e_proof = ref false;
   export = ref false;
+  export_ascii = ref false;
   export_format = ref THF;
   export_full = ref false;
   from_thm = ref None;
@@ -87,6 +89,7 @@ let usage () =
       -t<num>           time limit in seconds
       -u                use deferred superposition
       -x[opts]          export theorems to THF files
+         -xa              use only ASCII characters in identifiers
          -xf              export in first-order (FOF) format
          -xt              export in typed first-order (TFF) format
          -xu              also generate files for full theorems
@@ -134,6 +137,7 @@ let parse_args args =
             | 'x' ->
                 opts.export := true;
                 for i = 2 to strlen arg - 1 do match arg.[i] with
+                  | 'a' -> opts.export_ascii := true
                   | 'f' -> opts.export_format := FOF
                   | 't' -> opts.export_format := TFF
                   | 'u' -> opts.export_full := true

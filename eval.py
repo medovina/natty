@@ -176,6 +176,8 @@ def prove(thf_dir, prover, file):
         case 'Theorem' | 'ContradictoryAxioms':  # contradictory axioms are still a proof
             time = f'{elapsed:.2f}'
             success = True
+        case 'CounterSatisfiable':
+            time = 'unprovable'
         case 'GaveUp':
             time = 'gave up'
         case 'ResourceOut' | 'Timeout':

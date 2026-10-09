@@ -6,10 +6,15 @@ open Options
 open Statement
 open Util
 
+let ascii_map = [("≤", "_le"); ("≥", "_ge"); ("·", "_dot")]
+
+let to_ascii s = opt_default (assoc_opt s ascii_map) s
+
 let quote s =
   let s = str_replace "." "_" s in
-  if is_lower (s.[0]) && String.for_all is_id_char s
-    then s else sprintf "'%s'" (str_replace "'" "\\'" s)
+  let s = if !(opts.export_ascii) then str_join (map to_ascii (uchars s)) else s in
+  if is_lower (s.[0]) && String.for_all is_id_char s then s else
+    sprintf "'%s'" (str_replace "'" "\\'" s)
 
 (* Prefix uppercase constants with _ to avoid possible name clashes with
  * variables, which begin with uppercase letters. *)
