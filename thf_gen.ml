@@ -123,6 +123,7 @@ let thf_statement env is_conjecture stmt : string =
     sprintf "%s, %s, %s%s" (prefix_label stmt) kind (thf_formula f) suffix in
   let thm_or_hyp stmt kind by f =
     let extra =
+      if not !(opts.export_annotations) then [] else
       (if is_step stmt then ["step"] else []) @
       (if by = [] || not is_conjecture then [] else
         let lookup_ref r =

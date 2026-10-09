@@ -11,6 +11,7 @@ type options = {
   disprove: bool ref;
   e_proof: bool ref;
   export: bool ref;
+  export_annotations: bool ref;
   export_ascii: bool ref;
   export_format: export_format ref;
   export_full: bool ref;
@@ -39,6 +40,7 @@ let opts = {
   disprove = ref false;
   e_proof = ref false;
   export = ref false;
+  export_annotations = ref true;
   export_ascii = ref false;
   export_format = ref THF;
   export_full = ref false;
@@ -91,6 +93,7 @@ let usage () =
       -x[opts]          export theorems to THF files
          -xa              use only ASCII characters in identifiers
          -xf              export in first-order (FOF) format
+         -xn              do not emit conjecture annotations
          -xt              export in typed first-order (TFF) format
          -xu              also generate files for full theorems
       -zc               disable commutative unification
@@ -139,6 +142,7 @@ let parse_args args =
                 for i = 2 to strlen arg - 1 do match arg.[i] with
                   | 'a' -> opts.export_ascii := true
                   | 'f' -> opts.export_format := FOF
+                  | 'n' -> opts.export_annotations := false
                   | 't' -> opts.export_format := TFF
                   | 'u' -> opts.export_full := true
                   | _ -> failwith "parse_args"
