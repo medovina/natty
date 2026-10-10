@@ -206,9 +206,7 @@ let rec first_order f = match kind f with
 
 let is_higher f = not (first_order f)
 
-let is_higher_stmt stmt = match stmt with
-  | Definition _ -> false
-  | _ -> opt_exists is_higher (stmt_formula stmt)
+let is_higher_stmt stmt = opt_exists is_higher (stmt_formula stmt)
 
 let expand_proofs apply_types stmts with_full : (statement * statement list) list =
   let only_thm = !(opts.only_thm) in
